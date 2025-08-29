@@ -668,9 +668,9 @@ export default function AgentAllocation() {
                 </Table>
               )}
                         </TabsContent>
-          </CardContent>
+              </CardContent>
         </Tabs>
-      </Card>
+            </Card>
 
       {/* Allocation Dialog */}
       <Dialog open={isAllocationDialogOpen} onOpenChange={setIsAllocationDialogOpen}>
