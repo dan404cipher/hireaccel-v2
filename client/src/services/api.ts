@@ -1,0 +1,667 @@
+/**
+ * API Client Service
+ * Handles all communication with the backend API
+ */
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  meta?: {
+    page?: {
+      current: number;
+      total: number;
+      hasMore: boolean;
+    };
+    total?: number;
+    limit?: number;
+  };
+}
+
+export interface ApiError {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  instance?: string;
+  issues?: Array<{ field: string; message: string; code: string }>;
+}
+
+export interface Job {
+  id: string;
+  title: string;
+  description: string;
+  company: string;
+  companyId: string;
+  location: string;
+  type: 'full-time' | 'part-time' | 'contract' | 'internship' | 'remote';
+  salary: string;
+  salaryRange?: {
+    min: number;
+    max: number;
+    currency: string;
+  };
+  status: 'open' | 'assigned' | 'interview' | 'closed' | 'cancelled';
+  urgency: 'low' | 'medium' | 'high' | 'urgent';
+  applicants: number;
+  posted: string;
+  agent?: string;
+  assignedAgentId?: string;
+  requirements?: {
+    skills: string[];
+    experience: string;
+    education: string[];
+  };
+  benefits?: string[];
+  isRemote?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  role: 'candidate' | 'agent' | 'hr' | 'partner' | 'admin';
+  status: 'active' | 'inactive' | 'suspended' | 'pending';
+  emailVerified: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  description: string;
+  industry: string;
+  size: string;
+  location: string;
+  website?: string;
+  partnership: 'basic' | 'standard' | 'premium' | 'enterprise';
+  status: 'active' | 'inactive' | 'pending' | 'suspended';
+  rating: number;
+  totalJobs: number;
+  totalHires: number;
+  contacts: Array<{
+    name: string;
+    email: string;
+    phone: string;
+    position: string;
+  }>;
+}
+
+export interface Application {
+  id: string;
+  candidateId: string;
+  jobId: string;
+  status: string;
+  stage: string;
+  appliedAt: string;
+  candidate?: any;
+  job?: any;
+}
+
+class ApiClient {
+  private baseURL: string;
+  private token: string | null = null;
+
+  constructor() {
+    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+    this.token = localStorage.getItem('accessToken');
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
+    const url = `${this.baseURL}${endpoint}`;
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include', // Include cookies for refresh token
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw data as ApiError;
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw {
+          type: 'network_error',
+          title: 'Network Error',
+          status: 0,
+          detail: error.message,
+        } as ApiError;
+      }
+      throw error;
+    }
+  }
+
+  // Authentication methods
+  setToken(token: string) {
+    this.token = token;
+    localStorage.setItem('accessToken', token);
+  }
+
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('accessToken');
+  }
+
+  async login(email: string, password: string) {
+    return this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async logout() {
+    const result = await this.request('/auth/logout', { method: 'POST' });
+    this.clearToken();
+    return result;
+  }
+
+  async getCurrentUser() {
+    return this.request<{ user: User }>('/auth/me');
+  }
+
+  async refreshToken() {
+    return this.request<{ accessToken: string; expiresIn: number }>('/auth/refresh', {
+      method: 'POST',
+    });
+  }
+
+  // Job methods
+  async getJobs(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    type?: string;
+    urgency?: string;
+    companyId?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request<Job[]>(`/api/v1/jobs?${queryParams.toString()}`);
+  }
+
+  async getJob(id: string) {
+    return this.request<Job>(`/api/v1/jobs/${id}`);
+  }
+
+  async createJob(jobData: Partial<Job>) {
+    return this.request<Job>('/api/v1/jobs', {
+      method: 'POST',
+      body: JSON.stringify(jobData),
+    });
+  }
+
+  async updateJob(id: string, jobData: Partial<Job>) {
+    return this.request<Job>(`/api/v1/jobs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(jobData),
+    });
+  }
+
+  async deleteJob(id: string) {
+    return this.request(`/api/v1/jobs/${id}`, { method: 'DELETE' });
+  }
+
+  async assignJobAgent(id: string, agentId: string) {
+    return this.request<Job>(`/api/v1/jobs/${id}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ agentId }),
+    });
+  }
+
+  async closeJob(id: string, reason?: string) {
+    return this.request<Job>(`/api/v1/jobs/${id}/close`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async getJobStats() {
+    return this.request('/api/v1/jobs/stats');
+  }
+
+  // Company methods
+  async getCompanies(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    industry?: string;
+    partnership?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request<Company[]>(`/api/v1/companies?${queryParams.toString()}`);
+  }
+
+  async getCompany(id: string) {
+    return this.request<Company>(`/api/v1/companies/${id}`);
+  }
+
+  async createCompany(companyData: Partial<Company>) {
+    return this.request<Company>('/api/v1/companies', {
+      method: 'POST',
+      body: JSON.stringify(companyData),
+    });
+  }
+
+  async updateCompany(id: string, companyData: Partial<Company>) {
+    return this.request<Company>(`/api/v1/companies/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(companyData),
+    });
+  }
+
+  async deleteCompany(id: string) {
+    return this.request(`/api/v1/companies/${id}`, { method: 'DELETE' });
+  }
+
+  async getCompanyStats() {
+    return this.request('/api/v1/companies/stats');
+  }
+
+  // User methods
+  async getUsers(params: {
+    page?: number;
+    limit?: number;
+    role?: string;
+    status?: string;
+    search?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request<User[]>(`/api/v1/users?${queryParams.toString()}`);
+  }
+
+  async getUser(id: string) {
+    return this.request<User>(`/api/v1/users/${id}`);
+  }
+
+  async createUser(userData: Partial<User> & { password?: string }) {
+    return this.request<User>('/api/v1/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(id: string, userData: Partial<User>) {
+    return this.request<User>(`/api/v1/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(id: string) {
+    return this.request(`/api/v1/users/${id}`, { method: 'DELETE' });
+  }
+
+  async getUserStats() {
+    return this.request('/api/v1/users/stats');
+  }
+
+  // Application methods
+  async getApplications(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    stage?: string;
+    candidateId?: string;
+    jobId?: string;
+    userId?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request<Application[]>(`/api/v1/applications?${queryParams.toString()}`);
+  }
+
+  // Candidate Profile methods
+  async getCandidateProfile() {
+    return this.request('/api/v1/candidates/profile');
+  }
+
+  async updateCandidateProfile(profileData: any) {
+    return this.request('/api/v1/candidates/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData),
+    });
+  }
+
+  async createApplication(applicationData: { candidateId: string; jobId: string; source?: string }) {
+    return this.request<Application>('/api/v1/applications', {
+      method: 'POST',
+      body: JSON.stringify(applicationData),
+    });
+  }
+
+  async advanceApplication(id: string, data: { newStage: string; newStatus: string; note?: string }) {
+    return this.request<Application>(`/api/v1/applications/${id}/advance`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async rejectApplication(id: string, reason: string) {
+    return this.request<Application>(`/api/v1/applications/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async getApplicationStats() {
+    return this.request('/api/v1/applications/stats');
+  }
+
+  // Interview methods
+  async getInterviews(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    type?: string;
+    round?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    interviewer?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request<any[]>(`/api/v1/interviews?${queryParams.toString()}`);
+  }
+
+  async getInterview(id: string) {
+    return this.request<any>(`/api/v1/interviews/${id}`);
+  }
+
+  async createInterview(interviewData: {
+    applicationId: string;
+    type: string;
+    round: string;
+    scheduledAt: string;
+    duration: number;
+    location?: string;
+    interviewers: string[];
+    notes?: string;
+  }) {
+    return this.request<any>('/api/v1/interviews', {
+      method: 'POST',
+      body: JSON.stringify(interviewData),
+    });
+  }
+
+  async updateInterview(id: string, interviewData: Partial<{
+    type: string;
+    round: string;
+    scheduledAt: string;
+    duration: number;
+    location?: string;
+    interviewers: string[];
+    notes?: string;
+    status?: string;
+  }>) {
+    return this.request<any>(`/api/v1/interviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(interviewData),
+    });
+  }
+
+  async deleteInterview(id: string) {
+    return this.request(`/api/v1/interviews/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getInterviewStats() {
+    return this.request('/api/v1/interviews/stats');
+  }
+
+  // Candidate Assignment methods
+  async getCandidateAssignments(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    priority?: string;
+    jobId?: string;
+    assignedTo?: string;
+    assignedBy?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request(`/api/v1/candidate-assignments?${queryParams.toString()}`);
+  }
+
+  async getCandidateAssignment(id: string) {
+    return this.request(`/api/v1/candidate-assignments/${id}`);
+  }
+
+  async createCandidateAssignment(assignmentData: {
+    candidateId: string;
+    assignedTo: string;
+    jobId?: string;
+    priority?: string;
+    notes?: string;
+    dueDate?: string;
+  }) {
+    return this.request('/api/v1/candidate-assignments', {
+      method: 'POST',
+      body: JSON.stringify(assignmentData),
+    });
+  }
+
+  async updateCandidateAssignment(id: string, assignmentData: {
+    status?: string;
+    priority?: string;
+    notes?: string;
+    dueDate?: string;
+    feedback?: string;
+  }) {
+    return this.request(`/api/v1/candidate-assignments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(assignmentData),
+    });
+  }
+
+  async deleteCandidateAssignment(id: string) {
+    return this.request(`/api/v1/candidate-assignments/${id}`, { method: 'DELETE' });
+  }
+
+  async getMyCandidateAssignments(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    priority?: string;
+    jobId?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request(`/api/v1/candidate-assignments/my-assignments?${queryParams.toString()}`);
+  }
+
+  async getCandidateAssignmentStats() {
+    return this.request('/api/v1/candidate-assignments/stats');
+  }
+
+  // Health check
+  async healthCheck() {
+    return this.request('/health');
+  }
+
+  // Agent endpoints
+  async getAgentDashboard() {
+    return this.request<{
+      assignedHRs: number;
+      assignedCandidates: number;
+      availableJobs: number;
+      activeAssignments: number;
+      completedAssignments: number;
+      pendingAssignments: number;
+    }>('/api/v1/agents/me/dashboard');
+  }
+
+  async getAgentAssignment() {
+    return this.request('/api/v1/agents/me/assignment');
+  }
+
+  async getAgentJobs(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    urgency?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request<Job[]>(`/api/v1/agents/me/jobs${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAgentCandidates(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/api/v1/agents/me/candidates${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAgentAssignments(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/api/v1/agents/me/assignments${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async assignCandidateToJob(data: {
+    candidateId: string;
+    jobId: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    notes?: string;
+    dueDate?: string;
+  }) {
+    return this.request('/api/v1/agents/assignments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Admin agent assignment management
+  async getAgentAssignmentsList() {
+    return this.request('/api/v1/users/agent-assignments');
+  }
+
+  async createAgentAssignment(data: {
+    agentId: string;
+    hrIds?: string[];
+    candidateIds?: string[];
+    notes?: string;
+  }) {
+    return this.request('/api/v1/users/agent-assignments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAgentAssignmentDetails(agentId: string) {
+    return this.request(`/api/v1/users/agent-assignments/${agentId}`);
+  }
+
+  async deleteAgentAssignment(agentId: string) {
+    return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
+      method: 'DELETE',
+    });
+  }
+}
+
+export const apiClient = new ApiClient();

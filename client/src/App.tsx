@@ -1,0 +1,216 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AppLayout } from "./components/layout/AppLayout";
+import Dashboard from "./pages/Dashboard";
+import AgentAllocation from "./pages/agents/AgentAllocation";
+import AgentAssignmentDashboard from "./pages/agents/AgentAssignmentDashboard";
+import AssignmentTracking from "./pages/agents/AssignmentTracking";
+import JobManagement from "./pages/jobs/JobManagementIntegrated";
+import SharedCandidates from "./pages/candidates/SharedCandidates";
+import CandidateJobs from "./pages/candidates/CandidateJobs";
+import CandidateApplications from "./pages/candidates/CandidateApplications";
+import CandidateProfile from "./pages/candidates/CandidateProfile";
+import CandidateDashboard from "./pages/dashboards/CandidateDashboard";
+import InterviewManagement from "./pages/interviews/InterviewManagement";
+import CompanyManagement from "./pages/companies/CompanyManagement";
+import UserManagement from "./pages/users/UserManagement";
+import AnalyticsReports from "./pages/admin/AnalyticsReports";
+import AdminProfile from "./pages/admin/AdminProfile";
+import LoginPage from "./pages/auth/LoginPage";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+// Protected Route Component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
+// Role-based Route Protection Component
+function RoleProtectedRoute({ 
+  children, 
+  allowedRoles 
+}: { 
+  children: React.ReactNode;
+  allowedRoles: string[];
+}) {
+  const { user, isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  if (!user?.role || !allowedRoles.includes(user.role)) {
+    // Redirect to dashboard if user doesn't have access
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
+// Dashboard Router - Shows appropriate dashboard based on user role
+function DashboardRouter() {
+  const { user } = useAuth();
+  
+  if (user?.role === 'candidate') {
+    return <CandidateDashboard />;
+  }
+  
+  return <Dashboard />;
+}
+
+// App Router Component (needs to be inside AuthProvider)
+function AppRouter() {
+  const { isAuthenticated, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+  
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route 
+        path="/login" 
+        element={
+          isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+        } 
+      />
+      
+      {/* Protected Routes */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<DashboardRouter />} />
+        <Route path="agents" element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <AgentAllocation />
+          </RoleProtectedRoute>
+        } />
+        <Route path="assignment-management" element={
+          <RoleProtectedRoute allowedRoles={['agent']}>
+            <AgentAssignmentDashboard />
+          </RoleProtectedRoute>
+        } />
+        <Route path="assignment-tracking" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
+            <AssignmentTracking />
+          </RoleProtectedRoute>
+        } />
+        <Route path="jobs" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+            <JobManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="shared-candidates" element={
+          <RoleProtectedRoute allowedRoles={['hr']}>
+            <SharedCandidates />
+          </RoleProtectedRoute>
+        } />
+        <Route path="interviews" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+            <InterviewManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="companies" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+            <CompanyManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="users" element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <UserManagement />
+          </RoleProtectedRoute>
+        } />
+        
+        {/* Candidate Routes */}
+        <Route path="candidate-jobs" element={
+          <RoleProtectedRoute allowedRoles={['candidate']}>
+            <CandidateJobs />
+          </RoleProtectedRoute>
+        } />
+        <Route path="candidate-applications" element={
+          <RoleProtectedRoute allowedRoles={['candidate']}>
+            <CandidateApplications />
+          </RoleProtectedRoute>
+        } />
+        <Route path="candidate-profile" element={
+          <RoleProtectedRoute allowedRoles={['candidate']}>
+            <CandidateProfile />
+          </RoleProtectedRoute>
+        } />
+        
+        {/* Admin Routes */}
+        <Route path="analytics" element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <AnalyticsReports />
+          </RoleProtectedRoute>
+        } />
+        <Route path="admin-profile" element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <AdminProfile />
+          </RoleProtectedRoute>
+        } />
+      </Route>
+      
+      {/* Redirect root to login if not authenticated */}
+      <Route 
+        path="/" 
+        element={
+          !isAuthenticated ? <Navigate to="/login" replace /> : null
+        } 
+      />
+      
+      {/* Catch all route */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;

@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: hire-accel-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: hireaccel_dev
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongodb-init:/docker-entrypoint-initdb.d
+    networks:
+      - hire-accel-network
+
+  # Redis for caching and sessions (optional)
+  redis:
+    image: redis:7.2-alpine
+    container_name: hire-accel-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass redispassword
+    volumes:
+      - redis_data:/data
+    networks:
+      - hire-accel-network
+
+  # API Backend
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    container_name: hire-accel-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGO_URI: mongodb://admin:password@mongodb:27017/hireaccel_dev?authSource=admin
+      JWT_ACCESS_SECRET: dev_access_secret_change_in_production_12345678901234567890
+      JWT_REFRESH_SECRET: dev_refresh_secret_change_in_production_12345678901234567890
+      REDIS_URL: redis://:redispassword@redis:6379
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+      - ./api/uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - hire-accel-network
+    command: npm run dev
+
+  # Frontend Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: hire-accel-client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3001
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - hire-accel-network
+    command: npm run dev
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  hire-accel-network:
+    driver: bridge
