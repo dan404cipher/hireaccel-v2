@@ -62,7 +62,7 @@ const agentAssignmentSchema = new Schema<AgentAssignmentDocument>({
   
   assignedCandidates: [{
     type: Schema.Types.ObjectId,
-    ref: 'Candidate',
+    ref: 'User',
     index: true,
   }],
   
@@ -201,13 +201,7 @@ agentAssignmentSchema.statics['getAssignmentForAgent'] = function(agentId: mongo
   return this.findOne({ agentId, status: 'active' })
     .populate('agentId', 'firstName lastName email')
     .populate('assignedHRs', 'firstName lastName email')
-    .populate({
-      path: 'assignedCandidates',
-      populate: {
-        path: 'userId',
-        select: 'firstName lastName email'
-      }
-    })
+    .populate('assignedCandidates', 'firstName lastName email')
     .populate('assignedBy', 'firstName lastName email');
 };
 
@@ -218,13 +212,7 @@ agentAssignmentSchema.statics['getAgentsWithAssignments'] = function() {
   return this.find({ status: 'active' })
     .populate('agentId', 'firstName lastName email')
     .populate('assignedHRs', 'firstName lastName email')
-    .populate({
-      path: 'assignedCandidates',
-      populate: {
-        path: 'userId',
-        select: 'firstName lastName email'
-      }
-    })
+    .populate('assignedCandidates', 'firstName lastName email')
     .populate('assignedBy', 'firstName lastName email')
     .sort({ assignedAt: -1 });
 };

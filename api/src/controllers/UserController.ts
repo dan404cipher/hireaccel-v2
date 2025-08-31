@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { User } from '@/models/User';
 import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
-import { Candidate } from '@/models/Candidate';
+
 import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 import { hashPassword } from '@/utils/password';
@@ -417,7 +417,15 @@ export class UserController {
    * POST /users/agent-assignments
    */
   static createAgentAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    console.log('🔍 Agent Assignment Request:', {
+      body: req.body,
+      user: req.user?.email,
+      role: req.user?.role
+    });
+    
     const validatedData = agentAssignmentSchema.parse(req.body);
+    
+    console.log('✅ Validated Data:', validatedData);
 
     // Verify agent exists and has correct role
     const agent = await User.findOne({
@@ -444,15 +452,29 @@ export class UserController {
       }
     }
 
-    // Verify candidates exist
+    // Verify candidates exist (candidateIds are actually User IDs with role 'candidate')
     if (validatedData.candidateIds.length > 0) {
-      const candidates = await Candidate.find({
+      console.log('🔍 Searching for candidate users:', validatedData.candidateIds);
+      
+      const candidateUsers = await User.find({
         _id: { $in: validatedData.candidateIds },
+        role: UserRole.CANDIDATE,
+        status: 'active',
       });
-      if (candidates.length !== validatedData.candidateIds.length) {
+      
+      console.log('✅ Found candidate users:', candidateUsers.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status })));
+      
+      if (candidateUsers.length !== validatedData.candidateIds.length) {
+        console.log('❌ Candidate count mismatch:', {
+          requested: validatedData.candidateIds.length,
+          found: candidateUsers.length,
+          requested_ids: validatedData.candidateIds,
+          found_ids: candidateUsers.map(u => u._id.toString())
+        });
+        
         return res.status(400).json({
           success: false,
-          message: 'One or more candidates not found',
+          message: 'One or more candidates not found or inactive',
         });
       }
     }

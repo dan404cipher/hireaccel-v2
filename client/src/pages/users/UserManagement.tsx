@@ -133,9 +133,9 @@ export default function UserManagement() {
     status: statusFilter === 'all' ? undefined : statusFilter,
   });
 
-  const { execute: createUser, loading: createLoading } = useCreateUser();
-  const { execute: updateUser, loading: updateLoading } = useUpdateUser();
-  const { execute: deleteUser, loading: deleteLoading } = useDeleteUser();
+  const { mutate: createUser, loading: createLoading } = useCreateUser();
+  const { mutate: updateUser, loading: updateLoading } = useUpdateUser();
+  const { mutate: deleteUser, loading: deleteLoading } = useDeleteUser();
 
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);

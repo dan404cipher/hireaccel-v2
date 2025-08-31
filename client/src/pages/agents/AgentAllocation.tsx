@@ -93,7 +93,7 @@ export default function AgentAllocation() {
   } = useAgentAssignmentsList();
 
   // API hooks for assignment operations
-  const { execute: createAgentAssignment } = useCreateAgentAssignment();
+  const { mutate: createAgentAssignment } = useCreateAgentAssignment();
 
   // Handle response format
   const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
