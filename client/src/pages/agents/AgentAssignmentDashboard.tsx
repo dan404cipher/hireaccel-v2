@@ -47,7 +47,6 @@ import {
   Target,
   Loader2,
   UserCheck,
-  RefreshCw,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -155,10 +154,7 @@ export default function AgentAssignmentDashboard() {
     pendingAssignments: stats.byStatus?.find((s: any) => s._id === 'rejected')?.count || 0,
   };
 
-  // Add a note about job filtering for agents
-  const jobFilterNote = agentAssignment?.assignedHRs?.length > 0 
-    ? `Showing jobs posted by your assigned HR managers (${agentAssignment.assignedHRs.length} HRs)`
-    : 'No HR managers assigned. Please contact an administrator.';
+
 
   const filteredJobs = jobs.filter((job: any) => {
     const matchesSearch = job.title.toLowerCase().includes(jobSearchTerm.toLowerCase()) ||
@@ -301,15 +297,7 @@ export default function AgentAssignmentDashboard() {
             Manage job assignments and track candidate placements
           </p>
         </div>
-        <Button 
-          onClick={() => refetchAgentAssignment()} 
-          disabled={agentAssignmentLoading}
-          variant="outline"
-          size="sm"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh Assignments
-        </Button>
+
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogTrigger asChild>
             <Button disabled={jobsLoading || agentAssignmentLoading}>
@@ -393,11 +381,6 @@ export default function AgentAssignmentDashboard() {
       </div>
 
       {/* Dashboard Summary Cards */}
-      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> {jobFilterNote}
-        </p>
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -505,9 +488,7 @@ export default function AgentAssignmentDashboard() {
                 Jobs from Assigned HR Users
                 {jobsLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {jobFilterNote}
-              </p>
+
               <div className="flex gap-4">
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4" />

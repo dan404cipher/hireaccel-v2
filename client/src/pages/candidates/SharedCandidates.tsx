@@ -72,7 +72,13 @@ interface CandidateAssignment {
   };
   jobId?: {
     title: string;
-    companyId: string;
+    companyId: {
+      _id: string;
+      name: string;
+      industry?: string;
+      location?: string;
+    };
+    location?: string;
   };
   status: 'active' | 'completed' | 'rejected' | 'withdrawn';
   priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -90,6 +96,7 @@ const SharedCandidates: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -130,24 +137,38 @@ const SharedCandidates: React.FC = () => {
     priorityFilter
   });
 
-  // Filter assignments based on search term
+  // Filter assignments based on search term and filters
   const filteredAssignments = useMemo(() => {
-    if (!searchTerm) return assignments;
+    let filtered = assignments;
     
-    return assignments.filter((assignment: CandidateAssignment) => {
-      const firstName = assignment.candidateId.userId.firstName || '';
-      const lastName = assignment.candidateId.userId.lastName || '';
-      const email = assignment.candidateId.userId.email || '';
-      const jobTitle = assignment.jobId?.title || '';
-      const notes = assignment.notes || '';
-      
-      return firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             notes.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  }, [assignments, searchTerm]);
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter((assignment: CandidateAssignment) => {
+        const firstName = assignment.candidateId.userId.firstName || '';
+        const lastName = assignment.candidateId.userId.lastName || '';
+        const email = assignment.candidateId.userId.email || '';
+        const jobTitle = assignment.jobId?.title || '';
+        const companyName = assignment.jobId?.companyId?.name || '';
+        const notes = assignment.notes || '';
+        
+        return firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               notes.toLowerCase().includes(searchTerm.toLowerCase());
+      });
+    }
+    
+    // Apply company filter
+    if (companyFilter !== 'all') {
+      filtered = filtered.filter((assignment: CandidateAssignment) => 
+        assignment.jobId?.companyId?.name === companyFilter
+      );
+    }
+    
+    return filtered;
+  }, [assignments, searchTerm, companyFilter]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -315,10 +336,24 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 2: Job */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Position</div>
+              <div className="text-xs font-medium text-gray-500 mb-1">Job Position</div>
               <div className="text-sm font-medium text-gray-900">
                 {assignment.jobId ? assignment.jobId.title : 'General'}
               </div>
+              {assignment.jobId?.companyId && (
+                <div className="flex items-center gap-2 mt-1">
+                  <Briefcase className="w-3 h-3 text-gray-400" />
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">{assignment.jobId.companyId.name}</span>
+                    {assignment.jobId.companyId.industry && (
+                      <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
+                    )}
+                    {assignment.jobId.location && (
+                      <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Column 3: Candidate Status */}
@@ -392,15 +427,9 @@ const SharedCandidates: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Shared Candidates</h1>
-          <p className="text-gray-600 mt-1">
-            Candidates assigned to you by agents for review
-          </p>
-        </div>
-      </div>
+
+
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -432,6 +461,8 @@ const SharedCandidates: React.FC = () => {
           </Card>
         )}
       </div>
+
+
 
       {/* Filters */}
       <Card>
@@ -470,6 +501,22 @@ const SharedCandidates: React.FC = () => {
                 <SelectItem value="high">High</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
                 <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Company" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {Array.from(new Set(assignments
+                  .filter((a: CandidateAssignment) => a.jobId?.companyId?.name)
+                  .map((a: CandidateAssignment) => a.jobId!.companyId!.name)
+                )).map((companyName) => (
+                  <SelectItem key={companyName} value={companyName}>
+                    {companyName}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -620,6 +667,17 @@ const SharedCandidates: React.FC = () => {
                     <div className="flex justify-between">
                       <span>Job:</span>
                       <span>{selectedAssignment.jobId.title}</span>
+                    </div>
+                  )}
+                  {selectedAssignment.jobId?.companyId && (
+                    <div className="flex justify-between">
+                      <span>Company:</span>
+                      <span>
+                        {selectedAssignment.jobId.companyId.name}
+                        {selectedAssignment.jobId.companyId.industry && (
+                          <span className="text-gray-500 ml-2">({selectedAssignment.jobId.companyId.industry})</span>
+                        )}
+                      </span>
                     </div>
                   )}
                   {selectedAssignment.dueDate && (

@@ -10,8 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('john.doe@email.com');
-  const [password, setPassword] = useState('Candidate123!');
+  const [email, setEmail] = useState('admin@hireaccel.com');
+  const [password, setPassword] = useState('Admin123!');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<any>(null);
   
@@ -104,12 +104,18 @@ export default function LoginPage() {
                 <h4 className="font-medium text-blue-800">Demo Credentials</h4>
                 <div className="text-sm text-blue-600 mt-2 space-y-1">
                   <p><strong>Admin:</strong> admin@hireaccel.com / Admin123!</p>
-                  <p><strong>HR 1:</strong> hr1@company.com / Hr123!</p>
-                  <p><strong>HR 2:</strong> hr2@company.com / Hr123!</p>
-                  <p><strong>Agent 1:</strong> agent1@hireaccel.com / Agent123!</p>
-                  <p><strong>Agent 2:</strong> agent2@hireaccel.com / Agent123!</p>
-                  <p><strong>Candidate 1:</strong> john.doe@email.com / Candidate123!</p>
-                  <p><strong>Candidate 2:</strong> sarah.miller@email.com / Candidate123!</p>
+                  <p><strong>HR Users:</strong></p>
+                  <p className="ml-4">• sarah.johnson@hireaccel.com / Hr123!</p>
+                  <p className="ml-4">• mike.chen@hireaccel.com / Hr123!</p>
+                  <p className="ml-4">• john.doe@hireaccel.com / Hr123!</p>
+                  <p><strong>Agents:</strong></p>
+                  <p className="ml-4">• alex.smith@hireaccel.com / Agent123!</p>
+                  <p className="ml-4">• emily.davis@hireaccel.com / Agent123!</p>
+                  <p><strong>Candidates:</strong></p>
+                  <p className="ml-4">• jane.smith@hireaccel.com / Candidate123!</p>
+                  <p className="ml-4">• john.developer@email.com / Candidate123!</p>
+                  <p className="ml-4">• sarah.data@email.com / Candidate123!</p>
+                  <p className="ml-4">• mike.product@email.com / Candidate123!</p>
                 </div>
               </div>
             </div>

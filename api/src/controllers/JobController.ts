@@ -83,6 +83,11 @@ export class JobController {
       // Partners can only see jobs from their company
       // TODO: Implement company association logic
       searchQuery.companyId = req.user._id; // Placeholder
+    } else if (req.user?.role === UserRole.HR) {
+      // HR users can only see jobs they posted (unless explicitly filtered by createdBy)
+      if (!filters.createdBy) {
+        searchQuery.createdBy = req.user._id;
+      }
     } else if (req.user?.role === UserRole.AGENT) {
       // Get agent's assignment to find assigned HRs
       const agentAssignment = await AgentAssignment.getAssignmentForAgent(req.user._id);

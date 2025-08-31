@@ -35,7 +35,7 @@ const navigationItems = [
   { title: "Dashboard", url: "/", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'] },
   { title: "Agent Allocation", url: "/agents", icon: UserCheck, roles: ['admin'] },
   { title: "Assignment Management", url: "/assignment-management", icon: ClipboardList, roles: ['agent'] },
-  { title: "Assignment Tracking", url: "/assignment-tracking", icon: TrendingUp, roles: ['admin', 'hr', 'agent'] },
+  { title: "Assignment Tracking", url: "/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'] },
   { title: "Job Management", url: "/jobs", icon: Briefcase, roles: ['admin', 'hr'] },
   { title: "Shared Candidates", url: "/shared-candidates", icon: UserPlus, roles: ['hr'] },
   { title: "Interview Management", url: "/interviews", icon: Calendar, roles: ['admin', 'hr'] },

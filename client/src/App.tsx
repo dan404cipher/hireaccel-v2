@@ -125,7 +125,7 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="assignment-tracking" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'agent']}>
             <AssignmentTracking />
           </RoleProtectedRoute>
         } />

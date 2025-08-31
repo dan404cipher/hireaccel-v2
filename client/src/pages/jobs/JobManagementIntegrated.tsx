@@ -52,8 +52,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useJobs, useCreateJob, useUpdateJob, useDeleteJob } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function JobManagementIntegrated() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -78,8 +80,10 @@ export default function JobManagementIntegrated() {
     page, 
     limit: 20, 
     search: debouncedSearchTerm || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined
-  }), [page, debouncedSearchTerm, statusFilter]);
+    status: statusFilter !== "all" ? statusFilter : undefined,
+    // HR users can only see jobs they posted
+    ...(user?.role === 'hr' && { createdBy: user.id })
+  }), [page, debouncedSearchTerm, statusFilter, user?.role, user?.id]);
   
   // API hooks
   const { 
@@ -239,6 +243,11 @@ export default function JobManagementIntegrated() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Job Management</h1>
           <p className="text-muted-foreground">Manage job postings and track recruitment progress</p>
+          {user?.role === 'hr' && (
+            <p className="text-sm text-blue-600 mt-1">
+              Showing only jobs you posted
+            </p>
+          )}
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -405,6 +414,11 @@ export default function JobManagementIntegrated() {
       <Card>
         <CardHeader>
           <CardTitle>Job Listings</CardTitle>
+          {user?.role === 'hr' && (
+            <p className="text-sm text-blue-600">
+              Showing only jobs you posted
+            </p>
+          )}
           <div className="flex gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -442,7 +456,9 @@ export default function JobManagementIntegrated() {
               <p className="text-muted-foreground mb-4">
                 {searchTerm || statusFilter !== "all" 
                   ? "Try adjusting your search or filters" 
-                  : "Get started by posting your first job"
+                  : user?.role === 'hr' 
+                    ? "Get started by posting your first job"
+                    : "No jobs available at the moment"
                 }
               </p>
             </div>

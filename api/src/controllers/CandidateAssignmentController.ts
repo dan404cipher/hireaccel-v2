@@ -207,11 +207,28 @@ export class CandidateAssignmentController {
       throw createNotFoundError('HR user not found');
     }
 
-    // Verify job exists if provided
+    // Verify job exists if provided and validate permissions
     if (validatedData.jobId) {
       const job = await Job.findById(validatedData.jobId);
       if (!job) {
         throw createNotFoundError('Job not found');
+      }
+
+      // Verify that the HR user posted this job
+      if (job.createdBy.toString() !== validatedData.assignedTo.toString()) {
+        throw createBadRequestError('You can only assign candidates to HR users for jobs they posted');
+      }
+
+      // If agent is creating assignment, verify they have access to this job
+      if (req.user!.role === UserRole.AGENT) {
+        const agentAssignment = await mongoose.model('AgentAssignment').findOne({
+          agentId: req.user!._id,
+          'assignedHRs': validatedData.assignedTo
+        });
+        
+        if (!agentAssignment) {
+          throw createBadRequestError('You can only assign candidates to HR users you are assigned to work with');
+        }
       }
     }
 

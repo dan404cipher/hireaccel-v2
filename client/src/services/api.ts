@@ -198,6 +198,7 @@ class ApiClient {
     type?: string;
     urgency?: string;
     companyId?: string;
+    createdBy?: string;
   } = {}) {
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

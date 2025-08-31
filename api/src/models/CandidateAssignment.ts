@@ -209,13 +209,19 @@ candidateAssignmentSchema.methods['withdraw'] = function(this: CandidateAssignme
 /**
  * Get assignments for specific HR user
  */
-candidateAssignmentSchema.statics['getAssignmentsForHR'] = function(
+candidateAssignmentSchema.statics['getAssignmentsForHR'] = async function(
   hrUserId: mongoose.Types.ObjectId, 
   options: any = {}
 ) {
   const { status, priority, jobId, limit = 20, skip = 0, sortBy = 'assignedAt', sortOrder = -1 } = options;
   
-  const query: any = { assignedTo: hrUserId };
+  // First, get all jobs posted by this HR user
+  const hrJobs = await mongoose.model('Job').find({ createdBy: hrUserId }).distinct('_id');
+  
+  const query: any = { 
+    assignedTo: hrUserId,
+    jobId: { $in: hrJobs } // Only show assignments for jobs the HR user posted
+  };
   
   if (status) {
     query.status = status;
