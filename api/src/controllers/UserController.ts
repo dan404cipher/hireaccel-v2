@@ -479,6 +479,63 @@ export class UserController {
       }
     }
 
+    // IMPORTANT: Remove HRs and candidates from other agent assignments to prevent duplicates
+    if (validatedData.hrIds.length > 0 || validatedData.candidateIds.length > 0) {
+      console.log('🔄 Removing HRs and candidates from other agent assignments...');
+      
+      // Find all other assignments that contain any of the HRs or candidates we're about to assign
+      const otherAssignments = await AgentAssignment.find({
+        agentId: { $ne: validatedData.agentId }, // Exclude current agent
+        $or: [
+          { assignedHRs: { $in: validatedData.hrIds } },
+          { assignedCandidates: { $in: validatedData.candidateIds } }
+        ]
+      });
+
+      console.log(`📋 Found ${otherAssignments.length} other assignments to update`);
+
+      // Update each assignment to remove the HRs and candidates we're reassigning
+      for (const assignment of otherAssignments) {
+        const beforeState = assignment.toObject();
+        
+        // Remove HRs that are being reassigned
+        if (validatedData.hrIds.length > 0) {
+          assignment.assignedHRs = assignment.assignedHRs.filter(
+            hrId => !validatedData.hrIds.includes(hrId.toString())
+          );
+        }
+        
+        // Remove candidates that are being reassigned
+        if (validatedData.candidateIds.length > 0) {
+          assignment.assignedCandidates = assignment.assignedCandidates.filter(
+            candidateId => !validatedData.candidateIds.includes(candidateId.toString())
+          );
+        }
+        
+        await assignment.save();
+        
+        console.log(`✅ Updated assignment ${assignment._id}: removed ${beforeState.assignedHRs.length - assignment.assignedHRs.length} HRs, ${beforeState.assignedCandidates.length - assignment.assignedCandidates.length} candidates`);
+        
+        // Log the removal in audit trail
+        await AuditLog.createLog({
+          actor: req.user!._id,
+          action: AuditAction.UPDATE,
+          entityType: 'AgentAssignment',
+          entityId: assignment._id,
+          before: beforeState,
+          after: assignment.toObject(),
+          metadata: { 
+            reason: 'resource_reassignment',
+            removedHRs: validatedData.hrIds.filter(id => beforeState.assignedHRs.some(hr => hr.toString() === id)),
+            removedCandidates: validatedData.candidateIds.filter(id => beforeState.assignedCandidates.some(c => c.toString() === id))
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          businessProcess: 'agent_management',
+        });
+      }
+    }
+
     // Check if assignment already exists for this agent
     let assignment = await AgentAssignment.findOne({ agentId: validatedData.agentId });
 
@@ -581,6 +638,37 @@ export class UserController {
   });
 
   /**
+   * Get current agent's assignment details
+   * GET /users/agent-assignments/me
+   */
+  static getMyAgentAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const currentUserId = req.user!._id;
+
+    const assignment = await AgentAssignment.getAssignmentForAgent(currentUserId);
+
+    if (!assignment) {
+      throw createNotFoundError('Agent assignment not found');
+    }
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.READ,
+      entityType: 'AgentAssignment',
+      entityId: assignment._id,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      businessProcess: 'agent_management',
+      description: 'Retrieved current agent assignment details',
+    });
+
+    res.json({
+      success: true,
+      data: assignment,
+    });
+  });
+
+  /**
    * Get specific agent assignment
    * GET /users/agent-assignments/:agentId
    */
@@ -608,6 +696,60 @@ export class UserController {
     res.json({
       success: true,
       data: assignment,
+    });
+  });
+
+  /**
+   * Debug endpoint to see all agent assignments (Admin only)
+   * GET /users/agent-assignments/debug/all
+   */
+  static debugAllAgentAssignments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only allow admins to access this debug endpoint
+    if (req.user?.role !== UserRole.ADMIN) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.',
+      });
+    }
+
+    const allAssignments = await AgentAssignment.find({})
+      .populate('agentId', 'firstName lastName email role')
+      .populate('assignedHRs', 'firstName lastName email role')
+      .populate('assignedCandidates', 'firstName lastName email role')
+      .sort({ createdAt: -1 });
+
+    const assignmentsWithDetails = allAssignments.map(assignment => {
+      const assignmentObj = assignment.toObject();
+      return {
+        _id: assignmentObj._id,
+        agent: assignmentObj.agentId ? {
+          _id: assignmentObj.agentId._id,
+          name: `${(assignmentObj.agentId as any).firstName} ${(assignmentObj.agentId as any).lastName}`,
+          email: (assignmentObj.agentId as any).email,
+          role: (assignmentObj.agentId as any).role
+        } : null,
+        assignedHRs: assignmentObj.assignedHRs?.map((hr: any) => ({
+          _id: hr._id,
+          name: `${(hr as any).firstName} ${(hr as any).lastName}`,
+          email: (hr as any).email,
+          role: (hr as any).role
+        })) || [],
+        assignedCandidates: assignmentObj.assignedCandidates?.map((candidate: any) => ({
+          _id: candidate._id,
+          name: `${(candidate as any).firstName} ${(candidate as any).lastName}`,
+          email: (candidate as any).email,
+          role: (candidate as any).role
+        })) || [],
+        status: assignmentObj.status,
+        createdAt: assignmentObj.createdAt
+      };
+    });
+
+    res.json({
+      success: true,
+      data: assignmentsWithDetails,
+      total: assignmentsWithDetails.length,
+      message: 'Debug: All agent assignments with details'
     });
   });
 

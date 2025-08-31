@@ -1,9 +1,11 @@
 import { Response } from 'express';
 import { z } from 'zod';
+import mongoose from 'mongoose';
 import { Job } from '@/models/Job';
 import { Company } from '@/models/Company';
 import { User } from '@/models/User';
 import { AuditLog } from '@/models/AuditLog';
+import { AgentAssignment } from '@/models/AgentAssignment';
 import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, ExperienceLevel, UserRole, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
@@ -51,6 +53,7 @@ const querySchema = z.object({
   urgency: z.nativeEnum(JobUrgency).optional(),
   companyId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
   assignedAgentId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+  createdBy: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
   location: z.string().optional(),
   remote: z.string().transform(val => val === 'true').optional(),
   search: z.string().optional(),
@@ -81,11 +84,28 @@ export class JobController {
       // TODO: Implement company association logic
       searchQuery.companyId = req.user._id; // Placeholder
     } else if (req.user?.role === UserRole.AGENT) {
-      // Agents see assigned jobs and open jobs
-      searchQuery.$or = [
-        { assignedAgentId: req.user._id },
-        { status: JobStatus.OPEN },
-      ];
+      // Get agent's assignment to find assigned HRs
+      const agentAssignment = await AgentAssignment.getAssignmentForAgent(req.user._id);
+      
+      console.log(`Agent ${req.user._id} (${req.user.firstName} ${req.user.lastName}) checking assignments:`, {
+        hasAssignment: !!agentAssignment,
+        assignedHRs: agentAssignment?.assignedHRs || [],
+        assignedHRsLength: agentAssignment?.assignedHRs?.length || 0
+      });
+      
+      if (agentAssignment && agentAssignment.assignedHRs && agentAssignment.assignedHRs.length > 0) {
+        // Agents can only see jobs posted by their assigned HRs
+        searchQuery.createdBy = { $in: agentAssignment.assignedHRs };
+        console.log(`Agent ${req.user._id} filtered jobs by assigned HRs:`, agentAssignment.assignedHRs);
+        
+        // Also log the final search query for debugging
+        console.log(`Final search query for agent:`, JSON.stringify(searchQuery, null, 2));
+      } else {
+        // If no HRs assigned or no assignment exists, agent sees no jobs
+        // Use a query that will return no results without causing an error
+        searchQuery._id = new mongoose.Types.ObjectId('000000000000000000000000');
+        console.log(`Agent ${req.user._id} has no assigned HRs or no assignment exists, showing no jobs`);
+      }
     }
     
     // Apply filters
@@ -101,6 +121,7 @@ export class JobController {
     if (filters.urgency) searchQuery.urgency = filters.urgency;
     if (filters.companyId) searchQuery.companyId = filters.companyId;
     if (filters.assignedAgentId) searchQuery.assignedAgentId = filters.assignedAgentId;
+    if (filters.createdBy) searchQuery.createdBy = filters.createdBy;
     if (filters.remote !== undefined) searchQuery.isRemote = filters.remote;
     
     if (filters.location) {
@@ -155,6 +176,49 @@ export class JobController {
         limit,
         filters: filters,
       },
+    });
+  });
+
+  /**
+   * Debug endpoint to see all jobs with creators (Admin only)
+   * GET /jobs/debug/all
+   */
+  static debugAllJobs = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only allow admins to access this debug endpoint
+    if (req.user?.role !== UserRole.ADMIN) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.',
+      });
+    }
+
+    const allJobs = await Job.find({})
+      .populate('createdBy', 'firstName lastName email role')
+      .populate('companyId', 'name')
+      .sort({ createdAt: -1 });
+
+    const jobsWithCreators = allJobs.map(job => {
+      const jobObj = job.toObject();
+      return {
+        _id: jobObj._id,
+        title: jobObj.title,
+        company: (jobObj.companyId as any)?.name || null,
+        createdBy: jobObj.createdBy ? {
+          _id: jobObj.createdBy._id,
+          name: `${(jobObj.createdBy as any).firstName} ${(jobObj.createdBy as any).lastName}`,
+          email: (jobObj.createdBy as any).email,
+          role: (jobObj.createdBy as any).role
+        } : null,
+        status: jobObj.status,
+        createdAt: jobObj.createdAt
+      };
+    });
+
+    res.json({
+      success: true,
+      data: jobsWithCreators,
+      total: jobsWithCreators.length,
+      message: 'Debug: All jobs with creator information'
     });
   });
 

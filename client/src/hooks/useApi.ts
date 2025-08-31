@@ -278,6 +278,10 @@ export function useAgentAssignmentDetails(agentId: string) {
   return useApi(() => apiClient.getAgentAssignmentDetails(agentId), { immediate: !!agentId });
 }
 
+export function useMyAgentAssignment() {
+  return useApi(() => apiClient.getMyAgentAssignment(), { immediate: true });
+}
+
 export function useDeleteAgentAssignment() {
   return useMutation((agentId: string) => apiClient.deleteAgentAssignment(agentId));
 }

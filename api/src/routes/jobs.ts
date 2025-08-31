@@ -27,6 +27,13 @@ router.get('/stats', requireAgent, JobController.getJobStats);
 router.get('/search', JobController.searchJobs);
 
 /**
+ * @route   GET /jobs/debug/all
+ * @desc    Debug endpoint to see all jobs with creators (Admin only)
+ * @access  Admin
+ */
+router.get('/debug/all', JobController.debugAllJobs);
+
+/**
  * @route   GET /jobs
  * @desc    Get all jobs with filters and pagination
  * @access  All authenticated users (filtered by role)

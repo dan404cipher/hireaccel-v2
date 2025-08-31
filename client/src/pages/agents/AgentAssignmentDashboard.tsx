@@ -46,6 +46,8 @@ import {
   Calendar,
   Target,
   Loader2,
+  UserCheck,
+  RefreshCw,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -56,9 +58,9 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { 
   useJobs, 
-  useAgentCandidates,
   useCreateCandidateAssignment,
-  useCandidateAssignmentStats
+  useCandidateAssignmentStats,
+  useMyAgentAssignment
 } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -66,6 +68,7 @@ export default function AgentAssignmentDashboard() {
   const { user } = useAuth();
   const [jobSearchTerm, setJobSearchTerm] = useState('');
   const [candidateSearchTerm, setCandidateSearchTerm] = useState('');
+  const [hrSearchTerm, setHrSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [urgencyFilter, setUrgencyFilter] = useState('all');
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
@@ -90,17 +93,23 @@ export default function AgentAssignmentDashboard() {
     sortOrder: 'desc',
   });
 
+  // Get agent's assignment details to see assigned HRs and candidates
   const { 
-    data: candidatesResponse, 
-    loading: candidatesLoading, 
-    error: candidatesError, 
-    refetch: refetchCandidates 
-  } = useAgentCandidates({
-    page,
-    limit,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-  });
+    data: agentAssignmentResponse, 
+    loading: agentAssignmentLoading, 
+    error: agentAssignmentError,
+    refetch: refetchAgentAssignment
+  } = useMyAgentAssignment();
+
+  // Refresh data when component comes into focus (e.g., when user switches back to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchAgentAssignment();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetchAgentAssignment]);
 
   const { mutate: createAssignment, loading: createLoading } = useCreateCandidateAssignment({
     onSuccess: () => {
@@ -122,22 +131,34 @@ export default function AgentAssignmentDashboard() {
     error: statsError 
   } = useCandidateAssignmentStats();
 
+
+
   // Extract data from API responses
   const jobs = jobsResponse || [];
-  const candidates = candidatesResponse || [];
+  const agentAssignment = agentAssignmentResponse?.data || agentAssignmentResponse;
+  const candidates = agentAssignment?.assignedCandidates || []; // Use assigned candidates from agent assignment
   const stats = statsResponse?.data || {};
+
+
+
+
 
 
 
   // Calculate dashboard summary from real data
   const dashboardSummary = {
-    assignedHRs: stats.byStatus?.find((s: any) => s._id === 'active')?.count || 0,
-    assignedCandidates: candidates.length,
+    assignedHRs: agentAssignment?.assignedHRs?.length || 0,
+    assignedCandidates: agentAssignment?.assignedCandidates?.length || 0,
     availableJobs: jobs.filter((job: any) => job.status === 'open').length,
     activeAssignments: stats.byStatus?.find((s: any) => s._id === 'active')?.count || 0,
     completedAssignments: stats.byStatus?.find((s: any) => s._id === 'completed')?.count || 0,
     pendingAssignments: stats.byStatus?.find((s: any) => s._id === 'rejected')?.count || 0,
   };
+
+  // Add a note about job filtering for agents
+  const jobFilterNote = agentAssignment?.assignedHRs?.length > 0 
+    ? `Showing jobs posted by your assigned HR managers (${agentAssignment.assignedHRs.length} HRs)`
+    : 'No HR managers assigned. Please contact an administrator.';
 
   const filteredJobs = jobs.filter((job: any) => {
     const matchesSearch = job.title.toLowerCase().includes(jobSearchTerm.toLowerCase()) ||
@@ -151,20 +172,27 @@ export default function AgentAssignmentDashboard() {
     
     const searchLower = candidateSearchTerm.toLowerCase();
     
-    // Check userId fields if they exist
-    const nameMatches = candidate.userId && (
-      candidate.userId.firstName?.toLowerCase().includes(searchLower) ||
-      candidate.userId.lastName?.toLowerCase().includes(searchLower)
+    // Check firstName and lastName directly since these are User objects
+    const nameMatches = (
+      candidate.firstName?.toLowerCase().includes(searchLower) ||
+      candidate.lastName?.toLowerCase().includes(searchLower) ||
+      candidate.email?.toLowerCase().includes(searchLower)
     );
     
-    // Check profile skills if they exist
-    const skillMatches = candidate.profile?.skills && 
-      candidate.profile.skills.some((skill: string) => 
-        skill.toLowerCase().includes(searchLower)
-      );
-    
-    return nameMatches || skillMatches;
+    return nameMatches;
   });
+
+  // Filter HR users based on search term
+  const filteredHRs = agentAssignment?.assignedHRs?.filter((hr: any) => {
+    if (!hrSearchTerm) return true;
+    
+    const searchLower = hrSearchTerm.toLowerCase();
+    return (
+      hr.firstName?.toLowerCase().includes(searchLower) ||
+      hr.lastName?.toLowerCase().includes(searchLower) ||
+      hr.email?.toLowerCase().includes(searchLower)
+    );
+  }) || [];
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
@@ -210,16 +238,28 @@ export default function AgentAssignmentDashboard() {
       return;
     }
 
+    // For now, we'll need to select an HR user. This could be enhanced with an HR selection dropdown
+    // For now, let's use the first assigned HR user
+    const firstHR = agentAssignment?.assignedHRs?.[0];
+    if (!firstHR) {
+      toast({
+        title: 'Error',
+        description: 'No HR users assigned to you. Please contact an administrator.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     createAssignment({
       candidateId: selectedCandidate,
-      assignedTo: user?.id || '', // This should be the HR user ID - you might need to add HR user selection
+      assignedTo: firstHR._id, // Use the first assigned HR user
       jobId: selectedJob,
       priority: assignmentPriority,
       notes: assignmentNotes,
     });
   };
 
-  if (jobsError || candidatesError) {
+  if (jobsError || agentAssignmentError) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -235,14 +275,14 @@ export default function AgentAssignmentDashboard() {
             <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
             <h3 className="text-lg font-medium mb-2">Error Loading Data</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {jobsError?.detail || candidatesError?.detail || 'Failed to load data'}
+              {jobsError?.detail || agentAssignmentError?.detail || 'Failed to load data'}
             </p>
             <div className="flex gap-2 justify-center">
               <Button onClick={() => refetchJobs()}>
                 Retry Jobs
               </Button>
-              <Button onClick={() => refetchCandidates()}>
-                Retry Candidates
+              <Button onClick={() => window.location.reload()}>
+                Retry All
               </Button>
             </div>
           </CardContent>
@@ -261,9 +301,18 @@ export default function AgentAssignmentDashboard() {
             Manage job assignments and track candidate placements
           </p>
         </div>
+        <Button 
+          onClick={() => refetchAgentAssignment()} 
+          disabled={agentAssignmentLoading}
+          variant="outline"
+          size="sm"
+        >
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Refresh Assignments
+        </Button>
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogTrigger asChild>
-            <Button disabled={jobsLoading || candidatesLoading}>
+            <Button disabled={jobsLoading || agentAssignmentLoading}>
               <UserPlus className="w-4 h-4 mr-2" />
               Assign Candidate
             </Button>
@@ -285,10 +334,7 @@ export default function AgentAssignmentDashboard() {
                   <SelectContent>
                     {candidates.map((candidate: any) => (
                       <SelectItem key={candidate._id} value={candidate._id}>
-                        {candidate.userId ? 
-                          `${candidate.userId.firstName} ${candidate.userId.lastName}` : 
-                          'Unnamed Candidate'
-                        } - {candidate.profile?.skills?.slice(0, 2).join(', ') || 'No skills'}
+                        {candidate.firstName} {candidate.lastName} - {candidate.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -347,6 +393,11 @@ export default function AgentAssignmentDashboard() {
       </div>
 
       {/* Dashboard Summary Cards */}
+      <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> {jobFilterNote}
+        </p>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -367,7 +418,7 @@ export default function AgentAssignmentDashboard() {
               <Target className="w-8 h-8 text-green-600" />
               <div>
                 <p className="text-2xl font-bold">
-                  {candidatesLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.assignedCandidates}
+                  {agentAssignmentLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.assignedCandidates}
                 </p>
                 <p className="text-sm text-muted-foreground">My Candidates</p>
               </div>
@@ -382,7 +433,7 @@ export default function AgentAssignmentDashboard() {
                 <p className="text-2xl font-bold">
                   {jobsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.availableJobs}
                 </p>
-                <p className="text-sm text-muted-foreground">Available Jobs</p>
+                <p className="text-sm text-muted-foreground">Jobs from Assigned HRs</p>
               </div>
             </div>
           </CardContent>
@@ -430,14 +481,18 @@ export default function AgentAssignmentDashboard() {
 
       {/* Main Tabs */}
       <Tabs defaultValue="jobs" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="jobs" className="flex items-center gap-2">
             <Briefcase className="w-4 h-4" />
             My Jobs ({filteredJobs.length})
           </TabsTrigger>
-          <TabsTrigger value="candidates" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            My Candidates ({filteredCandidates.length})
+        <TabsTrigger value="candidates" className="flex items-center gap-2">
+          <Users className="w-4 h-4" />
+          My Candidates ({dashboardSummary.assignedCandidates})
+        </TabsTrigger>
+          <TabsTrigger value="hrs" className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            My HRs ({dashboardSummary.assignedHRs})
           </TabsTrigger>
         </TabsList>
 
@@ -450,6 +505,9 @@ export default function AgentAssignmentDashboard() {
                 Jobs from Assigned HR Users
                 {jobsLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {jobFilterNote}
+              </p>
               <div className="flex gap-4">
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4" />
@@ -495,7 +553,12 @@ export default function AgentAssignmentDashboard() {
                 <div className="text-center py-12 text-gray-500">
                   <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">No jobs found</h3>
-                  <p className="text-sm">No jobs match your current filters.</p>
+                  <p className="text-sm">
+                    {agentAssignment?.assignedHRs?.length === 0 
+                      ? 'No HR managers are currently assigned to you. Please contact an administrator to get assigned to HR managers.'
+                      : 'No jobs match your current filters or no jobs have been posted by your assigned HR managers yet.'
+                    }
+                  </p>
                 </div>
               ) : (
                 <Table>
@@ -574,7 +637,7 @@ export default function AgentAssignmentDashboard() {
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Candidates Assigned to Me
-                {candidatesLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {agentAssignmentLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               </CardTitle>
               <div className="flex gap-4">
                 <div className="flex items-center space-x-2">
@@ -589,7 +652,7 @@ export default function AgentAssignmentDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {candidatesLoading ? (
+              {agentAssignmentLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin" />
                   <span className="ml-2">Loading candidates...</span>
@@ -605,10 +668,9 @@ export default function AgentAssignmentDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Skills</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Summary</TableHead>
-                      <TableHead>Contact</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -616,41 +678,18 @@ export default function AgentAssignmentDashboard() {
                     {filteredCandidates.map((candidate: any) => (
                       <TableRow key={candidate._id}>
                         <TableCell className="font-medium">
-                          {candidate.userId ? 
-                            `${candidate.userId.firstName} ${candidate.userId.lastName}` : 
-                            'Unnamed Candidate'
-                          }
+                          {candidate.firstName} {candidate.lastName}
+                        </TableCell>
+                        <TableCell>{candidate.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="text-xs">
+                            {candidate.role}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {candidate.profile?.skills?.slice(0, 3).map((skill: string) => (
-                              <Badge key={skill} variant="secondary" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
-                            {candidate.profile?.skills?.length > 3 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{candidate.profile.skills.length - 3} more
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            {candidate.profile?.location || 'Not specified'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-xs">
-                          <p className="text-sm text-muted-foreground truncate">
-                            {candidate.profile?.summary || 'No summary available'}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{candidate.userId?.email || 'No email'}</div>
-                            <div className="text-muted-foreground">{candidate.profile?.phoneNumber || 'No phone'}</div>
-                          </div>
+                          <Badge variant="outline" className="bg-green-100 text-green-800">
+                            Active
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -672,6 +711,116 @@ export default function AgentAssignmentDashboard() {
                         </TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* HRs Tab */}
+        <TabsContent value="hrs" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5" />
+                HR Users Assigned to Me
+              </CardTitle>
+              <div className="flex gap-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="w-4 h-4" />
+                  <Input
+                    placeholder="Search HR users..."
+                    value={hrSearchTerm}
+                    onChange={(e) => setHrSearchTerm(e.target.value)}
+                    className="w-64"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {dashboardSummary.assignedHRs === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <UserCheck className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No HR users assigned</h3>
+                  <p className="text-sm">You don't have any HR users assigned to you yet.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Last Login</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {agentAssignmentLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                          <p>Loading HR users...</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredHRs && filteredHRs.length > 0 ? (
+                      filteredHRs.map((hr: any) => (
+                        <TableRow key={hr._id}>
+                          <TableCell className="font-medium">
+                            {hr.firstName} {hr.lastName}
+                          </TableCell>
+                          <TableCell>{hr.email}</TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">
+                              {/* Company info could be added here if available */}
+                              N/A
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm text-muted-foreground">
+                              {/* Last login info could be added here if available */}
+                              N/A
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-green-100 text-green-800">
+                              Active
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                <DropdownMenuItem>Contact</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : hrSearchTerm ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>No HR users found</p>
+                          <p className="text-sm">No HR users match your search criteria</p>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <UserCheck className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>No HR users assigned</p>
+                          <p className="text-sm">Contact admin to get HR users assigned to you</p>
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               )}

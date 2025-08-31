@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UserController } from '@/controllers/UserController';
-import { authenticate, requireAdmin, requireHR } from '@/middleware/auth';
+import { authenticate, requireAdmin, requireHR, requireAgent } from '@/middleware/auth';
 
 /**
  * User management routes
@@ -60,6 +60,20 @@ router.get('/agent-assignments', requireAdmin, UserController.getAgentAssignment
  * @access  Admin
  */
 router.post('/agent-assignments', requireAdmin, UserController.createAgentAssignment);
+
+/**
+ * @route   GET /users/agent-assignments/me
+ * @desc    Get current agent's assignment details
+ * @access  Agent
+ */
+router.get('/agent-assignments/me', requireAgent, UserController.getMyAgentAssignment);
+
+/**
+ * @route   GET /users/agent-assignments/debug/all
+ * @desc    Debug endpoint to see all agent assignments (Admin only)
+ * @access  Admin
+ */
+router.get('/agent-assignments/debug/all', requireAdmin, UserController.debugAllAgentAssignments);
 
 /**
  * @route   GET /users/agent-assignments/:agentId

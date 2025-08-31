@@ -1221,12 +1221,15 @@ const seedAgentAssignments = async () => {
     return;
   }
   
+  // Get candidate users (users with role 'candidate')
+  const candidateUsers = await User.find({ role: UserRole.CANDIDATE });
+  
   const agentAssignments = [
     // Assign first agent to first 2 HR users and first 2 candidates
     {
       agentId: agentUsers[0]?._id,
       assignedHRs: [hrUsers[0]?._id, hrUsers[1]?._id],
-      assignedCandidates: candidates.slice(0, 3).map(c => c._id),
+      assignedCandidates: candidateUsers.slice(0, 2).map(c => c._id), // Use User IDs, not Candidate IDs
       assignedBy: adminUser._id,
       notes: 'Primary agent handling TechCorp and GrowthStart accounts with experienced developers.',
       status: 'active',
@@ -1235,7 +1238,7 @@ const seedAgentAssignments = async () => {
     {
       agentId: agentUsers[1]?._id,
       assignedHRs: hrUsers.length > 2 ? [hrUsers[2]?._id] : [hrUsers[1]?._id],
-      assignedCandidates: candidates.slice(1, 4).map(c => c._id),
+      assignedCandidates: candidateUsers.slice(1, 2).map(c => c._id), // Use User IDs, not Candidate IDs
       assignedBy: adminUser._id,
       notes: 'Secondary agent handling specialized roles and backup coverage.',
       status: 'active',

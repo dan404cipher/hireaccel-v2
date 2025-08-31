@@ -92,8 +92,20 @@ export default function AgentAllocation() {
     refetch: refetchAssignments
   } = useAgentAssignmentsList();
 
+  // Debug: Log assignments data changes
+  useEffect(() => {
+    console.log('📊 Assignments data updated:', assignmentsResponse);
+  }, [assignmentsResponse]);
+
   // API hooks for assignment operations
-  const { mutate: createAgentAssignment } = useCreateAgentAssignment();
+  const { mutate: createAgentAssignment } = useCreateAgentAssignment({
+    onSuccess: (data) => {
+      console.log('✅ Agent assignment created/updated successfully:', data);
+    },
+    onError: (error) => {
+      console.error('❌ Agent assignment failed:', error);
+    }
+  });
 
   // Handle response format
   const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
@@ -238,7 +250,9 @@ export default function AgentAllocation() {
       setSelectedResources(new Set());
       setSelectAll(false);
       
-      refetchAssignments();
+      console.log('🔄 Refreshing assignments after bulk allocation...');
+      await refetchAssignments();
+      console.log('✅ Assignments refreshed');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -361,7 +375,10 @@ export default function AgentAllocation() {
       setSelectedResource(null);
       setSelectedAgent('');
       setAssignmentNotes('');
-      refetchAssignments();
+      
+      console.log('🔄 Refreshing assignments after allocation...');
+      await refetchAssignments();
+      console.log('✅ Assignments refreshed');
     } catch (error: any) {
       toast({
         title: "Error",
