@@ -1,3 +1,6 @@
+// Initialize module aliases first (for production builds)
+import './module-alias';
+
 import { env } from '@/config/env';
 import { logger, logStartup, logShutdown } from '@/config/logger';
 import { connectDatabase, setupDatabaseEventListeners } from '@/config/database';
