@@ -12,8 +12,8 @@ services:
       NODE_ENV: production
       PORT: 3001
       MONGO_URI: mongodb+srv://vaccel:PlHUbhJ3iUnbMOHU@v-accel-suites.rqyglx.mongodb.net/hireaccel?retryWrites=true&w=majority&appName=hire-accel-v2
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_SECRET: 5aZ4DWf3tKCL/x20ZJxkpngRhz3+SjDQiqPAhP60dOcbBMEWHNhWxteiIrLizc5K
+      JWT_REFRESH_SECRET: qNHaUQPQ3xiU6/9nKFAH0yIBfBMaJLIRdENPXSBs3acyAQnaS+aD0tr9GgI9yp8K
       JWT_ACCESS_TTL: 15m
       JWT_REFRESH_TTL: 7d
       UPLOADS_PATH: ./uploads
