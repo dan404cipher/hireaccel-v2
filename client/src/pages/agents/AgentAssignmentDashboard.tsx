@@ -36,15 +36,11 @@ import {
   Search,
   Filter,
   MoreHorizontal,
-  Clock,
-  CheckCircle,
-  AlertCircle,
   XCircle,
   Star,
   MapPin,
   Building2,
   Calendar,
-  Target,
   Loader2,
   UserCheck,
 } from 'lucide-react';
@@ -58,7 +54,6 @@ import { toast } from '@/hooks/use-toast';
 import { 
   useJobs, 
   useCreateCandidateAssignment,
-  useCandidateAssignmentStats,
   useMyAgentAssignment
 } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -124,19 +119,12 @@ export default function AgentAssignmentDashboard() {
     }
   });
 
-  const { 
-    data: statsResponse, 
-    loading: statsLoading, 
-    error: statsError 
-  } = useCandidateAssignmentStats();
-
 
 
   // Extract data from API responses
   const jobs = jobsResponse || [];
   const agentAssignment = agentAssignmentResponse?.data || agentAssignmentResponse;
   const candidates = agentAssignment?.assignedCandidates || []; // Use assigned candidates from agent assignment
-  const stats = statsResponse?.data || {};
 
 
 
@@ -144,15 +132,7 @@ export default function AgentAssignmentDashboard() {
 
 
 
-  // Calculate dashboard summary from real data
-  const dashboardSummary = {
-    assignedHRs: agentAssignment?.assignedHRs?.length || 0,
-    assignedCandidates: agentAssignment?.assignedCandidates?.length || 0,
-    availableJobs: jobs.filter((job: any) => job.status === 'open').length,
-    activeAssignments: stats.byStatus?.find((s: any) => s._id === 'active')?.count || 0,
-    completedAssignments: stats.byStatus?.find((s: any) => s._id === 'completed')?.count || 0,
-    pendingAssignments: stats.byStatus?.find((s: any) => s._id === 'rejected')?.count || 0,
-  };
+
 
 
 
@@ -268,7 +248,7 @@ export default function AgentAssignmentDashboard() {
         </div>
         <Card>
           <CardContent className="p-8 text-center">
-            <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
+            <XCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
             <h3 className="text-lg font-medium mb-2">Error Loading Data</h3>
             <p className="text-sm text-muted-foreground mb-4">
               {jobsError?.detail || agentAssignmentError?.detail || 'Failed to load data'}
@@ -380,87 +360,7 @@ export default function AgentAssignmentDashboard() {
         </Dialog>
       </div>
 
-      {/* Dashboard Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Users className="w-8 h-8 text-blue-600" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {statsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.assignedHRs}
-                </p>
-                <p className="text-sm text-muted-foreground">Assigned HRs</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Target className="w-8 h-8 text-green-600" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {agentAssignmentLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.assignedCandidates}
-                </p>
-                <p className="text-sm text-muted-foreground">My Candidates</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Briefcase className="w-8 h-8 text-purple-600" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {jobsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.availableJobs}
-                </p>
-                <p className="text-sm text-muted-foreground">Jobs from Assigned HRs</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Clock className="w-8 h-8 text-orange-600" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {statsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.activeAssignments}
-                </p>
-                <p className="text-sm text-muted-foreground">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {statsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.completedAssignments}
-                </p>
-                <p className="text-sm text-muted-foreground">Completed</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-8 h-8 text-yellow-600" />
-              <div>
-                <p className="text-2xl font-bold">
-                  {statsLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : dashboardSummary.pendingAssignments}
-                </p>
-                <p className="text-sm text-muted-foreground">Pending</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
 
       {/* Main Tabs */}
       <Tabs defaultValue="jobs" className="space-y-4">
@@ -471,11 +371,11 @@ export default function AgentAssignmentDashboard() {
           </TabsTrigger>
         <TabsTrigger value="candidates" className="flex items-center gap-2">
           <Users className="w-4 h-4" />
-          My Candidates ({dashboardSummary.assignedCandidates})
+          My Candidates ({candidates.length})
         </TabsTrigger>
           <TabsTrigger value="hrs" className="flex items-center gap-2">
             <UserCheck className="w-4 h-4" />
-            My HRs ({dashboardSummary.assignedHRs})
+            My HRs ({agentAssignment?.assignedHRs?.length || 0})
           </TabsTrigger>
         </TabsList>
 
@@ -720,7 +620,7 @@ export default function AgentAssignmentDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {dashboardSummary.assignedHRs === 0 ? (
+              {(agentAssignment?.assignedHRs?.length || 0) === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <UserCheck className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">No HR users assigned</h3>
