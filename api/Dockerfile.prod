@@ -9,8 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (keep npm ci since package-lock.json exists)
-RUN npm ci && npm cache clean --force
+# Install dependencies (use npm install since package-lock.json is gitignored)
+RUN npm install && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -34,7 +34,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
