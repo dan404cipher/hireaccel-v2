@@ -54,7 +54,18 @@ stop_containers() {
     print_status "Stopping containers temporarily for certificate generation..."
     cd $APP_DIR
     docker-compose -f docker-compose.prod.yml down
-    print_success "Containers stopped"
+    
+    # Also stop system nginx if it exists
+    systemctl stop nginx 2>/dev/null || true
+    systemctl disable nginx 2>/dev/null || true
+    
+    # Kill any remaining nginx processes
+    pkill -f nginx 2>/dev/null || true
+    
+    # Wait a moment for ports to be released
+    sleep 3
+    
+    print_success "Containers and system nginx stopped"
 }
 
 # Generate SSL certificate
