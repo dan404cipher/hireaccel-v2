@@ -1,0 +1,86 @@
+# Docker Compose for Production Deployment with SSL
+
+services:
+  # API Backend
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.prod
+    container_name: hire-accel-api-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      MONGO_URI: mongodb+srv://vaccel:PlHUbhJ3iUnbMOHU@v-accel-suites.rqyglx.mongodb.net/hireaccel?retryWrites=true&w=majority&appName=hire-accel-v2
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
+      UPLOADS_PATH: ./uploads
+      MAX_FILE_SIZE_MB: 10
+      MAX_IMAGE_SIZE_MB: 2
+      RATE_LIMIT_ENABLED: true
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+      CORS_ORIGIN: https://hireaccel.v-accel.ai
+      LOG_LEVEL: info
+      API_DOCS_ENABLED: false
+      BCRYPT_ROUNDS: 12
+    volumes:
+      - api_uploads:/app/uploads
+    networks:
+      - hire-accel-network
+    healthcheck:
+      test: ["CMD", "node", "dist/scripts/healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.prod
+    container_name: hire-accel-client-prod
+    restart: unless-stopped
+    networks:
+      - hire-accel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: hire-accel-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-production-ssl.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - api_uploads:/var/www/uploads:ro
+    depends_on:
+      - api
+      - client
+    networks:
+      - hire-accel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  api_uploads:
+    driver: local
+
+networks:
+  hire-accel-network:
+    driver: bridge
