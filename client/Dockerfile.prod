@@ -12,6 +12,9 @@ RUN npm install && npm cache clean --force
 # Copy source code
 COPY . .
 
+# Set environment variables for build
+ENV VITE_API_URL=https://hireaccel.v-accel.ai/api
+
 # Build the application
 RUN npm run build
 
