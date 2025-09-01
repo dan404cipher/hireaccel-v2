@@ -1,5 +1,5 @@
 // Initialize module aliases first (for production builds)
-import './module-alias';
+require('./module-alias');
 
 import { env } from '@/config/env';
 import { logger, logStartup, logShutdown } from '@/config/logger';

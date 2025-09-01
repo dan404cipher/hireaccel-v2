@@ -3,8 +3,8 @@
  * This resolves TypeScript path mapping (@/) at runtime
  */
 
-import * as moduleAlias from 'module-alias';
-import * as path from 'path';
+const moduleAlias = require('module-alias');
+const path = require('path');
 
 // Set up aliases for production
 const isDist = __dirname.includes('dist');
@@ -22,4 +22,4 @@ moduleAlias.addAliases({
   '@/types': path.join(sourceRoot, 'types'),
 });
 
-export default moduleAlias;
+module.exports = moduleAlias;
