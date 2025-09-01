@@ -1,5 +1,22 @@
 // Initialize module aliases first (for production builds)
-require('./module-alias');
+const moduleAlias = require('module-alias');
+const path = require('path');
+
+// Set up aliases for production
+const isDist = __dirname.includes('dist');
+const sourceRoot = isDist ? __dirname : path.join(__dirname, '..');
+
+moduleAlias.addAliases({
+  '@': sourceRoot,
+  '@/config': path.join(sourceRoot, 'config'),
+  '@/models': path.join(sourceRoot, 'models'),
+  '@/controllers': path.join(sourceRoot, 'controllers'),
+  '@/services': path.join(sourceRoot, 'services'),
+  '@/middleware': path.join(sourceRoot, 'middleware'),
+  '@/routes': path.join(sourceRoot, 'routes'),
+  '@/utils': path.join(sourceRoot, 'utils'),
+  '@/types': path.join(sourceRoot, 'types'),
+});
 
 import { env } from '@/config/env';
 import { logger, logStartup, logShutdown } from '@/config/logger';
