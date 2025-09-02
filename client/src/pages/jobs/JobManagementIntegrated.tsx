@@ -50,7 +50,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useJobs, useCreateJob, useUpdateJob, useDeleteJob } from "@/hooks/useApi";
+import { useJobs, useCreateJob, useUpdateJob, useDeleteJob, useCompanies } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -64,6 +64,29 @@ export default function JobManagementIntegrated() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [createFormData, setCreateFormData] = useState({
+    title: '',
+    description: '',
+    location: '',
+    type: 'full-time' as const,
+    urgency: 'medium' as const,
+    salaryMin: '',
+    salaryMax: '',
+    currency: 'USD',
+    skills: '',
+    experience: 'mid' as const,
+    education: '',
+    languages: 'English',
+    isRemote: false,
+    benefits: '',
+    applicationDeadline: '',
+    interviewRounds: 2,
+    estimatedDuration: '2-3 weeks',
+    companyId: ''
+  });
+
+  // Validation state
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
   // Debounce search term to prevent excessive API calls
@@ -93,14 +116,34 @@ export default function JobManagementIntegrated() {
     refetch: refetchJobs 
   } = useJobs(jobsParams);
 
+  const { data: companiesResponse } = useCompanies();
+  const companies = Array.isArray(companiesResponse) ? companiesResponse : (companiesResponse?.data || []);
+
   const { mutate: createJob, loading: createLoading } = useCreateJob({
     onSuccess: () => {
       setIsCreateDialogOpen(false);
+      resetCreateForm();
       refetchJobs();
       toast({
         title: "Success",
         description: "Job created successfully"
       });
+    },
+    onError: (error: any) => {
+      // Handle backend validation errors
+      if (error.issues && Array.isArray(error.issues)) {
+        const backendErrors: Record<string, string> = {};
+        error.issues.forEach((issue: any) => {
+          backendErrors[issue.field] = issue.message;
+        });
+        setFormErrors(backendErrors);
+      } else {
+        toast({
+          title: "Error",
+          description: error.detail || "Failed to create job",
+          variant: "destructive"
+        });
+      }
     }
   });
 
@@ -156,18 +199,115 @@ export default function JobManagementIntegrated() {
     }
   };
 
-  const handleCreateJob = (formData: any) => {
-    createJob({
-      title: formData.title,
-      description: formData.description,
-      companyId: "1", // Default for demo
-      location: formData.location,
-      type: formData.type,
+  const handleCreateJob = () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    const jobData = {
+      title: createFormData.title.trim(),
+      description: createFormData.description.trim(),
+      location: createFormData.location.trim(),
+      type: createFormData.type,
+      urgency: createFormData.urgency,
+      companyId: createFormData.companyId,
+      salaryRange: {
+        min: parseInt(createFormData.salaryMin) || 0,
+        max: parseInt(createFormData.salaryMax) || 0,
+        currency: createFormData.currency
+      },
       requirements: {
-        skills: formData.skills?.split(',').map((s: string) => s.trim()) || [],
-        experience: formData.experience || 'mid'
+        skills: createFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
+        experience: createFormData.experience,
+        education: createFormData.education.split(',').map((s: string) => s.trim()).filter(Boolean),
+        languages: createFormData.languages.split(',').map((s: string) => s.trim()).filter(Boolean)
+      },
+      isRemote: createFormData.isRemote,
+      benefits: createFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
+      applicationDeadline: createFormData.applicationDeadline ? new Date(createFormData.applicationDeadline) : undefined,
+      interviewProcess: {
+        rounds: createFormData.interviewRounds,
+        estimatedDuration: createFormData.estimatedDuration
       }
+    };
+
+    createJob(jobData);
+  };
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+
+    // Required fields
+    if (!createFormData.title.trim()) {
+      errors.title = 'Job title is required';
+    } else if (createFormData.title.length > 200) {
+      errors.title = 'Job title cannot exceed 200 characters';
+    }
+
+    if (!createFormData.description.trim()) {
+      errors.description = 'Job description is required';
+    } else if (createFormData.description.length > 5000) {
+      errors.description = 'Job description cannot exceed 5000 characters';
+    }
+
+    if (!createFormData.location.trim()) {
+      errors.location = 'Location is required';
+    } else if (createFormData.location.length > 200) {
+      errors.location = 'Location cannot exceed 200 characters';
+    }
+
+    if (!createFormData.companyId) {
+      errors.companyId = 'Company selection is required';
+    }
+
+    if (!createFormData.skills.trim()) {
+      errors.skills = 'Required skills are needed';
+    }
+
+    // Salary validation
+    if (createFormData.salaryMin && createFormData.salaryMax) {
+      const min = parseInt(createFormData.salaryMin);
+      const max = parseInt(createFormData.salaryMax);
+      if (min > max) {
+        errors.salaryMax = 'Maximum salary must be greater than minimum salary';
+      }
+    }
+
+    // Date validation
+    if (createFormData.applicationDeadline) {
+      const deadline = new Date(createFormData.applicationDeadline);
+      const today = new Date();
+      if (deadline <= today) {
+        errors.applicationDeadline = 'Application deadline must be in the future';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetCreateForm = () => {
+    setCreateFormData({
+      title: '',
+      description: '',
+      location: '',
+      type: 'full-time' as const,
+      urgency: 'medium' as const,
+      salaryMin: '',
+      salaryMax: '',
+      currency: 'USD',
+      skills: '',
+      experience: 'mid' as const,
+      education: '',
+      languages: 'English',
+      isRemote: false,
+      benefits: '',
+      applicationDeadline: '',
+      interviewRounds: 2,
+      estimatedDuration: '2-3 weeks',
+      companyId: ''
     });
+    setFormErrors({});
   };
 
   const handleDeleteJob = (id: string) => {
@@ -256,98 +396,289 @@ export default function JobManagementIntegrated() {
               Post New Job
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Job Posting</DialogTitle>
               <DialogDescription>
                 Fill in the details to create a new job posting for recruitment agents.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Job Title</Label>
-                  <Input id="title" placeholder="e.g. Senior React Developer" />
+            <div className="grid gap-6 py-4">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Basic Information</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Job Title *</Label>
+                    <Input 
+                      id="title" 
+                      placeholder="e.g. Senior React Developer"
+                      value={createFormData.title}
+                      onChange={(e) => setCreateFormData({...createFormData, title: e.target.value})}
+                      className={formErrors.title ? "border-red-500" : ""}
+                    />
+                    {formErrors.title && (
+                      <p className="text-sm text-red-500">{formErrors.title}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location *</Label>
+                    <Input 
+                      id="location" 
+                      placeholder="e.g. Remote, New York, NY"
+                      value={createFormData.location}
+                      onChange={(e) => setCreateFormData({...createFormData, location: e.target.value})}
+                      className={formErrors.location ? "border-red-500" : ""}
+                    />
+                    {formErrors.location && (
+                      <p className="text-sm text-red-500">{formErrors.location}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company *</Label>
+                    <Select value={createFormData.companyId} onValueChange={(value) => setCreateFormData({...createFormData, companyId: value})}>
+                      <SelectTrigger className={formErrors.companyId ? "border-red-500" : ""}>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company: any) => (
+                          <SelectItem key={company._id} value={company._id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {formErrors.companyId && (
+                      <p className="text-sm text-red-500">{formErrors.companyId}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company">Company</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="techcorp">TechCorp Inc.</SelectItem>
-                      <SelectItem value="innovateinc">InnovateInc</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Job Type *</Label>
+                    <Select value={createFormData.type} onValueChange={(value) => setCreateFormData({...createFormData, type: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full-time">Full-time</SelectItem>
+                        <SelectItem value="part-time">Part-time</SelectItem>
+                        <SelectItem value="contract">Contract</SelectItem>
+                        <SelectItem value="internship">Internship</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="urgency">Urgency Level</Label>
+                    <Select value={createFormData.urgency} onValueChange={(value) => setCreateFormData({...createFormData, urgency: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select urgency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="experience">Experience Level</Label>
+                    <Select value={createFormData.experience} onValueChange={(value) => setCreateFormData({...createFormData, experience: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select experience" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entry">Entry Level</SelectItem>
+                        <SelectItem value="junior">Junior</SelectItem>
+                        <SelectItem value="mid">Mid Level</SelectItem>
+                        <SelectItem value="senior">Senior</SelectItem>
+                        <SelectItem value="lead">Lead</SelectItem>
+                        <SelectItem value="executive">Executive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+
+              {/* Job Description */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Job Description</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input id="location" placeholder="e.g. Remote, New York" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="type">Job Type</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="full-time">Full-time</SelectItem>
-                      <SelectItem value="part-time">Part-time</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="salary">Salary Range</Label>
-                  <Input id="salary" placeholder="e.g. $100k - $120k" />
+                  <Label htmlFor="description">Detailed Description *</Label>
+                  <Textarea 
+                    id="description" 
+                    placeholder="Enter detailed job description, responsibilities, and expectations..."
+                    className={`min-h-[120px] ${formErrors.description ? "border-red-500" : ""}`}
+                    value={createFormData.description}
+                    onChange={(e) => setCreateFormData({...createFormData, description: e.target.value})}
+                  />
+                  {formErrors.description && (
+                    <p className="text-sm text-red-500">{formErrors.description}</p>
+                  )}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Job Description</Label>
-                <Textarea 
-                  id="description" 
-                  placeholder="Enter detailed job description..."
-                  className="min-h-[100px]"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              {/* Requirements */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Requirements</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="skills">Required Skills *</Label>
+                    <Input 
+                      id="skills" 
+                      placeholder="e.g. React, TypeScript, Node.js (comma separated)"
+                      value={createFormData.skills}
+                      onChange={(e) => setCreateFormData({...createFormData, skills: e.target.value})}
+                      className={formErrors.skills ? "border-red-500" : ""}
+                    />
+                    {formErrors.skills && (
+                      <p className="text-sm text-red-500">{formErrors.skills}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="education">Education Requirements</Label>
+                    <Input 
+                      id="education" 
+                      placeholder="e.g. Bachelor's in Computer Science (comma separated)"
+                      value={createFormData.education}
+                      onChange={(e) => setCreateFormData({...createFormData, education: e.target.value})}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="urgency">Urgency Level</Label>
-                  <Select>
+                  <Label htmlFor="languages">Languages</Label>
+                  <Input 
+                    id="languages" 
+                    placeholder="e.g. English, Spanish (comma separated)"
+                    value={createFormData.languages}
+                    onChange={(e) => setCreateFormData({...createFormData, languages: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              {/* Compensation & Benefits */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Compensation & Benefits</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="salaryMin">Minimum Salary</Label>
+                    <Input 
+                      id="salaryMin" 
+                      type="number"
+                      placeholder="e.g. 80000"
+                      value={createFormData.salaryMin}
+                      onChange={(e) => setCreateFormData({...createFormData, salaryMin: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salaryMax">Maximum Salary</Label>
+                    <Input 
+                      id="salaryMax" 
+                      type="number"
+                      placeholder="e.g. 120000"
+                      value={createFormData.salaryMax}
+                      onChange={(e) => setCreateFormData({...createFormData, salaryMax: e.target.value})}
+                      className={formErrors.salaryMax ? "border-red-500" : ""}
+                    />
+                    {formErrors.salaryMax && (
+                      <p className="text-sm text-red-500">{formErrors.salaryMax}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Currency</Label>
+                    <Select value={createFormData.currency} onValueChange={(value) => setCreateFormData({...createFormData, currency: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CAD">CAD (C$)</SelectItem>
+                        <SelectItem value="AUD">AUD (A$)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="benefits">Benefits & Perks</Label>
+                  <Input 
+                    id="benefits" 
+                    placeholder="e.g. Health insurance, 401k, Remote work, Flexible hours (comma separated)"
+                    value={createFormData.benefits}
+                    onChange={(e) => setCreateFormData({...createFormData, benefits: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              {/* Additional Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Additional Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="applicationDeadline">Application Deadline</Label>
+                    <Input 
+                      id="applicationDeadline" 
+                      type="date"
+                      value={createFormData.applicationDeadline}
+                      onChange={(e) => setCreateFormData({...createFormData, applicationDeadline: e.target.value})}
+                      className={formErrors.applicationDeadline ? "border-red-500" : ""}
+                    />
+                    {formErrors.applicationDeadline && (
+                      <p className="text-sm text-red-500">{formErrors.applicationDeadline}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="interviewRounds">Interview Rounds</Label>
+                    <Select value={createFormData.interviewRounds.toString()} onValueChange={(value) => setCreateFormData({...createFormData, interviewRounds: parseInt(value)})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select rounds" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Round</SelectItem>
+                        <SelectItem value="2">2 Rounds</SelectItem>
+                        <SelectItem value="3">3 Rounds</SelectItem>
+                        <SelectItem value="4">4+ Rounds</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedDuration">Estimated Hiring Timeline</Label>
+                  <Select value={createFormData.estimatedDuration} onValueChange={(value) => setCreateFormData({...createFormData, estimatedDuration: value})}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select urgency" />
+                      <SelectValue placeholder="Select timeline" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
+                      <SelectItem value="2-3 weeks">2-3 weeks</SelectItem>
+                      <SelectItem value="3-4 weeks">3-4 weeks</SelectItem>
+                      <SelectItem value="1-2 months">1-2 months</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="agent">Assign Agent (Optional)</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Auto-assign or select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Auto-assign</SelectItem>
-                      <SelectItem value="agent1">Agent 1</SelectItem>
-                      <SelectItem value="agent2">Agent 2</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isRemote"
+                    checked={createFormData.isRemote}
+                    onChange={(e) => setCreateFormData({...createFormData, isRemote: e.target.checked})}
+                    className="rounded"
+                  />
+                  <Label htmlFor="isRemote">Remote work available</Label>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setIsCreateDialogOpen(false);
+                resetCreateForm();
+              }}>
                 Cancel
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(false)} disabled={createLoading}>
-                Create Job Posting
+              <Button onClick={handleCreateJob} disabled={createLoading || !createFormData.title || !createFormData.description || !createFormData.location || !createFormData.companyId}>
+                {createLoading ? "Creating..." : "Create Job Posting"}
               </Button>
             </DialogFooter>
           </DialogContent>

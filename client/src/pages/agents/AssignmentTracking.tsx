@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { 
-  useCandidateAssignments, 
+  useMyAgentAssignments, 
   useCandidateAssignmentStats,
   useUpdateCandidateAssignment,
   useDeleteCandidateAssignment 
@@ -80,12 +80,12 @@ export default function AssignmentTracking() {
     loading: assignmentsLoading, 
     error: assignmentsError, 
     refetch: refetchAssignments 
-  } = useCandidateAssignments({
+  } = useMyAgentAssignments({
     page,
     limit,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     priority: priorityFilter !== 'all' ? priorityFilter : undefined,
-    sortBy: 'assignedAt',
+    sortBy: 'createdAt',
     sortOrder: 'desc',
   }, {
     showToast: false, // Don't show toast for initial load errors

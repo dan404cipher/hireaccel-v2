@@ -28,7 +28,7 @@ const querySchema = z.object({
   search: z.string().optional(),
   status: z.string().optional(),
   urgency: z.string().optional(),
-  sortBy: z.enum(['createdAt', 'title', 'urgency', 'postedAt']).default('postedAt'),
+  sortBy: z.enum(['createdAt', 'title', 'urgency', 'postedAt', 'assignedAt', 'priority', 'status']).default('postedAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
@@ -226,6 +226,74 @@ export class AgentController {
       throw createNotFoundError('No assignment found for this agent');
     }
 
+    // Get candidate assignment counts for each HR
+    const hrAssignmentCounts = await CandidateAssignment.aggregate([
+      {
+        $match: {
+          assignedBy: new mongoose.Types.ObjectId(req.user!._id.toString()),
+          status: { $in: ['active', 'completed'] }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'assignedTo',
+          foreignField: '_id',
+          as: 'hrUser'
+        }
+      },
+      {
+        $unwind: '$hrUser'
+      },
+      {
+        $group: {
+          _id: '$assignedTo',
+          assignedCandidatesCount: { $sum: 1 },
+          hrDetails: { $first: '$hrUser' }
+        }
+      }
+    ]);
+
+    // Add the counts to the HR objects
+    const assignedHRsWithCounts = assignment.assignedHRs.map((hr: any) => ({
+      ...hr.toObject(),
+      assignedCandidatesCount: hrAssignmentCounts.find(count => count._id.equals(hr._id))?.assignedCandidatesCount || 0
+    }));
+
+    assignment.assignedHRs = assignedHRsWithCounts;
+
+    // Debug logging
+    console.log('Debug Info:', {
+      agentId: req.user!._id.toString(),
+      hrAssignmentCounts: hrAssignmentCounts.map(count => ({
+        hrId: count._id.toString(),
+        count: count.assignedCandidatesCount,
+        hrName: `${count.hrDetails.firstName} ${count.hrDetails.lastName}`
+      })),
+      assignedHRs: assignment.assignedHRs.map((hr: any) => ({
+        id: hr._id.toString(),
+        name: `${hr.firstName} ${hr.lastName}`
+      })),
+      finalCounts: assignedHRsWithCounts.map(hr => ({
+        id: hr._id.toString(),
+        name: `${hr.firstName} ${hr.lastName}`,
+        count: hr.assignedCandidatesCount
+      }))
+    });
+
+    // Additional debug query to check actual assignments
+    const actualAssignments = await CandidateAssignment.find({
+      assignedBy: req.user!._id,
+      status: { $in: ['active', 'completed', 'pending'] }
+    }).populate('assignedTo', 'firstName lastName');
+
+    console.log('Actual Assignments:', actualAssignments.map(a => ({
+      id: a._id,
+      status: a.status,
+      assignedTo: `${(a.assignedTo as any).firstName} ${(a.assignedTo as any).lastName}`,
+      assignedToId: a.assignedTo
+    })));
+
     // Log audit trail
     await AuditLog.createLog({
       actor: req.user!._id,
@@ -351,15 +419,16 @@ export class AgentController {
    * @route GET /agents/me/assignments
    */
   static getMyAssignments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    // Only agents can access this endpoint
-    if (req.user!.role !== UserRole.AGENT) {
-      throw createForbiddenError('Only agents can access this endpoint');
+    // Only agents and admins can access this endpoint
+    if (req.user!.role !== UserRole.AGENT && req.user!.role !== UserRole.ADMIN) {
+      throw createForbiddenError('Only agents and admins can access this endpoint');
     }
 
     const query = querySchema.parse(req.query);
     const { page, limit, status, sortBy, sortOrder } = query;
 
-    const filter: any = { assignedBy: req.user!._id };
+    // For agents, show only their assignments. For admins, show all assignments
+    const filter: any = req.user!.role === UserRole.AGENT ? { assignedBy: req.user!._id } : {};
 
     if (status && status !== 'all') {
       filter.status = status;
@@ -394,8 +463,9 @@ export class AgentController {
     const total = await CandidateAssignment.countDocuments(filter);
 
     // Get assignment statistics
+    const statsMatch = req.user!.role === UserRole.AGENT ? { assignedBy: req.user!._id } : {};
     const stats = await CandidateAssignment.aggregate([
-      { $match: { assignedBy: req.user!._id } },
+      { $match: statsMatch },
       {
         $group: {
           _id: '$status',

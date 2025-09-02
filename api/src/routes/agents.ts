@@ -1,7 +1,6 @@
 import express from 'express';
 import { AgentController } from '@/controllers/AgentController';
-import { authenticate, requireRole } from '@/middleware/auth';
-import { UserRole } from '@/types';
+import { authenticate, requireAgent } from '@/middleware/auth';
 
 const router = express.Router();
 
@@ -13,8 +12,8 @@ const router = express.Router();
 // Apply authentication middleware to all routes
 router.use(authenticate);
 
-// Apply agent role requirement to all routes
-router.use(requireRole(UserRole.AGENT));
+// Apply agent role requirement to all routes (allows both agents and admins)
+router.use(requireAgent);
 
 /**
  * @swagger

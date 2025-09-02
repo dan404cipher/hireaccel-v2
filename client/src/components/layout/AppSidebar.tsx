@@ -32,26 +32,26 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'] },
-  { title: "Agent Allocation", url: "/agents", icon: UserCheck, roles: ['admin'] },
-  { title: "Assignment Management", url: "/assignment-management", icon: ClipboardList, roles: ['agent'] },
-  { title: "Assignment Tracking", url: "/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'] },
-  { title: "Job Management", url: "/jobs", icon: Briefcase, roles: ['admin', 'hr'] },
-  { title: "Shared Candidates", url: "/shared-candidates", icon: UserPlus, roles: ['hr'] },
-  { title: "Interview Management", url: "/interviews", icon: Calendar, roles: ['admin', 'hr'] },
-  { title: "Company Management", url: "/companies", icon: Building2, roles: ['admin', 'hr'] },
-  { title: "User Management", url: "/users", icon: Users, roles: ['admin'] },
+  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'] },
+  { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin'] },
+  { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'] },
+  { title: "Assignment Tracking", url: "/dashboard/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'] },
+  { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'hr'] },
+  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['hr'] },
+  { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'] },
+  { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'hr'] },
+  { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'] },
   
   // Candidate-specific navigation
-  { title: "Browse Jobs", url: "/candidate-jobs", icon: Search, roles: ['candidate'] },
-  { title: "My Applications", url: "/candidate-applications", icon: FileText, roles: ['candidate'] },
+  { title: "Browse Jobs", url: "/dashboard/candidate-jobs", icon: Search, roles: ['candidate'] },
+  { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
 ];
 
 const secondaryItems = [
-  { title: "Analytics", url: "/analytics", icon: BarChart3, roles: ['admin', 'hr'] },
-  { title: "Communications", url: "/communications", icon: MessageSquare, roles: ['admin', 'hr', 'agent'] },
-  { title: "Reports", url: "/reports", icon: ClipboardList, roles: ['admin', 'hr'] },
-  { title: "Settings", url: "/settings", icon: Settings, roles: ['admin', 'hr', 'agent', 'candidate'] },
+  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin', 'hr'] },
+  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'hr', 'agent'] },
+  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin', 'hr'] },
+  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'hr', 'agent', 'candidate'] },
 ];
 
 export function AppSidebar() {
@@ -62,8 +62,8 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
 
   const isActive = (path: string) => {
-    if (path === "/") {
-      return currentPath === "/";
+    if (path === "/dashboard") {
+      return currentPath === "/dashboard" || currentPath === "/dashboard/";
     }
     return currentPath.startsWith(path);
   };

@@ -451,33 +451,86 @@ export class CandidateAssignmentController {
   });
 
   /**
-   * Get assignments for current HR user (Shared Candidates view)
+   * Get assignments for current HR/Agent user
    * @route GET /candidate-assignments/my-assignments
    */
   static getMyAssignments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    if (req.user!.role !== UserRole.HR) {
-      throw createBadRequestError('Only HR users can access this endpoint');
-    }
-
     const query = querySchema.parse(req.query);
     const { page, limit, status = 'active', priority, jobId, sortBy, sortOrder } = query;
 
-    const assignments = await CandidateAssignment.getAssignmentsForHR(req.user!._id, {
-      status,
-      priority,
-      jobId,
-      limit,
-      skip: (page - 1) * limit,
-      sortBy,
-      sortOrder: sortOrder === 'asc' ? 1 : -1,
-    });
+    let assignments;
+    let total;
 
-    const total = await CandidateAssignment.countDocuments({
-      assignedTo: req.user!._id,
-      ...(status && { status }),
-      ...(priority && { priority }),
-      ...(jobId && { jobId }),
-    });
+    if (req.user!.role === UserRole.HR) {
+      // HR users see assignments assigned to them
+      assignments = await CandidateAssignment.getAssignmentsForHR(req.user!._id, {
+        status,
+        priority,
+        jobId,
+        limit,
+        skip: (page - 1) * limit,
+        sortBy,
+        sortOrder: sortOrder === 'asc' ? 1 : -1,
+      });
+
+      total = await CandidateAssignment.countDocuments({
+        assignedTo: req.user!._id,
+        ...(status && { status }),
+        ...(priority && { priority }),
+        ...(jobId && { jobId }),
+      });
+    } else if (req.user!.role === UserRole.AGENT) {
+      // Agents see assignments for their assigned candidates
+      const agentAssignment = await mongoose.model('AgentAssignment').findOne({
+        agentId: req.user!._id,
+        status: 'active'
+      });
+
+      if (!agentAssignment) {
+        return res.json({
+          data: [],
+          meta: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        });
+      }
+
+      const filter = {
+        candidateId: { $in: agentAssignment.assignedCandidates },
+        ...(status && { status }),
+        ...(priority && { priority }),
+        ...(jobId && { jobId }),
+      };
+
+      assignments = await CandidateAssignment.find(filter)
+        .populate({
+          path: 'candidateId',
+          populate: {
+            path: 'userId',
+            select: 'firstName lastName email'
+          }
+        })
+        .populate('assignedBy', 'firstName lastName email')
+        .populate('assignedTo', 'firstName lastName email')
+        .populate({
+          path: 'jobId',
+          select: 'title companyId location',
+          populate: {
+            path: 'companyId',
+            select: 'name industry location'
+          }
+        })
+        .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
+
+      total = await CandidateAssignment.countDocuments(filter);
+    } else {
+      throw createBadRequestError('Only HR and Agent users can access this endpoint');
+    }
 
     res.json({
       data: assignments,

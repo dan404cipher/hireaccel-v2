@@ -24,7 +24,9 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AnalyticsReports from "./pages/admin/AnalyticsReports";
 import AdminProfile from "./pages/admin/AdminProfile";
 import LoginPage from "./pages/auth/LoginPage";
+import SignupPage from "./pages/auth/SignupPage";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -116,14 +118,26 @@ function AppRouter() {
     <Routes>
       {/* Public Routes */}
       <Route 
+        path="/" 
+        element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />
+        } 
+      />
+      <Route 
         path="/login" 
         element={
-          isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+        } 
+      />
+      <Route 
+        path="/signup" 
+        element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage />
         } 
       />
       
       {/* Protected Routes */}
-      <Route path="/" element={
+      <Route path="/dashboard" element={
         <ProtectedRoute>
           <AppLayout />
         </ProtectedRoute>
@@ -199,14 +213,6 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
       </Route>
-      
-      {/* Redirect root to login if not authenticated */}
-      <Route 
-        path="/" 
-        element={
-          !isAuthenticated ? <Navigate to="/login" replace /> : null
-        } 
-      />
       
       {/* Catch all route */}
       <Route path="*" element={<NotFound />} />

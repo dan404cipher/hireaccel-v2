@@ -638,7 +638,7 @@ export default function AgentAssignmentDashboard() {
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Company</TableHead>
-                      <TableHead>Last Login</TableHead>
+                      <TableHead>Assigned Candidates</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -660,14 +660,14 @@ export default function AgentAssignmentDashboard() {
                           <TableCell>{hr.email}</TableCell>
                           <TableCell>
                             <div className="text-sm text-muted-foreground">
-                              {/* Company info could be added here if available */}
-                              N/A
+                              {hr.companyName || 'N/A'}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm text-muted-foreground">
-                              {/* Last login info could be added here if available */}
-                              N/A
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">
+                                {hr.assignedCandidatesCount ?? 0} candidates
+                              </Badge>
                             </div>
                           </TableCell>
                           <TableCell>
