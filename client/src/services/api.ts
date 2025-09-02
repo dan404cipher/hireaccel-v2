@@ -365,10 +365,34 @@ class ApiClient {
   }
 
   async updateCandidateProfile(profileData: any) {
-    return this.request('/api/v1/candidates/profile', {
-      method: 'PUT',
-      body: JSON.stringify(profileData),
-    });
+    try {
+      // If we're only updating specific fields, wrap them in a profile object
+      const dataToSend = {
+        profile: profileData
+      };
+      
+      console.log('Sending profile update request with data:', dataToSend);
+      const response = await this.request('/api/v1/candidates/profile', {
+        method: 'PUT',
+        body: JSON.stringify(dataToSend),
+      });
+      console.log('Profile update response:', response);
+      return response;
+    } catch (error) {
+      console.error('Profile update error:', error);
+      // If the error has issues, pass them through
+      if (error.issues) {
+        throw error;
+      }
+      // Otherwise, create a standardized error object
+      throw {
+        type: 'validation_error',
+        title: 'Validation Error',
+        status: 400,
+        detail: error.message || 'Failed to update profile',
+        issues: [{ message: error.message || 'Failed to update profile' }]
+      };
+    }
   }
 
   async createApplication(applicationData: { candidateId: string; jobId: string; source?: string }) {
@@ -510,6 +534,7 @@ class ApiClient {
     notes?: string;
     dueDate?: string;
     feedback?: string;
+    candidateStatus?: string;
   }) {
     return this.request(`/api/v1/candidate-assignments/${id}`, {
       method: 'PUT',

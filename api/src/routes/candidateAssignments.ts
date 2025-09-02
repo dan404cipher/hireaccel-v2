@@ -256,6 +256,10 @@ router.get('/:id', CandidateAssignmentController.getAssignment);
  *               priority:
  *                 type: string
  *                 enum: [low, medium, high, urgent]
+ *               candidateStatus:
+ *                 type: string
+ *                 enum: [new, reviewed, shortlisted, interview_scheduled, interviewed, offer_sent, hired, rejected]
+ *                 description: Candidate's current status in the hiring process
  *               notes:
  *                 type: string
  *                 maxLength: 1000

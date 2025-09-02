@@ -252,7 +252,7 @@ const candidateProfileSchema = new Schema<CandidateProfile>({
   
   phoneNumber: {
     type: String,
-    required: [true, 'Phone number is required'],
+    required: false, // Make it optional for partial updates
     trim: true,
     match: [
       /^[\+]?[1-9][\d]{0,15}$/,
@@ -303,7 +303,7 @@ const candidateProfileSchema = new Schema<CandidateProfile>({
   availability: {
     startDate: {
       type: Date,
-      required: [true, 'Availability start date is required'],
+      required: false, // Make it optional for partial updates
     },
     remote: {
       type: Boolean,

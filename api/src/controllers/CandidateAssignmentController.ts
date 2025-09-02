@@ -32,6 +32,7 @@ const createAssignmentSchema = z.object({
 const updateAssignmentSchema = z.object({
   status: z.enum(['active', 'completed', 'rejected', 'withdrawn']).optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+  candidateStatus: z.enum(['new', 'reviewed', 'shortlisted', 'interview_scheduled', 'interviewed', 'offer_sent', 'hired', 'rejected']).optional(),
   notes: z.string().max(1000, 'Notes cannot exceed 1000 characters').optional(),
   dueDate: z.string().datetime().optional(),
   feedback: z.string().max(2000, 'Feedback cannot exceed 2000 characters').optional(),

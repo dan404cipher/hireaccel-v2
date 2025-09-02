@@ -215,33 +215,77 @@ const CandidateProfile: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      // Convert dates to ISO strings for API
-      const profileToSave = {
-        ...profile,
-        experience: profile.experience.map(exp => ({
-          ...exp,
-          startDate: exp.startDate.toISOString(),
-          endDate: exp.endDate ? exp.endDate.toISOString() : undefined
-        })),
-        certifications: profile.certifications.map(cert => ({
-          ...cert,
-          issueDate: cert.issueDate.toISOString(),
-          expiryDate: cert.expiryDate ? cert.expiryDate.toISOString() : undefined
-        })),
-        projects: profile.projects.map(project => ({
-          ...project,
-          startDate: project.startDate.toISOString(),
-          endDate: project.endDate ? project.endDate.toISOString() : undefined
-        })),
-        availability: {
-          ...profile.availability,
-          startDate: profile.availability.startDate.toISOString()
-        }
-      };
+      let profileToSave;
       
+      // For summary-only updates, just send the summary
+      if (editingSections.has('summary')) {
+        profileToSave = {
+          profile: {
+            summary: profile.summary || ''
+          }
+        };
+      } else {
+        // For other sections, handle the full profile update
+        const updatedProfile = {
+          ...profile,
+          experience: profile.experience.map(exp => ({
+            ...exp,
+            startDate: exp.startDate.toISOString().split('T')[0],
+            endDate: exp.endDate ? exp.endDate.toISOString().split('T')[0] : undefined
+          })),
+          certifications: profile.certifications.map(cert => ({
+            ...cert,
+            issueDate: cert.issueDate.toISOString().split('T')[0],
+            expiryDate: cert.expiryDate ? cert.expiryDate.toISOString().split('T')[0] : undefined
+          })),
+          projects: profile.projects.map(project => ({
+            ...project,
+            startDate: project.startDate.toISOString().split('T')[0],
+            endDate: project.endDate ? project.endDate.toISOString().split('T')[0] : undefined
+          }))
+        };
+
+        if (profile.availability) {
+          updatedProfile.availability = {
+            ...profile.availability,
+            startDate: profile.availability.startDate.toISOString().split('T')[0]
+          };
+        }
+
+        profileToSave = {
+          profile: updatedProfile
+        };
+      }
+      
+      // Clean up undefined values
+      if (profileToSave.profile) {
+        Object.keys(profileToSave.profile).forEach(key => {
+          if (profileToSave.profile[key] === undefined) {
+            delete profileToSave.profile[key];
+          }
+        });
+      }
+      
+      console.log('Saving profile with data:', profileToSave);
       await updateProfile.mutate(profileToSave);
+      
+      // Close the edit section after successful save
+      setEditingSections(new Set());
+      
+      toast({
+        title: 'Success',
+        description: 'Profile updated successfully',
+      });
     } catch (error) {
-      // Error handling is done in the hook
+      console.error('Error saving profile:', error);
+      const errorMessage = error.issues?.map(issue => issue.message).join('\n') || 
+                          error.detail || 
+                          'Failed to update profile. Please try again.';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -566,13 +610,23 @@ const CandidateProfile: React.FC = () => {
             <CardContent>
               {editingSections.has('summary') ? (
                 <div className="space-y-4">
-                  <Textarea
-                    value={profile.summary}
-                    onChange={(e) => setProfile(prev => ({ ...prev, summary: e.target.value }))}
-                    rows={6}
-                    placeholder="Write a brief summary of your professional background, goals, and what makes you unique..."
-                    className="text-base"
-                  />
+                  <div className="space-y-2">
+                    <Textarea
+                      value={profile.summary}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.length <= 1000) {
+                          setProfile(prev => ({ ...prev, summary: value }));
+                        }
+                      }}
+                      rows={6}
+                      placeholder="Write a brief summary of your professional background, goals, and what makes you unique..."
+                      className="text-base"
+                    />
+                    <div className="text-sm text-muted-foreground flex justify-end">
+                      {profile.summary?.length || 0}/1000 characters
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <Button onClick={handleSave} size="sm" disabled={updateProfile.loading}>
                       <Save className="w-4 h-4 mr-2" />

@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +11,8 @@ import AgentAllocation from "./pages/agents/AgentAllocation";
 import AgentAssignmentDashboard from "./pages/agents/AgentAssignmentDashboard";
 import AssignmentTracking from "./pages/agents/AssignmentTracking";
 import JobManagement from "./pages/jobs/JobManagementIntegrated";
+import JobDetailsPage from "./pages/jobs/JobDetailsPage";
+import JobEditPage from "./pages/jobs/JobEditPage";
 import SharedCandidates from "./pages/candidates/SharedCandidates";
 import CandidateJobs from "./pages/candidates/CandidateJobs";
 import CandidateApplications from "./pages/candidates/CandidateApplications";
@@ -163,6 +166,16 @@ function AppRouter() {
             <JobManagement />
           </RoleProtectedRoute>
         } />
+        <Route path="jobs/:jobId" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+            <JobDetailsPage />
+          </RoleProtectedRoute>
+        } />
+        <Route path="jobs/:jobId/edit" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+            <JobEditPage />
+          </RoleProtectedRoute>
+        } />
         <Route path="shared-candidates" element={
           <RoleProtectedRoute allowedRoles={['hr']}>
             <SharedCandidates />
@@ -220,18 +233,28 @@ function AppRouter() {
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRouter />
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Suspense
+              fallback={
+                <div className="min-h-screen flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+                </div>
+              }
+            >
+              <AppRouter />
+            </Suspense>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

@@ -29,6 +29,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    
     // Check if user is already logged in
     const checkAuth = async () => {
       try {
@@ -36,18 +38,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (token) {
           apiClient.setToken(token);
           const response = await apiClient.getCurrentUser();
-          setUser(response.data?.user || null);
+          if (mounted) {
+            setUser(response.data?.user || null);
+          }
         }
       } catch (error) {
         // Token might be expired
         localStorage.removeItem('accessToken');
         apiClient.clearToken();
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkAuth();
+    
+    // Cleanup function
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

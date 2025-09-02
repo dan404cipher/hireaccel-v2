@@ -28,11 +28,11 @@ export function TopBar() {
 
   const handleProfileClick = () => {
     if (user?.role === 'candidate') {
-      navigate('/candidate-profile');
+      navigate('/dashboard/candidate-profile');
     } else if (user?.role === 'admin') {
-      navigate('/admin-profile');
+      navigate('/dashboard/admin-profile');
     } else {
-      navigate('/profile');
+      navigate('/dashboard/profile');
     }
   };
 

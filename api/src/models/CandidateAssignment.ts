@@ -12,6 +12,7 @@ export interface ICandidateAssignment {
   jobId?: mongoose.Types.ObjectId; // Optional: specific job this assignment is for
   status: 'active' | 'completed' | 'rejected' | 'withdrawn';
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  candidateStatus?: 'new' | 'reviewed' | 'shortlisted' | 'interview_scheduled' | 'interviewed' | 'offer_sent' | 'hired' | 'rejected';
   notes?: string;
   assignedAt: Date;
   dueDate?: Date;
@@ -85,6 +86,13 @@ const candidateAssignmentSchema = new Schema<CandidateAssignmentDocument>({
     type: String,
     enum: ['low', 'medium', 'high', 'urgent'],
     default: 'medium',
+    index: true,
+  },
+  
+  candidateStatus: {
+    type: String,
+    enum: ['new', 'reviewed', 'shortlisted', 'interview_scheduled', 'interviewed', 'offer_sent', 'hired', 'rejected'],
+    default: 'new',
     index: true,
   },
   

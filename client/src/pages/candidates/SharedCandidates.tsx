@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats } from '@/hooks/useApi';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from '@/hooks/use-toast';
 
 interface CandidateAssignment {
   _id: string;
@@ -112,13 +113,7 @@ const SharedCandidates: React.FC = () => {
   });
 
   const { data: statsData } = useCandidateAssignmentStats();
-  const updateAssignment = useUpdateCandidateAssignment({
-    onSuccess: () => {
-      refetch();
-      setSelectedAssignment(null);
-      setFeedbackText('');
-    }
-  });
+  const updateAssignment = useUpdateCandidateAssignment();
 
   // Handle both possible response formats
   const assignments = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData as any)?.data || [];
@@ -218,23 +213,53 @@ const SharedCandidates: React.FC = () => {
     }
   };
 
-  const handleStatusUpdate = (assignment: CandidateAssignment, newStatus: string) => {
-    updateAssignment.mutate({
-      id: assignment._id,
-      data: {
-        status: newStatus,
-        feedback: feedbackText || undefined
-      }
-    });
+  const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
+    try {
+      await updateAssignment.mutate({
+        id: assignment._id,
+        data: {
+          status: newStatus,
+          feedback: feedbackText || undefined
+        }
+      });
+      refetch();
+      setSelectedAssignment(null);
+      setFeedbackText('');
+      toast({
+        title: "Success",
+        description: `Status updated to ${newStatus}`
+      });
+    } catch (error: any) {
+      console.error('Failed to update status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleCandidateStatusUpdate = (assignment: CandidateAssignment, newCandidateStatus: string) => {
-    updateAssignment.mutate({
-      id: assignment._id,
-      data: {
-        candidateStatus: newCandidateStatus
-      }
-    });
+  const handleCandidateStatusUpdate = async (assignment: CandidateAssignment, newCandidateStatus: string) => {
+    try {
+      await updateAssignment.mutate({
+        id: assignment._id,
+        data: {
+          candidateStatus: newCandidateStatus
+        }
+      });
+      refetch();
+      toast({
+        title: "Success",
+        description: `Candidate status updated to ${formatCandidateStatus(newCandidateStatus)}`
+      });
+    } catch (error: any) {
+      console.error('Failed to update candidate status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update candidate status",
+        variant: "destructive"
+      });
+    }
   };
 
   const renderAssignmentCard = (assignment: CandidateAssignment) => {
@@ -512,7 +537,7 @@ const SharedCandidates: React.FC = () => {
                 {Array.from(new Set(assignments
                   .filter((a: CandidateAssignment) => a.jobId?.companyId?.name)
                   .map((a: CandidateAssignment) => a.jobId!.companyId!.name)
-                )).map((companyName) => (
+                )).map((companyName: string) => (
                   <SelectItem key={companyName} value={companyName}>
                     {companyName}
                   </SelectItem>
@@ -546,7 +571,7 @@ const SharedCandidates: React.FC = () => {
       )}
 
       {/* Pagination */}
-      {meta.totalPages > 1 && (
+      {meta && typeof meta.totalPages === 'number' && meta.totalPages > 1 && (
         <div className="flex justify-center space-x-2">
           <Button
             variant="outline"

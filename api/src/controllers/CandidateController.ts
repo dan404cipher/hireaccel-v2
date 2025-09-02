@@ -2,7 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, AuditAction } from '@/types';
+import { AuthenticatedRequest, AuditAction, WorkExperience, Education, Certification, Project } from '@/types';
 import { asyncHandler, createNotFoundError, createForbiddenError } from '@/middleware/errorHandler';
 
 /**
@@ -48,30 +48,55 @@ const projectSchema = z.object({
   role: z.string().max(100).optional(),
 });
 
-const candidateProfileSchema = z.object({
+// Base schema for profile fields
+const baseProfileSchema = z.object({
   skills: z.array(z.string().min(1).max(50)).default([]),
   experience: z.array(workExperienceSchema).default([]),
   education: z.array(educationSchema).default([]),
   certifications: z.array(certificationSchema).default([]),
   projects: z.array(projectSchema).default([]),
-  summary: z.string().max(1000).optional(),
-  location: z.string().max(200).optional(),
+  summary: z.string().max(1000),
+  location: z.string().max(200),
   phoneNumber: z.string().min(1).max(20),
-  linkedinUrl: z.string().url().optional(),
-  portfolioUrl: z.string().url().optional(),
+  linkedinUrl: z.string().url(),
+  portfolioUrl: z.string().url(),
   preferredSalaryRange: z.object({
     min: z.number().min(0),
     max: z.number().min(0),
     currency: z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD']).default('USD'),
-  }).optional(),
+  }),
   availability: z.object({
-    startDate: z.string().datetime(),
+    startDate: z.string(),
     remote: z.boolean().default(false),
     relocation: z.boolean().default(false),
   }),
 });
 
-const updateCandidateProfileSchema = candidateProfileSchema.partial();
+// Schema for profile updates
+const profileUpdateSchema = z.object({
+  profile: z.object({
+    summary: z.string().max(1000).optional(),
+    skills: z.array(z.string()).optional(),
+    experience: z.array(workExperienceSchema).optional(),
+    education: z.array(educationSchema).optional(),
+    certifications: z.array(certificationSchema).optional(),
+    projects: z.array(projectSchema).optional(),
+    location: z.string().optional(),
+    phoneNumber: z.string().optional(),
+    linkedinUrl: z.string().url().optional(),
+    portfolioUrl: z.string().url().optional(),
+    preferredSalaryRange: z.object({
+      min: z.number(),
+      max: z.number(),
+      currency: z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD']),
+    }).optional(),
+    availability: z.object({
+      startDate: z.string(),
+      remote: z.boolean(),
+      relocation: z.boolean(),
+    }).optional(),
+  }).partial(),
+});
 
 export class CandidateController {
   /**
@@ -102,47 +127,161 @@ export class CandidateController {
    */
   static updateMyProfile = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user!._id;
-    const validatedData = updateCandidateProfileSchema.parse(req.body);
     
     // Find candidate by user ID
     let candidate = await Candidate.findOne({ userId });
     
     if (!candidate) {
-      // Create new candidate profile if it doesn't exist
+      // For new profiles, create with default values from base schema
+      const defaultProfile = baseProfileSchema.parse({
+        summary: '',
+        skills: [],
+        experience: [],
+        education: [],
+        certifications: [],
+        projects: [],
+        location: '',
+        phoneNumber: '',
+        linkedinUrl: 'https://linkedin.com/in/default',
+        portfolioUrl: 'https://example.com',
+        preferredSalaryRange: {
+          min: 0,
+          max: 0,
+          currency: 'USD'
+        },
+        availability: {
+          startDate: new Date().toISOString(),
+          remote: false,
+          relocation: false
+        }
+      });
+
       candidate = new Candidate({
         userId,
-        profile: validatedData,
+        profile: defaultProfile,
         status: 'active',
       });
-    } else {
-      // Update existing profile
-      const beforeState = candidate.toObject();
+    }
+
+    const beforeState = candidate.toObject();
+    
+    // Validate the update data
+    const validatedData = profileUpdateSchema.parse(req.body);
+    
+    // Handle summary-only updates
+    if (validatedData.profile && Object.keys(validatedData.profile).length === 1 && validatedData.profile.summary !== undefined) {
+      candidate.profile.summary = validatedData.profile.summary;
+    } else if (validatedData.profile) {
+      // For other updates, only update the fields that are provided
+      const { profile: updateData } = validatedData;
       
-      // Update profile fields
-      Object.assign(candidate.profile, validatedData);
-      candidate.lastActivityAt = new Date();
+      // Handle each field type appropriately
+      if (updateData.summary !== undefined) candidate.profile.summary = updateData.summary;
+      if (updateData.skills !== undefined) candidate.profile.skills = updateData.skills;
+      if (updateData.location !== undefined) candidate.profile.location = updateData.location;
+      if (updateData.phoneNumber !== undefined) candidate.profile.phoneNumber = updateData.phoneNumber;
+      if (updateData.linkedinUrl !== undefined) candidate.profile.linkedinUrl = updateData.linkedinUrl;
+      if (updateData.portfolioUrl !== undefined) candidate.profile.portfolioUrl = updateData.portfolioUrl;
       
-      // Log profile update
-      await AuditLog.createLog({
-        actor: req.user!._id,
-        action: AuditAction.UPDATE,
-        entityType: 'Candidate',
-        entityId: candidate._id,
-        before: beforeState,
-        after: candidate.toObject(),
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-        businessProcess: 'candidate_profile_management',
-      });
+      // Handle arrays of objects with date conversions
+      if (updateData.experience) {
+        candidate.profile.experience = updateData.experience.map(exp => {
+          const workExp: WorkExperience = {
+            company: exp.company,
+            position: exp.position,
+            description: exp.description,
+            startDate: new Date(exp.startDate),
+            current: exp.current,
+            endDate: exp.endDate ? new Date(exp.endDate) : new Date()
+          };
+          return workExp;
+        });
+      }
+      
+      if (updateData.certifications) {
+        candidate.profile.certifications = updateData.certifications.map(cert => {
+          const certification: Certification = {
+            name: cert.name,
+            issuer: cert.issuer,
+            issueDate: new Date(cert.issueDate),
+            expiryDate: cert.expiryDate ? new Date(cert.expiryDate) : new Date(),
+            credentialId: cert.credentialId || '',
+            credentialUrl: cert.credentialUrl || ''
+          };
+          return certification;
+        });
+      }
+      
+      if (updateData.projects) {
+        candidate.profile.projects = updateData.projects.map(proj => {
+          const project: Project = {
+            title: proj.title,
+            description: proj.description,
+            technologies: proj.technologies,
+            startDate: new Date(proj.startDate),
+            current: proj.current,
+            endDate: proj.endDate ? new Date(proj.endDate) : new Date(),
+            projectUrl: proj.projectUrl || '',
+            githubUrl: proj.githubUrl || '',
+            role: proj.role || ''
+          };
+          return project;
+        });
+      }
+      
+      if (updateData.education) {
+        candidate.profile.education = updateData.education.map(edu => {
+          const education: Education = {
+            degree: edu.degree,
+            field: edu.field,
+            institution: edu.institution,
+            graduationYear: edu.graduationYear,
+            gpa: edu.gpa || 0
+          };
+          return education;
+        });
+      }
+      
+      if (updateData.preferredSalaryRange) {
+        candidate.profile.preferredSalaryRange = updateData.preferredSalaryRange;
+      }
+      
+      if (updateData.availability) {
+        candidate.profile.availability = {
+          startDate: new Date(updateData.availability.startDate),
+          remote: updateData.availability.remote,
+          relocation: updateData.availability.relocation
+        };
+      }
     }
     
-    await candidate.save();
+    candidate.lastActivityAt = new Date();
     
-    res.json({
-      success: true,
-      message: 'Profile updated successfully',
-      data: candidate,
+    // Log profile update
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.UPDATE,
+      entityType: 'Candidate',
+      entityId: candidate._id,
+      before: beforeState,
+      after: candidate.toObject(),
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      businessProcess: 'candidate_profile_management',
     });
+    
+    try {
+      await candidate.save({ validateModifiedOnly: true });
+      
+      res.json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: candidate,
+      });
+    } catch (error) {
+      console.error('Save error:', error);
+      throw error;
+    }
   });
 
   /**
