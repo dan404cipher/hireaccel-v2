@@ -54,7 +54,8 @@ import { toast } from '@/hooks/use-toast';
 import { 
   useJobs, 
   useCreateCandidateAssignment,
-  useMyAgentAssignment
+  useMyAgentAssignment,
+  useAgentCandidates
 } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -87,13 +88,25 @@ export default function AgentAssignmentDashboard() {
     sortOrder: 'desc',
   });
 
-  // Get agent's assignment details to see assigned HRs and candidates
+  // Get agent's assignment details to see assigned HRs
   const { 
     data: agentAssignmentResponse, 
     loading: agentAssignmentLoading, 
     error: agentAssignmentError,
     refetch: refetchAgentAssignment
   } = useMyAgentAssignment();
+
+  // Get candidates assigned to the agent
+  const { 
+    data: candidatesResponse, 
+    loading: candidatesLoading, 
+    error: candidatesError,
+    refetch: refetchCandidates
+  } = useAgentCandidates({
+    page,
+    limit,
+    search: candidateSearchTerm || undefined,
+  });
 
   // Refresh data when component comes into focus (e.g., when user switches back to tab)
   useEffect(() => {
@@ -124,7 +137,7 @@ export default function AgentAssignmentDashboard() {
   // Extract data from API responses
   const jobs = jobsResponse || [];
   const agentAssignment = agentAssignmentResponse?.data || agentAssignmentResponse;
-  const candidates = agentAssignment?.assignedCandidates || []; // Use assigned candidates from agent assignment
+  const candidates = (candidatesResponse?.data || candidatesResponse || []); // Handle both response formats
 
 
 
@@ -148,11 +161,11 @@ export default function AgentAssignmentDashboard() {
     
     const searchLower = candidateSearchTerm.toLowerCase();
     
-    // Check firstName and lastName directly since these are User objects
+    // Check firstName and lastName from the populated userId
     const nameMatches = (
-      candidate.firstName?.toLowerCase().includes(searchLower) ||
-      candidate.lastName?.toLowerCase().includes(searchLower) ||
-      candidate.email?.toLowerCase().includes(searchLower)
+      candidate.userId?.firstName?.toLowerCase().includes(searchLower) ||
+      candidate.userId?.lastName?.toLowerCase().includes(searchLower) ||
+      candidate.userId?.email?.toLowerCase().includes(searchLower)
     );
     
     return nameMatches;
@@ -214,28 +227,17 @@ export default function AgentAssignmentDashboard() {
       return;
     }
 
-    // For now, we'll need to select an HR user. This could be enhanced with an HR selection dropdown
-    // For now, let's use the first assigned HR user
-    const firstHR = agentAssignment?.assignedHRs?.[0];
-    if (!firstHR) {
-      toast({
-        title: 'Error',
-        description: 'No HR users assigned to you. Please contact an administrator.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    // When a job is selected, the backend will automatically determine the HR user
+    // from the job's createdBy field, so we don't need to specify assignedTo
     createAssignment({
       candidateId: selectedCandidate,
-      assignedTo: firstHR._id, // Use the first assigned HR user
       jobId: selectedJob,
       priority: assignmentPriority,
       notes: assignmentNotes,
     });
   };
 
-  if (jobsError || agentAssignmentError) {
+  if (jobsError || agentAssignmentError || candidatesError) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -251,11 +253,14 @@ export default function AgentAssignmentDashboard() {
             <XCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
             <h3 className="text-lg font-medium mb-2">Error Loading Data</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {jobsError?.detail || agentAssignmentError?.detail || 'Failed to load data'}
+              {jobsError?.detail || agentAssignmentError?.detail || candidatesError?.detail || 'Failed to load data'}
             </p>
             <div className="flex gap-2 justify-center">
               <Button onClick={() => refetchJobs()}>
                 Retry Jobs
+              </Button>
+              <Button onClick={() => refetchCandidates()}>
+                Retry Candidates
               </Button>
               <Button onClick={() => window.location.reload()}>
                 Retry All
@@ -280,7 +285,7 @@ export default function AgentAssignmentDashboard() {
 
         <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
           <DialogTrigger asChild>
-            <Button disabled={jobsLoading || agentAssignmentLoading}>
+            <Button disabled={jobsLoading || agentAssignmentLoading || candidatesLoading}>
               <UserPlus className="w-4 h-4 mr-2" />
               Assign Candidate
             </Button>
@@ -302,7 +307,7 @@ export default function AgentAssignmentDashboard() {
                   <SelectContent>
                     {candidates.map((candidate: any) => (
                       <SelectItem key={candidate._id} value={candidate._id}>
-                        {candidate.firstName} {candidate.lastName} - {candidate.email}
+                        {candidate.userId?.firstName} {candidate.userId?.lastName} - {candidate.userId?.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -518,7 +523,7 @@ export default function AgentAssignmentDashboard() {
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Candidates Assigned to Me
-                {agentAssignmentLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {candidatesLoading && <Loader2 className="w-4 h-4 animate-spin" />}
               </CardTitle>
               <div className="flex gap-4">
                 <div className="flex items-center space-x-2">
@@ -533,7 +538,7 @@ export default function AgentAssignmentDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {agentAssignmentLoading ? (
+              {candidatesLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin" />
                   <span className="ml-2">Loading candidates...</span>
@@ -559,17 +564,17 @@ export default function AgentAssignmentDashboard() {
                     {filteredCandidates.map((candidate: any) => (
                       <TableRow key={candidate._id}>
                         <TableCell className="font-medium">
-                          {candidate.firstName} {candidate.lastName}
+                          {candidate.userId?.firstName} {candidate.userId?.lastName}
                         </TableCell>
-                        <TableCell>{candidate.email}</TableCell>
+                        <TableCell>{candidate.userId?.email}</TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">
-                            {candidate.role}
+                            {candidate.profile?.summary ? 'Candidate' : 'User'}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="bg-green-100 text-green-800">
-                            Active
+                            {candidate.status || 'Active'}
                           </Badge>
                         </TableCell>
                         <TableCell>

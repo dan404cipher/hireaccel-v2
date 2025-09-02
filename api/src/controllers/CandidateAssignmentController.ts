@@ -16,11 +16,17 @@ import mongoose from 'mongoose';
 
 const createAssignmentSchema = z.object({
   candidateId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid candidate ID'),
-  assignedTo: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid HR user ID'),
+  assignedTo: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid HR user ID').optional(),
   jobId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid job ID').optional(),
   priority: z.enum(['low', 'medium', 'high', 'urgent']).default('medium'),
   notes: z.string().max(1000, 'Notes cannot exceed 1000 characters').optional(),
   dueDate: z.string().datetime().optional(),
+}).refine((data) => {
+  // Either assignedTo or jobId must be provided
+  return data.assignedTo || data.jobId;
+}, {
+  message: "Either assignedTo or jobId must be provided",
+  path: ["assignedTo"]
 });
 
 const updateAssignmentSchema = z.object({
@@ -197,29 +203,52 @@ export class CandidateAssignmentController {
       throw createNotFoundError('Candidate not found');
     }
 
-    // Verify HR user exists and has correct role
-    const hrUser = await User.findOne({
-      _id: validatedData.assignedTo,
-      role: UserRole.HR,
-      status: 'active',
-    });
-    if (!hrUser) {
-      throw createNotFoundError('HR user not found');
-    }
+    let hrUser;
+    let finalAssignedTo = validatedData.assignedTo;
 
-    // Verify job exists if provided and validate permissions
+    // If jobId is provided, automatically determine the HR user from the job
     if (validatedData.jobId) {
       const job = await Job.findById(validatedData.jobId);
       if (!job) {
         throw createNotFoundError('Job not found');
       }
 
-      // Verify that the HR user posted this job
-      if (job.createdBy.toString() !== validatedData.assignedTo.toString()) {
-        throw createBadRequestError('You can only assign candidates to HR users for jobs they posted');
+      // Use the HR user who posted the job
+      finalAssignedTo = job.createdBy.toString();
+      
+      // Verify HR user exists and has correct role
+      hrUser = await User.findOne({
+        _id: finalAssignedTo,
+        role: UserRole.HR,
+        status: 'active',
+      });
+      if (!hrUser) {
+        throw createNotFoundError('HR user who posted this job not found');
       }
 
       // If agent is creating assignment, verify they have access to this job
+      if (req.user!.role === UserRole.AGENT) {
+        const agentAssignment = await mongoose.model('AgentAssignment').findOne({
+          agentId: req.user!._id,
+          'assignedHRs': finalAssignedTo
+        });
+        
+        if (!agentAssignment) {
+          throw createBadRequestError('You can only assign candidates to jobs from HR users you are assigned to work with');
+        }
+      }
+    } else {
+      // If no jobId provided, use the explicitly provided assignedTo
+      hrUser = await User.findOne({
+        _id: validatedData.assignedTo,
+        role: UserRole.HR,
+        status: 'active',
+      });
+      if (!hrUser) {
+        throw createNotFoundError('HR user not found');
+      }
+
+      // If agent is creating assignment, verify they have access to this HR user
       if (req.user!.role === UserRole.AGENT) {
         const agentAssignment = await mongoose.model('AgentAssignment').findOne({
           agentId: req.user!._id,
@@ -235,7 +264,7 @@ export class CandidateAssignmentController {
     // Check if assignment already exists for this candidate-HR pair
     const existingAssignment = await CandidateAssignment.findOne({
       candidateId: validatedData.candidateId,
-      assignedTo: validatedData.assignedTo,
+      assignedTo: finalAssignedTo,
       status: 'active',
     });
 
@@ -246,6 +275,7 @@ export class CandidateAssignmentController {
     // Create assignment
     const assignment = await CandidateAssignment.create({
       ...validatedData,
+      assignedTo: finalAssignedTo,
       assignedBy: req.user!._id,
       dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
     });
@@ -279,7 +309,7 @@ export class CandidateAssignmentController {
       after: populatedAssignment?.toObject(),
       metadata: { 
         candidateId: validatedData.candidateId,
-        assignedTo: validatedData.assignedTo,
+        assignedTo: finalAssignedTo,
         jobId: validatedData.jobId,
         priority: validatedData.priority 
       },

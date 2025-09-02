@@ -282,6 +282,15 @@ export function useMyAgentAssignment() {
   return useApi(() => apiClient.getMyAgentAssignment(), { immediate: true });
 }
 
+export function useAgentDashboard() {
+  return useApi(() => apiClient.getAgentDashboard(), { immediate: true });
+}
+
+export function useMyAgentAssignments(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentAssignments(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
+}
+
 export function useDeleteAgentAssignment() {
   return useMutation((agentId: string) => apiClient.deleteAgentAssignment(agentId));
 }

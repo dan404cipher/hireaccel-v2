@@ -15,9 +15,12 @@ import CandidateJobs from "./pages/candidates/CandidateJobs";
 import CandidateApplications from "./pages/candidates/CandidateApplications";
 import CandidateProfile from "./pages/candidates/CandidateProfile";
 import CandidateDashboard from "./pages/dashboards/CandidateDashboard";
+import HRDashboard from "./pages/dashboards/HRDashboard";
+import AgentDashboard from "./pages/dashboards/AgentDashboard";
 import InterviewManagement from "./pages/interviews/InterviewManagement";
 import CompanyManagement from "./pages/companies/CompanyManagement";
 import UserManagement from "./pages/users/UserManagement";
+import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AnalyticsReports from "./pages/admin/AnalyticsReports";
 import AdminProfile from "./pages/admin/AdminProfile";
 import LoginPage from "./pages/auth/LoginPage";
@@ -80,6 +83,18 @@ function DashboardRouter() {
   
   if (user?.role === 'candidate') {
     return <CandidateDashboard />;
+  }
+  
+  if (user?.role === 'hr') {
+    return <HRDashboard />;
+  }
+  
+  if (user?.role === 'agent') {
+    return <AgentDashboard />;
+  }
+  
+  if (user?.role === 'admin') {
+    return <AdminDashboard />;
   }
   
   return <Dashboard />;

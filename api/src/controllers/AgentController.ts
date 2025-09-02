@@ -156,7 +156,7 @@ export class AgentController {
 
     // Build filter for assigned candidates
     const filter: any = {
-      _id: { $in: assignedCandidateIds },
+      userId: { $in: assignedCandidateIds },
     };
 
     if (search) {

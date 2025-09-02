@@ -4,7 +4,7 @@ const path = require('path');
 
 // Set up aliases for production
 const isDist = __dirname.includes('dist');
-const sourceRoot = isDist ? __dirname : path.join(__dirname, '..');
+const sourceRoot = isDist ? __dirname : __dirname;
 
 moduleAlias.addAliases({
   '@': sourceRoot,

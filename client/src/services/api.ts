@@ -565,6 +565,25 @@ class ApiClient {
     return this.request('/api/v1/agents/me/assignment');
   }
 
+  async getMyAgentAssignments(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/api/v1/agents/me/assignments${queryString ? `?${queryString}` : ''}`);
+  }
+
   async getAgentJobs(params?: {
     page?: number;
     limit?: number;
