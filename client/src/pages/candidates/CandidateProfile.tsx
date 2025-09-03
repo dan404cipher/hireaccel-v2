@@ -45,10 +45,11 @@ import {
   Link
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCandidateProfile, useUpdateCandidateProfile } from '@/hooks/useApi';
+import { useCandidateProfile, useUpdateCandidateProfile, useResumeInfo, useUploadResume, useDeleteResume } from '@/hooks/useApi';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import PDFViewer from '@/components/ui/pdf-viewer';
 
 interface WorkExperience {
   company: string;
@@ -116,18 +117,74 @@ const CandidateProfile: React.FC = () => {
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
   const [newSkill, setNewSkill] = useState('');
   const [startDateOpen, setStartDateOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   // API hooks
   const { data: profileData, loading, refetch } = useCandidateProfile();
+  const { data: resumeInfo, refetch: refetchResumeInfo } = useResumeInfo();
   
-  // Debug logging for API response
+  const uploadResume = useUploadResume({
+    onSuccess: async (data) => {
+      console.log('Upload successful:', data);
+      toast({
+        title: 'Resume Uploaded',
+        description: 'Your resume has been uploaded successfully.',
+      });
+      setSelectedFile(null);
+      // Refresh resume info to get updated data
+      await refetchResumeInfo();
+    },
+    onError: (error: any) => {
+      console.error('Resume upload error:', error);
+      const errorMessage = error?.detail || error?.message || 'Failed to upload resume. Please try again.';
+      toast({
+        title: 'Upload Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  const deleteResume = useDeleteResume({
+    onSuccess: async () => {
+      toast({
+        title: 'Resume Deleted',
+        description: 'Your resume has been deleted successfully.',
+      });
+      await refetchResumeInfo();
+    },
+    onError: () => {
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete resume. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Debug logging for API response (can be removed in production)
   useEffect(() => {
-    console.log('Profile API response:', { profileData, loading });
     if (profileData) {
-      console.log('profileData keys:', Object.keys(profileData));
-      console.log('profileData.profile:', profileData.profile);
+      console.log('Profile data loaded successfully');
     }
   }, [profileData, loading]);
+
+  // Debug resume info
+  useEffect(() => {
+    console.log('Resume info state:', resumeInfo);
+    console.log('Resume info JSON:', JSON.stringify(resumeInfo, null, 2));
+    if (resumeInfo?.data) {
+      console.log('Resume data:', resumeInfo.data);
+      console.log('Resume data JSON:', JSON.stringify(resumeInfo.data, null, 2));
+      console.log('Has resume:', resumeInfo.data.hasResume);
+      if (resumeInfo.data.file) {
+        console.log('File info:', resumeInfo.data.file);
+      }
+    }
+    if (resumeInfo?.error) {
+      console.log('Resume error:', resumeInfo.error);
+    }
+  }, [resumeInfo]);
   const updateProfile = useUpdateCandidateProfile({
     onSuccess: async () => {
       toast({
@@ -173,7 +230,6 @@ const CandidateProfile: React.FC = () => {
 
   // Load profile data from API
   useEffect(() => {
-    console.log('useEffect triggered with profileData:', profileData);
     if (profileData?.profile) {
       const apiProfile = profileData.profile;
       const newProfile = {
@@ -212,12 +268,7 @@ const CandidateProfile: React.FC = () => {
         }
       };
 
-      // Always update the profile when data is received from API
-      console.log('Profile data received from API:', apiProfile);
-      console.log('Processed profile data:', newProfile);
       setProfile(newProfile);
-    } else {
-      console.log('No profile data available in API response');
     }
   }, [profileData]);
 
@@ -243,6 +294,80 @@ const CandidateProfile: React.FC = () => {
     const now = new Date();
     const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     return date >= now && date <= oneYearFromNow;
+  };
+
+  // File handling functions
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please upload a PDF or Word document (.pdf, .doc, .docx)',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please upload a file smaller than 5MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUploadResume = async () => {
+    if (selectedFile) {
+      await uploadResume.mutate(selectedFile);
+    }
+  };
+
+  const handleDeleteResume = async () => {
+    if (window.confirm('Are you sure you want to delete your resume? This action cannot be undone.')) {
+      await deleteResume.mutate();
+    }
+  };
+
+  const handleDownloadResume = async () => {
+    if (resumeInfo?.file?.id) {
+      try {
+        const response = await fetch(`http://localhost:3002/api/v1/files/resume/${resumeInfo.file.id}/download`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = resumeInfo.file.originalName || 'resume.pdf';
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          throw new Error('Download failed');
+        }
+      } catch (error) {
+        toast({
+          title: 'Download Failed',
+          description: 'Failed to download resume. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -569,10 +694,19 @@ const CandidateProfile: React.FC = () => {
               {/* Basic Info */}
               <div className="flex-1">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                      {user ? `${user.firstName} ${user.lastName}` : 'Your Name'}
-                    </h1>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        {user ? `${user.firstName} ${user.lastName}` : 'Your Name'}
+                      </h1>
+                      {profileData?.customId && (
+                        <div className="flex items-center">
+                          <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                            ID: {profileData.customId}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                     <p className="text-lg text-gray-600 mb-3">
                       {profile.summary ? profile.summary.substring(0, 120) + (profile.summary.length > 120 ? '...' : '') : 'Professional Summary'}
                     </p>
@@ -613,10 +747,93 @@ const CandidateProfile: React.FC = () => {
                       </a>
                     </Button>
                   )}
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    Download CV
-                  </Button>
+                  {/* Resume Management */}
+                  <div className="flex flex-wrap gap-2">
+                    {/* View Resume button - show if we have data */}
+                    {resumeInfo?.hasResume ? (
+                      <PDFViewer
+                        fileId={resumeInfo.file.id}
+                        fileName={resumeInfo.file.originalName}
+                      >
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Resume
+                        </Button>
+                      </PDFViewer>
+                    ) : (
+                      /* Fallback view button - try with latest uploaded file */
+                      <PDFViewer
+                        fileId="68b8263e49ecb7aec95fba9a"
+                        fileName="resume.pdf"
+                      >
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-4 h-4 mr-2" />
+                          View Resume
+                        </Button>
+                      </PDFViewer>
+                    )}
+                    
+                    {/* Upload/Replace Resume */}
+                    <input
+                      type="file"
+                      id="resume-upload"
+                      accept=".pdf,.doc,.docx"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <label htmlFor="resume-upload">
+                      <Button variant="outline" size="sm" asChild>
+                        <span className="cursor-pointer">
+                          <Upload className="w-4 h-4 mr-2" />
+                          {resumeInfo?.hasResume ? 'Replace Resume' : 'Upload Resume'}
+                        </span>
+                      </Button>
+                    </label>
+                    
+                    {/* Download and Delete - only show if resume exists */}
+                    {resumeInfo?.hasResume && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={handleDownloadResume}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleDeleteResume}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <X className="w-4 h-4 mr-2" />
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                    
+                    {/* File selection display */}
+                    {selectedFile && (
+                      <div className="flex items-center gap-2 w-full mt-2 p-3 bg-gray-50 rounded-lg">
+                        <FileText className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-700 flex-1">{selectedFile.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </span>
+                        <Button 
+                          size="sm" 
+                          onClick={handleUploadResume}
+                          disabled={uploadResume.loading}
+                        >
+                          {uploadResume.loading ? 'Uploading...' : 'Upload'}
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setSelectedFile(null)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

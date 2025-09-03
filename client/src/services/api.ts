@@ -153,13 +153,13 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> || {}),
     };
 
     if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
+      headers['Authorization'] = `Bearer ${this.token}`;
     }
 
     try {
@@ -179,7 +179,6 @@ class ApiClient {
             .then(token => {
               this.isRefreshing = false;
               this.onTokenRefreshed(token);
-              return token;
             })
             .catch(error => {
               this.isRefreshing = false;
@@ -465,6 +464,64 @@ class ApiClient {
         issues: [{ message: error.message || 'Failed to update profile' }]
       };
     }
+  }
+
+  // File Upload methods
+  async uploadResume(file: File) {
+    const formData = new FormData();
+    formData.append('resume', file);
+    formData.append('fileType', 'resume');
+    formData.append('entity', 'resumes');
+
+    // Use fetch directly for file uploads to avoid Content-Type header issues
+    const url = `${this.baseURL}/api/v1/files/resume`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw data;
+    }
+
+    return data;
+  }
+
+  async getResumeInfo() {
+    return this.request('/api/v1/files/resume');
+  }
+
+  async downloadResume(fileId: string) {
+    const url = `${this.baseURL}/api/v1/files/resume/${fileId}`;
+    const headers: HeadersInit = {};
+    
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, { headers });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download resume');
+    }
+    
+    return response.blob();
+  }
+
+  async deleteResume() {
+    return this.request('/api/v1/files/resume', {
+      method: 'DELETE',
+    });
   }
 
   async createApplication(applicationData: { candidateId: string; jobId: string; source?: string }) {

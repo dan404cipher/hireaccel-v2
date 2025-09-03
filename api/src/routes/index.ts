@@ -8,6 +8,7 @@ import interviewRoutes from './interviews';
 import candidateRoutes from './candidates';
 import candidateAssignmentRoutes from './candidateAssignments';
 import agentRoutes from './agents';
+import fileRoutes from './files';
 
 /**
  * Main API routes
@@ -28,6 +29,7 @@ router.use('/api/v1/interviews', interviewRoutes);
 router.use('/api/v1/candidates', candidateRoutes);
 router.use('/api/v1/candidate-assignments', candidateAssignmentRoutes);
 router.use('/api/v1/agents', agentRoutes);
+router.use('/api/v1/files', fileRoutes);
 
 // Health check route
 router.get('/health', (_req, res) => {

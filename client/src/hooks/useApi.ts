@@ -265,6 +265,26 @@ export function useUpdateCandidateProfile() {
   return useMutation((profileData: any) => apiClient.updateCandidateProfile(profileData));
 }
 
+// File Upload
+export function useResumeInfo() {
+  const memoizedCall = useCallback(() => apiClient.getResumeInfo(), []);
+  return useApi(memoizedCall, { immediate: true });
+}
+
+export function useUploadResume(options?: { onSuccess?: (data: any) => void; onError?: (error: any) => void }) {
+  return useMutation((file: File) => apiClient.uploadResume(file), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useDeleteResume(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation(() => apiClient.deleteResume(), {
+    showToast: true,
+    ...options
+  });
+}
+
 // Agent Candidates
 export function useAgentCandidates(params = {}) {
   const memoizedCall = useCallback(() => apiClient.getAgentCandidates(params), [JSON.stringify(params)]);
