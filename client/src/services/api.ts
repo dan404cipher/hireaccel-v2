@@ -113,6 +113,40 @@ class ApiClient {
     this.token = localStorage.getItem('accessToken');
   }
 
+  private isRefreshing = false;
+  private refreshPromise: Promise<void> | null = null;
+  private refreshSubscribers: Array<(token: string) => void> = [];
+
+  private onTokenRefreshed(token: string) {
+    this.refreshSubscribers.forEach(callback => callback(token));
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(callback: (token: string) => void) {
+    this.refreshSubscribers.push(callback);
+  }
+
+  private async refreshAccessToken(): Promise<string> {
+    try {
+      const response = await fetch(`${this.baseURL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+
+      const { accessToken } = data.data;
+      this.setToken(accessToken);
+      return accessToken;
+    } catch (error) {
+      this.clearToken();
+      throw error;
+    }
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -132,10 +166,50 @@ class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers,
-        credentials: 'include', // Include cookies for refresh token
+        credentials: 'include',
       });
 
       const data = await response.json();
+
+      // Handle 401 errors
+      if (response.status === 401) {
+        if (!this.isRefreshing) {
+          this.isRefreshing = true;
+          this.refreshPromise = this.refreshAccessToken()
+            .then(token => {
+              this.isRefreshing = false;
+              this.onTokenRefreshed(token);
+              return token;
+            })
+            .catch(error => {
+              this.isRefreshing = false;
+              throw error;
+            });
+        }
+
+        if (this.refreshPromise) {
+          return new Promise((resolve, reject) => {
+            this.addRefreshSubscriber(async (token) => {
+              try {
+                // Retry the original request with new token
+                const newHeaders = {
+                  ...headers,
+                  Authorization: `Bearer ${token}`,
+                };
+                const retryResponse = await fetch(url, {
+                  ...options,
+                  headers: newHeaders,
+                  credentials: 'include',
+                });
+                const retryData = await retryResponse.json();
+                resolve(retryData);
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+        }
+      }
 
       if (!response.ok) {
         throw data as ApiError;

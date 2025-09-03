@@ -76,7 +76,7 @@ export function useApi<T>(
     if (immediate) {
       execute();
     }
-  }, [immediate]); // Remove 'execute' from dependencies to prevent infinite loop
+  }, [immediate, execute]);
 
   return {
     ...state,
@@ -183,7 +183,8 @@ export function useDeleteJob() {
 }
 
 export function useJobStats() {
-  return useApi(() => apiClient.getJobStats());
+  const memoizedCall = useCallback(() => apiClient.getJobStats(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 // Companies
@@ -211,12 +212,14 @@ export function useDeleteCompany() {
 }
 
 export function useCompanyStats() {
-  return useApi(() => apiClient.getCompanyStats());
+  const memoizedCall = useCallback(() => apiClient.getCompanyStats(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 // Users
 export function useUsers(params = {}) {
-  return useApi(() => apiClient.getUsers(params), { immediate: true });
+  const memoizedCall = useCallback(() => apiClient.getUsers(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useUser(id: string) {
@@ -238,12 +241,14 @@ export function useDeleteUser() {
 }
 
 export function useUserStats() {
-  return useApi(() => apiClient.getUserStats());
+  const memoizedCall = useCallback(() => apiClient.getUserStats(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 // Applications
 export function useApplications(params = {}) {
-  return useApi(() => apiClient.getApplications(params), { immediate: true });
+  const memoizedCall = useCallback(() => apiClient.getApplications(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useCreateApplication() {
@@ -267,7 +272,8 @@ export function useAgentCandidates(params = {}) {
 
 // Agent Assignments (Admin/HR assigning resources to agents)
 export function useAgentAssignmentsList() {
-  return useApi(() => apiClient.getAgentAssignmentsList(), { immediate: true });
+  const memoizedCall = useCallback(() => apiClient.getAgentAssignmentsList(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useCreateAgentAssignment() {
@@ -308,7 +314,8 @@ export function useRejectApplication() {
 }
 
 export function useApplicationStats() {
-  return useApi(() => apiClient.getApplicationStats());
+  const memoizedCall = useCallback(() => apiClient.getApplicationStats(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 // Authentication

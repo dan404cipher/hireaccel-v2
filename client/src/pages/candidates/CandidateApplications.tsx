@@ -74,15 +74,17 @@ const CandidateApplications: React.FC = () => {
   const { user } = useAuth();
 
   // API calls - filter applications by current candidate
-  const { data: applicationsData, loading, refetch } = useApplications({
+  const params = useMemo(() => ({
     page: currentPage,
-    limit: 20,
+    limit: 10,
     userId: user?.id,
     status: statusFilter !== 'all' ? statusFilter : undefined,
     stage: stageFilter !== 'all' ? stageFilter : undefined,
     sortBy: 'appliedAt',
     sortOrder: 'desc'
-  });
+  }), [currentPage, user?.id, statusFilter, stageFilter]);
+
+  const { data: applicationsData, loading, refetch } = useApplications(params);
 
   const advanceApplication = useAdvanceApplication({
     onSuccess: () => {

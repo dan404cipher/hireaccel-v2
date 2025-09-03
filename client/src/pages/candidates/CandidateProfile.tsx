@@ -120,13 +120,14 @@ const CandidateProfile: React.FC = () => {
   // API hooks
   const { data: profileData, loading, refetch } = useCandidateProfile();
   const updateProfile = useUpdateCandidateProfile({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: 'Profile Updated',
         description: 'Your profile has been updated successfully.',
       });
       setEditingSections(new Set());
-      refetch();
+      // Force a refetch of the profile data
+      await refetch();
     },
     onError: () => {
       toast({
