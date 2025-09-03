@@ -119,6 +119,15 @@ const CandidateProfile: React.FC = () => {
   
   // API hooks
   const { data: profileData, loading, refetch } = useCandidateProfile();
+  
+  // Debug logging for API response
+  useEffect(() => {
+    console.log('Profile API response:', { profileData, loading });
+    if (profileData) {
+      console.log('profileData keys:', Object.keys(profileData));
+      console.log('profileData.profile:', profileData.profile);
+    }
+  }, [profileData, loading]);
   const updateProfile = useUpdateCandidateProfile({
     onSuccess: async () => {
       toast({
@@ -164,9 +173,10 @@ const CandidateProfile: React.FC = () => {
 
   // Load profile data from API
   useEffect(() => {
-    if (profileData?.data?.profile) {
-      const apiProfile = profileData.data.profile;
-      setProfile({
+    console.log('useEffect triggered with profileData:', profileData);
+    if (profileData?.profile) {
+      const apiProfile = profileData.profile;
+      const newProfile = {
         skills: apiProfile.skills || [],
         experience: (apiProfile.experience || []).map((exp: any) => ({
           ...exp,
@@ -200,7 +210,14 @@ const CandidateProfile: React.FC = () => {
           remote: apiProfile.availability?.remote || false,
           relocation: apiProfile.availability?.relocation || false
         }
-      });
+      };
+
+      // Always update the profile when data is received from API
+      console.log('Profile data received from API:', apiProfile);
+      console.log('Processed profile data:', newProfile);
+      setProfile(newProfile);
+    } else {
+      console.log('No profile data available in API response');
     }
   }, [profileData]);
 
@@ -214,8 +231,42 @@ const CandidateProfile: React.FC = () => {
     setEditingSections(newEditingSections);
   };
 
+  // Phone number validation function
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Backend regex: /^[\+]?[1-9][\d]{0,15}$/
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    return phoneRegex.test(phone);
+  };
+
+  // Availability date validation
+  const validateAvailabilityDate = (date: Date): boolean => {
+    const now = new Date();
+    const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    return date >= now && date <= oneYearFromNow;
+  };
+
   const handleSave = async () => {
     try {
+      // Validate phone number if provided
+      if (profile.phoneNumber && !validatePhoneNumber(profile.phoneNumber)) {
+        toast({
+          title: 'Invalid Phone Number',
+          description: 'Phone number should contain only digits, optionally starting with +. No spaces, hyphens, or other characters allowed.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validate availability date if provided
+      if (profile.availability?.startDate && !validateAvailabilityDate(profile.availability.startDate)) {
+        toast({
+          title: 'Invalid Availability Date',
+          description: 'Availability date must be between now and one year from now.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       let profileToSave;
       
       // For summary-only updates, just send the summary
@@ -229,27 +280,47 @@ const CandidateProfile: React.FC = () => {
         // For other sections, handle the full profile update
         const updatedProfile = {
           ...profile,
-          experience: profile.experience.map(exp => ({
-            ...exp,
-            startDate: exp.startDate.toISOString().split('T')[0],
-            endDate: exp.endDate ? exp.endDate.toISOString().split('T')[0] : undefined
-          })),
-          certifications: profile.certifications.map(cert => ({
-            ...cert,
-            issueDate: cert.issueDate.toISOString().split('T')[0],
-            expiryDate: cert.expiryDate ? cert.expiryDate.toISOString().split('T')[0] : undefined
-          })),
-          projects: profile.projects.map(project => ({
-            ...project,
-            startDate: project.startDate.toISOString().split('T')[0],
-            endDate: project.endDate ? project.endDate.toISOString().split('T')[0] : undefined
-          }))
+          experience: profile.experience.map(exp => {
+            const expData: any = {
+              ...exp,
+              startDate: exp.startDate.toISOString(), // Full ISO datetime
+              current: exp.current
+            };
+            // Only include endDate if it exists and current is false
+            if (!exp.current && exp.endDate) {
+              expData.endDate = exp.endDate.toISOString();
+            }
+            return expData;
+          }),
+          certifications: profile.certifications.map(cert => {
+            const certData: any = {
+              ...cert,
+              issueDate: cert.issueDate.toISOString() // Full ISO datetime
+            };
+            // Only include expiryDate if it exists
+            if (cert.expiryDate) {
+              certData.expiryDate = cert.expiryDate.toISOString();
+            }
+            return certData;
+          }),
+          projects: profile.projects.map(project => {
+            const projectData: any = {
+              ...project,
+              startDate: project.startDate.toISOString(), // Full ISO datetime
+              current: project.current
+            };
+            // Only include endDate if it exists and current is false
+            if (!project.current && project.endDate) {
+              projectData.endDate = project.endDate.toISOString();
+            }
+            return projectData;
+          })
         };
 
         if (profile.availability) {
           updatedProfile.availability = {
             ...profile.availability,
-            startDate: profile.availability.startDate.toISOString().split('T')[0]
+            startDate: profile.availability.startDate.toISOString() // Full ISO datetime
           };
         }
 
@@ -258,7 +329,7 @@ const CandidateProfile: React.FC = () => {
         };
       }
       
-      // Clean up undefined values
+      // Clean up undefined values in the profile object
       if (profileToSave.profile) {
         Object.keys(profileToSave.profile).forEach(key => {
           if (profileToSave.profile[key] === undefined) {
@@ -669,7 +740,17 @@ const CandidateProfile: React.FC = () => {
                         id="phone"
                         value={profile.phoneNumber}
                         onChange={(e) => setProfile(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                        placeholder="+15551234567"
+                        className={profile.phoneNumber && !validatePhoneNumber(profile.phoneNumber) ? 'border-red-500' : ''}
                       />
+                      {profile.phoneNumber && !validatePhoneNumber(profile.phoneNumber) && (
+                        <p className="text-sm text-red-500 mt-1">
+                          Phone number should contain only digits, optionally starting with +. No spaces, hyphens, or other characters allowed.
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Format: +15551234567 (no spaces, hyphens, or parentheses)
+                      </p>
                     </div>
                     <div>
                       <Label htmlFor="location">Location</Label>
@@ -917,10 +998,20 @@ const CandidateProfile: React.FC = () => {
                               }
                               setStartDateOpen(false);
                             }}
+                            disabled={(date) => {
+                              const now = new Date();
+                              const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+                              return date < now || date > oneYearFromNow;
+                            }}
                             initialFocus
                           />
                         </PopoverContent>
                       </Popover>
+                      {profile.availability.startDate && !validateAvailabilityDate(profile.availability.startDate) && (
+                        <p className="text-sm text-red-500 mt-1">
+                          Availability date must be between now and one year from now.
+                        </p>
+                      )}
                     </div>
                     
                     <div className="space-y-3">

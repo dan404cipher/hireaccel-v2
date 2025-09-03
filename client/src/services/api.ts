@@ -440,15 +440,13 @@ class ApiClient {
 
   async updateCandidateProfile(profileData: any) {
     try {
-      // If we're only updating specific fields, wrap them in a profile object
-      const dataToSend = {
-        profile: profileData
-      };
+      console.log('Raw profile data received:', profileData);
       
-      console.log('Sending profile update request with data:', dataToSend);
+      // Send the data as-is since it's already wrapped in a profile object
+      console.log('Sending profile update request with data:', profileData);
       const response = await this.request('/api/v1/candidates/profile', {
         method: 'PUT',
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(profileData),
       });
       console.log('Profile update response:', response);
       return response;

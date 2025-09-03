@@ -2,7 +2,15 @@ import { Response } from 'express';
 import { z } from 'zod';
 import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, AuditAction, WorkExperience, Education, Certification, Project } from '@/types';
+import { 
+  AuthenticatedRequest, 
+  AuditAction, 
+  WorkExperience, 
+  Education, 
+  Certification, 
+  Project,
+  CandidateProfile 
+} from '@/types';
 import { asyncHandler, createNotFoundError, createForbiddenError } from '@/middleware/errorHandler';
 
 /**
@@ -11,12 +19,12 @@ import { asyncHandler, createNotFoundError, createForbiddenError } from '@/middl
  */
 
 const workExperienceSchema = z.object({
-  company: z.string().min(1).max(200),
-  position: z.string().min(1).max(200),
-  startDate: z.string().datetime(),
+  company: z.string().min(1).max(200).optional(),
+  position: z.string().min(1).max(200).optional(),
+  startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  description: z.string().min(1).max(2000),
-  current: z.boolean().default(false),
+  description: z.string().min(1).max(2000).optional(),
+  current: z.boolean().default(false).optional(),
 });
 
 const educationSchema = z.object({
@@ -91,9 +99,9 @@ const profileUpdateSchema = z.object({
       currency: z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD']),
     }).optional(),
     availability: z.object({
-      startDate: z.string(),
-      remote: z.boolean(),
-      relocation: z.boolean(),
+      startDate: z.string().optional(),
+      remote: z.boolean().optional(),
+      relocation: z.boolean().optional(),
     }).optional(),
   }).partial(),
 });
@@ -168,31 +176,72 @@ export class CandidateController {
     // Validate the update data
     const validatedData = profileUpdateSchema.parse(req.body);
     
+    console.log('Received update data:', validatedData);
+    console.log('Current candidate profile:', candidate.profile);
+    
     // Handle summary-only updates
     if (validatedData.profile && Object.keys(validatedData.profile).length === 1 && validatedData.profile.summary !== undefined) {
-      candidate.profile.summary = validatedData.profile.summary;
+      console.log('Handling summary-only update with value:', validatedData.profile.summary);
+      
+      // Keep existing profile data and just update the summary
+      const currentProfile = candidate.toObject().profile;  // Get plain object from the whole document
+      const updatedProfile: CandidateProfile = {
+        ...currentProfile,
+        skills: currentProfile.skills || [],
+        experience: currentProfile.experience || [],
+        education: currentProfile.education || [],
+        certifications: currentProfile.certifications || [],
+        projects: currentProfile.projects || [],
+        summary: validatedData.profile.summary || '',
+        location: currentProfile.location || '',
+        phoneNumber: currentProfile.phoneNumber || '',
+        linkedinUrl: currentProfile.linkedinUrl,
+        portfolioUrl: currentProfile.portfolioUrl,
+        preferredSalaryRange: currentProfile.preferredSalaryRange,
+        availability: currentProfile.availability
+      };
+      console.log('Updated profile:', updatedProfile);
+      
+      candidate.profile = updatedProfile;
     } else if (validatedData.profile) {
       // For other updates, only update the fields that are provided
       const { profile: updateData } = validatedData;
+      console.log('Handling full profile update with data:', updateData);
       
-      // Handle each field type appropriately
-      if (updateData.summary !== undefined) candidate.profile.summary = updateData.summary;
-      if (updateData.skills !== undefined) candidate.profile.skills = updateData.skills;
-      if (updateData.location !== undefined) candidate.profile.location = updateData.location;
-      if (updateData.phoneNumber !== undefined) candidate.profile.phoneNumber = updateData.phoneNumber;
-      if (updateData.linkedinUrl !== undefined) candidate.profile.linkedinUrl = updateData.linkedinUrl;
-      if (updateData.portfolioUrl !== undefined) candidate.profile.portfolioUrl = updateData.portfolioUrl;
+      // Get current profile as plain object
+      const currentProfile = candidate.toObject().profile;
+      
+      // Create updated profile with new values
+      const updatedProfile: CandidateProfile = {
+        ...currentProfile,
+        skills: updateData.skills || currentProfile.skills || [],
+        experience: currentProfile.experience || [],
+        education: currentProfile.education || [],
+        certifications: currentProfile.certifications || [],
+        projects: currentProfile.projects || [],
+        summary: updateData.summary !== undefined ? updateData.summary : (currentProfile.summary || ''),
+        location: updateData.location !== undefined ? updateData.location : (currentProfile.location || ''),
+        phoneNumber: updateData.phoneNumber !== undefined ? updateData.phoneNumber : (currentProfile.phoneNumber || ''),
+        linkedinUrl: updateData.linkedinUrl !== undefined ? updateData.linkedinUrl : currentProfile.linkedinUrl,
+        portfolioUrl: updateData.portfolioUrl !== undefined ? updateData.portfolioUrl : currentProfile.portfolioUrl,
+        preferredSalaryRange: currentProfile.preferredSalaryRange,
+        availability: currentProfile.availability
+      };
+      
+      console.log('Updated profile:', updatedProfile);
+      candidate.profile = updatedProfile;
       
       // Handle arrays of objects with date conversions
       if (updateData.experience) {
         candidate.profile.experience = updateData.experience.map(exp => {
+          // Validate required fields and provide defaults if needed
           const workExp: WorkExperience = {
-            company: exp.company,
-            position: exp.position,
-            description: exp.description,
-            startDate: new Date(exp.startDate),
-            current: exp.current,
-            endDate: exp.endDate ? new Date(exp.endDate) : new Date()
+            company: exp.company || '',
+            position: exp.position || '',
+            description: exp.description || '',
+            startDate: exp.startDate ? new Date(exp.startDate) : new Date(),
+            current: exp.current ?? false,
+            endDate: exp.endDate ? new Date(exp.endDate) : undefined
           };
           return workExp;
         });
@@ -201,10 +250,10 @@ export class CandidateController {
       if (updateData.certifications) {
         candidate.profile.certifications = updateData.certifications.map(cert => {
           const certification: Certification = {
-            name: cert.name,
-            issuer: cert.issuer,
-            issueDate: new Date(cert.issueDate),
-            expiryDate: cert.expiryDate ? new Date(cert.expiryDate) : new Date(),
+            name: cert.name || '',
+            issuer: cert.issuer || '',
+            issueDate: cert.issueDate ? new Date(cert.issueDate) : new Date(),
+            expiryDate: cert.expiryDate ? new Date(cert.expiryDate) : undefined,
             credentialId: cert.credentialId || '',
             credentialUrl: cert.credentialUrl || ''
           };
@@ -215,12 +264,12 @@ export class CandidateController {
       if (updateData.projects) {
         candidate.profile.projects = updateData.projects.map(proj => {
           const project: Project = {
-            title: proj.title,
-            description: proj.description,
-            technologies: proj.technologies,
-            startDate: new Date(proj.startDate),
-            current: proj.current,
-            endDate: proj.endDate ? new Date(proj.endDate) : new Date(),
+            title: proj.title || '',
+            description: proj.description || '',
+            technologies: proj.technologies || [],
+            startDate: proj.startDate ? new Date(proj.startDate) : new Date(),
+            current: proj.current ?? false,
+            endDate: proj.endDate ? new Date(proj.endDate) : undefined,
             projectUrl: proj.projectUrl || '',
             githubUrl: proj.githubUrl || '',
             role: proj.role || ''
@@ -232,11 +281,11 @@ export class CandidateController {
       if (updateData.education) {
         candidate.profile.education = updateData.education.map(edu => {
           const education: Education = {
-            degree: edu.degree,
-            field: edu.field,
-            institution: edu.institution,
-            graduationYear: edu.graduationYear,
-            gpa: edu.gpa || 0
+            degree: edu.degree || '',
+            field: edu.field || '',
+            institution: edu.institution || '',
+            graduationYear: edu.graduationYear || new Date().getFullYear(),
+            ...(edu.gpa !== undefined && { gpa: edu.gpa })
           };
           return education;
         });
@@ -247,11 +296,19 @@ export class CandidateController {
       }
       
       if (updateData.availability) {
-        candidate.profile.availability = {
-          startDate: new Date(updateData.availability.startDate),
-          remote: updateData.availability.remote,
-          relocation: updateData.availability.relocation
+        // Create a new availability object with required fields
+        const newAvailability: { 
+          startDate: Date | undefined; 
+          remote: boolean | undefined; 
+          relocation: boolean | undefined; 
+        } = {
+          startDate: updateData.availability.startDate ? new Date(updateData.availability.startDate) : undefined,
+          remote: typeof updateData.availability.remote === 'boolean' ? updateData.availability.remote : undefined,
+          relocation: typeof updateData.availability.relocation === 'boolean' ? updateData.availability.relocation : undefined
         };
+        
+        // Update the profile's availability
+        candidate.profile.availability = newAvailability;
       }
     }
     

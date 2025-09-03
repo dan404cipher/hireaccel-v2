@@ -257,7 +257,8 @@ export function useCreateApplication() {
 
 // Candidate Profile
 export function useCandidateProfile() {
-  return useApi(() => apiClient.getCandidateProfile(), { immediate: true });
+  const memoizedCall = useCallback(() => apiClient.getCandidateProfile(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useUpdateCandidateProfile() {

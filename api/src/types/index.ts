@@ -182,7 +182,7 @@ export interface WorkExperience {
   company: string;
   position: string;
   startDate: Date;
-  endDate?: Date;
+  endDate: Date | undefined;
   description: string;
   current: boolean;
 }
@@ -194,9 +194,9 @@ export interface Certification {
   name: string;
   issuer: string;
   issueDate: Date;
-  expiryDate?: Date;
-  credentialId?: string;
-  credentialUrl?: string;
+  expiryDate: Date | undefined;
+  credentialId: string | undefined;
+  credentialUrl: string | undefined;
 }
 
 /**
@@ -207,11 +207,11 @@ export interface Project {
   description: string;
   technologies: string[];
   startDate: Date;
-  endDate?: Date;
+  endDate: Date | undefined;
   current: boolean;
-  projectUrl?: string;
-  githubUrl?: string;
-  role?: string;
+  projectUrl: string | undefined;
+  githubUrl: string | undefined;
+  role: string | undefined;
 }
 
 /**
@@ -223,21 +223,21 @@ export interface CandidateProfile {
   education: Education[];
   certifications: Certification[];
   projects: Project[];
-  summary: string;
-  location: string;
-  phoneNumber: string;
-  linkedinUrl?: string;
-  portfolioUrl?: string;
-  preferredSalaryRange?: {
+  summary: string | undefined;
+  location: string | undefined;
+  phoneNumber: string | undefined;
+  linkedinUrl: string | undefined;
+  portfolioUrl: string | undefined;
+  preferredSalaryRange: {
     min: number;
     max: number;
     currency: string;
-  };
+  } | undefined;
   availability: {
-    startDate: Date;
-    remote: boolean;
-    relocation: boolean;
-  };
+    startDate: Date | undefined;
+    remote: boolean | undefined;
+    relocation: boolean | undefined;
+  } | undefined;
 }
 
 /**

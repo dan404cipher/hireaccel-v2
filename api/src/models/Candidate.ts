@@ -301,18 +301,21 @@ const candidateProfileSchema = new Schema<CandidateProfile>({
   },
   
   availability: {
-    startDate: {
-      type: Date,
-      required: false, // Make it optional for partial updates
+    type: {
+      startDate: {
+        type: Date,
+        required: false,
+      },
+      remote: {
+        type: Boolean,
+        default: false,
+      },
+      relocation: {
+        type: Boolean,
+        default: false,
+      },
     },
-    remote: {
-      type: Boolean,
-      default: false,
-    },
-    relocation: {
-      type: Boolean,
-      default: false,
-    },
+    required: false,
   },
 }, { _id: false });
 
@@ -665,7 +668,7 @@ candidateSchema.pre('save', function(this: CandidateDocument, next) {
   }
   
   // Validate availability start date
-  if (this.isModified('profile.availability.startDate')) {
+  if (this.isModified('profile.availability.startDate') && this.profile.availability?.startDate) {
     const startDate = this.profile.availability.startDate;
     const now = new Date();
     const oneYearFromNow = new Date();
