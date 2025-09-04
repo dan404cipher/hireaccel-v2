@@ -137,6 +137,18 @@ function AppRouter() {
       <Route 
         path="/signup" 
         element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/signup/hr" replace />
+        } 
+      />
+      <Route 
+        path="/signup/hr" 
+        element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage onSwitchToSignin={() => {}} />
+        } 
+      />
+      <Route 
+        path="/signup/candidate" 
+        element={
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage onSwitchToSignin={() => {}} />
         } 
       />

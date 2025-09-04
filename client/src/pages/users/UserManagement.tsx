@@ -71,6 +71,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface User {
   _id: string;
+  customId: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -586,6 +587,7 @@ export default function UserManagement() {
                         aria-label="Select all users"
                       />
                     </TableHead>
+                    <TableHead>User ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
@@ -604,6 +606,9 @@ export default function UserManagement() {
                           onCheckedChange={() => handleUserSelect(user._id)}
                           aria-label={`Select ${user.firstName} ${user.lastName}`}
                         />
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-medium text-blue-600">
+                        {user.customId}
                       </TableCell>
                       <TableCell className="font-medium">
                         {user.firstName} {user.lastName}
@@ -877,9 +882,15 @@ export default function UserManagement() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <Label className="text-sm font-medium">User ID</Label>
+                  <p className="mt-1 font-mono text-blue-600 font-medium">{viewingUser.customId}</p>
+                </div>
+                <div>
                   <Label className="text-sm font-medium">Name</Label>
                   <p className="mt-1">{viewingUser.firstName} {viewingUser.lastName}</p>
                 </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Email</Label>
                   <p className="mt-1">{viewingUser.email}</p>
