@@ -18,6 +18,10 @@ const registerSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50),
   lastName: z.string().min(1, 'Last name is required').max(50),
   role: z.nativeEnum(UserRole, { errorMap: () => ({ message: 'Invalid user role' }) }),
+  phone: z.string().optional(),
+  department: z.string().optional(),
+  currentLocation: z.string().optional(),
+  yearsOfExperience: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -59,7 +63,20 @@ export class AuthController {
     if (req.ip) context.ipAddress = req.ip;
     if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
     
-    const { user, tokens } = await AuthService.register(validatedData, context);
+    // Filter out undefined values for optional fields
+    const userData = {
+      email: validatedData.email,
+      password: validatedData.password,
+      firstName: validatedData.firstName,
+      lastName: validatedData.lastName,
+      role: validatedData.role,
+      ...(validatedData.phone && { phone: validatedData.phone }),
+      ...(validatedData.department && { department: validatedData.department }),
+      ...(validatedData.currentLocation && { currentLocation: validatedData.currentLocation }),
+      ...(validatedData.yearsOfExperience && { yearsOfExperience: validatedData.yearsOfExperience }),
+    };
+    
+    const { user, tokens } = await AuthService.register(userData, context);
     
     // Set refresh token in HTTP-only cookie
     res.cookie('refreshToken', tokens.refreshToken, {

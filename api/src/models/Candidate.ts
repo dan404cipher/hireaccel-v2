@@ -327,7 +327,6 @@ const candidateSchema = new Schema<CandidateDocument>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User reference is required'],
-    unique: true,
     index: true,
   },
   
