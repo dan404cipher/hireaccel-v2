@@ -27,9 +27,11 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AnalyticsReports from "./pages/admin/AnalyticsReports";
 import AdminProfile from "./pages/admin/AdminProfile";
 import LoginPage from "./pages/auth/LoginPage";
-import SignupPage from "./pages/auth/SignupPage";
+import { SignupPage } from "./pages/auth/SignupPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
+import HRFeatures from "./components/landingpage/hr/HRFeatures";
+import CandidateFeatures from "./components/landingpage/condidate/CandidateFeatures";
 
 const queryClient = new QueryClient();
 
@@ -135,9 +137,13 @@ function AppRouter() {
       <Route 
         path="/signup" 
         element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage />
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage onSwitchToSignin={() => {}} />
         } 
       />
+      <Route>
+        <Route path="/hr-features" element={<HRFeatures />} />
+        <Route path="/candidate-features" element={<CandidateFeatures />} />
+      </Route>
       
       {/* Protected Routes */}
       <Route path="/dashboard" element={
