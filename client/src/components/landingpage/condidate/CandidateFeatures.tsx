@@ -205,7 +205,7 @@ const faqs = [
   }
 ];
 
-export function JobCandidates() {
+export function JobCandidates({ onBackToHome }: JobCandidatesProps) {
   const [heroRef, heroInView] = useInView();
   const [benefitsRef, benefitsInView] = useInView();
   const [stepsRef, stepsInView] = useInView();
@@ -230,7 +230,15 @@ export function JobCandidates() {
         <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-gradient-to-r from-cyan-400/6 to-blue-400/6 rounded-full blur-3xl"></div>
       </div>
 
-      <Header />
+      <Header 
+        navItems={[
+          { label: "How It Works", id: "how-it-works" },
+          { label: "Features", id: "features" },
+          { label: "Benefits", id: "benefits" },
+          { label: "FAQ", id: "faq" }
+        ]}
+        onBackToHome={onBackToHome}
+      />
 
       {/* 1. Enhanced Hero Section */}
       <section ref={heroRef} className="relative py-20 lg:py-28">
@@ -443,7 +451,7 @@ export function JobCandidates() {
       </section>
 
       {/* 2. Quick Benefits Strip */}
-      <section ref={benefitsRef} className="relative py-12 bg-gray-50/50">
+      <section id="benefits" ref={benefitsRef} className="relative py-12 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {quickBenefits.map((benefit, index) => (
@@ -474,7 +482,7 @@ export function JobCandidates() {
       </section>
 
       {/* 3. How Matching Works - Enhanced Theme Integration */}
-      <section ref={stepsRef} className="relative py-24 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
+      <section id="how-it-works" ref={stepsRef} className="relative py-24 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
         {/* Enhanced Background Design */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/8 to-cyan-400/8 rounded-full blur-3xl"></div>
@@ -597,7 +605,7 @@ export function JobCandidates() {
       </section>
 
       {/* 4. Features & Mechanics */}
-      <section ref={featuresRef} className="relative py-20 bg-gray-50/50">
+      <section id="features" ref={featuresRef} className="relative py-20 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -645,6 +653,44 @@ export function JobCandidates() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" ref={faqRef} className="relative py-20 bg-gray-50/50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={faqInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.4 }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Frequently Asked Questions
+              </span>
+            </h2>
+          </motion.div>
+
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={faqInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+              >
+                <AccordionItem value={`item-${index}`} className="bg-white/50 backdrop-blur-sm rounded-lg mb-4 border border-gray-200/50">
+                  <AccordionTrigger className="px-6 py-4 text-left font-semibold text-gray-800 hover:no-underline">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-4 text-gray-600 leading-relaxed">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              </motion.div>
+            ))}
+          </Accordion>
         </div>
       </section>
 
