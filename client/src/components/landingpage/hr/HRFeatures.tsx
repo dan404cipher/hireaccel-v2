@@ -38,6 +38,7 @@ import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { Footer } from "@/components/landingpage/Footer";
 import { CompetitorComparison } from "./CompetitorComparison";
+import { Header } from "../Header";
 
 // Hook to detect when element is in view
 function useInView(threshold = 0.1) {
@@ -214,6 +215,11 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
   const [pricingRef, pricingInView] = useInView();
   const [faqRef, faqInView] = useInView();
 
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-gray-50/30 to-white relative overflow-hidden">
       {/* Simplified Background */}
@@ -250,25 +256,7 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </div>
 
       {/* Header with Navigation */}
-      <header className="relative z-10 border-b border-gray-200/50 bg-white/80 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={onBackToHome}
-              className="flex items-center text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 mr-1" />
-              <span className="font-medium">Back to Home</span>
-            </button>
-            
-            <div className="flex items-center space-x-4">
-              <Badge className="bg-gradient-to-r from-green-100 to-blue-100 text-green-700 border-green-200">
-                Free for Early Partners
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </header>
+ <Header/>
 
       {/* 1. Hero Section */}
       <section ref={heroRef} className="relative py-20">

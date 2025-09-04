@@ -216,6 +216,9 @@ export function JobCandidates() {
   const [faqRef, faqInView] = useInView();
 
   const [profileProgress, setProfileProgress] = useState(0);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 relative overflow-hidden">
