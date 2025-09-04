@@ -89,24 +89,41 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
       };
 
       // Call signup API
-      const response = await apiClient.signup(signupData)
+      const response = await apiClient.signup(signupData);
 
       if (!response.success) {
         const errorData = response.data as any;
         throw new Error(errorData.message || 'Signup failed');
       }
 
-      const result = response.data as { user: any; accessToken: string; expiresIn: number };
+      const result = response.data as { requiresOTP?: boolean; email: string; message: string };
 
-      // Auto-login after successful signup
-      await login(result.user.email, formData.password);
-      
-      toast({
-        title: 'Account created successfully!',
-        description: 'Welcome to HireAccel. Your account has been created and you are now logged in.',
-      });
-      
-      navigate('/dashboard');
+      // Check if OTP verification is required
+      if (result.requiresOTP) {
+        toast({
+          title: "Verification Required",
+          description: result.message || "Please check your email for the verification code.",
+        });
+
+        // Navigate to OTP verification page with email and userType
+        navigate('/auth/verify-otp', {
+          state: {
+            email: signupData.email,
+            userType: userType,
+          },
+          replace: true,
+        });
+      } else {
+        // Fallback: if for some reason OTP is not required, try auto-login
+        await login(signupData.email, formData.password);
+        
+        toast({
+          title: 'Account created successfully!',
+          description: 'Welcome to Hiring Accelerator. Your account has been created and you are now logged in.',
+        });
+        
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast({
         title: 'Signup failed',

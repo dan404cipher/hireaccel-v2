@@ -112,7 +112,8 @@ export function useRole() {
   return user?.role;
 }
 
-export function hasRole(allowedRoles: UserRole[], userRole?: UserRole) {
+// Utility function for role checking - moved to utils to avoid Fast Refresh issues
+export const hasRole = (allowedRoles: UserRole[], userRole?: UserRole) => {
   if (!userRole) return false;
   return allowedRoles.includes(userRole);
-}
+};

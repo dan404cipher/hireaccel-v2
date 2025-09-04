@@ -242,6 +242,31 @@ class ApiClient {
     localStorage.removeItem('accessToken');
   }
 
+  // Convenience methods
+  async get(url: string, options?: Omit<RequestInit, 'method'>) {
+    return this.request(url, { ...options, method: 'GET' });
+  }
+
+  async post(url: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) {
+    return this.request(url, {
+      ...options,
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async put(url: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) {
+    return this.request(url, {
+      ...options,
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  async delete(url: string, options?: Omit<RequestInit, 'method'>) {
+    return this.request(url, { ...options, method: 'DELETE' });
+  }
+
   async login(email: string, password: string) {
     return this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
       method: 'POST',
@@ -849,6 +874,45 @@ class ApiClient {
   async deleteAgentAssignment(agentId: string) {
     return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
       method: 'DELETE',
+    });
+  }
+
+  // Authentication methods
+  async signup(data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    password: string;
+    role: string;
+    department?: string;
+    currentLocation?: string;
+    yearsOfExperience?: string;
+  }) {
+    return this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async verifyOTP(data: { email: string; otp: string }) {
+    return this.request('/auth/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resendOTP(data: { email: string }) {
+    return this.request('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async login(data: { email: string; password: string }) {
+    return this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 }
