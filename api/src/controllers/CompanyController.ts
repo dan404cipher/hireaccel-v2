@@ -38,15 +38,23 @@ export class CompanyController {
     if (industry) query.industry = { $regex: industry, $options: 'i' };
     if (search) query.$text = { $search: search as string };
     
-    // HR-specific filtering: Only show companies for which this HR user has posted jobs
+    // HR-specific filtering: Show companies the HR user created OR has posted jobs for
     if (req.user!.role === UserRole.HR) {
       // Get all company IDs for jobs posted by this HR user
       const jobCompanyIds = await Job.find({
         createdBy: req.user!._id
       }).distinct('companyId');
 
-      if (jobCompanyIds.length === 0) {
-        // If HR user hasn't posted any jobs, return empty result
+      // Get all companies created by this HR user
+      const createdCompanyIds = await Company.find({
+        createdBy: req.user!._id
+      }).distinct('_id');
+
+      // Combine both sets of company IDs
+      const allAccessibleCompanyIds = [...new Set([...jobCompanyIds, ...createdCompanyIds])];
+
+      if (allAccessibleCompanyIds.length === 0) {
+        // If HR user hasn't created companies or posted jobs, return empty result
         return res.json({
           success: true,
           data: [],
@@ -58,8 +66,8 @@ export class CompanyController {
         });
       }
 
-      // Filter companies to only include those the HR user has posted jobs for
-      query._id = { $in: jobCompanyIds };
+      // Filter companies to only include those the HR user created or posted jobs for
+      query._id = { $in: allAccessibleCompanyIds };
     }
     
     const [companies, total] = await Promise.all([
@@ -82,15 +90,16 @@ export class CompanyController {
     const company = await Company.findById(req.params['id']).populate('createdBy', 'firstName lastName');
     if (!company) throw createNotFoundError('Company', req.params['id']);
     
-    // HR-specific access control: Only allow access to companies they have posted jobs for
+    // HR-specific access control: Only allow access to companies they created or posted jobs for
     if (req.user!.role === UserRole.HR) {
-      // Check if this HR user has posted any jobs for this company
-      const hasJobForCompany = await Job.exists({
-        createdBy: req.user!._id,
-        companyId: company._id
-      });
+      // Check if this HR user created this company OR has posted any jobs for this company
+      const hasAccess = company.createdBy.toString() === req.user!._id.toString() ||
+        await Job.exists({
+          createdBy: req.user!._id,
+          companyId: company._id
+        });
 
-      if (!hasJobForCompany) {
+      if (!hasAccess) {
         throw createNotFoundError('Company', req.params['id']);
       }
     }
@@ -130,14 +139,15 @@ export class CompanyController {
     const company = await Company.findById(req.params['id']);
     if (!company) throw createNotFoundError('Company', req.params['id']);
     
-    // HR-specific access control: Only allow updates to companies they have posted jobs for
+    // HR-specific access control: Only allow updates to companies they created or posted jobs for
     if (req.user!.role === UserRole.HR) {
-      const hasJobForCompany = await Job.exists({
-        createdBy: req.user!._id,
-        companyId: company._id
-      });
+      const hasAccess = company.createdBy.toString() === req.user!._id.toString() ||
+        await Job.exists({
+          createdBy: req.user!._id,
+          companyId: company._id
+        });
 
-      if (!hasJobForCompany) {
+      if (!hasAccess) {
         throw createNotFoundError('Company', req.params['id']);
       }
     }
@@ -165,14 +175,15 @@ export class CompanyController {
     const company = await Company.findById(req.params['id']);
     if (!company) throw createNotFoundError('Company', req.params['id']);
     
-    // HR-specific access control: Only allow deletion of companies they have posted jobs for
+    // HR-specific access control: Only allow deletion of companies they created or posted jobs for
     if (req.user!.role === UserRole.HR) {
-      const hasJobForCompany = await Job.exists({
-        createdBy: req.user!._id,
-        companyId: company._id
-      });
+      const hasAccess = company.createdBy.toString() === req.user!._id.toString() ||
+        await Job.exists({
+          createdBy: req.user!._id,
+          companyId: company._id
+        });
 
-      if (!hasJobForCompany) {
+      if (!hasAccess) {
         throw createNotFoundError('Company', req.params['id']);
       }
     }

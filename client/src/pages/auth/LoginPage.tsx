@@ -55,6 +55,10 @@ export default function LoginPage() {
       });
       navigate('/');
     } catch (err: any) {
+      toast({
+        title:"Error",
+        description: err.detail || "Failed to login",
+      })
       setError(err);
     } finally {
       setLoading(false);

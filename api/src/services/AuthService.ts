@@ -72,7 +72,22 @@ export class AuthService {
       const hashedPassword = await hashPassword(userData.password);
       
       // Generate custom user ID based on role
-      const customId = await generateCustomUserId(userData.role);
+      let customId: string;
+      try {
+        customId = await generateCustomUserId(userData.role);
+        logger.info('Generated custom user ID', {
+          email: userData.email,
+          role: userData.role,
+          customId: customId,
+        });
+      } catch (error) {
+        logger.error('Failed to generate custom user ID', {
+          email: userData.email,
+          role: userData.role,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        throw createBadRequestError('Failed to generate user ID');
+      }
       
       // Create user (only use fields that the User model supports)
       const user = new User({
