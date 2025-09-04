@@ -277,7 +277,7 @@ import { useNavigate } from "react-router-dom";
                     className="mt-6 text-center"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-blue-50/50 transition-all" onClick={()=>navigate("/hr-features")}>
+                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-blue-50/50 transition-all" onClick={()=>navigate("/hr")}>
                       <span>View All HR Features</span>
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </button>
@@ -373,7 +373,7 @@ import { useNavigate } from "react-router-dom";
                     className="mt-6 text-center"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <button className="text-purple-600 hover:text-purple-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-purple-50/50 transition-all" onClick={()=>navigate("/candidate-features")}>
+                    <button className="text-purple-600 hover:text-purple-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-purple-50/50 transition-all" onClick={()=>navigate("/candidate")}>
                       <span>View All Candidate Features</span>
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </button>
