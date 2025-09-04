@@ -29,6 +29,15 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const verifyOTPSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
+const resendOTPSchema = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
 // const _refreshTokenSchema = z.object({
 //   refreshToken: z.string().min(1, 'Refresh token is required'),
 // });
@@ -76,19 +85,45 @@ export class AuthController {
       ...(validatedData.yearsOfExperience && { yearsOfExperience: validatedData.yearsOfExperience }),
     };
     
-    const { user, tokens } = await AuthService.register(userData, context);
+    const result = await AuthService.register(userData);
+    
+    res.status(200).json({
+      success: result.success,
+      message: result.message,
+      data: {
+        requiresOTP: result.requiresOTP,
+        email: userData.email,
+      },
+    });  });
+
+  /**
+   * Verify OTP and complete registration
+   * POST /auth/verify-otp
+   */
+  static verifyOTP = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const validatedData = verifyOTPSchema.parse(req.body);
+    
+    const context: { ipAddress?: string; userAgent?: string } = {};
+    if (req.ip) context.ipAddress = req.ip;
+    if (req.get("user-agent")) context.userAgent = req.get("user-agent")!;
+    
+    const { user, tokens } = await AuthService.verifyOTPAndRegister(
+      validatedData.email,
+      validatedData.otp,
+      context
+    );
     
     // Set refresh token in HTTP-only cookie
-    res.cookie('refreshToken', tokens.refreshToken, {
+    res.cookie("refreshToken", tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env['NODE_ENV'] === 'production',
-      sameSite: 'strict',
+      secure: process.env["NODE_ENV"] === "production",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
     
     res.status(201).json({
       success: true,
-      message: 'User registered successfully. Please verify your email.',
+      message: "Account created and verified successfully! Welcome to Hiring Accelerator.",
       data: {
         user: {
           id: user._id,
@@ -102,6 +137,24 @@ export class AuthController {
         },
         accessToken: tokens.accessToken,
         expiresIn: tokens.expiresIn,
+      },
+    });
+  });
+
+  /**
+   * Resend OTP
+   * POST /auth/resend-otp
+   */
+  static resendOTP = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const validatedData = resendOTPSchema.parse(req.body);
+    
+    await AuthService.resendOTP(validatedData.email);
+    
+    res.status(200).json({
+      success: true,
+      message: "OTP has been resent to your email.",
+      data: {
+        email: validatedData.email,
       },
     });
   });

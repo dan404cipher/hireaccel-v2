@@ -29,6 +29,7 @@ import AdminProfile from "./pages/admin/AdminProfile";
 import HRProfile from "./pages/hr/HRProfile";
 import LoginPage from "./pages/auth/LoginPage";
 import { SignupPage } from "./pages/auth/SignupPage";
+import { OTPVerificationPage } from "./pages/auth/OTPVerificationPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 import { HRProfessionals }  from "./components/landingpage/hr/HRFeatures";
@@ -151,6 +152,12 @@ function AppRouter() {
         path="/signup/candidate" 
         element={
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage onSwitchToSignin={() => {}} />
+        } 
+      />
+      <Route 
+        path="/auth/verify-otp" 
+        element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <OTPVerificationPage />
         } 
       />
       <Route>
