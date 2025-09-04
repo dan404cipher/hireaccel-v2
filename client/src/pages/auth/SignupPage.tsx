@@ -390,7 +390,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                   <TabsContent value="hr" className="mt-4">
                     <div className="min-h-[120px] flex flex-col justify-start">
                       <div className="space-y-2">
-                        <Label htmlFor="department">Department (Optional)</Label>
+                        <Label htmlFor="department">Designation</Label>
                         <Input
                           id="department"
                           placeholder="e.g., Engineering, Sales"
@@ -407,7 +407,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                     <div className="min-h-[120px] space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="currentLocation">Current Location</Label>
+                          <Label htmlFor="currentLocation">Current Location (Optional)</Label>
                           <Input
                             id="currentLocation"
                             placeholder="e.g., New York, NY"

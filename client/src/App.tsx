@@ -31,8 +31,8 @@ import LoginPage from "./pages/auth/LoginPage";
 import { SignupPage } from "./pages/auth/SignupPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
-import HRFeatures from "./components/landingpage/hr/HRFeatures";
-import CandidateFeatures from "./components/landingpage/condidate/CandidateFeatures";
+import { HRProfessionals }  from "./components/landingpage/hr/HRFeatures";
+  import {JobCandidates} from "./components/landingpage/condidate/CandidateFeatures";
 
 const queryClient = new QueryClient();
 
@@ -154,8 +154,8 @@ function AppRouter() {
         } 
       />
       <Route>
-        <Route path="/hr-features" element={<HRFeatures />} />
-        <Route path="/candidate-features" element={<CandidateFeatures />} />
+        <Route path="/hr" element={<HRProfessionals />} />
+        <Route path="/candidate" element={<JobCandidates />} />
       </Route>
       
       {/* Protected Routes */}
