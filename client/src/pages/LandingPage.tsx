@@ -7,8 +7,13 @@ import { HowItWorks } from "@/components/landingpage/HowItWorks";
 import { Stats } from "@/components/landingpage/Stats";
 import { TalentPool } from "@/components/landingpage/TalentPool";
 import { Testimonials } from "@/components/landingpage/Testimonials";
+import { useEffect } from "react";
 
 const LandingPage = () => {
+    // Scroll to top when component mounts
+    useEffect(() => {
+      window.scrollTo(0, 0);
+    }, []);
   return (
     <div className="min-h-screen overflow-x-hidden">
     <Header />

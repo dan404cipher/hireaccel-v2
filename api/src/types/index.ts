@@ -97,6 +97,7 @@ export enum UserStatus {
 export interface User {
   _id: Types.ObjectId;
   email: string;
+  customId: string;
   password: string;
   role: UserRole;
   firstName: string;
