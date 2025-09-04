@@ -13,8 +13,8 @@ import image from '@/assets/login.png';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
-    email: 'admin@hireaccel.com',
-    password: 'Admin123!',
+    email: '',
+    password: '',
     rememberMe: false
   });
   const [showPassword, setShowPassword] = useState(false);
