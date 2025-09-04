@@ -1,8 +1,9 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import { Company } from '@/models/Company';
+import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, CompanyStatus, PartnershipLevel, AuditAction } from '@/types';
+import { AuthenticatedRequest, CompanyStatus, PartnershipLevel, AuditAction, UserRole } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
 const createCompanySchema = z.object({
@@ -37,6 +38,30 @@ export class CompanyController {
     if (industry) query.industry = { $regex: industry, $options: 'i' };
     if (search) query.$text = { $search: search as string };
     
+    // HR-specific filtering: Only show companies for which this HR user has posted jobs
+    if (req.user!.role === UserRole.HR) {
+      // Get all company IDs for jobs posted by this HR user
+      const jobCompanyIds = await Job.find({
+        createdBy: req.user!._id
+      }).distinct('companyId');
+
+      if (jobCompanyIds.length === 0) {
+        // If HR user hasn't posted any jobs, return empty result
+        return res.json({
+          success: true,
+          data: [],
+          meta: { 
+            page: { current: Number(page), total: 0, hasMore: false }, 
+            total: 0, 
+            limit: Number(limit) 
+          },
+        });
+      }
+
+      // Filter companies to only include those the HR user has posted jobs for
+      query._id = { $in: jobCompanyIds };
+    }
+    
     const [companies, total] = await Promise.all([
       Company.find(query)
         .populate('createdBy', 'firstName lastName')
@@ -56,6 +81,19 @@ export class CompanyController {
   static getCompanyById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const company = await Company.findById(req.params['id']).populate('createdBy', 'firstName lastName');
     if (!company) throw createNotFoundError('Company', req.params['id']);
+    
+    // HR-specific access control: Only allow access to companies they have posted jobs for
+    if (req.user!.role === UserRole.HR) {
+      // Check if this HR user has posted any jobs for this company
+      const hasJobForCompany = await Job.exists({
+        createdBy: req.user!._id,
+        companyId: company._id
+      });
+
+      if (!hasJobForCompany) {
+        throw createNotFoundError('Company', req.params['id']);
+      }
+    }
     
     res.json({ success: true, data: company });
   });
@@ -92,6 +130,18 @@ export class CompanyController {
     const company = await Company.findById(req.params['id']);
     if (!company) throw createNotFoundError('Company', req.params['id']);
     
+    // HR-specific access control: Only allow updates to companies they have posted jobs for
+    if (req.user!.role === UserRole.HR) {
+      const hasJobForCompany = await Job.exists({
+        createdBy: req.user!._id,
+        companyId: company._id
+      });
+
+      if (!hasJobForCompany) {
+        throw createNotFoundError('Company', req.params['id']);
+      }
+    }
+    
     const beforeState = company.toObject();
     Object.assign(company, updates);
     await company.save();
@@ -114,6 +164,18 @@ export class CompanyController {
   static deleteCompany = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const company = await Company.findById(req.params['id']);
     if (!company) throw createNotFoundError('Company', req.params['id']);
+    
+    // HR-specific access control: Only allow deletion of companies they have posted jobs for
+    if (req.user!.role === UserRole.HR) {
+      const hasJobForCompany = await Job.exists({
+        createdBy: req.user!._id,
+        companyId: company._id
+      });
+
+      if (!hasJobForCompany) {
+        throw createNotFoundError('Company', req.params['id']);
+      }
+    }
     
     company.status = CompanyStatus.INACTIVE;
     await company.save();
