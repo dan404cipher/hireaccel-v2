@@ -3,6 +3,7 @@ import { Menu, X, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import logo from "../../assets/logo.png";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -51,7 +52,7 @@ export function Header() {
             transition={{ duration: 0.2 }}
           >
             <motion.div 
-              className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl mr-3 flex items-center justify-center shadow-lg"
+              // className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl mr-3 flex items-center justify-center shadow-lg"
               animate={{ 
                 boxShadow: [
                   "0 4px 6px -1px rgba(59, 130, 246, 0.3)",
@@ -61,11 +62,12 @@ export function Header() {
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              <Sparkles className="w-5 h-5 text-white" />
+              {/* <Sparkles className="w-5 h-5 text-white" /> */}
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
+            <img src={logo} alt="HireAccel" className="w-30 h-10" />
+            {/* <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
               HireAccel
-            </span>
+            </span> */}
           </motion.div>
           
           <nav className="hidden md:flex items-center space-x-8">

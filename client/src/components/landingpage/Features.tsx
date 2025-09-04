@@ -18,6 +18,7 @@ import {
   import { Button } from "./ui/button";
   import { motion } from "framer-motion";
   import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
   
   const hrFeatures = [
     {
@@ -118,6 +119,7 @@ import {
   
   export function Features() {
     const [sectionRef, sectionInView] = useInView();
+    const navigate = useNavigate();
     const [hrHovered, setHrHovered] = useState(false);
     const [candidatesHovered, setCandidatesHovered] = useState(false);
   
@@ -275,7 +277,7 @@ import {
                     className="mt-6 text-center"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-blue-50/50 transition-all">
+                    <button className="text-blue-600 hover:text-blue-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-blue-50/50 transition-all" onClick={()=>navigate("/hr-features")}>
                       <span>View All HR Features</span>
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </button>
@@ -371,7 +373,7 @@ import {
                     className="mt-6 text-center"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <button className="text-purple-600 hover:text-purple-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-purple-50/50 transition-all">
+                    <button className="text-purple-600 hover:text-purple-700 font-medium flex items-center justify-center w-full py-2 rounded-lg hover:bg-purple-50/50 transition-all" onClick={()=>navigate("/candidate-features")}>
                       <span>View All Candidate Features</span>
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </button>

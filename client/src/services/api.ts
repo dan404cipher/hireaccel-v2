@@ -252,6 +252,10 @@ class ApiClient {
     this.clearToken();
     return result;
   }
+  async signup(userData: any){
+    const result = await this.request('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
+    return result;
+  }
 
   async getCurrentUser() {
     return this.request<{ user: User }>('/auth/me');
