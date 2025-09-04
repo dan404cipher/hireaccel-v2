@@ -166,19 +166,45 @@ export default function CompanyManagement() {
   };
 
   const handleCreateCompany = async () => {
-    if (!createFormData.name) return;
+    // Validate required fields
+    if (!createFormData.name || !createFormData.size || !createFormData.industry || !createFormData.location || !createFormData.description) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields: Company Name, Size, Industry, Location, and Description",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate website URL if provided
+    if (createFormData.website && createFormData.website.trim() !== '') {
+      try {
+        new URL(createFormData.website);
+      } catch {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid website URL (e.g., https://www.company.com)",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
     
     const newCompanyData = {
-      name: createFormData.name,
+      name: createFormData.name.trim(),
       industry: createFormData.industry,
-      location: createFormData.location,
-      website: createFormData.website,
-      description: createFormData.description,
+      location: createFormData.location.trim(),
+      size: createFormData.size,
+      website: createFormData.website && createFormData.website.trim() !== '' ? createFormData.website.trim() : undefined,
+      description: createFormData.description.trim(),
       employees: parseInt(createFormData.employees) || 0,
       foundedYear: parseInt(createFormData.foundedYear) || new Date().getFullYear(),
       partnership: createFormData.partnership || 'basic',
-      status: 'active'
+      status: 'active',
+      contacts: []
     };
+
+    console.log('Creating company with data:', newCompanyData);
 
     try {
       await createCompany(newCompanyData);
@@ -189,8 +215,24 @@ export default function CompanyManagement() {
         title: "Success",
         description: "Company created successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create company:', error);
+      
+      // Extract error message from the response
+      let errorMessage = "Failed to create company. Please try again.";
+      if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
     }
   };
 
@@ -238,7 +280,8 @@ export default function CompanyManagement() {
   };
 
   const formatEmployeeCount = (count: number) => {
-    if (!count) return 'N/A';
+    if (count === undefined || count === null) return 'N/A';
+    if (count === 0) return '0';
     if (count >= 1000) {
       return `${(count / 1000).toFixed(1)}k+`;
     }
@@ -294,6 +337,30 @@ export default function CompanyManagement() {
                       <SelectItem value="retail">Retail</SelectItem>
                       <SelectItem value="manufacturing">Manufacturing</SelectItem>
                       <SelectItem value="consulting">Consulting</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="create-size">Company Size</Label>
+                  <Select 
+                    value={createFormData.size || ''} 
+                    onValueChange={(value) => setCreateFormData({...createFormData, size: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1-10">1-10 employees</SelectItem>
+                      <SelectItem value="11-25">11-25 employees</SelectItem>
+                      <SelectItem value="26-50">26-50 employees</SelectItem>
+                      <SelectItem value="51-100">51-100 employees</SelectItem>
+                      <SelectItem value="101-250">101-250 employees</SelectItem>
+                      <SelectItem value="251-500">251-500 employees</SelectItem>
+                      <SelectItem value="501-1000">501-1000 employees</SelectItem>
+                      <SelectItem value="1000+">1000+ employees</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -369,6 +436,7 @@ export default function CompanyManagement() {
                   className="min-h-[100px]"
                 />
               </div>
+              
             </div>
             <DialogFooter>
               <Button 
@@ -382,7 +450,7 @@ export default function CompanyManagement() {
               </Button>
               <Button 
                 onClick={handleCreateCompany} 
-                disabled={createLoading || !createFormData.name}
+                disabled={createLoading || !createFormData.name || !createFormData.size || !createFormData.industry || !createFormData.location || !createFormData.description}
               >
                 {createLoading ? "Creating..." : "Add Company"}
               </Button>

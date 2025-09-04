@@ -108,7 +108,7 @@ const companyContactSchema = new Schema<CompanyContact>({
 const companySchema = new Schema<CompanyDocument>({
   companyId: {
     type: String,
-    required: [true, 'Company ID is required'],
+    required: false,
     unique: true,
     index: true,
   },
@@ -184,12 +184,7 @@ const companySchema = new Schema<CompanyDocument>({
   
   contacts: {
     type: [companyContactSchema],
-    validate: {
-      validator: function(contacts: CompanyContact[]) {
-        return contacts.length > 0;
-      },
-      message: 'At least one contact is required',
-    },
+    default: [],
   },
   
   partnership: {
@@ -247,7 +242,8 @@ const companySchema = new Schema<CompanyDocument>({
   
   employees: {
     type: Number,
-    min: [1, 'Number of employees must be at least 1'],
+    min: [0, 'Number of employees cannot be negative'],
+    default: 0,
   },
   
   revenue: {
@@ -257,8 +253,8 @@ const companySchema = new Schema<CompanyDocument>({
     },
     currency: {
       type: String,
-      default: 'USD',
-      enum: ['USD', 'EUR', 'GBP', 'CAD', 'AUD'],
+      default: 'INR',
+      enum: ['INR', 'USD', 'EUR', 'GBP', 'CAD', 'AUD'],
     },
     year: {
       type: Number,
@@ -485,10 +481,6 @@ companySchema.methods['addContact'] = function(this: CompanyDocument, contact: C
  * Remove a contact by email
  */
 companySchema.methods['removeContact'] = function(this: CompanyDocument, email: string) {
-  if (this.contacts.length <= 1) {
-    throw new Error('Cannot remove the last contact. At least one contact is required.');
-  }
-  
   this.contacts = this.contacts.filter(contact => contact.email !== email);
 };
 
@@ -720,10 +712,7 @@ companySchema.pre('save', async function(this: CompanyDocument, next) {
     this.lastActivityAt = new Date();
   }
   
-  // Ensure at least one contact exists
-  if (this.isModified('contacts') && this.contacts.length === 0) {
-    return next(new Error('At least one contact is required'));
-  }
+  // Contacts are now optional - no validation needed
   
   // Calculate success rate if we have data
   if (this.isModified('totalJobs') || this.isModified('totalHires')) {

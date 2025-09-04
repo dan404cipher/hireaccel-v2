@@ -106,7 +106,7 @@ export default function HRDashboard() {
       title: job.title,
       applications: applications.filter((app: any) => app.job?.id === job.id).length,
       status: job.status,
-      company: job.company?.name || 'Unknown Company'
+      company: job.companyId?.name || 'Unknown Company'
     }))
     .sort((a, b) => b.applications - a.applications)
     .slice(0, 5);

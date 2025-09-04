@@ -30,7 +30,7 @@ const createJobSchema = z.object({
   salaryRange: z.object({
     min: z.number().min(0).optional(),
     max: z.number().min(0).optional(),
-    currency: z.string().default('USD'),
+    currency: z.string().default('INR'),
   }).optional(),
   companyId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID'),
   urgency: z.nativeEnum(JobUrgency).default(JobUrgency.MEDIUM),
@@ -235,10 +235,19 @@ export class JobController {
   static getJobById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     
-    const job = await Job.findById(id)
+    // Try to find by custom jobId first, then by MongoDB _id
+    let job = await Job.findOne({ jobId: id })
       .populate('companyId')
       .populate('assignedAgentId', 'firstName lastName email')
       .populate('createdBy', 'firstName lastName');
+    
+    // If not found by jobId, try by MongoDB _id
+    if (!job) {
+      job = await Job.findById(id)
+        .populate('companyId')
+        .populate('assignedAgentId', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName');
+    }
     
     if (!job) {
       throw createNotFoundError('Job', id);
@@ -331,7 +340,12 @@ export class JobController {
     const { id } = req.params;
     const updates = updateJobSchema.parse(req.body);
     
-    const job = await Job.findById(id);
+    // Try to find by custom jobId first, then by MongoDB _id
+    let job = await Job.findOne({ jobId: id });
+    if (!job) {
+      job = await Job.findById(id);
+    }
+    
     if (!job) {
       throw createNotFoundError('Job', id);
     }
@@ -369,7 +383,12 @@ export class JobController {
   static deleteJob = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     
-    const job = await Job.findById(id);
+    // Try to find by custom jobId first, then by MongoDB _id
+    let job = await Job.findOne({ jobId: id });
+    if (!job) {
+      job = await Job.findById(id);
+    }
+    
     if (!job) {
       throw createNotFoundError('Job', id);
     }

@@ -12,14 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -36,13 +28,13 @@ import {
   MoreHorizontal,
   MapPin,
   Clock,
-  DollarSign,
   Building2,
   Eye,
   Edit,
   Trash2,
   Users,
-  Briefcase
+  Briefcase,
+  UserCheck
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -70,7 +62,7 @@ export default function JobManagementIntegrated() {
     urgency: 'medium' as const,
     salaryMin: '',
     salaryMax: '',
-    currency: 'USD',
+    currency: 'INR',
     skills: '',
     experience: 'mid' as const,
     education: '',
@@ -129,7 +121,7 @@ export default function JobManagementIntegrated() {
   const filteredJobs = jobs.filter(job => {
     if (!searchTerm) return true;
     const matchesSearch = job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.company?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         job.companyId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -339,7 +331,7 @@ export default function JobManagementIntegrated() {
       urgency: 'medium',
       salaryMin: '',
       salaryMax: '',
-      currency: 'USD',
+      currency: 'INR',
       skills: '',
       experience: 'mid',
       education: '',
@@ -374,28 +366,39 @@ export default function JobManagementIntegrated() {
   };
 
   const handleViewJob = (job: any) => {
-    navigate(`/dashboard/jobs/${job.id || job._id}`);
+    navigate(`/dashboard/jobs/${job.jobId || job.id || job._id}`);
   };
 
   const handleEditJob = (job: any) => {
-    navigate(`/dashboard/jobs/${job.id || job._id}/edit`);
+    navigate(`/dashboard/jobs/${job.jobId || job.id || job._id}/edit`);
   };
 
   const formatSalary = (job: any) => {
     if (job.salaryRange?.min && job.salaryRange?.max) {
-      return `$${(job.salaryRange.min / 1000).toFixed(0)}k - $${(job.salaryRange.max / 1000).toFixed(0)}k`;
+      const currency = job.salaryRange.currency || 'INR';
+      const symbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
+      return `${symbol}${(job.salaryRange.min / 1000).toFixed(0)}k - ${symbol}${(job.salaryRange.max / 1000).toFixed(0)}k`;
     }
     return "Salary TBD";
   };
 
   const getAssignedAgent = (job: any) => {
-    // In real implementation, this would be populated from the API
-    return job.assignedAgentId ? "Agent Assigned" : "Unassigned";
+    if (!job.assignedAgentId) {
+      return "Unassigned";
+    }
+    
+    // If assignedAgentId is populated with agent data
+    if (typeof job.assignedAgentId === 'object' && job.assignedAgentId.firstName) {
+      return `${job.assignedAgentId.firstName} ${job.assignedAgentId.lastName}`;
+    }
+    
+    // Fallback if it's just an ID
+    return "Agent Assigned";
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 max-w-full overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Job Management</h1>
           <p className="text-muted-foreground">Manage job postings and track recruitment progress</p>
@@ -608,6 +611,7 @@ export default function JobManagementIntegrated() {
                         <SelectValue placeholder="Select currency" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="INR">INR (₹)</SelectItem>
                         <SelectItem value="USD">USD ($)</SelectItem>
                         <SelectItem value="EUR">EUR (€)</SelectItem>
                         <SelectItem value="GBP">GBP (£)</SelectItem>
@@ -759,89 +763,66 @@ export default function JobManagementIntegrated() {
               <p className="text-sm">Try adjusting your search or filters</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Job Title</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Salary</TableHead>
-                    <TableHead>Applications</TableHead>
-                    <TableHead>Agent</TableHead>
-                    <TableHead>Posted</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredJobs.map((job: any) => (
-                    <TableRow key={job.id || job._id}>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div className="font-semibold">{job.title}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            {job.jobId && (
-                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono">
-                                {job.jobId}
-                              </span>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {job.urgency}
-                            </div>
+            <div className="space-y-4">
+              {filteredJobs.map((job: any) => (
+                <Card key={job.id || job._id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      {/* Left Section - Main Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg truncate">{job.title}</h3>
+                          {job.jobId && (
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono flex-shrink-0">
+                              {job.jobId}
+                            </span>
+                          )}
+                          <Badge className={getStatusColor(job.status)}>
+                            {job.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-4 h-4" />
+                            <span className="truncate">{job.companyId?.name || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{job.location}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            <span>{job.urgency}</span>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <div className="font-medium">{job.company?.name || 'N/A'}</div>
-                            {job.company?.companyId && (
-                              <div className="text-xs text-muted-foreground">{job.company.companyId}</div>
-                            )}
+                      </div>
+
+                      {/* Center Section - Applications */}
+                      <div className="flex items-center justify-center mx-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-primary">{job.applications || 0}</div>
+                          <div className="text-xs text-muted-foreground">Applications</div>
+                        </div>
+                      </div>
+
+                      {/* Right Section - Salary, Agent, Date & Actions */}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-sm font-medium">{formatSalary(job)}</div>
+                          <div className="text-xs text-muted-foreground">Salary</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">{getAssignedAgent(job)}</div>
+                          <div className="text-xs text-muted-foreground">Agent</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">
+                            {job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'N/A'}
                           </div>
+                          <div className="text-xs text-muted-foreground">Posted</div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-muted-foreground" />
-                          {job.location}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {job.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(job.status)}>
-                          {job.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="w-4 h-4 text-muted-foreground" />
-                          {formatSalary(job)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                          {job.applications || 0}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {getAssignedAgent(job)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
+                        
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -867,11 +848,11 @@ export default function JobManagementIntegrated() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </CardContent>

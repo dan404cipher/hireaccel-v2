@@ -135,7 +135,7 @@ export default function JobDetailsPage() {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold">{job.title}</h1>
-                <p className="text-muted-foreground">Job ID: {job._id || job.id}</p>
+                <p className="text-muted-foreground">Job ID: {job.jobId || job._id || job.id}</p>
               </div>
             </div>
             
@@ -143,7 +143,7 @@ export default function JobDetailsPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => navigate(`/dashboard/jobs/${jobId}/edit`)}
+                onClick={() => navigate(`/dashboard/jobs/${job.jobId || jobId}/edit`)}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Job
@@ -179,7 +179,7 @@ export default function JobDetailsPage() {
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-muted-foreground" />
                     <span className="font-medium">Company:</span>
-                    <span>{job.company?.name || 'N/A'}</span>
+                    <span>{job.companyId?.name || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />

@@ -12,13 +12,16 @@ const createCompanySchema = z.object({
   size: z.enum(['1-10', '11-25', '26-50', '51-100', '101-250', '251-500', '501-1000', '1000+']),
   location: z.string().min(1).max(200),
   website: z.string().url().optional(),
+  employees: z.number().min(0).optional().default(0),
+  foundedYear: z.number().min(1800).max(new Date().getFullYear()).optional().default(new Date().getFullYear()),
   contacts: z.array(z.object({
     name: z.string().min(1).max(100),
     email: z.string().email(),
     phone: z.string().min(1),
     position: z.string().min(1).max(100),
-  })).min(1),
+  })).optional().default([]),
   partnership: z.nativeEnum(PartnershipLevel).default(PartnershipLevel.BASIC),
+  companyId: z.string().optional(), // Allow but don't require companyId
 });
 
 const updateCompanySchema = createCompanySchema.partial();
@@ -60,7 +63,14 @@ export class CompanyController {
   static createCompany = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const validatedData = createCompanySchema.parse(req.body);
     
-    const company = new Company({ ...validatedData, createdBy: req.user!._id });
+    // Ensure contacts array is provided (temporary workaround for model validation)
+    const companyData = {
+      ...validatedData,
+      createdBy: req.user!._id,
+      contacts: validatedData.contacts || []
+    };
+    
+    const company = new Company(companyData);
     await company.save();
     
     await AuditLog.createLog({
