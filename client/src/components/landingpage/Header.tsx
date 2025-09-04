@@ -5,10 +5,33 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
 
-export function Header() {
+interface NavItem {
+  label: string;
+  id?: string;
+  action?: () => void;
+  href?: string;
+}
+
+interface HeaderProps {
+  navItems?: NavItem[];
+  showAuthButtons?: boolean;
+  onBackToHome?: () => void;
+}
+
+export function Header({ 
+  navItems = [
+    { label: "Features", id: "features" },
+    { label: "Why Choose", id: "why-choose" },
+    { label: "Testimonials", id: "testimonials" },
+    { label: "Contact", id: "contact" }
+  ], 
+  showAuthButtons = true,
+  onBackToHome
+}: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -18,20 +41,27 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      setIsMenuOpen(false);
+  const handleNavItemClick = (item: NavItem) => {
+    if (item.action) {
+      item.action();
+    } else if (item.id) {
+      const element = document.getElementById(item.id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else if (item.href) {
+      navigate(item.href);
     }
+    setIsMenuOpen(false);
   };
 
-  const navItems = [
-    { label: "Features", id: "features" },
-    { label: "Why Choose", id: "why-choose" },
-    { label: "Testimonials", id: "testimonials" },
-    { label: "Contact", id: "contact" }
-  ];
+  const handleLogoClick = () => {
+    if (onBackToHome) {
+      onBackToHome();
+    } else {
+      navigate('/');
+    }
+  };
 
   return (
     <motion.header 
@@ -52,7 +82,6 @@ export function Header() {
             transition={{ duration: 0.2 }}
           >
             <motion.div 
-              // className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl mr-3 flex items-center justify-center shadow-lg"
               animate={{ 
                 boxShadow: [
                   "0 4px 6px -1px rgba(59, 130, 246, 0.3)",
@@ -62,19 +91,20 @@ export function Header() {
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              {/* <Sparkles className="w-5 h-5 text-white" /> */}
             </motion.div>
-            <img src={logo} alt="HireAccel" className="w-30 h-10" onClick={()=>navigate('/')}/>
-            {/* <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
-              HireAccel
-            </span> */}
+            <img 
+              src={logo} 
+              alt="HireAccel" 
+              className="w-30 h-10 cursor-pointer" 
+              onClick={handleLogoClick}
+            />
           </motion.div>
           
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item, index) => (
               <motion.button
-                key={item.id}
-                onClick={() => scrollToSection(item.id)}
+                key={item.id || item.label}
+                onClick={() => handleNavItemClick(item)}
                 className="text-gray-600 hover:text-blue-600 transition-colors duration-300 font-medium relative group"
                 whileHover={{ y: -1 }}
                 initial={{ opacity: 0, y: -20 }}
@@ -87,28 +117,33 @@ export function Header() {
             ))}
           </nav>
 
-          <div className="hidden md:flex items-center space-x-4">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button 
-                variant="ghost" 
-                className="hover:bg-blue-50 hover:text-blue-600 transition-all duration-300"
-            onClick={() => navigate("/login")}
+          {showAuthButtons && (
+            <div className="hidden md:flex items-center space-x-4">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               >
-                Sign In
-              </Button>
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300" onClick={() => navigate("/signup")}>
-                Sign Up Free
-              </Button>
-            </motion.div>
-          </div>
+                <Button 
+                  variant="ghost" 
+                  className="hover:bg-blue-50 hover:text-blue-600 transition-all duration-300"
+                  onClick={() => navigate("/login")}
+                >
+                  Sign In
+                </Button>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button 
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300" 
+                  onClick={() => navigate("/signup")}
+                >
+                  Sign Up Free
+                </Button>
+              </motion.div>
+            </div>
+          )}
 
           <motion.button 
             className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-300"
@@ -153,8 +188,8 @@ export function Header() {
               <nav className="flex flex-col space-y-1 p-4">
                 {navItems.map((item, index) => (
                   <motion.button
-                    key={item.id}
-                    onClick={() => scrollToSection(item.id)}
+                    key={item.id || item.label}
+                    onClick={() => handleNavItemClick(item)}
                     className="text-left py-3 px-4 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300 font-medium"
                     initial={{ x: -50, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
@@ -164,19 +199,28 @@ export function Header() {
                     {item.label}
                   </motion.button>
                 ))}
-                <motion.div 
-                  className="flex flex-col space-y-3 pt-4 border-t border-gray-200/50"
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.3 }}
-                >
-                  <Button variant="ghost" className="justify-start hover:bg-blue-50 hover:text-blue-600">
-                    Sign In
-                  </Button>
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg">
-                    Sign Up Free
-                  </Button>
-                </motion.div>
+                {showAuthButtons && (
+                  <motion.div 
+                    className="flex flex-col space-y-3 pt-4 border-t border-gray-200/50"
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4, duration: 0.3 }}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      className="justify-start hover:bg-blue-50 hover:text-blue-600"
+                      onClick={() => navigate("/login")}
+                    >
+                      Sign In
+                    </Button>
+                    <Button 
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+                      onClick={() => navigate("/signup")}
+                    >
+                      Sign Up Free
+                    </Button>
+                  </motion.div>
+                )}
               </nav>
             </motion.div>
           )}
