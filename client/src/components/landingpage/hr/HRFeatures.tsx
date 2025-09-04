@@ -256,7 +256,16 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </div>
 
       {/* Header with Navigation */}
- <Header/>
+      <Header 
+        navItems={[
+          { label: "How It Works", id: "how-it-works" },
+          { label: "Features", id: "features" },
+          { label: "Testimonials", id: "testimonials" },
+          { label: "FAQ", id: "faq" },
+          { label: "Competitors", id: "competitors" }
+        ]}
+        onBackToHome={onBackToHome}
+      />
 
       {/* 1. Hero Section */}
       <section ref={heroRef} className="relative py-20">
@@ -436,7 +445,7 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* 3. How It Works */}
-      <section ref={howItWorksRef} className="relative py-20">
+      <section id="how-it-works" ref={howItWorksRef} className="relative py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -487,7 +496,7 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* 4. Features */}
-      <section ref={featuresRef} className="relative py-20 bg-gray-50/50">
+      <section id="features" ref={featuresRef} className="relative py-20 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -538,7 +547,7 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* 5. Testimonials */}
-      <section ref={socialProofRef} className="relative py-20">
+      <section id="testimonials" ref={socialProofRef} className="relative py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -587,7 +596,7 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* 6. FAQ */}
-      <section ref={faqRef} className="relative py-20 bg-gray-50/50">
+      <section id="faq" ref={faqRef} className="relative py-20 bg-gray-50/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -625,7 +634,9 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* Competitor Analysis Section */}
-      <CompetitorComparison />
+      <section id="competitors">
+        <CompetitorComparison />
+      </section>
 
       {/* Final CTA */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
