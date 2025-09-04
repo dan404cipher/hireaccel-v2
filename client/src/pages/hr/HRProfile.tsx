@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,18 +22,27 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function HRProfile() {
   const { user } = useAuth();
-  const { userId } = useParams<{ userId: string }>();
+  const { customId } = useParams<{ customId: string }>();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  
+  // Auto-navigate to include customId in URL for HR users
+  useEffect(() => {
+    if (user?.role === 'hr' && user?.customId && !customId) {
+      navigate(`/dashboard/hr-profile/${user.customId}`, { replace: true });
+    }
+  }, [user?.customId, customId, navigate, user?.role]);
 
   // Simple profile form state
   const [profileData, setProfileData] = useState({
-    firstName: user?.firstName || "John",
-    lastName: user?.lastName || "HR",
-    email: user?.email || "hr@hireaccel.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    email: user?.email || "",
+    customId: user?.customId || "",
+    phone: "",
+    location: "",
     department: "Human Resources",
     jobTitle: "HR Manager",
     bio: "Experienced HR professional with expertise in talent acquisition and employee relations."
@@ -110,8 +119,8 @@ export default function HRProfile() {
                       {profileData.firstName} {profileData.lastName}
                     </h1>
                     <div className="flex items-center gap-4 mb-4">
-                      <Badge variant="outline" className="text-blue-600 border-blue-200">
-                        {userId}
+                      <Badge variant="outline" className="text-blue-600 border-blue-200 font-mono">
+                        {profileData.customId}
                       </Badge>
                       <Badge variant="secondary">HR Manager</Badge>
                     </div>

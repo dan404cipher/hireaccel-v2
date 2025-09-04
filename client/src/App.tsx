@@ -26,6 +26,7 @@ import UserManagement from "./pages/users/UserManagement";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AnalyticsReports from "./pages/admin/AnalyticsReports";
 import AdminProfile from "./pages/admin/AdminProfile";
+import HRProfile from "./pages/hr/HRProfile";
 import LoginPage from "./pages/auth/LoginPage";
 import { SignupPage } from "./pages/auth/SignupPage";
 import NotFound from "./pages/NotFound";
@@ -235,6 +236,13 @@ function AppRouter() {
         <Route path="candidates/:candidateId" element={
           <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
             <CandidateProfile />
+          </RoleProtectedRoute>
+        } />
+        
+        {/* HR Routes */}
+        <Route path="hr-profile/:customId?" element={
+          <RoleProtectedRoute allowedRoles={['hr']}>
+            <HRProfile />
           </RoleProtectedRoute>
         } />
         
