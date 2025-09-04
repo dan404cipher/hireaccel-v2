@@ -14,7 +14,7 @@ import { asyncHandler } from '@/middleware/errorHandler';
  */
 const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string(),
   firstName: z.string().min(1, 'First name is required').max(50),
   lastName: z.string().min(1, 'Last name is required').max(50),
   role: z.nativeEnum(UserRole, { errorMap: () => ({ message: 'Invalid user role' }) }),
