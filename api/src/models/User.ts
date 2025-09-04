@@ -55,6 +55,13 @@ const userSchema = new Schema<UserDocument>({
     index: true,
   },
   
+  customId: {
+    type: String,
+    unique: true,
+    required: [true, 'Custom user ID is required'],
+    index: true,
+  },
+  
   password: {
     type: String,
     required: [true, 'Password is required'],

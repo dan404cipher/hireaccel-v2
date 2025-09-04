@@ -29,7 +29,7 @@ export function TopBar() {
   const handleProfileClick = () => {
     if (user?.role === 'candidate') {
       // Navigate to base profile route, it will auto-update with customId
-      navigate('/dashboard/candidate-profile');cke
+      navigate('/dashboard/candidate-profile');
     } else if (user?.role === 'admin') {
       navigate('/dashboard/admin-profile');
     } else {

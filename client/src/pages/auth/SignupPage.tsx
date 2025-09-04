@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,10 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Eye, EyeOff, Users, Briefcase, TrendingUp, Shield } from 'lucide-react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { apiClient } from '@/services/api';
+import logo from '@/assets/logo.png';
 
 interface FormData {
   firstName: string;
@@ -27,7 +28,18 @@ interface SignupPageProps {
 }
 
 export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
-  const [userType, setUserType] = useState<'hr' | 'candidate'>('hr');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  
+  // Determine initial user type from route
+  const getInitialUserType = (): 'hr' | 'candidate' => {
+    if (location.pathname === '/signup/candidate') return 'candidate';
+    if (location.pathname === '/signup/hr') return 'hr';
+    return 'hr'; // default to hr
+  };
+  
+  const [userType, setUserType] = useState<'hr' | 'candidate'>(getInitialUserType());
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
@@ -40,10 +52,21 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     currentLocation: '',
     yearsOfExperience: ''
   });
-  const navigate = useNavigate();
-  const { login } = useAuth();
+  
+  // Update user type when route changes
+  useEffect(() => {
+    const newUserType = getInitialUserType();
+    setUserType(newUserType);
+  }, [location.pathname]);
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+  
+  const handleUserTypeChange = (newUserType: 'hr' | 'candidate') => {
+    setUserType(newUserType);
+    // Update the URL to match the selected tab
+    const newPath = newUserType === 'hr' ? '/signup/hr' : '/signup/candidate';
+    navigate(newPath, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,12 +177,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
           {/* Header with logo and title on same line */}
           <div className="flex-shrink-0 p-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-xl">H</span>
-                </div>
-                <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">HireAccel</span>
-              </div>
+              <img src={logo} alt="HireAccel" className="w-30 h-10" onClick={()=>navigate('/')}/>
               <div className="text-right">
                 <h2 className="text-xl font-bold text-gray-800 leading-tight">
                   Revolutionizing<br />
@@ -249,7 +267,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
 
           <Card className="border-0 shadow-none">
             <CardContent className="p-0">
-              <Tabs value={userType} onValueChange={(value) => setUserType(value as 'hr' | 'candidate')}>
+              <Tabs value={userType} onValueChange={(value) => handleUserTypeChange(value as 'hr' | 'candidate')}>
                 <TabsList className="grid w-full grid-cols-2 mb-6">
                   <TabsTrigger value="hr">HR Professional</TabsTrigger>
                   <TabsTrigger value="candidate">Candidate</TabsTrigger>
@@ -368,7 +386,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                   <TabsContent value="hr" className="mt-4">
                     <div className="min-h-[120px] flex flex-col justify-start">
                       <div className="space-y-2">
-                        <Label htmlFor="department">Department (Optional)</Label>
+                        <Label htmlFor="department">Designation</Label>
                         <Input
                           id="department"
                           placeholder="e.g., Engineering, Sales"
@@ -385,7 +403,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                     <div className="min-h-[120px] space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="currentLocation">Current Location</Label>
+                          <Label htmlFor="currentLocation">Current Location (Optional)</Label>
                           <Input
                             id="currentLocation"
                             placeholder="e.g., New York, NY"
@@ -425,11 +443,11 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                     {loading ? 'Creating Account...' : 'Create Account →'}
                   </Button>
 
-                  <div className="text-center text-sm text-gray-600 mt-4" onClick={()=>navigate('/login')}>
+                  <div className="text-center text-sm text-gray-600 mt-4">
                     Already have an account?{' '}
                     <button 
                       type="button" 
-                      onClick={onSwitchToSignin}
+                      onClick={() => navigate('/login')}
                       className="text-blue-600 hover:underline"
                     >
                       Sign in here

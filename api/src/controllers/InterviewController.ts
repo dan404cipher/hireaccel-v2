@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { Interview } from '@/models/Interview';
 import { Application } from '@/models/Application';
 import { User } from '@/models/User';
+import { CandidateAssignment } from '@/models/CandidateAssignment';
 
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, InterviewType, InterviewStatus, InterviewRound, AuditAction } from '@/types';
+import { AuthenticatedRequest, InterviewType, InterviewStatus, InterviewRound, AuditAction, UserRole } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 import mongoose from 'mongoose';
 
@@ -78,8 +79,39 @@ export class InterviewController {
       filter.interviewers = interviewer;
     }
 
+    // HR-specific filtering: Only show interviews for candidates assigned to this HR user
+    let candidateFilter: any = {};
+    if (req.user!.role === UserRole.HR) {
+      // Get all candidates assigned to this HR user
+      const assignedCandidateIds = await CandidateAssignment.find({
+        assignedTo: req.user!._id,
+        status: 'active'
+      }).distinct('candidateId');
+
+      if (assignedCandidateIds.length === 0) {
+        // If no candidates are assigned to this HR user, return empty result
+        return res.json({
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        });
+      }
+
+      candidateFilter = { candidateId: { $in: assignedCandidateIds } };
+    }
+
     // Calculate pagination
     const skip = (page - 1) * limit;
+
+    // First, get applications that match the candidate filter (for HR users)
+    if (req.user!.role === UserRole.HR) {
+      const eligibleApplications = await Application.find(candidateFilter).distinct('_id');
+      filter.applicationId = { $in: eligibleApplications };
+    }
 
     // Execute query with population
     const interviews = await Interview.find(filter)
@@ -121,6 +153,7 @@ export class InterviewController {
       });
     }
 
+    // Count total documents with the same filter applied
     const total = await Interview.countDocuments(filter);
 
     // Log audit trail (safely handle potential errors)
@@ -363,7 +396,36 @@ export class InterviewController {
    * @route GET /interviews/stats
    */
   static getInterviewStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Build base filter for HR users
+    let baseFilter: any = {};
+    
+    if (req.user!.role === UserRole.HR) {
+      // Get all candidates assigned to this HR user
+      const assignedCandidateIds = await CandidateAssignment.find({
+        assignedTo: req.user!._id,
+        status: 'active'
+      }).distinct('candidateId');
+
+      if (assignedCandidateIds.length === 0) {
+        // If no candidates are assigned, return empty stats
+        return res.json({
+          data: {
+            statusStats: [],
+            todayCount: 0,
+          },
+        });
+      }
+
+      // Get applications for assigned candidates
+      const eligibleApplications = await Application.find({
+        candidateId: { $in: assignedCandidateIds }
+      }).distinct('_id');
+      
+      baseFilter.applicationId = { $in: eligibleApplications };
+    }
+
     const stats = await Interview.aggregate([
+      { $match: baseFilter },
       {
         $group: {
           _id: '$status',
@@ -378,6 +440,7 @@ export class InterviewController {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const todayCount = await Interview.countDocuments({
+      ...baseFilter,
       scheduledAt: { $gte: today, $lt: tomorrow },
       status: { $nin: [InterviewStatus.CANCELLED] }
     });
