@@ -49,9 +49,9 @@ export const authenticate = async (
       throw createUnauthorizedError('User not found');
     }
     
-    // Check if user is active
-    if (user.status !== 'active') {
-      throw createUnauthorizedError('Account is inactive');
+    // Check if user is active or pending (pending users can access app but with limited features)
+    if (user.status === 'suspended' || user.status === 'inactive') {
+      throw createUnauthorizedError('Account is suspended or inactive');
     }
     
     // Attach user to request
@@ -92,7 +92,7 @@ export const optionalAuth = async (
         const decoded = verifyAccessToken(token);
         const user = await User.findById(decoded.userId);
         
-        if (user && user.status === 'active') {
+        if (user && (user.status === 'active' || user.status === 'pending')) {
           (req as AuthenticatedRequest).user = user;
         }
       } catch (error) {

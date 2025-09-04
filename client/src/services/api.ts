@@ -254,6 +254,7 @@ class ApiClient {
     return result;
   }
   async signup(userData: any){
+    console.log('signup', userData);
     const result = await this.request('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
     return result;
   }

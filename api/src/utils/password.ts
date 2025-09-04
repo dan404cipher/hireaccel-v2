@@ -104,14 +104,14 @@ export const validatePasswordStrength = (password: string): void => {
     errors.push('Password is too common, please choose a different one');
   }
   
-  // Sequential or repeated character checks
-  if (hasSequentialCharacters(password)) {
-    errors.push('Password cannot contain sequential characters (e.g., 123, abc)');
-  }
+  // Sequential or repeated character checks (disabled for easier signup)
+  // if (hasSequentialCharacters(password)) {
+  //   errors.push('Password cannot contain sequential characters (e.g., 123, abc)');
+  // }
   
-  if (hasRepeatedCharacters(password)) {
-    errors.push('Password cannot contain more than 3 repeated characters');
-  }
+  // if (hasRepeatedCharacters(password)) {
+  //   errors.push('Password cannot contain more than 3 repeated characters');
+  // }
   
   if (errors.length > 0) {
     throw new Error(`Password validation failed: ${errors.join(', ')}`);

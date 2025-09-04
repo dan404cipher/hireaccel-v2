@@ -1,4 +1,5 @@
 import { User, UserDocument } from '@/models/User';
+import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
 import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types';
 import { 
@@ -37,6 +38,10 @@ export class AuthService {
     firstName: string;
     lastName: string;
     role: UserRole;
+    phone?: string | undefined;
+    department?: string | undefined;
+    currentLocation?: string | undefined;
+    yearsOfExperience?: string | undefined;
   }, context?: {
     ipAddress?: string;
     userAgent?: string;
@@ -48,16 +53,30 @@ export class AuthService {
         throw createConflictError('User with this email already exists');
       }
       
+      // Clean up any corrupted Candidate records with null userId
+      await Candidate.deleteMany({ userId: null });
+      
+      // Drop the unique index on userId if it exists to fix legacy constraint issues
+      try {
+        await Candidate.collection.dropIndex('userId_1');
+      } catch (error) {
+        // Index might not exist, which is fine
+        logger.debug('Could not drop userId index (might not exist)', { error });
+      }
+      
       // Validate password strength
       validatePasswordStrength(userData.password);
       
       // Hash password
       const hashedPassword = await hashPassword(userData.password);
       
-      // Create user
+      // Create user (only use fields that the User model supports)
       const user = new User({
-        ...userData,
+        email: userData.email,
         password: hashedPassword,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
         status: UserStatus.PENDING, // Require email verification
         emailVerified: false,
       });

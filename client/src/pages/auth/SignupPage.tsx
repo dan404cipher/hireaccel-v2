@@ -101,11 +101,39 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     hasUppercase: /[A-Z]/.test(formData.password),
     hasLowercase: /[a-z]/.test(formData.password),
     hasNumber: /\d/.test(formData.password),
+    hasSpecialChar: /[^a-zA-Z0-9]/.test(formData.password),
     hasNoSpaces: !/\s/.test(formData.password),
-    hasNoSequential: !/(?:abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz|123|234|345|456|567|678|789|012|qwe|wer|ert|rty|tyu|yui|uio|iop|asd|sdf|dfg|fgh|ghi|hjk|jkl|kl|zx|xc|cv|vb|bn|nm)/i.test(formData.password),
+    hasNoSequential: !hasSequentialCharacters(formData.password),
     hasNoRepeated: !/(.)\1{3,}/.test(formData.password),
     hasNoCommon: !/^(password|password123|123456|123456789|qwerty|abc123|password1|admin|letmein|welcome|12345678|monkey|1234567890|dragon|master|baseball|football|basketball|superman|batman|trustno1|hello|welcome123|admin123|root|test|guest|user|demo|temp|temporary)$/i.test(formData.password)
   };
+
+  // Helper function to check for sequential characters (matches backend logic)
+  function hasSequentialCharacters(password: string): boolean {
+    const sequences = [
+      'abcdefghijklmnopqrstuvwxyz',
+      'qwertyuiopasdfghjklzxcvbnm',
+      '0123456789'
+    ];
+    
+    const lowerPassword = password.toLowerCase();
+    
+    for (const sequence of sequences) {
+      for (let i = 0; i <= sequence.length - 3; i++) {
+        const subseq = sequence.substring(i, i + 3);
+        if (lowerPassword.includes(subseq)) {
+          return true;
+        }
+        // Check reverse sequence
+        const reverseSubseq = subseq.split('').reverse().join('');
+        if (lowerPassword.includes(reverseSubseq)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
 
   const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
@@ -315,6 +343,9 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                           </div>
                           <div className={passwordValidation.hasNumber ? "text-green-600" : "text-red-500"}>
                             ✓ Number
+                          </div>
+                          <div className={passwordValidation.hasSpecialChar ? "text-green-600" : "text-red-500"}>
+                            ✓ Special character (!@#$%^&*)
                           </div>
                           <div className={passwordValidation.hasNoSpaces ? "text-green-600" : "text-red-500"}>
                             ✓ No spaces
