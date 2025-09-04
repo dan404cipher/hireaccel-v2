@@ -1,6 +1,8 @@
 import { User, UserDocument } from '@/models/User';
 import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
+import { OTPService } from './OTPService';
+import { EmailService } from './EmailService';
 import { generateCustomUserId } from '@/utils/customId';
 import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types';
 import { 
@@ -31,9 +33,9 @@ import { logger } from '@/config/logger';
  */
 export class AuthService {
   /**
-   * Register a new user
+   * Send OTP for user registration
    */
-  static async register(userData: {
+  static async sendRegistrationOTP(userData: {
     email: string;
     password: string;
     firstName: string;
@@ -43,10 +45,7 @@ export class AuthService {
     department?: string | undefined;
     currentLocation?: string | undefined;
     yearsOfExperience?: string | undefined;
-  }, context?: {
-    ipAddress?: string;
-    userAgent?: string;
-  }): Promise<{ user: UserDocument; tokens: AuthTokens }> {
+  }): Promise<{ success: boolean; message: string }> {
     try {
       // Check if user already exists
       const existingUser = await User.findByEmail(userData.email);
@@ -54,19 +53,63 @@ export class AuthService {
         throw createConflictError('User with this email already exists');
       }
       
-      // Clean up any corrupted Candidate records with null userId
-      await Candidate.deleteMany({ userId: null });
-      
-      // Drop the unique index on userId if it exists to fix legacy constraint issues
-      try {
-        await Candidate.collection.dropIndex('userId_1');
-      } catch (error) {
-        // Index might not exist, which is fine
-        logger.debug('Could not drop userId index (might not exist)', { error });
-      }
-      
       // Validate password strength
       validatePasswordStrength(userData.password);
+      
+      // Send OTP
+      await OTPService.sendSignupOTP({
+        email: userData.email,
+        password: userData.password,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        ...(userData.phone && { phone: userData.phone }),
+        ...(userData.department && { department: userData.department }),
+        ...(userData.currentLocation && { currentLocation: userData.currentLocation }),
+        ...(userData.yearsOfExperience && { yearsOfExperience: userData.yearsOfExperience }),
+      });
+      
+      logger.info('Registration OTP sent successfully', {
+        email: userData.email,
+        role: userData.role,
+      });
+      
+      return {
+        success: true,
+        message: 'OTP sent to your email. Please verify to complete registration.',
+      };
+    } catch (error) {
+      logger.error('Failed to send registration OTP', {
+        email: userData.email,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Verify OTP and complete user registration
+   */
+  static async verifyOTPAndRegister(
+    email: string, 
+    otp: string,
+    context?: {
+      ipAddress?: string;
+      userAgent?: string;
+    }
+  ): Promise<{ user: UserDocument; tokens: AuthTokens }> {
+    try {
+      // Verify OTP and get user data
+      const userData = await OTPService.verifyOTP(email, otp);
+      if (!userData) {
+        throw createBadRequestError('Invalid or expired OTP');
+      }
+      
+      // Check if user was created in the meantime
+      const existingUser = await User.findByEmail(userData.email);
+      if (existingUser) {
+        throw createConflictError('User with this email already exists');
+      }
       
       // Hash password
       const hashedPassword = await hashPassword(userData.password);
@@ -74,7 +117,7 @@ export class AuthService {
       // Generate custom user ID based on role
       let customId: string;
       try {
-        customId = await generateCustomUserId(userData.role);
+        customId = await generateCustomUserId(userData.role as UserRole);
         logger.info('Generated custom user ID', {
           email: userData.email,
           role: userData.role,
@@ -89,22 +132,17 @@ export class AuthService {
         throw createBadRequestError('Failed to generate user ID');
       }
       
-      // Create user (only use fields that the User model supports)
+      // Create user
       const user = new User({
         email: userData.email,
         customId: customId,
         password: hashedPassword,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        role: userData.role,
-        status: UserStatus.PENDING, // Require email verification
-        emailVerified: false,
+        role: userData.role as UserRole,
+        status: UserStatus.ACTIVE, // User is verified via OTP
+        emailVerified: true, // Email is verified via OTP
       });
-      
-      // Generate email verification token
-      const verificationToken = generateSecureToken();
-      user.emailVerificationToken = hashPasswordResetToken(verificationToken);
-      user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
       
       await user.save();
       
@@ -127,7 +165,7 @@ export class AuthService {
               currency: 'USD'
             },
             availability: {
-              startDate: new Date(),
+              startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
               remote: false,
               relocation: false
             }
@@ -157,6 +195,13 @@ export class AuthService {
       );
       await user.save();
       
+      // Send welcome email
+      try {
+        await EmailService.sendWelcomeEmail(user.email, user.firstName, user.customId);
+      } catch (error) {
+        logger.warn('Failed to send welcome email', { error });
+      }
+      
       // Log registration
       await AuditLog.createLog({
         actor: user._id,
@@ -165,25 +210,65 @@ export class AuthService {
         entityId: user._id,
         metadata: {
           role: user.role,
-          registrationMethod: 'email',
+          registrationMethod: 'email_otp',
         },
         ipAddress: context?.ipAddress,
         userAgent: context?.userAgent,
         businessProcess: 'authentication',
       });
       
-      logger.info('User registered successfully', {
+      logger.info('User registered successfully via OTP', {
         userId: user._id,
         email: user.email,
         role: user.role,
+        customId: user.customId,
       });
-      
-      // TODO: Send email verification email
       
       return { user, tokens };
     } catch (error) {
-      logger.error('User registration failed', {
-        email: userData.email,
+      logger.error('OTP verification and registration failed', {
+        email: email,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Register a new user (Now uses OTP flow)
+   */
+  static async register(userData: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+    phone?: string | undefined;
+    department?: string | undefined;
+    currentLocation?: string | undefined;
+    yearsOfExperience?: string | undefined;
+  }): Promise<{ success: boolean; message: string; requiresOTP: boolean }> {
+    // Redirect to OTP flow
+    const result = await this.sendRegistrationOTP(userData);
+    return {
+      ...result,
+      requiresOTP: true,
+    };
+  }
+
+  /**
+   * Resend OTP for registration
+   */
+  static async resendOTP(email: string): Promise<void> {
+    try {
+      await OTPService.resendOTP(email);
+      
+      logger.info('OTP resent successfully', {
+        email: email,
+      });
+    } catch (error) {
+      logger.error('Failed to resend OTP', {
+        email: email,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
