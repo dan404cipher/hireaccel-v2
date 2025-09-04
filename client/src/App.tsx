@@ -76,7 +76,7 @@ function RoleProtectedRoute({
   
   if (!user?.role || !allowedRoles.includes(user.role)) {
     // Redirect to dashboard if user doesn't have access
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
   
   return <>{children}</>;
@@ -177,7 +177,7 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="shared-candidates" element={
-          <RoleProtectedRoute allowedRoles={['hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
             <SharedCandidates />
           </RoleProtectedRoute>
         } />
@@ -208,8 +208,14 @@ function AppRouter() {
             <CandidateApplications />
           </RoleProtectedRoute>
         } />
-        <Route path="candidate-profile" element={
+        {/* Candidate Profile Routes */}
+        <Route path="candidate-profile/:customId?" element={
           <RoleProtectedRoute allowedRoles={['candidate']}>
+            <CandidateProfile />
+          </RoleProtectedRoute>
+        } />
+        <Route path="candidates/:candidateId" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
             <CandidateProfile />
           </RoleProtectedRoute>
         } />

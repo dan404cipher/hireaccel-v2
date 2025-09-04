@@ -256,8 +256,8 @@ export function useCreateApplication() {
 }
 
 // Candidate Profile
-export function useCandidateProfile() {
-  const memoizedCall = useCallback(() => apiClient.getCandidateProfile(), []);
+export function useCandidateProfile(id?: string) {
+  const memoizedCall = useCallback(() => apiClient.getCandidateProfile(id), [id]);
   return useApi(memoizedCall, { immediate: true });
 }
 
@@ -266,9 +266,9 @@ export function useUpdateCandidateProfile() {
 }
 
 // File Upload
-export function useResumeInfo() {
+export function useResumeInfo(options: UseApiOptions = {}) {
   const memoizedCall = useCallback(() => apiClient.getResumeInfo(), []);
-  return useApi(memoizedCall, { immediate: true });
+  return useApi(memoizedCall, { immediate: true, ...options });
 }
 
 export function useUploadResume(options?: { onSuccess?: (data: any) => void; onError?: (error: any) => void }) {
@@ -287,7 +287,12 @@ export function useDeleteResume(options?: { onSuccess?: () => void; onError?: ()
 
 // Agent Candidates
 export function useAgentCandidates(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getAgentCandidates(params), [JSON.stringify(params)]);
+  // Only include the values that should trigger a refetch
+  const { page, limit, search } = params;
+  const memoizedCall = useCallback(
+    () => apiClient.getAgentCandidates(params),
+    [page, limit, search]
+  );
   return useApi(memoizedCall, { immediate: true });
 }
 
@@ -306,15 +311,22 @@ export function useAgentAssignmentDetails(agentId: string) {
 }
 
 export function useMyAgentAssignment() {
-  return useApi(() => apiClient.getMyAgentAssignment(), { immediate: true });
+  const memoizedCall = useCallback(() => apiClient.getMyAgentAssignment(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useAgentDashboard() {
-  return useApi(() => apiClient.getAgentDashboard(), { immediate: true });
+  const memoizedCall = useCallback(() => apiClient.getAgentDashboard(), []);
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useMyAgentAssignments(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getMyAgentAssignments(params), [JSON.stringify(params)]);
+  // Only include the values that should trigger a refetch
+  const { page, limit, sortBy, sortOrder } = params;
+  const memoizedCall = useCallback(
+    () => apiClient.getMyAgentAssignments(params),
+    [page, limit, sortBy, sortOrder]
+  );
   return useApi(memoizedCall, { immediate: true });
 }
 

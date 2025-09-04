@@ -12,6 +12,7 @@ import {
 export interface CompanyDocument extends Omit<ICompany, '_id' | 'createdBy'>, Document {
   _id: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
+  companyId: string;
   
   // Additional properties that exist in schema but not in base interface
   foundedYear?: number;
@@ -61,6 +62,7 @@ export interface CompanyModel extends mongoose.Model<CompanyDocument> {
   getTopPerformers(options?: any): Promise<CompanyDocument[]>;
   getByPartnership(partnership: PartnershipLevel, options?: any): Promise<CompanyDocument[]>;
   getExpiringContracts(days?: number): Promise<CompanyDocument[]>;
+  generateCompanyId(): Promise<string>;
 }
 
 /**
@@ -104,6 +106,13 @@ const companyContactSchema = new Schema<CompanyContact>({
  * Main company schema
  */
 const companySchema = new Schema<CompanyDocument>({
+  companyId: {
+    type: String,
+    required: [true, 'Company ID is required'],
+    unique: true,
+    index: true,
+  },
+  
   name: {
     type: String,
     required: [true, 'Company name is required'],
@@ -335,6 +344,7 @@ const companySchema = new Schema<CompanyDocument>({
     type: Number, // percentage
     min: [0, 'Success rate cannot be negative'],
     max: [100, 'Success rate cannot exceed 100%'],
+    default: 0,
   },
   
   lastActivityAt: {
@@ -669,6 +679,25 @@ companySchema.statics['getExpiringContracts'] = function(days = 30) {
   .sort({ contractEndDate: 1 });
 };
 
+/**
+ * Generate next company ID in format COMP00001, COMP00002, etc.
+ */
+companySchema.statics['generateCompanyId'] = async function() {
+  const lastCompany = await this.findOne({}, { companyId: 1 })
+    .sort({ companyId: -1 })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (lastCompany && lastCompany.companyId) {
+    const match = lastCompany.companyId.match(/COMP(\d+)/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+  
+  return `COMP${nextNumber.toString().padStart(5, '0')}`;
+};
+
 // ============================================================================
 // Middleware (Hooks)
 // ============================================================================
@@ -676,7 +705,16 @@ companySchema.statics['getExpiringContracts'] = function(days = 30) {
 /**
  * Pre-save middleware
  */
-companySchema.pre('save', function(this: CompanyDocument, next) {
+companySchema.pre('save', async function(this: CompanyDocument, next) {
+  // Generate companyId if it doesn't exist
+  if (!this.companyId) {
+    try {
+      this.companyId = await (this.constructor as any).generateCompanyId();
+    } catch (error: any) {
+      return next(error);
+    }
+  }
+  
   // Update last activity timestamp
   if (this.isModified()) {
     this.lastActivityAt = new Date();
@@ -690,7 +728,10 @@ companySchema.pre('save', function(this: CompanyDocument, next) {
   // Calculate success rate if we have data
   if (this.isModified('totalJobs') || this.isModified('totalHires')) {
     if (this.totalJobs > 0) {
-      this.successRate = Math.round((this.totalHires / this.totalJobs) * 100);
+      const rate = (this.totalHires / this.totalJobs) * 100;
+      this.successRate = Math.min(100, Math.max(0, Math.round(rate)));
+    } else {
+      this.successRate = 0;
     }
   }
   

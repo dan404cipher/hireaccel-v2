@@ -15,6 +15,7 @@ import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
  */
 
 const createJobSchema = z.object({
+  jobId: z.string().optional(), // Optional - will be generated automatically
   title: z.string().min(1).max(200),
   description: z.string().min(1).max(5000),
   requirements: z.object({
@@ -263,7 +264,9 @@ export class JobController {
    * POST /jobs
    */
   static createJob = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    console.log('Creating job with data:', req.body);
     const validatedData = createJobSchema.parse(req.body);
+    console.log('Validated data:', validatedData);
     
     // Verify company exists
     const company = await Company.findById(validatedData.companyId);
@@ -290,10 +293,14 @@ export class JobController {
       status: validatedData.assignedAgentId ? JobStatus.ASSIGNED : JobStatus.OPEN,
     });
     
+    console.log('Job object before save:', job.toObject());
     await job.save();
+    console.log('Job saved successfully with ID:', job.jobId);
     
     // Update company job count
     company.incrementJobs();
+    // Temporarily skip successRate calculation to avoid validation error
+    company.successRate = Math.min(100, Math.max(0, Math.round(((company.totalHires || 0) / (company.totalJobs || 1)) * 100)));
     await company.save();
     
     // Log job creation

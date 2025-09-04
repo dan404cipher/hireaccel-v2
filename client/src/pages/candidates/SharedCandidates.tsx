@@ -1,4 +1,27 @@
+// TODO: Completed tasks:
+// 1. Add shared candidates route access for admin and agent roles
+// 2. Update sidebar navigation to show shared candidates for admin and agent roles
+// 3. Modify SharedCandidates component to use agent-specific API for agents
+// 4. Update UI to handle agent-specific view
+// 5. Test the changes
+// 6. Fix data structure handling for agent view
+// 7. Fix assigned by and job information for agent view
+// 8. Fix data structure handling for agent view to handle both profile and direct properties
+// 9. Fix data structure handling to use correct nested paths for agent view
+// 10. Update API call to only fetch candidates assigned by the agent
+// 11. Fix data structure handling to properly handle null/undefined values
+// 12. Fix job position display in agent view
+// 13. Add update and delete functionalities for agent view
+// 14. Add delete confirmation dialog for agent assignments
+// 15. Add update assignment functionality for agent view
+// 16. Add notes section to candidate cards
+// 17. Remove redundant status update options from HR dropdown
+// 18. Add feedback functionality for HR users
+// 19. Remove duplicate view details and view resume options for HR
+// 20. Remove mark as complete and reject buttons from view details for HR
+
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +57,8 @@ import {
   Star,
   MoreHorizontal
 } from 'lucide-react';
-import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats } from '@/hooks/useApi';
+import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats, useCandidateAssignments } from '@/hooks/useApi';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 
@@ -99,18 +123,46 @@ const SharedCandidates: React.FC = () => {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
-  const [feedbackText, setFeedbackText] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<CandidateAssignment | null>(null);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [assignmentToUpdate, setAssignmentToUpdate] = useState<CandidateAssignment | null>(null);
+  const [updatePriority, setUpdatePriority] = useState('');
+  const [updateNotes, setUpdateNotes] = useState('');
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [assignmentForFeedback, setAssignmentForFeedback] = useState<CandidateAssignment | null>(null);
+  const [feedbackText, setFeedbackText] = useState('');
+  const navigate = useNavigate();
 
+  const { user } = useAuth();
+  
   // API calls
-  const { data: assignmentsData, loading, refetch } = useMyCandidateAssignments({
-    page: currentPage,
-    limit: 20,
-    status: statusFilter === 'all' ? undefined : statusFilter,
-    priority: priorityFilter === 'all' ? undefined : priorityFilter,
-    sortBy: 'assignedAt',
-    sortOrder: 'desc'
-  });
+  const { data: assignmentsData, loading, refetch } = user?.role === 'agent' 
+    ? useCandidateAssignments({
+        page: currentPage,
+        limit: 20,
+        assignedBy: user?.id,
+        sortBy: 'assignedAt',
+        sortOrder: 'desc'
+      })
+    : user?.role === 'admin'
+    ? useCandidateAssignments({
+        page: currentPage,
+        limit: 20,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        priority: priorityFilter === 'all' ? undefined : priorityFilter,
+        sortBy: 'assignedAt',
+        sortOrder: 'desc'
+      })
+    : useMyCandidateAssignments({
+        page: currentPage,
+        limit: 20,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        priority: priorityFilter === 'all' ? undefined : priorityFilter,
+        sortBy: 'assignedAt',
+        sortOrder: 'desc'
+      });
 
   const { data: statsData } = useCandidateAssignmentStats();
   const updateAssignment = useUpdateCandidateAssignment();
@@ -213,6 +265,24 @@ const SharedCandidates: React.FC = () => {
     }
   };
 
+  const formatExperience = (experienceArray: any[]) => {
+    if (!experienceArray || experienceArray.length === 0) {
+      return 'No experience';
+    }
+    
+    const totalYears = experienceArray.length;
+    
+    if (totalYears <= 2) {
+      return '0-2 years';
+    } else if (totalYears <= 5) {
+      return '2-5 years';
+    } else if (totalYears <= 10) {
+      return '5-10 years';
+    } else {
+      return '10+ years';
+    }
+  };
+
   const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
     try {
       await updateAssignment.mutate({
@@ -234,6 +304,64 @@ const SharedCandidates: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to update status",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleUpdateAssignment = async () => {
+    if (!assignmentToUpdate) return;
+
+    try {
+      await updateAssignment.mutate({
+        id: assignmentToUpdate._id,
+        data: {
+          priority: updatePriority,
+          notes: updateNotes
+        }
+      });
+      refetch();
+      setUpdateDialogOpen(false);
+      setAssignmentToUpdate(null);
+      setUpdatePriority('');
+      setUpdateNotes('');
+      toast({
+        title: "Success",
+        description: "Assignment updated successfully"
+      });
+    } catch (error: any) {
+      console.error('Failed to update assignment:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update assignment",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFeedbackUpdate = async () => {
+    if (!assignmentForFeedback) return;
+
+    try {
+      await updateAssignment.mutate({
+        id: assignmentForFeedback._id,
+        data: {
+          feedback: feedbackText
+        }
+      });
+      refetch();
+      setFeedbackDialogOpen(false);
+      setAssignmentForFeedback(null);
+      setFeedbackText('');
+      toast({
+        title: "Success",
+        description: "Feedback updated successfully"
+      });
+    } catch (error: any) {
+      console.error('Failed to update feedback:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update feedback",
         variant: "destructive"
       });
     }
@@ -262,14 +390,28 @@ const SharedCandidates: React.FC = () => {
     }
   };
 
-  const renderAssignmentCard = (assignment: CandidateAssignment) => {
-    const candidate = assignment.candidateId;
-    const firstName = candidate.userId.firstName || '';
-    const lastName = candidate.userId.lastName || '';
+  const renderAssignmentCard = (assignment: any) => {
+    // Handle both agent candidates and candidate assignments data structures
+    const isAgentView = user?.role === 'agent';
+    
+    let candidate, firstName, lastName, email;
+    if (isAgentView) {
+      // Agent view structure
+      candidate = assignment.candidateId;
+      firstName = candidate?.userId?.firstName || '';
+      lastName = candidate?.userId?.lastName || '';
+      email = candidate?.userId?.email || 'No email provided';
+    } else {
+      // HR view structure
+      candidate = assignment.candidateId;
+      firstName = candidate.userId.firstName || '';
+      lastName = candidate.userId.lastName || '';
+      email = candidate.userId.email || 'No email provided';
+    }
+    
     const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
                      firstName ? firstName : 
                      lastName ? lastName : 'Unnamed Candidate';
-    const email = candidate.userId.email || 'No email provided';
     const initials = firstName && lastName ? 
                     `${firstName.charAt(0)}${lastName.charAt(0)}` : 
                     firstName ? firstName.charAt(0) : 
@@ -287,18 +429,30 @@ const SharedCandidates: React.FC = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setSelectedAssignment(assignment)}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </DropdownMenuItem>
-                {candidate.resumeFileId && (
-                  <DropdownMenuItem>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View Resume
-                  </DropdownMenuItem>
-                )}
-                {assignment.status === 'active' && (
+                {isAgentView ? (
                   <>
+                    <DropdownMenuItem onClick={() => setSelectedAssignment(assignment)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                    {candidate?.resumeFileId && (
+                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        View Resume
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setAssignmentToUpdate(assignment);
+                        setUpdatePriority(assignment.priority || 'medium');
+                        setUpdateNotes(assignment.notes || '');
+                        setUpdateDialogOpen(true);
+                      }}
+                      disabled={updateAssignment.loading}
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Update Assignment
+                    </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={() => handleStatusUpdate(assignment, 'completed')}
                       disabled={updateAssignment.loading}
@@ -313,6 +467,32 @@ const SharedCandidates: React.FC = () => {
                     >
                       <XCircle className="mr-2 h-4 w-4" />
                       Reject
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setAssignmentToDelete(assignment);
+                        setDeleteConfirmOpen(true);
+                      }}
+                      disabled={updateAssignment.loading}
+                      className="text-red-600"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Delete Assignment
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem onClick={() => setSelectedAssignment(assignment)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      setAssignmentForFeedback(assignment);
+                      setFeedbackText(assignment.feedback || '');
+                      setFeedbackDialogOpen(true);
+                    }}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Add Feedback
                     </DropdownMenuItem>
                   </>
                 )}
@@ -332,28 +512,58 @@ const SharedCandidates: React.FC = () => {
                 <div className="font-semibold text-gray-900 truncate">{fullName}</div>
                 <div className="text-sm text-gray-500 truncate">{email}</div>
                 <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                  {candidate.profile.phoneNumber && (
-                    <div className="flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      <span className="truncate">{candidate.profile.phoneNumber}</span>
-                    </div>
-                  )}
-                  {candidate.profile.location ? (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      <span className="truncate">{candidate.profile.location}</span>
-                    </div>
+                  {isAgentView ? (
+                    <>
+                      {candidate?.profile?.phoneNumber && (
+                        <div className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          <span className="truncate">{candidate.profile.phoneNumber}</span>
+                        </div>
+                      )}
+                      {candidate?.profile?.location ? (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">{candidate.profile.location}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate text-gray-400">Location not specified</span>
+                        </div>
+                      )}
+                      {candidate?.profile?.rating && (
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                          <span>{candidate.profile.rating}/5</span>
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      <span className="truncate text-gray-400">Location not specified</span>
-                    </div>
-                  )}
-                  {candidate.rating && (
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                      <span>{candidate.rating}/5</span>
-                    </div>
+                    <>
+                      {candidate.profile.phoneNumber && (
+                        <div className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          <span className="truncate">{candidate.profile.phoneNumber}</span>
+                        </div>
+                      )}
+                      {candidate.profile.location ? (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">{candidate.profile.location}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate text-gray-400">Location not specified</span>
+                        </div>
+                      )}
+                      {candidate.rating && (
+                        <div className="flex items-center gap-1">
+                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                          <span>{candidate.rating}/5</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -362,87 +572,178 @@ const SharedCandidates: React.FC = () => {
             {/* Column 2: Job */}
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Job Position</div>
-              <div className="text-sm font-medium text-gray-900">
-                {assignment.jobId ? assignment.jobId.title : 'General'}
-              </div>
-              {assignment.jobId?.companyId && (
-                <div className="flex items-center gap-2 mt-1">
-                  <Briefcase className="w-3 h-3 text-gray-400" />
-                  <div className="text-xs text-gray-600">
-                    <span className="font-medium">{assignment.jobId.companyId.name}</span>
-                    {assignment.jobId.companyId.industry && (
-                      <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
-                    )}
-                    {assignment.jobId.location && (
-                      <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
-                    )}
+              {isAgentView ? (
+                <>
+                  <div className="text-sm font-medium text-gray-900">
+                    {assignment.jobId ? assignment.jobId.title : 'General'}
                   </div>
-                </div>
+                  {assignment.jobId?.companyId && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Briefcase className="w-3 h-3 text-gray-400" />
+                      <div className="text-xs text-gray-600">
+                        <span className="font-medium">{assignment.jobId.companyId.name}</span>
+                        {assignment.jobId.companyId.industry && (
+                          <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
+                        )}
+                        {assignment.jobId.location && (
+                          <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="text-sm font-medium text-gray-900">
+                    {assignment.jobId ? assignment.jobId.title : 'General'}
+                  </div>
+                  {assignment.jobId?.companyId && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Briefcase className="w-3 h-3 text-gray-400" />
+                      <div className="text-xs text-gray-600">
+                        <span className="font-medium">{assignment.jobId.companyId.name}</span>
+                        {assignment.jobId.companyId.industry && (
+                          <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
+                        )}
+                        {assignment.jobId.location && (
+                          <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
             {/* Column 3: Candidate Status */}
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Candidate Status</div>
-              <Select
-                value={assignment.candidateStatus || 'new'}
-                onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
-              >
-                <SelectTrigger className="w-32 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="reviewed">Reviewed</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                  <SelectItem value="interviewed">Interviewed</SelectItem>
-                  <SelectItem value="offer_sent">Offer Sent</SelectItem>
-                  <SelectItem value="hired">Hired</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
+              {isAgentView ? (
+                <Badge variant="outline" className="capitalize">
+                  {assignment.candidateStatus || 'new'}
+                </Badge>
+              ) : (
+                <Select
+                  value={assignment.candidateStatus || 'new'}
+                  onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
+                >
+                  <SelectTrigger className="w-32 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                    <SelectItem value="interviewed">Interviewed</SelectItem>
+                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
+                    <SelectItem value="hired">Hired</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
           {/* Row 2: Assigned By, Experience, Resume */}
           <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Column 1: Assigned By */}
+            {/* Column 1: Assigned By/HR */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Assigned by</div>
+              <div className="text-xs font-medium text-gray-500 mb-1">
+                {isAgentView ? "Assigned HR" : "Assigned by"}
+              </div>
               <div className="text-sm text-gray-900">
-                {assignment.assignedBy.firstName} {assignment.assignedBy.lastName}
+                {isAgentView ? (
+                  assignment.assignedTo ? (
+                    `${assignment.assignedTo.firstName} ${assignment.assignedTo.lastName}`
+                  ) : (
+                    "Not assigned"
+                  )
+                ) : (
+                  `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`
+                )}
               </div>
               <div className="text-xs text-gray-500">
-                {formatDistanceToNow(new Date(assignment.assignedAt))} ago
+                {isAgentView ? (
+                  assignment.assignedAt ? formatDistanceToNow(new Date(assignment.assignedAt)) + " ago" : "Not assigned"
+                ) : (
+                  formatDistanceToNow(new Date(assignment.assignedAt)) + " ago"
+                )}
               </div>
             </div>
 
             {/* Column 2: Experience */}
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Experience</div>
-              {candidate.profile.experience && candidate.profile.experience.length > 0 ? (
+              {isAgentView ? (
                 <div className="text-sm font-medium text-gray-900">
-                  {candidate.profile.experience.length} {candidate.profile.experience.length === 1 ? 'year' : 'years'}
+                  {formatExperience(candidate?.profile?.experience || [])}
                 </div>
               ) : (
-                <span className="text-xs text-gray-500">No experience</span>
+                <div className="text-sm font-medium text-gray-900">
+                  {formatExperience(candidate.profile.experience || [])}
+                </div>
               )}
             </div>
 
             {/* Column 3: Resume */}
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Resume</div>
-              {candidate.resumeFileId ? (
-                <Button variant="outline" size="sm" className="text-xs h-8">
-                  <ExternalLink className="w-3 h-3 mr-1" />
-                  View Resume
-                </Button>
+              {isAgentView ? (
+                candidate?.resumeFileId ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs h-8"
+                    onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" />
+                    View Resume
+                  </Button>
+                ) : (
+                  <span className="text-xs text-gray-500">No resume</span>
+                )
               ) : (
-                <span className="text-xs text-gray-500">No resume</span>
+                candidate.resumeFileId ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs h-8"
+                    onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" />
+                    View Resume
+                  </Button>
+                ) : (
+                  <span className="text-xs text-gray-500">No resume</span>
+                )
               )}
             </div>
           </div>
+
+          {/* Row 3: Notes */}
+          {assignment.notes && (
+            <div className="mt-4 border-t pt-4">
+              <div className="text-xs font-medium text-gray-500 mb-2">
+                {isAgentView ? "My Notes" : "Agent Notes"}
+              </div>
+              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                {assignment.notes}
+              </div>
+            </div>
+          )}
+
+          {/* Row 4: Feedback */}
+          {assignment.feedback && (
+            <div className="mt-4 border-t pt-4">
+              <div className="text-xs font-medium text-gray-500 mb-2">
+                {isAgentView ? "HR's Feedback" : "My Feedback"}
+              </div>
+              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                {assignment.feedback}
+              </div>
+            </div>
+          )}
 
 
         </CardContent>
@@ -457,35 +758,77 @@ const SharedCandidates: React.FC = () => {
 
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {stats.byStatus && stats.byStatus.map((stat: any) => (
-          <Card key={stat._id}>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(stat._id).replace('border-', 'bg-').split(' ')[0]}`}></div>
-                <div>
-                  <p className="text-sm font-medium capitalize">{stat._id}</p>
-                  <p className="text-2xl font-bold">{stat.count}</p>
+      {user?.role !== 'agent' ? (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {stats.byStatus && stats.byStatus.map((stat: any) => (
+            <Card key={stat._id}>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded-full ${getStatusColor(stat._id).replace('border-', 'bg-').split(' ')[0]}`}></div>
+                  <div>
+                    <p className="text-sm font-medium capitalize">{stat._id}</p>
+                    <p className="text-2xl font-bold">{stat.count}</p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        
-        {stats.overdue > 0 && (
+              </CardContent>
+            </Card>
+          ))}
+          
+          {stats.overdue > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  <div>
+                    <p className="text-sm font-medium text-red-600">Overdue</p>
+                    <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center space-x-2">
-                <AlertTriangle className="w-4 h-4 text-red-500" />
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                 <div>
-                  <p className="text-sm font-medium text-red-600">Overdue</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+                  <p className="text-sm font-medium">Total Assigned Candidates</p>
+                  <p className="text-2xl font-bold">{assignments.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div>
+                  <p className="text-sm font-medium">Active HRs</p>
+                  <p className="text-2xl font-bold">
+                    {Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <div>
+                  <p className="text-sm font-medium">Companies</p>
+                  <p className="text-2xl font-bold">
+                    {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
 
 
@@ -504,30 +847,34 @@ const SharedCandidates: React.FC = () => {
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="withdrawn">Withdrawn</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
+            {user?.role !== 'agent' && (
+              <>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            )}
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Company" />
@@ -592,6 +939,150 @@ const SharedCandidates: React.FC = () => {
           </Button>
         </div>
       )}
+
+      {/* Feedback Dialog */}
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Feedback</DialogTitle>
+            <DialogDescription>
+              Add or update feedback for this candidate assignment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="feedback">Feedback</Label>
+              <Textarea
+                id="feedback"
+                placeholder="Enter your feedback about this candidate..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setFeedbackDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleFeedbackUpdate}
+                disabled={updateAssignment.loading}
+              >
+                {updateAssignment.loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Updating...
+                  </div>
+                ) : (
+                  'Update Feedback'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Assignment Dialog */}
+      <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Assignment</DialogTitle>
+            <DialogDescription>
+              Update the priority and notes for this assignment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={updatePriority} onValueChange={setUpdatePriority}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                placeholder="Add notes about this assignment..."
+                value={updateNotes}
+                onChange={(e) => setUpdateNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setUpdateDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateAssignment}
+                disabled={updateAssignment.loading}
+              >
+                {updateAssignment.loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Updating...
+                  </div>
+                ) : (
+                  'Update'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Assignment</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this assignment? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (assignmentToDelete) {
+                  handleStatusUpdate(assignmentToDelete, 'withdrawn');
+                  setDeleteConfirmOpen(false);
+                  setAssignmentToDelete(null);
+                }
+              }}
+              disabled={updateAssignment.loading}
+            >
+              {updateAssignment.loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deleting...
+                </div>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* View Details Dialog */}
       {selectedAssignment && (
@@ -722,20 +1213,6 @@ const SharedCandidates: React.FC = () => {
                 </div>
               </div>
 
-              {/* Feedback Section */}
-              {selectedAssignment.status === 'active' && (
-                <div>
-                  <Label htmlFor="feedback">Add Feedback / Notes</Label>
-                  <Textarea
-                    id="feedback"
-                    placeholder="Enter your feedback or notes about this candidate..."
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-              )}
-
               {selectedAssignment.feedback && (
                 <div>
                   <h4 className="font-semibold mb-2">Previous Feedback</h4>
@@ -748,7 +1225,7 @@ const SharedCandidates: React.FC = () => {
 
             <DialogFooter>
               <div className="flex space-x-2">
-                {selectedAssignment.status === 'active' && (
+                {user?.role === 'agent' && selectedAssignment.status === 'active' && (
                   <>
                     <Button
                       variant="default"

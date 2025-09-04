@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateProfile, useUpdateCandidateProfile, useResumeInfo, useUploadResume, useDeleteResume } from '@/hooks/useApi';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -114,14 +115,32 @@ interface CandidateProfile {
 
 const CandidateProfile: React.FC = () => {
   const { user } = useAuth();
+  const { customId, candidateId } = useParams();
+  const navigate = useNavigate();
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
   const [newSkill, setNewSkill] = useState('');
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
+  // Determine if this is self-view or other-view
+  const isSelfView = !!customId;
+  
   // API hooks
-  const { data: profileData, loading, refetch } = useCandidateProfile();
-  const { data: resumeInfo, refetch: refetchResumeInfo } = useResumeInfo();
+  const { data: profileData, loading, refetch } = useCandidateProfile(customId || candidateId);
+  const { data: resumeInfo, refetch: refetchResumeInfo } = useResumeInfo({
+    immediate: isSelfView // Only fetch resume info in self-view mode
+  });
+
+  // Store customId in localStorage when it's available in self-view mode
+  useEffect(() => {
+    if (isSelfView && profileData?.customId) {
+      localStorage.setItem('candidateCustomId', profileData.customId);
+      // Update URL if customId is not in URL
+      if (!customId) {
+        navigate(`/dashboard/candidate-profile/${profileData.customId}`, { replace: true });
+      }
+    }
+  }, [profileData?.customId, customId, navigate, isSelfView]);
   
   const uploadResume = useUploadResume({
     onSuccess: async (data) => {
@@ -677,18 +696,27 @@ const CandidateProfile: React.FC = () => {
               {/* Profile Picture */}
               <div className="relative">
                 <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
-                  <AvatarImage src="" alt={user ? `${user.firstName} ${user.lastName}` : ''} />
+                  <AvatarImage 
+                    src="" 
+                    alt={isSelfView 
+                      ? (user ? `${user.firstName} ${user.lastName}` : '')
+                      : (profileData?.userId ? `${profileData.userId.firstName} ${profileData.userId.lastName}` : '')} 
+                  />
                   <AvatarFallback className="text-2xl font-bold bg-blue-500 text-white">
-                    {user ? `${user.firstName[0]}${user.lastName[0]}` : 'CN'}
+                    {isSelfView
+                      ? (user ? `${user.firstName[0]}${user.lastName[0]}` : 'CN')
+                      : (profileData?.userId ? `${profileData.userId.firstName[0]}${profileData.userId.lastName[0]}` : 'CN')}
                   </AvatarFallback>
                 </Avatar>
-                <Button 
-                  size="sm" 
-                  className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700"
-                  onClick={() => toggleEdit('photo')}
-                >
-                  <Edit2 className="w-3 h-3" />
-                </Button>
+                {isSelfView && (
+                  <Button 
+                    size="sm" 
+                    className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700"
+                    onClick={() => toggleEdit('photo')}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
 
               {/* Basic Info */}
@@ -697,7 +725,9 @@ const CandidateProfile: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-start justify-between">
                       <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        {user ? `${user.firstName} ${user.lastName}` : 'Your Name'}
+                        {isSelfView 
+                          ? (user ? `${user.firstName} ${user.lastName}` : 'Your Name')
+                          : (profileData?.userId ? `${profileData.userId.firstName} ${profileData.userId.lastName}` : 'Loading...')}
                       </h1>
                       {profileData?.customId && (
                         <div className="flex items-center">
@@ -717,7 +747,7 @@ const CandidateProfile: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1">
                         <Mail className="w-4 h-4" />
-                        <span>{user?.email}</span>
+                        <span>{isSelfView ? user?.email : profileData?.userId?.email}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Phone className="w-4 h-4" />
@@ -749,65 +779,66 @@ const CandidateProfile: React.FC = () => {
                   )}
                   {/* Resume Management */}
                   <div className="flex flex-wrap gap-2">
-                    {/* View Resume button - show if we have data */}
-                    {resumeInfo?.hasResume ? (
-                      <PDFViewer
-                        fileId={resumeInfo.file.id}
-                        fileName={resumeInfo.file.originalName}
-                      >
-                        <Button variant="outline" size="sm">
+                    {/* View Resume button */}
+                    {isSelfView ? (
+                      // Self-view mode - use resumeInfo
+                      resumeInfo?.hasResume ? (
+                        <PDFViewer
+                          fileId={resumeInfo.file.id}
+                          fileName={resumeInfo.file.originalName}
+                        >
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Resume
+                          </Button>
+                        </PDFViewer>
+                      ) : (
+                        <Button variant="outline" size="sm" disabled>
                           <Eye className="w-4 h-4 mr-2" />
-                          View Resume
+                          No Resume
                         </Button>
-                      </PDFViewer>
+                      )
                     ) : (
-                      /* Fallback view button - try with latest uploaded file */
-                      <PDFViewer
-                        fileId="68b8263e49ecb7aec95fba9a"
-                        fileName="resume.pdf"
-                      >
-                        <Button variant="outline" size="sm">
+                      // Other-view mode - use profileData.resumeFileId
+                      profileData?.resumeFileId ? (
+                        <PDFViewer
+                          fileId={profileData.resumeFileId}
+                          fileName="resume.pdf"
+                        >
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Resume
+                          </Button>
+                        </PDFViewer>
+                      ) : (
+                        <Button variant="outline" size="sm" disabled>
                           <Eye className="w-4 h-4 mr-2" />
-                          View Resume
+                          No Resume
                         </Button>
-                      </PDFViewer>
+                      )
                     )}
                     
-                    {/* Upload/Replace Resume */}
-                    <input
-                      type="file"
-                      id="resume-upload"
-                      accept=".pdf,.doc,.docx"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <label htmlFor="resume-upload">
-                      <Button variant="outline" size="sm" asChild>
-                        <span className="cursor-pointer">
-                          <Upload className="w-4 h-4 mr-2" />
-                          {resumeInfo?.hasResume ? 'Replace Resume' : 'Upload Resume'}
-                        </span>
-                      </Button>
-                    </label>
-                    
-                    {/* Download and Delete - only show if resume exists */}
-                    {resumeInfo?.hasResume && (
+                    {/* Upload/Replace Resume - only show in self-view mode */}
+                    {isSelfView && (
                       <>
-                        <Button variant="outline" size="sm" onClick={handleDownloadResume}>
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={handleDeleteResume}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Delete
-                        </Button>
+                        <input
+                          type="file"
+                          id="resume-upload"
+                          accept=".pdf,.doc,.docx"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                        />
+                        <label htmlFor="resume-upload">
+                          <Button variant="outline" size="sm" asChild>
+                            <span className="cursor-pointer">
+                              <Upload className="w-4 h-4 mr-2" />
+                              {resumeInfo?.hasResume ? 'Replace Resume' : 'Upload Resume'}
+                            </span>
+                          </Button>
+                        </label>
                       </>
                     )}
+
                     
                     {/* File selection display */}
                     {selectedFile && (
@@ -888,13 +919,15 @@ const CandidateProfile: React.FC = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-xl font-semibold">About</CardTitle>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => toggleEdit('summary')}
-              >
-                <Edit2 className="w-4 h-4" />
-              </Button>
+              {isSelfView && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => toggleEdit('summary')}
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {editingSections.has('summary') ? (
@@ -940,13 +973,15 @@ const CandidateProfile: React.FC = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-lg font-semibold">Contact Information</CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('contact')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
+                {isSelfView && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => toggleEdit('contact')}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 {editingSections.has('contact') ? (
@@ -1017,7 +1052,7 @@ const CandidateProfile: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <Mail className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm">{user?.email}</span>
+                      <span className="text-sm">{isSelfView ? user?.email : profileData?.userId?.email}</span>
                     </div>
                     {profile.linkedinUrl && (
                       <div className="flex items-center gap-3">
@@ -1057,13 +1092,15 @@ const CandidateProfile: React.FC = () => {
                   <Award className="w-5 h-5" />
                   Skills
                 </CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('skills')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
+                {isSelfView && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => toggleEdit('skills')}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -1116,13 +1153,15 @@ const CandidateProfile: React.FC = () => {
                   <Target className="w-5 h-5" />
                   Availability & Preferences
                 </CardTitle>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('availability')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
+                {isSelfView && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => toggleEdit('availability')}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 {editingSections.has('availability') ? (
@@ -1320,25 +1359,27 @@ const CandidateProfile: React.FC = () => {
                 <Briefcase className="w-5 h-5" />
                 Experience
               </CardTitle>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('experience')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                {editingSections.has('experience') && (
+              {isSelfView && (
+                <div className="flex gap-2">
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm"
-                    onClick={addExperience}
+                    onClick={() => toggleEdit('experience')}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Experience
+                    <Edit2 className="w-4 h-4" />
                   </Button>
-                )}
-              </div>
+                  {editingSections.has('experience') && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addExperience}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Experience
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {profile.experience.map((exp, index) => (
@@ -1483,25 +1524,27 @@ const CandidateProfile: React.FC = () => {
                 <GraduationCap className="w-5 h-5" />
                 Education
               </CardTitle>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('education')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                {editingSections.has('education') && (
+              {isSelfView && (
+                <div className="flex gap-2">
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm"
-                    onClick={addEducation}
+                    onClick={() => toggleEdit('education')}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Education
+                    <Edit2 className="w-4 h-4" />
                   </Button>
-                )}
-              </div>
+                  {editingSections.has('education') && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addEducation}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Education
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {profile.education.map((edu, index) => (
@@ -1637,25 +1680,27 @@ const CandidateProfile: React.FC = () => {
                 <Award className="w-5 h-5" />
                 Certifications
               </CardTitle>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('certifications')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                {editingSections.has('certifications') && (
+              {isSelfView && (
+                <div className="flex gap-2">
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm"
-                    onClick={addCertification}
+                    onClick={() => toggleEdit('certifications')}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Certification
+                    <Edit2 className="w-4 h-4" />
                   </Button>
-                )}
-              </div>
+                  {editingSections.has('certifications') && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addCertification}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Certification
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {profile.certifications.map((cert, index) => (
@@ -1817,25 +1862,27 @@ const CandidateProfile: React.FC = () => {
                 <Code className="w-5 h-5" />
                 Projects
               </CardTitle>
-              <div className="flex gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => toggleEdit('projects')}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-                {editingSections.has('projects') && (
+              {isSelfView && (
+                <div className="flex gap-2">
                   <Button 
-                    variant="outline" 
+                    variant="ghost" 
                     size="sm"
-                    onClick={addProject}
+                    onClick={() => toggleEdit('projects')}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Project
+                    <Edit2 className="w-4 h-4" />
                   </Button>
-                )}
-              </div>
+                  {editingSections.has('projects') && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addProject}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Project
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {profile.projects.map((project, index) => (

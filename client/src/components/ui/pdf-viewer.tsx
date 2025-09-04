@@ -257,29 +257,20 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={handleDownload}
-                className="h-8 px-3"
+                className="h-8 px-3 mr-7"
                 title="Download"
               >
                 <Download className="w-4 h-4 mr-1" />
                 Download
               </Button>
               
-              {/* Close button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleCloseDialog}
-                className="h-8 px-2 ml-2"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+
             </div>
           </div>
         </DialogHeader>
         
         <div className="flex-1 overflow-auto bg-gray-100">
-          <div className="flex justify-center items-start min-h-full p-4">
+          <div className="flex justify-center items-start min-h-full">
             {loading && (
               <div className="flex items-center justify-center h-96">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -296,7 +287,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
             
             {pdfData && !loading && !error && (
               <div className="flex flex-col items-center w-full">
-                {console.log('Rendering PDF Document with data:', !!pdfData, 'Loading:', loading, 'Error:', error)}
                 <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200">
                   <Document
                     file={pdfData}

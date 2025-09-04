@@ -157,6 +157,26 @@ export default function JobManagementIntegrated() {
       return;
     }
 
+    // Check if user is authenticated
+    if (!user) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to create jobs",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if company is selected
+    if (!createFormData.companyId) {
+      toast({
+        title: "Validation Error", 
+        description: "Please select a company",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const jobData = {
       title: createFormData.title.trim(),
       description: createFormData.description.trim(),
@@ -164,11 +184,11 @@ export default function JobManagementIntegrated() {
       type: createFormData.type,
       urgency: createFormData.urgency,
       companyId: createFormData.companyId,
-      salaryRange: {
-        min: parseInt(createFormData.salaryMin) || 0,
-        max: parseInt(createFormData.salaryMax) || 0,
+      salaryRange: createFormData.salaryMin || createFormData.salaryMax ? {
+        min: createFormData.salaryMin ? parseInt(createFormData.salaryMin) : undefined,
+        max: createFormData.salaryMax ? parseInt(createFormData.salaryMax) : undefined,
         currency: createFormData.currency
-      },
+      } : undefined,
       requirements: {
         skills: createFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
         experience: createFormData.experience,
@@ -177,34 +197,81 @@ export default function JobManagementIntegrated() {
       },
       isRemote: createFormData.isRemote,
       benefits: createFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
-      applicationDeadline: createFormData.applicationDeadline ? new Date(createFormData.applicationDeadline) : undefined,
-      interviewProcess: {
+      applicationDeadline: createFormData.applicationDeadline ? new Date(createFormData.applicationDeadline).toISOString() : undefined,
+      interviewProcess: createFormData.interviewRounds || createFormData.estimatedDuration ? {
         rounds: createFormData.interviewRounds,
         estimatedDuration: createFormData.estimatedDuration
-      }
+      } : undefined
     };
 
     try {
-      await createJob(jobData);
+      console.log('Sending job data:', jobData);
+      console.log('Current user:', user);
+      console.log('Selected company ID:', createFormData.companyId);
+      const createdJob = await createJob(jobData);
       setIsCreateDialogOpen(false);
       resetCreateForm();
       refetchJobs();
       toast({
         title: "Success",
-        description: "Job created successfully"
+        description: `Job created successfully${createdJob?.jobId ? ` with ID: ${createdJob.jobId}` : ''}`
       });
     } catch (error: any) {
+      console.error('Job creation error:', error);
+      
       // Handle backend validation errors
       if (error.issues && Array.isArray(error.issues)) {
         const backendErrors: Record<string, string> = {};
         error.issues.forEach((issue: any) => {
-          backendErrors[issue.field] = issue.message;
+          const fieldName = issue.path?.join('.') || issue.field || 'unknown';
+          let userFriendlyMessage = issue.message;
+          
+          // Make error messages more user-friendly
+          if (issue.message.includes('Invalid company ID')) {
+            userFriendlyMessage = 'Please select a valid company';
+          } else if (issue.message.includes('Invalid agent ID')) {
+            userFriendlyMessage = 'Please select a valid agent';
+          } else if (issue.message.includes('required')) {
+            userFriendlyMessage = 'This field is required';
+          } else if (issue.message.includes('max')) {
+            userFriendlyMessage = 'Text is too long';
+          } else if (issue.message.includes('min')) {
+            userFriendlyMessage = 'Value is too small';
+          }
+          
+          backendErrors[fieldName] = userFriendlyMessage;
         });
         setFormErrors(backendErrors);
+        
+        toast({
+          title: "Validation Error",
+          description: "Please check the form for errors and try again",
+          variant: "destructive"
+        });
       } else {
+        // Handle other types of errors
+        let errorMessage = "Failed to create job";
+        
+        if (error.detail) {
+          errorMessage = error.detail;
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.title) {
+          errorMessage = error.title;
+        }
+        
+        // Make common error messages more user-friendly
+        if (errorMessage.includes('400')) {
+          errorMessage = "Please check all required fields and try again";
+        } else if (errorMessage.includes('403')) {
+          errorMessage = "You don't have permission to create jobs";
+        } else if (errorMessage.includes('500')) {
+          errorMessage = "Server error. Please try again later";
+        }
+        
         toast({
           title: "Error",
-          description: error.detail || "Failed to create job",
+          description: errorMessage,
           variant: "destructive"
         });
       }
@@ -392,7 +459,7 @@ export default function JobManagementIntegrated() {
                       <SelectContent>
                         {companies.map((company: any) => (
                           <SelectItem key={company._id} value={company._id}>
-                            {company.name}
+                            {company.companyId ? `${company.companyId} - ${company.name}` : company.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -438,12 +505,12 @@ export default function JobManagementIntegrated() {
                         <SelectValue placeholder="Select experience" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="entry">Entry Level</SelectItem>
-                        <SelectItem value="junior">Junior</SelectItem>
-                        <SelectItem value="mid">Mid Level</SelectItem>
-                        <SelectItem value="senior">Senior</SelectItem>
-                        <SelectItem value="lead">Lead</SelectItem>
-                        <SelectItem value="executive">Executive</SelectItem>
+                        <SelectItem value="entry">0-2 years</SelectItem>
+                        <SelectItem value="junior">2-5 years</SelectItem>
+                        <SelectItem value="mid">5-10 years</SelectItem>
+                        <SelectItem value="senior">10+ years</SelectItem>
+                        <SelectItem value="lead">10+ years</SelectItem>
+                        <SelectItem value="executive">10+ years</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -714,16 +781,28 @@ export default function JobManagementIntegrated() {
                       <TableCell className="font-medium">
                         <div>
                           <div className="font-semibold">{job.title}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {job.urgency}
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            {job.jobId && (
+                              <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono">
+                                {job.jobId}
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {job.urgency}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Building2 className="w-4 h-4 text-muted-foreground" />
-                          {job.company?.name || 'N/A'}
+                          <div>
+                            <div className="font-medium">{job.company?.name || 'N/A'}</div>
+                            {job.company?.companyId && (
+                              <div className="text-xs text-muted-foreground">{job.company.companyId}</div>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>

@@ -29,6 +29,7 @@ export interface ApiError {
 
 export interface Job {
   id: string;
+  jobId?: string;
   title: string;
   description: string;
   company: string;
@@ -74,6 +75,7 @@ export interface User {
 
 export interface Company {
   id: string;
+  companyId?: string;
   name: string;
   description: string;
   industry: string;
@@ -433,7 +435,10 @@ class ApiClient {
   }
 
   // Candidate Profile methods
-  async getCandidateProfile() {
+  async getCandidateProfile(id?: string) {
+    if (id) {
+      return this.request(`/api/v1/candidates/${id}`);
+    }
     return this.request('/api/v1/candidates/profile');
   }
 

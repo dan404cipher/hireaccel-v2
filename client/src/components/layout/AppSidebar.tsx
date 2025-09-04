@@ -37,7 +37,7 @@ const navigationItems = [
   { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'] },
   { title: "Assignment Tracking", url: "/dashboard/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'] },
   { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'hr'] },
-  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['hr'] },
+  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'hr', 'agent'] },
   { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'] },
   { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'hr'] },
   { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'] },

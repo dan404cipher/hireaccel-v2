@@ -13,6 +13,7 @@ import {
  */
 export interface JobDocument extends Omit<IJob, '_id' | 'companyId' | 'assignedAgentId' | 'createdBy'>, Document {
   _id: mongoose.Types.ObjectId;
+  jobId?: string;
   companyId: mongoose.Types.ObjectId;
   assignedAgentId?: mongoose.Types.ObjectId;
   createdBy: mongoose.Types.ObjectId;
@@ -55,6 +56,7 @@ export interface JobModel extends mongoose.Model<JobDocument> {
   getJobsByUrgency(urgency: JobUrgency, options?: any): Promise<JobDocument[]>;
   getJobsByAgent(agentId: mongoose.Types.ObjectId, options?: any): Promise<JobDocument[]>;
   getJobsApproachingDeadline(days?: number): Promise<JobDocument[]>;
+  generateJobId(): Promise<string>;
 }
 
 /**
@@ -99,6 +101,13 @@ const jobRequirementsSchema = new Schema<JobRequirements>({
  * Main job schema
  */
 const jobSchema = new Schema<JobDocument>({
+  jobId: {
+    type: String,
+    required: false, // Will be generated automatically by pre-save middleware
+    unique: true,
+    index: true,
+  },
+  
   title: {
     type: String,
     required: [true, 'Job title is required'],
@@ -604,6 +613,25 @@ jobSchema.statics['getJobsApproachingDeadline'] = function(days = 7) {
   .sort({ applicationDeadline: 1 });
 };
 
+/**
+ * Generate next job ID in format JOB00001, JOB00002, etc.
+ */
+jobSchema.statics['generateJobId'] = async function() {
+  const lastJob = await this.findOne({}, { jobId: 1 })
+    .sort({ jobId: -1 })
+    .limit(1);
+  
+  let nextNumber = 1;
+  if (lastJob && lastJob.jobId) {
+    const match = lastJob.jobId.match(/JOB(\d+)/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+  
+  return `JOB${nextNumber.toString().padStart(5, '0')}`;
+};
+
 // ============================================================================
 // Middleware (Hooks)
 // ============================================================================
@@ -611,7 +639,19 @@ jobSchema.statics['getJobsApproachingDeadline'] = function(days = 7) {
 /**
  * Pre-save middleware
  */
-jobSchema.pre('save', function(this: JobDocument, next) {
+jobSchema.pre('save', async function(this: JobDocument, next) {
+  // Generate jobId if it doesn't exist
+  if (!this.jobId) {
+    try {
+      console.log('Generating jobId for new job...');
+      this.jobId = await (this.constructor as any).generateJobId();
+      console.log('Generated jobId:', this.jobId);
+    } catch (error: any) {
+      console.error('Error generating jobId:', error);
+      return next(error);
+    }
+  }
+  
   // Auto-detect remote work
   if (this.isModified('location')) {
     this.isRemote = /remote|work from home|wfh/i.test(this.location);
