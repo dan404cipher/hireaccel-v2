@@ -10,6 +10,7 @@ import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { apiClient } from '@/services/api';
+import logo from '@/assets/logo.png';
 
 interface FormData {
   firstName: string;
@@ -176,12 +177,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
           {/* Header with logo and title on same line */}
           <div className="flex-shrink-0 p-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-xl">H</span>
-                </div>
-                <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">HireAccel</span>
-              </div>
+              <img src={logo} alt="HireAccel" className="w-30 h-10" onClick={()=>navigate('/')}/>
               <div className="text-right">
                 <h2 className="text-xl font-bold text-gray-800 leading-tight">
                   Revolutionizing<br />

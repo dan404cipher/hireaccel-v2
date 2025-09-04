@@ -64,7 +64,7 @@ export function Header() {
             >
               {/* <Sparkles className="w-5 h-5 text-white" /> */}
             </motion.div>
-            <img src={logo} alt="HireAccel" className="w-30 h-10" />
+            <img src={logo} alt="HireAccel" className="w-30 h-10" onClick={()=>navigate('/')}/>
             {/* <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">
               HireAccel
             </span> */}
