@@ -90,13 +90,13 @@ export function Stats() {
           {stats.map((stat, index) => (
             <motion.div 
               key={index} 
-              className="text-center"
+              className="text-center h-full"
               initial={{ opacity: 0, y: 50, scale: 0.8 }}
               animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
               transition={{ duration: 0.6, delay: index * 0.1 }}
             >
               <motion.div 
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 group relative"
+                className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/20 transition-all duration-300 group relative h-full flex flex-col"
                 whileHover={{ 
                   scale: 1.05,
                   y: -10,
@@ -129,7 +129,7 @@ export function Stats() {
                 <div className="text-lg font-semibold text-blue-100 mb-2 group-hover:text-white transition-colors duration-300">
                   {stat.label}
                 </div>
-                <div className="text-sm text-blue-200 leading-relaxed group-hover:text-blue-100 transition-colors duration-300">
+                <div className="text-sm text-blue-200 leading-relaxed group-hover:text-blue-100 transition-colors duration-300 flex-1">
                   {stat.description}
                 </div>
 

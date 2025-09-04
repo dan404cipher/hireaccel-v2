@@ -13,9 +13,8 @@ import {
     ArrowRight,
     Sparkles,
     Zap,
-    Star
+    Star,
   } from "lucide-react";
-  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
   import { Button } from "./ui/button";
   import { motion } from "framer-motion";
   import { useEffect, useRef, useState } from "react";
@@ -42,6 +41,11 @@ import {
       description: "Track every interview stage & feedback"
     },
     {
+      icon:Laptop,
+      title:'Complete IT Solutions',
+      description:'All your IT requirements handled with professional expertise',
+    },
+    {
       icon: Clock4,
       title: "24/7 Support",
       description: "Always connected to our recruitment experts"
@@ -55,7 +59,8 @@ import {
       icon: Laptop,
       title: "Complete IT Solutions",
       description: "All your IT requirements handled with professional expertise"
-    }
+    },
+   
   ];
   
   const candidateFeatures = [
@@ -171,7 +176,7 @@ import {
             {/* Central Divider with Animation */}
             <div className="absolute inset-y-0 left-1/2 transform -translate-x-1/2 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent z-10 hidden lg:block">
               <motion.div
-                className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full border-2 border-gray-300 flex items-center justify-center shadow-lg"
+                className="hidden top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full border-2 border-gray-300 flex items-center justify-center shadow-lg"
                 animate={{ rotate: [0, 360] }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
               >
@@ -185,17 +190,17 @@ import {
               </motion.div>
             </div>
   
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 relative">
               {/* HR Professionals Section - Left Side */}
               <motion.div
-                className="relative"
+                className="relative h-full"
                 initial={{ opacity: 0, x: -50 }}
                 animate={sectionInView ? { opacity: 1, x: 0 } : {}}
                 transition={{ delay: 0.2, duration: 0.8 }}
                 onMouseEnter={() => setHrHovered(true)}
                 onMouseLeave={() => setHrHovered(false)}
               >
-                <div className={`relative bg-gradient-to-br ${hrHovered ? 'from-blue-50 to-blue-100/50' : 'from-white to-blue-50/30'} rounded-3xl p-8 border-2 ${hrHovered ? 'border-blue-200' : 'border-gray-200/50'} transition-all duration-500 transform ${hrHovered ? 'scale-105' : 'scale-100'} shadow-xl hover:shadow-2xl backdrop-blur-sm`}>
+                <div className={`relative bg-gradient-to-br ${hrHovered ? 'from-blue-50 to-blue-100/50' : 'from-white to-blue-50/30'} rounded-3xl p-8 border-2 ${hrHovered ? 'border-blue-200' : 'border-gray-200/50'} transition-all duration-500 transform ${hrHovered ? 'scale-105' : 'scale-100'} shadow-xl hover:shadow-2xl backdrop-blur-sm h-full flex flex-col`}>
                   {/* Header */}
                   <motion.div
                     className="flex items-center mb-8"
@@ -232,8 +237,8 @@ import {
                   </div>
   
                   {/* Features Grid */}
-                  <div className="space-y-4">
-                    {hrFeatures.slice(0, 4).map((feature, index) => (
+                  <div className="space-y-4 flex-1">
+                    {hrFeatures.slice(0, 5).map((feature, index) => (
                       <motion.div
                         key={index}
                         initial={{ opacity: 0, x: -30 }}
@@ -284,14 +289,14 @@ import {
   
               {/* Job Candidates Section - Right Side */}
               <motion.div
-                className="relative"
+                className="relative h-full"
                 initial={{ opacity: 0, x: 50 }}
                 animate={sectionInView ? { opacity: 1, x: 0 } : {}}
                 transition={{ delay: 0.4, duration: 0.8 }}
                 onMouseEnter={() => setCandidatesHovered(true)}
                 onMouseLeave={() => setCandidatesHovered(false)}
               >
-                <div className={`relative bg-gradient-to-br ${candidatesHovered ? 'from-purple-50 to-purple-100/50' : 'from-white to-purple-50/30'} rounded-3xl p-8 border-2 ${candidatesHovered ? 'border-purple-200' : 'border-gray-200/50'} transition-all duration-500 transform ${candidatesHovered ? 'scale-105' : 'scale-100'} shadow-xl hover:shadow-2xl backdrop-blur-sm`}>
+                <div className={`relative bg-gradient-to-br ${candidatesHovered ? 'from-purple-50 to-purple-100/50' : 'from-white to-purple-50/30'} rounded-3xl p-8 border-2 ${candidatesHovered ? 'border-purple-200' : 'border-gray-200/50'} transition-all duration-500 transform ${candidatesHovered ? 'scale-105' : 'scale-100'} shadow-xl hover:shadow-2xl backdrop-blur-sm h-full flex flex-col`}>
                   {/* Header */}
                   <motion.div
                     className="flex items-center mb-8"
@@ -328,7 +333,7 @@ import {
                   </div>
   
                   {/* Features Grid */}
-                  <div className="space-y-4">
+                  <div className="space-y-4 flex-1">
                     {candidateFeatures.map((feature, index) => (
                       <motion.div
                         key={index}
@@ -379,8 +384,8 @@ import {
               </motion.div>
             </div>
   
-            {/* Connecting Element - Mobile */}
-            <div className="lg:hidden flex justify-center my-8">
+            {/* Connecting Element - Centered between cards */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
               <motion.div
                 className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg"
                 animate={{ rotate: [0, 360] }}
