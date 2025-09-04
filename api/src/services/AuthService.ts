@@ -1,6 +1,7 @@
 import { User, UserDocument } from '@/models/User';
 import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
+import { generateCustomUserId } from '@/utils/customId';
 import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types';
 import { 
   hashPassword, 
@@ -70,9 +71,13 @@ export class AuthService {
       // Hash password
       const hashedPassword = await hashPassword(userData.password);
       
+      // Generate custom user ID based on role
+      const customId = await generateCustomUserId(userData.role);
+      
       // Create user (only use fields that the User model supports)
       const user = new User({
         email: userData.email,
+        customId: customId,
         password: hashedPassword,
         firstName: userData.firstName,
         lastName: userData.lastName,
@@ -87,6 +92,40 @@ export class AuthService {
       user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
       
       await user.save();
+      
+      // Create candidate profile if user is registering as a candidate
+      if (userData.role === UserRole.CANDIDATE) {
+        const candidate = new Candidate({
+          userId: user._id,
+          profile: {
+            summary: '',
+            skills: [],
+            experience: [],
+            education: [],
+            certifications: [],
+            projects: [],
+            location: userData.currentLocation || '',
+            phoneNumber: userData.phone || '',
+            preferredSalaryRange: {
+              min: 0,
+              max: 0,
+              currency: 'USD'
+            },
+            availability: {
+              startDate: new Date(),
+              remote: false,
+              relocation: false
+            }
+          }
+        });
+        
+        await candidate.save();
+        
+        logger.info('Candidate profile created successfully', {
+          userId: user._id,
+          candidateId: candidate._id,
+        });
+      }
       
       // Generate tokens
       const tokens = generateTokenPair({

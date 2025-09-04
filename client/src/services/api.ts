@@ -61,6 +61,7 @@ export interface Job {
 
 export interface User {
   id: string;
+  customId: string;
   email: string;
   firstName: string;
   lastName: string;

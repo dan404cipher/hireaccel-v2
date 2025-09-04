@@ -92,6 +92,7 @@ export class AuthController {
       data: {
         user: {
           id: user._id,
+          customId: user.customId,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -132,6 +133,7 @@ export class AuthController {
       data: {
         user: {
           id: user._id,
+          customId: user.customId,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -363,6 +365,7 @@ export class AuthController {
       data: {
         user: {
           id: user._id,
+          customId: user.customId,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
