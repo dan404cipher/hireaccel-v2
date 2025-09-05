@@ -20,6 +20,7 @@ interface AuthContextType {
   logout: () => void;
   loading: boolean;
   isAuthenticated: boolean;
+  updateAuth: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await apiClient.login({ email, password });
+      const response = await apiClient.login(email, password);
       const { user: userData, accessToken } = response.data!;
       
       apiClient.setToken(accessToken);
@@ -84,12 +85,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateAuth = (userData: User) => {
+    setUser(userData);
+  };
+
   const value = {
     user,
     login,
     logout,
     loading,
     isAuthenticated: !!user,
+    updateAuth,
   };
 
   return (

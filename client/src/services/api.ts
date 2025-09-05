@@ -131,20 +131,35 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<string> {
     try {
+      console.log('Refreshing access token...');
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      const data = await response.json();
       
       if (!response.ok) {
+        console.error('Token refresh failed:', response.status);
+        const errorData = await response.json();
+        console.error('Error details:', errorData);
         throw new Error('Token refresh failed');
+      }
+
+      const data = await response.json();
+      console.log('Token refresh response:', data);
+      
+      if (!data.data?.accessToken) {
+        console.error('No access token in response');
+        throw new Error('Invalid token refresh response');
       }
 
       const { accessToken } = data.data;
       this.setToken(accessToken);
       return accessToken;
     } catch (error) {
+      console.error('Token refresh error:', error);
       this.clearToken();
       throw error;
     }
@@ -176,40 +191,36 @@ class ApiClient {
 
       // Handle 401 errors
       if (response.status === 401) {
-        if (!this.isRefreshing) {
-          this.isRefreshing = true;
-          this.refreshPromise = this.refreshAccessToken()
-            .then(token => {
-              this.isRefreshing = false;
-              this.onTokenRefreshed(token);
-            })
-            .catch(error => {
-              this.isRefreshing = false;
-              throw error;
-            });
-        }
-
-        if (this.refreshPromise) {
-          return new Promise((resolve, reject) => {
-            this.addRefreshSubscriber(async (token) => {
-              try {
-                // Retry the original request with new token
-                const newHeaders = {
-                  ...headers,
-                  Authorization: `Bearer ${token}`,
-                };
-                const retryResponse = await fetch(url, {
-                  ...options,
-                  headers: newHeaders,
-                  credentials: 'include',
-                });
-                const retryData = await retryResponse.json();
-                resolve(retryData);
-              } catch (error) {
-                reject(error);
-              }
-            });
+        console.log('Received 401, attempting token refresh...');
+        
+        try {
+          // Try to refresh the token
+          const newToken = await this.refreshAccessToken();
+          console.log('Token refreshed successfully, retrying request...');
+          
+          // Retry the original request with new token
+          const newHeaders = {
+            ...headers,
+            Authorization: `Bearer ${newToken}`,
+          };
+          
+          const retryResponse = await fetch(url, {
+            ...options,
+            headers: newHeaders,
+            credentials: 'include',
           });
+          
+          if (!retryResponse.ok) {
+            console.error('Retry request failed:', retryResponse.status);
+            throw await retryResponse.json();
+          }
+          
+          return await retryResponse.json();
+        } catch (error) {
+          console.error('Token refresh or retry failed:', error);
+          // Clear token and throw error to trigger logout
+          this.clearToken();
+          throw error;
         }
       }
 
@@ -268,9 +279,13 @@ class ApiClient {
   }
 
   async login(email: string, password: string) {
+    console.log('Login payload:', { email, password });
     return this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({
+        email: email,
+        password: password
+      }),
     });
   }
 
@@ -279,12 +294,6 @@ class ApiClient {
     this.clearToken();
     return result;
   }
-  async signup(userData: any){
-    console.log('signup', userData);
-    const result = await this.request('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
-    return result;
-  }
-
   async getCurrentUser() {
     return this.request<{ user: User }>('/auth/me');
   }
@@ -879,23 +888,6 @@ class ApiClient {
   }
 
   // Authentication methods
-  async signup(data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    password: string;
-    role: string;
-    department?: string;
-    currentLocation?: string;
-    yearsOfExperience?: string;
-  }) {
-    return this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
   async verifyOTP(data: { email: string; otp: string }) {
     return this.request('/auth/verify-otp', {
       method: 'POST',
@@ -905,13 +897,6 @@ class ApiClient {
 
   async resendOTP(data: { email: string }) {
     return this.request('/auth/resend-otp', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async login(data: { email: string; password: string }) {
-    return this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     });
