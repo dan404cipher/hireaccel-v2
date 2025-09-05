@@ -55,10 +55,30 @@ export default function LoginPage() {
       });
       navigate('/');
     } catch (err: any) {
+      let errorMessage = "Failed to login";
+      
+      if (err?.type === 'network_error') {
+        errorMessage = "Server is under maintenance, please try again";
+      } else if (err?.detail) {
+        errorMessage = err.detail;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.response?.data?.detail) {
+        errorMessage = err.response.data.detail;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.status === 500) {
+        errorMessage = "Please try again later";
+      }
+      
+      
       toast({
-        title:"Error",
-        description: err.detail || "Failed to login",
-      })
+        title: err?.type === 'network_error' ? "Server Under Maintenance" : "Login Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
       setError(err);
     } finally {
       setLoading(false);
