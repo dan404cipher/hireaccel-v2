@@ -142,6 +142,7 @@ export class AuthService {
         role: userData.role as UserRole,
         status: UserStatus.ACTIVE, // User is verified via OTP
         emailVerified: true, // Email is verified via OTP
+        phoneNumber: userData.phone, // Save phone number
       });
       
       await user.save();

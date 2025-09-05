@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
-import { useInterviews, useCreateInterview, useUpdateInterview, useDeleteInterview, useInterviewStats } from "@/hooks/useApi";
+import { useInterviews, useCreateInterview, useUpdateInterview, useDeleteInterview, useInterviewStats, useCandidateAssignments } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 
 import { 
@@ -47,6 +47,7 @@ import {
   Calendar as CalendarIcon,
   Table as TableIcon
 } from "lucide-react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +65,33 @@ export default function InterviewManagement() {
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [page, setPage] = useState(1);
+  
+  // Schedule Interview Form State
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [scheduleFormData, setScheduleFormData] = useState({
+    candidateId: '',
+    type: '',
+    round: '',
+    scheduledAt: '',
+    scheduledTime: '',
+    duration: '60',
+    location: '',
+    notes: '',
+  });
+
+  // Edit Interview Form State
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingInterview, setEditingInterview] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    type: '',
+    round: '',
+    scheduledAt: '',
+    scheduledTime: '',
+    duration: '60',
+    location: '',
+    notes: '',
+    status: '',
+  });
 
   // Debounce search term to prevent excessive API calls
   useEffect(() => {
@@ -84,13 +112,34 @@ export default function InterviewManagement() {
   // Fetch data using hooks
   const { data: interviewsResponse, loading: interviewsLoading, error: interviewsError, refetch: refetchInterviews } = useInterviews(interviewsParams);
   const { data: statsResponse } = useInterviewStats();
-  const { mutate: createInterview, loading: createLoading } = useCreateInterview();
-  const { mutate: updateInterview, loading: updateLoading } = useUpdateInterview();
+  const { mutate: createInterview, loading: createLoading } = useCreateInterview({
+    onSuccess: () => {
+      setIsScheduleDialogOpen(false);
+      resetScheduleForm();
+      refetchInterviews();
+    }
+  });
+  const { mutate: updateInterview, loading: updateLoading } = useUpdateInterview({
+    onSuccess: () => {
+      setIsEditDialogOpen(false);
+      resetEditForm();
+      refetchInterviews();
+    }
+  });
   const { mutate: deleteInterview, loading: deleteLoading } = useDeleteInterview();
+  
+  // Additional data for scheduling - fetch candidates instead of applications
+  const { data: candidatesResponse, loading: candidatesLoading } = useCandidateAssignments({ 
+    status: 'active',
+    limit: 100 
+  });
 
   // Extract interviews data (handle both array and {data: []} formats)
   const interviews = Array.isArray(interviewsResponse) ? interviewsResponse : ((interviewsResponse as any)?.data || []);
   const meta = Array.isArray(interviewsResponse) ? null : (interviewsResponse as any)?.meta;
+  
+  // Extract candidates data from assignments
+  const candidateAssignments = Array.isArray(candidatesResponse) ? candidatesResponse : ((candidatesResponse as any)?.data || []);
 
 
   // Transform API data to the format expected by the UI
@@ -187,6 +236,147 @@ export default function InterviewManagement() {
     return interview.date === today && interview.status !== 'cancelled';
   });
 
+  // Form handling functions
+  const resetScheduleForm = () => {
+    setScheduleFormData({
+      candidateId: '',
+      type: '',
+      round: '',
+      scheduledAt: '',
+      scheduledTime: '',
+      duration: '60',
+      location: '',
+      notes: '',
+    });
+  };
+
+  const handleScheduleInterview = async () => {
+    try {
+      // Combine date and time into a single DateTime
+      const scheduledDateTime = new Date(`${scheduleFormData.scheduledAt}T${scheduleFormData.scheduledTime}`);
+      
+      const interviewData = {
+        candidateId: scheduleFormData.candidateId,
+        type: scheduleFormData.type,
+        round: scheduleFormData.round,
+        scheduledAt: scheduledDateTime.toISOString(),
+        duration: parseInt(scheduleFormData.duration),
+        location: scheduleFormData.location || undefined,
+        notes: scheduleFormData.notes || undefined,
+      };
+
+      await createInterview(interviewData);
+      
+      toast({
+        title: "Success",
+        description: "Interview scheduled successfully",
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          "Failed to schedule interview";
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Edit Interview Form Functions
+  const resetEditForm = () => {
+    setEditFormData({
+      type: '',
+      round: '',
+      scheduledAt: '',
+      scheduledTime: '',
+      duration: '60',
+      location: '',
+      notes: '',
+      status: '',
+    });
+    setEditingInterview(null);
+  };
+
+  const openEditDialog = (interview: any) => {
+    if (!interview || !interview.scheduledAt) {
+      toast({
+        title: "Error",
+        description: "Invalid interview data. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const scheduledDate = new Date(interview.scheduledAt);
+    const formattedDate = scheduledDate.toISOString().split('T')[0];
+    const formattedTime = scheduledDate.toTimeString().slice(0, 5);
+    
+    setEditingInterview(interview);
+    setEditFormData({
+      type: interview.type || '',
+      round: interview.round || '',
+      scheduledAt: formattedDate,
+      scheduledTime: formattedTime,
+      duration: interview.duration?.toString() || '60',
+      location: interview.location || interview.meetingLink || '',
+      notes: interview.notes?.[0]?.content || '',
+      status: interview.status || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditInterview = async () => {
+    if (!editingInterview) return;
+    
+    try {
+      // Combine date and time into a single DateTime
+      const scheduledDateTime = new Date(`${editFormData.scheduledAt}T${editFormData.scheduledTime}`);
+      
+      const updateData = {
+        type: editFormData.type,
+        round: editFormData.round,
+        scheduledAt: scheduledDateTime.toISOString(),
+        duration: parseInt(editFormData.duration),
+        location: editFormData.location || undefined,
+        notes: editFormData.notes || undefined,
+        status: editFormData.status,
+      };
+
+      await updateInterview({ id: editingInterview.id, data: updateData });
+      
+      toast({
+        title: "Success",
+        description: "Interview updated successfully",
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          "Failed to update interview";
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Form validation for edit
+  const isEditFormValid = () => {
+    return editFormData.type && 
+           editFormData.round && 
+           editFormData.scheduledAt && 
+           editFormData.scheduledTime && 
+           editFormData.duration &&
+           editFormData.status;
+  };
+
   // Extract stats from API response or calculate from interviews
   const stats = (statsResponse as any)?.data || {
     todayCount: todayInterviews.length,
@@ -230,9 +420,15 @@ export default function InterviewManagement() {
               Calendar
             </Button>
         </div>
-        <Dialog>
+        <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button 
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                resetScheduleForm();
+                setIsScheduleDialogOpen(true);
+              }}
+            >
               <CalendarPlus className="w-4 h-4 mr-2" />
               Schedule Interview
             </Button>
@@ -245,38 +441,41 @@ export default function InterviewManagement() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Candidate</label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select candidate" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="john">John Smith</SelectItem>
-                      <SelectItem value="emily">Emily Chen</SelectItem>
-                      <SelectItem value="michael">Michael Johnson</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Job Position</label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select job" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="react">Senior React Developer</SelectItem>
-                      <SelectItem value="marketing">Marketing Manager</SelectItem>
-                      <SelectItem value="data">Data Analyst</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Candidate <span className="text-red-500">*</span></label>
+                <Select 
+                  value={scheduleFormData.candidateId} 
+                  onValueChange={(value) => {
+                    if (value !== 'loading' && value !== 'no-candidates') {
+                      setScheduleFormData(prev => ({ ...prev, candidateId: value }));
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select candidate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {candidatesLoading ? (
+                      <SelectItem value="loading" disabled>Loading candidates...</SelectItem>
+                    ) : candidateAssignments.length === 0 ? (
+                      <SelectItem value="no-candidates" disabled>No candidates available</SelectItem>
+                    ) : (
+                      candidateAssignments.map((assignment: any) => (
+                        <SelectItem key={assignment.candidateId._id} value={assignment.candidateId._id}>
+                          {assignment.candidateId?.userId?.firstName} {assignment.candidateId?.userId?.lastName} - {assignment.jobId?.title}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Interview Type</label>
-                  <Select>
+                  <label className="text-sm font-medium">Interview Type <span className="text-red-500">*</span></label>
+                  <Select 
+                    value={scheduleFormData.type} 
+                    onValueChange={(value) => setScheduleFormData(prev => ({ ...prev, type: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -284,35 +483,53 @@ export default function InterviewManagement() {
                       <SelectItem value="video">Video Call</SelectItem>
                       <SelectItem value="phone">Phone Call</SelectItem>
                       <SelectItem value="in-person">In-Person</SelectItem>
+                      <SelectItem value="technical">Technical Interview</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Round</label>
-                  <Select>
+                  <label className="text-sm font-medium">Round <span className="text-red-500">*</span></label>
+                  <Select 
+                    value={scheduleFormData.round} 
+                    onValueChange={(value) => setScheduleFormData(prev => ({ ...prev, round: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select round" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="screening">HR Screening</SelectItem>
                       <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="behavioral">Behavioral</SelectItem>
                       <SelectItem value="final">Final</SelectItem>
+                      <SelectItem value="cultural">Cultural Fit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Date</label>
-                  <Input type="date" />
+                  <label className="text-sm font-medium">Date <span className="text-red-500">*</span></label>
+                  <Input 
+                    type="date" 
+                    value={scheduleFormData.scheduledAt}
+                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, scheduledAt: e.target.value }))}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Time</label>
-                  <Input type="time" />
+                  <label className="text-sm font-medium">Time <span className="text-red-500">*</span></label>
+                  <Input 
+                    type="time" 
+                    value={scheduleFormData.scheduledTime}
+                    onChange={(e) => setScheduleFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Duration</label>
-                  <Select>
+                  <label className="text-sm font-medium">Duration <span className="text-red-500">*</span></label>
+                  <Select 
+                    value={scheduleFormData.duration} 
+                    onValueChange={(value) => setScheduleFormData(prev => ({ ...prev, duration: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Duration" />
                     </SelectTrigger>
@@ -321,14 +538,202 @@ export default function InterviewManagement() {
                       <SelectItem value="45">45 minutes</SelectItem>
                       <SelectItem value="60">1 hour</SelectItem>
                       <SelectItem value="90">1.5 hours</SelectItem>
+                      <SelectItem value="120">2 hours</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Location / Meeting Link</label>
+                <Input 
+                  placeholder="Enter location or meeting link (e.g., Zoom: https://zoom.us/...)"
+                  value={scheduleFormData.location}
+                  onChange={(e) => setScheduleFormData(prev => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Input 
+                  placeholder="Additional notes for the interview..."
+                  value={scheduleFormData.notes}
+                  onChange={(e) => setScheduleFormData(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline">Cancel</Button>
-              <Button>Schedule Interview</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsScheduleDialogOpen(false);
+                  resetScheduleForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleScheduleInterview}
+                disabled={
+                  createLoading || 
+                  !scheduleFormData.candidateId || 
+                  scheduleFormData.candidateId === 'loading' ||
+                  scheduleFormData.candidateId === 'no-candidates' ||
+                  !scheduleFormData.type || 
+                  !scheduleFormData.round || 
+                  !scheduleFormData.scheduledAt || 
+                  !scheduleFormData.scheduledTime || 
+                  !scheduleFormData.duration
+                }
+              >
+                {createLoading ? "Scheduling..." : "Schedule Interview"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Interview Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Interview</DialogTitle>
+              <DialogDescription>
+                Update interview details and schedule.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Interview Type */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Interview Type <span className="text-red-500">*</span></label>
+                <Select 
+                  value={editFormData.type} 
+                  onValueChange={(value) => setEditFormData(prev => ({ ...prev, type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select interview type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="video">Video Call</SelectItem>
+                    <SelectItem value="phone">Phone Call</SelectItem>
+                    <SelectItem value="in-person">In Person</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Interview Round */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Interview Round <span className="text-red-500">*</span></label>
+                <Select 
+                  value={editFormData.round} 
+                  onValueChange={(value) => setEditFormData(prev => ({ ...prev, round: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select interview round" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="screening">Screening</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="behavioral">Behavioral</SelectItem>
+                    <SelectItem value="final">Final</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Date <span className="text-red-500">*</span></label>
+                  <Input
+                    type="date"
+                    value={editFormData.scheduledAt}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, scheduledAt: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Time <span className="text-red-500">*</span></label>
+                  <Input
+                    type="time"
+                    value={editFormData.scheduledTime}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Duration */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Duration (minutes) <span className="text-red-500">*</span></label>
+                <Select 
+                  value={editFormData.duration} 
+                  onValueChange={(value) => setEditFormData(prev => ({ ...prev, duration: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="15">15 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="45">45 minutes</SelectItem>
+                    <SelectItem value="60">1 hour</SelectItem>
+                    <SelectItem value="90">1.5 hours</SelectItem>
+                    <SelectItem value="120">2 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Location/Meeting Link */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Location / Meeting Link</label>
+                <Input
+                  value={editFormData.location}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="e.g. Meeting Room A or https://zoom.us/j/123456789"
+                />
+              </div>
+
+              {/* Status */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status <span className="text-red-500">*</span></label>
+                <Select 
+                  value={editFormData.status} 
+                  onValueChange={(value) => setEditFormData(prev => ({ ...prev, status: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="scheduled">Scheduled</SelectItem>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Input
+                  value={editFormData.notes}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Additional notes or instructions"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={updateLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleEditInterview}
+                disabled={updateLoading || !isEditFormValid()}
+              >
+                {updateLoading ? "Updating..." : "Update Interview"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -470,6 +875,7 @@ export default function InterviewManagement() {
                 </TableHeader>
                 <TableBody>
                     {filteredInterviews.length > 0 ? filteredInterviews.map((interview) => (
+                    <>
                     <TableRow key={interview.id}>
                       <TableCell>
                         <div>
@@ -511,10 +917,7 @@ export default function InterviewManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Interview</DropdownMenuItem>
-                            <DropdownMenuItem>Send Reminder</DropdownMenuItem>
-                            <DropdownMenuItem>Reschedule</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEditDialog(interview.originalData)}>Edit Interview</DropdownMenuItem>
                             <DropdownMenuItem className="text-destructive">
                               Cancel Interview
                             </DropdownMenuItem>
@@ -522,6 +925,20 @@ export default function InterviewManagement() {
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
+                    
+                    {/* Notes row - spans all columns */}
+                    {interview.originalData?.notes?.[0]?.content && (
+                      <TableRow key={`${interview.id}-notes`}>
+                        <TableCell colSpan={6} className="border-t-0 pt-0 pb-4">
+                          <div className="border-t pt-4">
+                            <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                              {interview.originalData.notes[0].content}
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </>
                     )) : (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8">

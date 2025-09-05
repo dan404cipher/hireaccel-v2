@@ -459,3 +459,24 @@ export function useCandidateAssignmentStats() {
     showToast: false  // Don't show error toasts for stats to prevent spam
   });
 }
+
+// Additional hooks for interview scheduling
+export function useAvailableInterviewers() {
+  const memoizedCall = useCallback(async () => {
+    // Fetch HR and Admin users separately since the API doesn't support multiple roles
+    const [hrResponse, adminResponse] = await Promise.all([
+      apiClient.getUsers({ role: 'hr', status: 'active' }),
+      apiClient.getUsers({ role: 'admin', status: 'active' })
+    ]);
+    
+    // Extract data arrays and combine them
+    const hrUsers = Array.isArray(hrResponse) ? hrResponse : (hrResponse as any)?.data || [];
+    const adminUsers = Array.isArray(adminResponse) ? adminResponse : (adminResponse as any)?.data || [];
+    
+    // Combine and return in the same format as other API calls
+    const combinedUsers = [...hrUsers, ...adminUsers];
+    return { data: combinedUsers };
+  }, []);
+  
+  return useApi(memoizedCall, { immediate: true });
+}
