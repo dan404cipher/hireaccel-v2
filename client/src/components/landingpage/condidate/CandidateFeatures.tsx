@@ -228,6 +228,11 @@ export function JobCandidates() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Scroll to top on initial load
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Debug log to ensure features array is available
   useEffect(() => {
     console.log('Features array:', features);
