@@ -138,6 +138,8 @@ class ApiClient {
       const data = await response.json();
       
       if (!response.ok) {
+        console.log('Token refresh failed:', data);
+        this.clearToken();
         throw new Error('Token refresh failed');
       }
 
@@ -145,6 +147,7 @@ class ApiClient {
       this.setToken(accessToken);
       return accessToken;
     } catch (error) {
+      console.log('Token refresh error:', error);
       this.clearToken();
       throw error;
     }
@@ -174,8 +177,8 @@ class ApiClient {
 
       const data = await response.json();
 
-      // Handle 401 errors
-      if (response.status === 401) {
+      // Handle 401 errors - but only for authenticated requests, not for login
+      if (response.status === 401 && endpoint !== '/auth/login') {
         if (!this.isRefreshing) {
           this.isRefreshing = true;
           this.refreshPromise = this.refreshAccessToken()
@@ -214,6 +217,8 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        console.log('API Error Response:', data);
+        console.log('Response Status:', response.status);
         throw data as ApiError;
       }
 
@@ -267,21 +272,24 @@ class ApiClient {
     return this.request(url, { ...options, method: 'DELETE' });
   }
 
-  async login(email: string, password: string) {
-    return this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+  async login(data: { email: string; password: string }) {
+    console.log('API Client login called with:', data);
+    try {
+      const result = await this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      console.log('API Client login success:', result);
+      return result;
+    } catch (error) {
+      console.log('API Client login error:', error);
+      throw error;
+    }
   }
 
   async logout() {
     const result = await this.request('/auth/logout', { method: 'POST' });
     this.clearToken();
-    return result;
-  }
-  async signup(userData: any){
-    console.log('signup', userData);
-    const result = await this.request('/auth/register', { method: 'POST', body: JSON.stringify(userData) });
     return result;
   }
 
@@ -909,12 +917,6 @@ class ApiClient {
     });
   }
 
-  async login(data: { email: string; password: string }) {
-    return this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
 }
 
 export const apiClient = new ApiClient();
