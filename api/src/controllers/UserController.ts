@@ -20,6 +20,7 @@ const createUserSchema = z.object({
   lastName: z.string().min(1).max(50),
   role: z.nativeEnum(UserRole),
   password: z.string().min(8).optional(),
+  phoneNumber: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number').optional().or(z.literal('')),
 });
 
 const updateUserSchema = z.object({
@@ -27,6 +28,7 @@ const updateUserSchema = z.object({
   lastName: z.string().min(1).max(50).optional(),
   status: z.nativeEnum(UserStatus).optional(),
   role: z.nativeEnum(UserRole).optional(),
+  phoneNumber: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number').optional().or(z.literal('')),
 });
 
 const querySchema = z.object({

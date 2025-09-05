@@ -53,6 +53,7 @@ import {
   UserX,
   Shield,
   Mail,
+  Phone,
   Clock,
   Download,
   CheckSquare,
@@ -79,6 +80,7 @@ interface User {
   status: 'active' | 'inactive' | 'suspended';
   lastLoginAt?: string;
   emailVerified?: boolean;
+  phoneNumber?: string;
   createdAt: string;
 }
 
@@ -117,6 +119,7 @@ export default function UserManagement() {
     firstName: '',
     lastName: '',
     email: '',
+    phoneNumber: '',
     role: 'candidate' as const,
     password: '',
   });
@@ -183,6 +186,7 @@ export default function UserManagement() {
       firstName: '',
       lastName: '',
       email: '',
+      phoneNumber: '',
       role: 'candidate',
       password: '',
     });
@@ -215,6 +219,7 @@ export default function UserManagement() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
+        phoneNumber: formData.phoneNumber,
       };
       
       await updateUser({ id: editingUser._id, data: updateData });
@@ -275,6 +280,7 @@ export default function UserManagement() {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      phoneNumber: user.phoneNumber || '',
       role: user.role,
       password: '',
     });
@@ -344,12 +350,13 @@ export default function UserManagement() {
   const handleExport = () => {
     const selectedUserData = users.filter(user => selectedUsers.has(user._id));
     const csvContent = [
-      ['customId', 'firstName', 'lastName', 'email', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
+      ['customId', 'firstName', 'lastName', 'email', 'phoneNumber', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
       ...selectedUserData.map(user => [
         user.customId,
         user.firstName,
         user.lastName,
         user.email,
+        user.phoneNumber || '', // Include phone number
         user.role, // Use actual role value, not display label
         user.status,
         user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : '',
@@ -594,6 +601,7 @@ export default function UserManagement() {
                     <TableHead>User ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Last Login</TableHead>
@@ -621,6 +629,12 @@ export default function UserManagement() {
                         <div className="flex items-center gap-2">
                           <Mail className="h-4 w-4 text-muted-foreground" />
                           {user.email}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          {user.phoneNumber || '-'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -776,6 +790,16 @@ export default function UserManagement() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                placeholder="e.g. +1234567890"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="role">Role</Label>
               <Select value={formData.role} onValueChange={(value: any) => setFormData(prev => ({ ...prev, role: value }))}>
                 <SelectTrigger>
@@ -849,6 +873,16 @@ export default function UserManagement() {
                 className="bg-muted"
               />
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="editPhoneNumber">Phone Number</Label>
+              <Input
+                id="editPhoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                placeholder="e.g. +1234567890"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="editRole">Role</Label>

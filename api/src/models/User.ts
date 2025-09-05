@@ -112,6 +112,16 @@ const userSchema = new Schema<UserDocument>({
     default: false,
   },
   
+  phoneNumber: {
+    type: String,
+    required: false,
+    trim: true,
+    match: [
+      /^[\+]?[1-9][\d]{0,15}$/,
+      'Please provide a valid phone number'
+    ],
+  },
+  
   // Metadata for password reset
   resetPasswordToken: {
     type: String,

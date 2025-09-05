@@ -612,13 +612,14 @@ class ApiClient {
   }
 
   async createInterview(interviewData: {
-    applicationId: string;
+    applicationId?: string;
+    candidateId?: string;
     type: string;
     round: string;
     scheduledAt: string;
     duration: number;
     location?: string;
-    interviewers: string[];
+    interviewers?: string[];
     notes?: string;
   }) {
     return this.request<any>('/api/v1/interviews', {
