@@ -126,10 +126,41 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         navigate('/dashboard');
       }
     } catch (error: any) {
+      console.log('Signup error:', error);
+      console.log('Error type:', typeof error);
+      console.log('Error keys:', Object.keys(error || {}));
+      
+      // Extract error message from different possible structures
+      let errorMessage = "Something went wrong. Please try again.";
+      
+      if (error?.type === 'network_error') {
+        errorMessage = "Server is under maintenance, please try again";
+      } else if (error?.detail) {
+        errorMessage = error.detail;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.status === 500) {
+        errorMessage = "Please try again later";
+      }
+      
+      console.log('Final error message:', errorMessage);
+      
       toast({
-        title: 'Signup failed',
-        description: error.message || 'Something went wrong. Please try again.',
-        variant: 'destructive',
+        title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      
+      console.log('Toast called with:', { 
+        title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed", 
+        description: errorMessage, 
+        variant: "destructive" 
       });
     } finally {
       setLoading(false);
