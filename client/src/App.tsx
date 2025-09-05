@@ -35,6 +35,7 @@ import LandingPage from "./pages/LandingPage";
 import { HRProfessionals }  from "./components/landingpage/hr/HRFeatures";
   import {JobCandidates} from "./components/landingpage/condidate/CandidateFeatures";
 import { ForgetPasswordPage } from "./pages/auth/ForgetPasswordPage";
+import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
 
 const queryClient = new QueryClient();
 
@@ -141,6 +142,12 @@ function AppRouter() {
         path="/forget-password" 
         element={
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgetPasswordPage onBackToSignin={() => {navigate('/login')}} onContinueToResetPassword={() => {navigate('/reset-password')}} />
+        } 
+      />
+      <Route 
+        path="/reset-password" 
+        element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPasswordPage />
         } 
       />
       <Route 
