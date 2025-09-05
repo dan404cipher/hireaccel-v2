@@ -31,6 +31,7 @@ const seedData = {
       "customId": "HR00001",
       "email": "sarah.johnson@hireaccel.com",
       "password": "Hr123!",
+      
       "firstName": "Sarah",
       "lastName": "Johnson",
       "role": "hr",

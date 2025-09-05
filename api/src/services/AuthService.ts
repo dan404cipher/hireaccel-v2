@@ -524,7 +524,12 @@ export class AuthService {
         email: user.email,
       });
       
-      // TODO: Send password reset email with resetToken
+      // Send password reset email
+      await EmailService.sendPasswordResetEmail(
+        user.email,
+        user.firstName,
+        resetToken
+      );
       
     } catch (error) {
       logger.error('Password reset initiation failed', {

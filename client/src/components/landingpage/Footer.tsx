@@ -56,7 +56,7 @@ export function Footer() {
               </div>
               <div className="flex items-center">
                 <Phone className="h-4 w-4 mr-3" />
-                <span>+919876543210</span>
+                <span>+91 87544 53361</span>
               </div>
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-3" />
@@ -122,7 +122,7 @@ export function Footer() {
         {/* Bottom Section */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-400 text-sm">
-            © 2024 HireAccel. All rights reserved.
+            © 2025 HireAccel. All rights reserved.
           </p>
           
           <div className="flex space-x-4 mt-4 md:mt-0">
