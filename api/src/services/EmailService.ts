@@ -169,16 +169,35 @@ Hiring Accelerator Team
 
   static async sendPasswordResetEmail(email: string, firstName: string, resetToken: string): Promise<void> {
     try {
-      // Extract the frontend URL from CORS_ORIGIN (prioritize port 5173 for frontend)
-      const origins = env.CORS_ORIGIN.split(',').map(origin => origin.trim());
-      const frontendUrl = origins.find(origin => origin.includes(':5173')) || origins[0];
+      // Use FRONTEND_URL if available, otherwise find the best URL from CORS_ORIGIN
+      let frontendUrl = env.FRONTEND_URL;
+      
+      if (!frontendUrl) {
+        const origins = env.CORS_ORIGIN.split(',').map(origin => origin.trim());
+        // Prioritize HTTPS production URLs, then HTTP production URLs, then localhost
+        const httpsProductionUrl = origins.find(origin => 
+          !origin.includes('localhost') && 
+          !origin.includes('127.0.0.1') && 
+          origin.startsWith('https://')
+        );
+        
+        const httpProductionUrl = origins.find(origin => 
+          !origin.includes('localhost') && 
+          !origin.includes('127.0.0.1') && 
+          origin.startsWith('http://')
+        );
+        
+        frontendUrl = httpsProductionUrl || httpProductionUrl || origins[0] || 'http://localhost:5173';
+      }
+      
       const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
       
       logger.info('Password reset URL generated', {
-        origins: origins,
-        selectedFrontendUrl: frontendUrl,
+        frontendUrl: frontendUrl,
         resetUrl: resetUrl,
         email: email,
+        corsOrigin: env.CORS_ORIGIN,
+        isProductionUrl: !frontendUrl.includes('localhost'),
       });
       
       const mailOptions = {
