@@ -200,7 +200,7 @@ export default function LoginPage() {
                       Remember me
                     </Label>
                   </div>
-                  <button type="button" className="text-sm text-blue-600 hover:underline">
+                  <button type="button" className="text-sm text-blue-600 hover:underline" onClick={()=>navigate('/forget-password')}>
                     Forgot password?
                   </button>
                 </div>

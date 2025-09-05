@@ -210,7 +210,7 @@ const faqs = [
   }
 ];
 
-export function JobCandidates({ onBackToHome }: JobCandidatesProps) {
+export function JobCandidates() {
   const navigate = useNavigate();
   const [heroRef, heroInView] = useInView();
   const [benefitsRef, benefitsInView] = useInView();
