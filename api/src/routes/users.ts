@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { UserController } from '@/controllers/UserController';
-import { authenticate, requireAdmin, requireHR, requireAgent } from '@/middleware/auth';
+import { authenticate, requireAdmin, requireHR, requireAgent, allowSelfOrAdmin } from '@/middleware/auth';
 
 /**
  * User management routes
@@ -101,7 +101,7 @@ router.get('/:id', requireHR, UserController.getUserById);
  * @desc    Update user
  * @access  Admin
  */
-router.put('/:id', requireAdmin, UserController.updateUser);
+router.put('/:id', allowSelfOrAdmin, UserController.updateUser);
 
 /**
  * @route   PATCH /users/:id/status

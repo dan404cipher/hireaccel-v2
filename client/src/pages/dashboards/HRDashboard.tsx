@@ -134,11 +134,11 @@ export default function HRDashboard() {
           <p className="text-muted-foreground">Manage your recruitment pipeline and job postings</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/jobs')}>
+          <Button onClick={() => navigate('/dashboard/jobs')}>
             <Briefcase className="h-4 w-4 mr-2" />
             Manage Jobs
           </Button>
-          <Button onClick={() => navigate('/interviews')} variant="outline">
+          <Button onClick={() => navigate('/dashboard/interviews')} variant="outline">
             <Calendar className="h-4 w-4 mr-2" />
             Schedule Interviews
           </Button>
@@ -178,47 +178,63 @@ export default function HRDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
+        {/* Today's Schedule */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Recent Activity
+              <Calendar className="w-5 h-5" />
+              Today's Schedule
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-accent/50">
-                    <div className="flex-shrink-0 mt-1">
-                      {activity.status === "completed" && (
-                        <CheckCircle className="w-4 h-4 text-success" />
-                      )}
-                      {activity.status === "scheduled" && (
-                        <Calendar className="w-4 h-4 text-warning" />
-                      )}
-                      {activity.status === "applied" && (
-                        <FileText className="w-4 h-4 text-info" />
-                      )}
-                      {activity.status === "under_review" && (
-                        <Clock className="w-4 h-4 text-primary" />
-                      )}
+              {interviews.filter((interview: any) => {
+                const today = new Date();
+                const interviewDate = new Date(interview.scheduledAt);
+                return interviewDate.toDateString() === today.toDateString();
+              }).length > 0 ? (
+                interviews
+                  .filter((interview: any) => {
+                    const today = new Date();
+                    const interviewDate = new Date(interview.scheduledAt);
+                    return interviewDate.toDateString() === today.toDateString();
+                  })
+                  .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+                  .map((interview: any) => (
+                    <div key={interview._id} className="flex items-start gap-3 p-3 rounded-lg bg-accent/50">
+                      <div className="flex-shrink-0 mt-1">
+                        {interview.type === "video" && <Video className="w-4 h-4 text-primary" />}
+                        {interview.type === "phone" && <Phone className="w-4 h-4 text-info" />}
+                        {interview.type === "in-person" && <MapPin className="w-4 h-4 text-success" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {new Date(interview.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {interview.applicationId?.candidateId?.userId?.firstName} {interview.applicationId?.candidateId?.userId?.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {interview.round} - {interview.type} interview
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="flex-shrink-0">
+                        {interview.status}
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">{activity.title}</p>
-                      <p className="text-sm text-muted-foreground">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                    </div>
-                    <Badge variant="outline" className="flex-shrink-0">
-                      {activity.status}
-                    </Badge>
-                  </div>
-                ))
+                  ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
-                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No recent activity</p>
+                  <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No interviews scheduled for today</p>
+                  <Button 
+                    onClick={() => navigate('/dashboard/interviews')} 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                  >
+                    Schedule Interview
+                  </Button>
                 </div>
               )}
             </div>
@@ -279,9 +295,9 @@ export default function HRDashboard() {
           <CardDescription>Common tasks to manage your recruitment process</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button 
-              onClick={() => navigate('/jobs')} 
+              onClick={() => navigate('/dashboard/jobs')} 
               variant="outline" 
               className="h-20 flex-col gap-2"
             >
@@ -289,7 +305,7 @@ export default function HRDashboard() {
               <span>Post New Job</span>
             </Button>
             <Button 
-              onClick={() => navigate('/interviews')} 
+              onClick={() => navigate('/dashboard/interviews')} 
               variant="outline" 
               className="h-20 flex-col gap-2"
             >
@@ -297,12 +313,20 @@ export default function HRDashboard() {
               <span>Schedule Interview</span>
             </Button>
             <Button 
-              onClick={() => navigate('/shared-candidates')} 
+              onClick={() => navigate('/dashboard/companies')} 
               variant="outline" 
               className="h-20 flex-col gap-2"
             >
-              <UserPlus className="h-6 w-6" />
-              <span>View Candidates</span>
+              <Building2 className="h-6 w-6" />
+              <span>Manage Companies</span>
+            </Button>
+            <Button 
+              onClick={() => navigate('/dashboard/hr-profile')} 
+              variant="outline" 
+              className="h-20 flex-col gap-2"
+            >
+              <Users className="h-6 w-6" />
+              <span>My Profile</span>
             </Button>
           </div>
         </CardContent>

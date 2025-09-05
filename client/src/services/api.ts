@@ -131,23 +131,35 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<string> {
     try {
+      console.log('Refreshing access token...');
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
-      const data = await response.json();
       
       if (!response.ok) {
         console.log('Token refresh failed:', data);
         this.clearToken();
+        console.error('Token refresh failed:', response.status);
+        const errorData = await response.json();
         throw new Error('Token refresh failed');
+      }
+
+      const data = await response.json();
+      console.log('Token refresh response:', data);
+      
+      if (!data.data?.accessToken) {
+        console.error('No access token in response');
+        throw new Error('Invalid token refresh response');
       }
 
       const { accessToken } = data.data;
       this.setToken(accessToken);
       return accessToken;
     } catch (error) {
-      console.log('Token refresh error:', error);
       this.clearToken();
       throw error;
     }
@@ -176,6 +188,7 @@ class ApiClient {
       });
 
       const data = await response.json();
+
 
       // Handle 401 errors - but only for authenticated requests, not for login
       if (response.status === 401 && endpoint !== '/auth/login') {
@@ -212,7 +225,38 @@ class ApiClient {
                 reject(error);
               }
             });
+      // Handle 401 errors
+      if (response.status === 401) {
+        console.log('Received 401, attempting token refresh...');
+        
+        try {
+          // Try to refresh the token
+          const newToken = await this.refreshAccessToken();
+          console.log('Token refreshed successfully, retrying request...');
+          
+          // Retry the original request with new token
+          const newHeaders = {
+            ...headers,
+            Authorization: `Bearer ${newToken}`,
+          };
+          
+          const retryResponse = await fetch(url, {
+            ...options,
+            headers: newHeaders,
+            credentials: 'include',
           });
+          
+          if (!retryResponse.ok) {
+            console.error('Retry request failed:', retryResponse.status);
+            throw await retryResponse.json();
+          }
+          
+          return await retryResponse.json();
+        } catch (error) {
+          console.error('Token refresh or retry failed:', error);
+          // Clear token and throw error to trigger logout
+          this.clearToken();
+          throw error;
         }
       }
 
@@ -292,7 +336,6 @@ class ApiClient {
     this.clearToken();
     return result;
   }
-
   async getCurrentUser() {
     return this.request<{ user: User }>('/auth/me');
   }
@@ -620,13 +663,14 @@ class ApiClient {
   }
 
   async createInterview(interviewData: {
-    applicationId: string;
+    applicationId?: string;
+    candidateId?: string;
     type: string;
     round: string;
     scheduledAt: string;
     duration: number;
     location?: string;
-    interviewers: string[];
+    interviewers?: string[];
     notes?: string;
   }) {
     return this.request<any>('/api/v1/interviews', {
@@ -886,23 +930,6 @@ class ApiClient {
   }
 
   // Authentication methods
-  async signup(data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    password: string;
-    role: string;
-    department?: string;
-    currentLocation?: string;
-    yearsOfExperience?: string;
-  }) {
-    return this.request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
   async verifyOTP(data: { email: string; otp: string }) {
     return this.request('/auth/verify-otp', {
       method: 'POST',
@@ -916,7 +943,6 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
-
   async forgotPassword(data: { email: string }) {
     return this.request('/auth/forgot-password', {
       method: 'POST',
