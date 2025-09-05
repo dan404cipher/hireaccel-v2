@@ -156,6 +156,36 @@ export const requirePartner = requireRole(UserRole.PARTNER, UserRole.ADMIN);
 export const requireCandidate = requireRole(UserRole.CANDIDATE);
 
 /**
+ * Allow self update or admin middleware
+ * Allows users to update their own data or admins to update any user
+ */
+export const allowSelfOrAdmin = (req: Request, _res: Response, next: NextFunction): void => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) {
+      throw createUnauthorizedError('Authentication required');
+    }
+
+    // Admin can update any user
+    if (user.role === UserRole.ADMIN) {
+      next();
+      return;
+    }
+
+    // Users can update their own profile
+    const targetUserId = req.params['id'];
+    if (user._id.toString() === targetUserId) {
+      next();
+      return;
+    }
+
+    throw createForbiddenError('Access denied. You can only update your own profile.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Resource ownership middleware
  * Checks if user owns the requested resource or has admin privileges
  */

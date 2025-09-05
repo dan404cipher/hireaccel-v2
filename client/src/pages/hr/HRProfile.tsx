@@ -18,10 +18,11 @@ import {
   Clock
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function HRProfile() {
-  const { user } = useAuth();
+  const { user, updateAuth } = useAuth();
   const { customId } = useParams<{ customId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,13 +36,28 @@ export default function HRProfile() {
     }
   }, [user?.customId, customId, navigate, user?.role]);
 
+  // Update form data when user data changes
+  useEffect(() => {
+    if (user) {
+      console.log('Updating form data with user:', user);
+      setProfileData(prev => ({
+        ...prev,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        customId: user.customId || "",
+        phone: user.phoneNumber || "",
+      }));
+    }
+  }, [user]);
+
   // Simple profile form state
   const [profileData, setProfileData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
     customId: user?.customId || "",
-    phone: "",
+    phone: user?.phoneNumber || "",
     location: "",
     department: "Human Resources",
     jobTitle: "HR Manager",
@@ -49,10 +65,37 @@ export default function HRProfile() {
   });
 
   const handleSave = async () => {
+    console.log('Save button clicked');
+    console.log('Current user:', user);
+    
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User information not available. Please try logging in again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const updateData = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        phoneNumber: profileData.phone,
+      };
+      
+      console.log('Sending update request with data:', updateData);
+      const response = await apiClient.updateUser(user.id, updateData);
+      console.log('Update response:', response);
+      
+      // Update the user context to reflect changes
+      updateAuth({
+        ...user,
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        phoneNumber: profileData.phone,
+      });
       
       toast({
         title: "Profile Updated",
@@ -60,10 +103,25 @@ export default function HRProfile() {
       });
       
       setEditMode(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      const errorMessage = error.detail || error.message || "Failed to update profile. Please try again.";
+      
+      // If it's an auth error, show a login prompt
+      if (error.status === 401) {
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Please log in again.",
+          variant: "destructive",
+        });
+        // Redirect to login
+        navigate('/login');
+        return;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to update profile. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -139,14 +197,16 @@ export default function HRProfile() {
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant={editMode ? "outline" : "default"}
-                    onClick={() => setEditMode(!editMode)}
-                    className="ml-4"
-                  >
-                    {editMode ? <Clock className="w-4 h-4 mr-2" /> : <Edit className="w-4 h-4 mr-2" />}
-                    {editMode ? "Cancel" : "Edit Profile"}
-                  </Button>
+                  {!editMode && (
+                    <Button
+                      variant="default"
+                      onClick={() => setEditMode(true)}
+                      className="ml-4"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
