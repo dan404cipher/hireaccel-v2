@@ -213,6 +213,11 @@ export function HRProfessionals() {
   const [pricingRef, pricingInView] = useInView();
   const [faqRef, faqInView] = useInView();
 
+  // Scroll to top on initial load
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-gray-50/30 to-white relative overflow-hidden">
       {/* Simplified Background */}
