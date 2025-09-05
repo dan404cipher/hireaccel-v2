@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Mail, Shield, CheckCircle, Clock, Users, TrendingUp, RotateCcw } from 'lucide-react';
+import { apiClient } from '@/services/api';
+import { toast } from 'sonner';
 
 interface ForgetPasswordFormData {
   email: string;
@@ -19,15 +21,32 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
     email: ''
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: keyof ForgetPasswordFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Password reset requested for:', formData.email);
-    setIsSubmitted(true);
+    
+    if (!formData.email) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      await apiClient.forgotPassword({ email: formData.email });
+      setIsSubmitted(true);
+      toast.success('Password reset email sent! Check your inbox.');
+    } catch (error: any) {
+      console.error('Password reset request failed:', error);
+      toast.error(error.response?.data?.message || 'Failed to send reset email. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -163,10 +182,20 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
 
                     <Button 
                       type="submit" 
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white mt-6 shadow-lg transition-all duration-200"
+                      disabled={isLoading}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white mt-6 shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Mail className="w-4 h-4 mr-2" />
-                      Send Reset Link
+                      {isLoading ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send Reset Link
+                        </>
+                      )}
                     </Button>
 
                     <button
@@ -226,13 +255,13 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
                     </div>
 
                     <div className="space-y-3">
-                      <Button 
+                      {/* <Button 
                         onClick={() => onContinueToResetPassword(formData.email)}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg transition-all duration-200"
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
                         I received the email - Reset Password
-                      </Button>
+                      </Button> */}
                       
                       <Button 
                         onClick={() => setIsSubmitted(false)}
