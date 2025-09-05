@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -34,6 +34,7 @@ import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 import { HRProfessionals }  from "./components/landingpage/hr/HRFeatures";
   import {JobCandidates} from "./components/landingpage/condidate/CandidateFeatures";
+import { ForgetPasswordPage } from "./pages/auth/ForgetPasswordPage";
 
 const queryClient = new QueryClient();
 
@@ -112,7 +113,7 @@ function DashboardRouter() {
 // App Router Component (needs to be inside AuthProvider)
 function AppRouter() {
   const { isAuthenticated, loading } = useAuth();
-  
+  const navigate = useNavigate();
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -134,6 +135,12 @@ function AppRouter() {
         path="/login" 
         element={
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
+        } 
+      />
+      <Route 
+        path="/forget-password" 
+        element={
+          isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgetPasswordPage onBackToSignin={() => {navigate('/login')}} onContinueToResetPassword={() => {navigate('/reset-password')}} />
         } 
       />
       <Route 
