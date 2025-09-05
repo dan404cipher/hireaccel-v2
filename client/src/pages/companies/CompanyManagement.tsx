@@ -53,7 +53,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany } from "@/hooks/useApi";
+import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useMutation } from "@/hooks/useApi";
+import { apiClient } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 
 export default function CompanyManagement() {
@@ -67,7 +68,13 @@ export default function CompanyManagement() {
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
   const [createFormData, setCreateFormData] = useState<any>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+
+  // Debug fieldErrors changes
+  useEffect(() => {
+    console.log('🔍 fieldErrors state changed:', fieldErrors);
+  }, [fieldErrors]);
 
   // Debounce search term to prevent excessive API calls
   useEffect(() => {
@@ -108,11 +115,11 @@ export default function CompanyManagement() {
     refetch: refetchCompanies 
   } = useCompanies(companiesParams);
 
-  const { mutate: createCompany, loading: createLoading } = useCreateCompany();
+  const { mutate: createCompany, loading: createLoading } = useMutation((companyData: any) => apiClient.createCompany(companyData), { showToast: false });
 
-  const { mutate: updateCompany, loading: updateLoading } = useUpdateCompany();
+  const { mutate: updateCompany, loading: updateLoading } = useMutation(({ id, data }: any) => apiClient.updateCompany(id, data), { showToast: false });
 
-  const { mutate: deleteCompany, loading: deleteLoading } = useDeleteCompany();
+  const { mutate: deleteCompany, loading: deleteLoading } = useMutation((id: string) => apiClient.deleteCompany(id), { showToast: false });
 
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const companies = Array.isArray(companiesResponse) ? companiesResponse : ((companiesResponse as any)?.data || []);
@@ -165,6 +172,269 @@ export default function CompanyManagement() {
     setIsEditDialogOpen(true);
   };
 
+  // Helper function to handle validation errors with comprehensive user-friendly messages
+  const handleValidationError = (error: any, defaultMessage: string) => {
+    console.log('🔍 handleValidationError called with:', error);
+    
+    // Clear previous field errors
+    setFieldErrors({});
+    
+    // Check for issues in multiple possible locations
+    let issues = null;
+    if (error?.issues && Array.isArray(error.issues)) {
+      issues = error.issues;
+      console.log('🔍 Found issues directly on error object:', issues);
+    } else if (error?.response?.data?.issues && Array.isArray(error.response.data.issues)) {
+      issues = error.response.data.issues;
+      console.log('🔍 Found issues in error.response.data:', issues);
+    }
+    
+    if (issues) {
+      const fieldErrorsMap: Record<string, string> = {};
+      const validationErrors = issues.map((issue: any) => {
+        console.log('🔍 Processing issue:', issue);
+        let userFriendlyMessage = issue.message;
+        const fieldName = issue.field || 'Field';
+        
+        // Convert technical validation messages to user-friendly ones
+        switch (issue.field) {
+          // Basic Company Information
+          case 'name':
+            if (issue.code === 'too_small' || issue.message.includes('required')) {
+              userFriendlyMessage = 'Company name is required';
+            } else if (issue.code === 'too_big' || issue.message.includes('exceed 200 characters')) {
+              userFriendlyMessage = 'Company name cannot exceed 200 characters';
+            } else if (issue.message.includes('duplicate') || issue.message.includes('already exists')) {
+              userFriendlyMessage = 'A company with this name already exists';
+            }
+            break;
+            
+          case 'description':
+            if (issue.code === 'too_small' || issue.message.includes('required')) {
+              userFriendlyMessage = 'Company description is required';
+            } else if (issue.code === 'too_big' || issue.message.includes('exceed 2000 characters')) {
+              userFriendlyMessage = 'Description cannot exceed 2000 characters';
+            }
+            break;
+            
+          case 'industry':
+            if (issue.code === 'too_small' || issue.message.includes('required')) {
+              userFriendlyMessage = 'Industry is required';
+            } else if (issue.code === 'too_big' || issue.message.includes('exceed 100 characters')) {
+              userFriendlyMessage = 'Industry cannot exceed 100 characters';
+            }
+            break;
+            
+          case 'size':
+            if (issue.message.includes('required')) {
+              userFriendlyMessage = 'Company size is required';
+            } else if (issue.message.includes('predefined ranges') || issue.code === 'invalid_enum_value') {
+              userFriendlyMessage = 'Please select a valid company size range (1-10, 11-25, 26-50, 51-100, 101-250, 251-500, 501-1000, or 1000+)';
+            }
+            break;
+            
+          case 'location':
+            if (issue.code === 'too_small' || issue.message.includes('required')) {
+              userFriendlyMessage = 'Company location is required';
+            } else if (issue.code === 'too_big' || issue.message.includes('exceed 200 characters')) {
+              userFriendlyMessage = 'Location cannot exceed 200 characters';
+            }
+            break;
+            
+          // URLs and Links
+          case 'website':
+            if (issue.message.includes('Invalid url') || issue.code === 'invalid_url') {
+              userFriendlyMessage = 'Please enter a valid website URL (e.g., https://www.company.com)';
+            } else if (issue.message.includes('valid website URL')) {
+              userFriendlyMessage = 'Website URL must start with http:// or https://';
+            }
+            break;
+            
+          case 'logoUrl':
+            if (issue.message.includes('Invalid url') || issue.code === 'invalid_url') {
+              userFriendlyMessage = 'Please enter a valid logo URL (e.g., https://www.company.com/logo.png)';
+            } else if (issue.message.includes('valid logo URL')) {
+              userFriendlyMessage = 'Logo URL must start with http:// or https://';
+            }
+            break;
+            
+          // Numeric Fields
+          case 'employees':
+            if (issue.code === 'too_small') {
+              userFriendlyMessage = 'Number of employees must be 0 or greater';
+            } else if (issue.code === 'invalid_type') {
+              userFriendlyMessage = 'Number of employees must be a valid number';
+            }
+            break;
+            
+          case 'foundedYear':
+            if (issue.code === 'too_small') {
+              userFriendlyMessage = 'Founded year must be 1800 or later';
+            } else if (issue.code === 'too_big') {
+              userFriendlyMessage = 'Founded year cannot be in the future';
+            } else if (issue.code === 'invalid_type') {
+              userFriendlyMessage = 'Founded year must be a valid year (e.g., 2020)';
+            }
+            break;
+            
+          // Partnership and Status
+          case 'partnership':
+            if (issue.code === 'invalid_enum_value') {
+              userFriendlyMessage = 'Please select a valid partnership level (Basic, Standard, Premium, or Enterprise)';
+            }
+            break;
+            
+          case 'status':
+            if (issue.code === 'invalid_enum_value') {
+              userFriendlyMessage = 'Please select a valid company status (Active, Inactive, Pending, or Suspended)';
+            }
+            break;
+            
+          // Contact Information
+          case 'contacts':
+            if (issue.message.includes('array')) {
+              userFriendlyMessage = 'Contact information format is invalid';
+            }
+            break;
+            
+          // Contact sub-fields (contacts.0.name, contacts.0.email, etc.)
+          default:
+            if (issue.field.startsWith('contacts.')) {
+              const contactField = issue.field.split('.')[2] || issue.field.split('.')[1];
+              switch (contactField) {
+                case 'name':
+                  if (issue.code === 'too_small') {
+                    userFriendlyMessage = 'Contact name is required';
+                  } else if (issue.code === 'too_big') {
+                    userFriendlyMessage = 'Contact name cannot exceed 100 characters';
+                  }
+                  break;
+                case 'email':
+                  if (issue.message.includes('Invalid email') || issue.code === 'invalid_email') {
+                    userFriendlyMessage = 'Please enter a valid contact email address';
+                  }
+                  break;
+                case 'phone':
+                  if (issue.code === 'too_small') {
+                    userFriendlyMessage = 'Contact phone number is required';
+                  }
+                  break;
+                case 'position':
+                  if (issue.code === 'too_small') {
+                    userFriendlyMessage = 'Contact position is required';
+                  } else if (issue.code === 'too_big') {
+                    userFriendlyMessage = 'Contact position cannot exceed 100 characters';
+                  }
+                  break;
+                default:
+                  userFriendlyMessage = `Contact ${contactField || 'information'} is invalid`;
+              }
+            } else {
+              // Generic improvements for other validation messages
+              if (issue.message.includes('required')) {
+                userFriendlyMessage = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is required`;
+              } else if (issue.message.includes('too_short') || issue.code === 'too_small') {
+                userFriendlyMessage = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is too short`;
+              } else if (issue.message.includes('too_long') || issue.code === 'too_big') {
+                userFriendlyMessage = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} is too long`;
+              } else if (issue.message.includes('Invalid email') || issue.code === 'invalid_email') {
+                userFriendlyMessage = 'Please enter a valid email address';
+              } else if (issue.message.includes('Invalid url') || issue.code === 'invalid_url') {
+                userFriendlyMessage = 'Please enter a valid URL';
+              } else if (issue.code === 'invalid_type') {
+                userFriendlyMessage = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} has an invalid format`;
+              }
+            }
+            break;
+        }
+        
+        // Store field-specific error for UI highlighting
+        if (issue.field) {
+          fieldErrorsMap[issue.field] = userFriendlyMessage;
+        }
+        
+        return userFriendlyMessage;
+      });
+      
+      // Set field errors for UI highlighting
+      console.log('🔍 Setting field errors:', fieldErrorsMap);
+      setFieldErrors(fieldErrorsMap);
+      
+      // Debug: Check if field errors were set
+      setTimeout(() => {
+        console.log('🔍 Field errors after setState:', fieldErrorsMap);
+      }, 100);
+      
+      const errorMessage = validationErrors.length === 1 
+        ? validationErrors[0]
+        : `Please fix the following errors:\n• ${validationErrors.join('\n• ')}`;
+      
+      toast({
+        title: "Validation Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } else if (error?.response?.status === 409) {
+      // Handle duplicate company name error
+      toast({
+        title: "Duplicate Company",
+        description: "A company with this name already exists. Please choose a different name.",
+        variant: "destructive"
+      });
+    } else if (error?.response?.status === 403) {
+      // Handle permission errors
+      toast({
+        title: "Permission Denied",
+        description: "You don't have permission to create companies. Please contact your administrator.",
+        variant: "destructive"
+      });
+    } else if (error?.response?.status === 401) {
+      // Handle authentication errors
+      toast({
+        title: "Authentication Required",
+        description: "Your session has expired. Please log in again.",
+        variant: "destructive"
+      });
+    } else if (error?.response?.status >= 500) {
+      // Handle server errors
+      toast({
+        title: "Server Error",
+        description: "Something went wrong on our end. Please try again in a few moments.",
+        variant: "destructive"
+      });
+    } else {
+      // Handle other types of errors
+      let errorMessage = defaultMessage;
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Helper function to clear field errors
+  const clearFieldError = (fieldName: string) => {
+    if (fieldErrors[fieldName]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
+    }
+  };
+
+  // Helper function to clear all field errors
+  const clearAllFieldErrors = () => {
+    setFieldErrors({});
+  };
+
   const handleCreateCompany = async () => {
     // Validate required fields
     if (!createFormData.name || !createFormData.size || !createFormData.industry || !createFormData.location || !createFormData.description) {
@@ -210,6 +480,7 @@ export default function CompanyManagement() {
       await createCompany(newCompanyData);
       setIsCreateDialogOpen(false);
       setCreateFormData({}); // Clear form
+      clearAllFieldErrors(); // Clear any previous errors
       refetchCompanies();
       toast({
         title: "Success",
@@ -217,22 +488,12 @@ export default function CompanyManagement() {
       });
     } catch (error: any) {
       console.error('Failed to create company:', error);
-      
-      // Extract error message from the response
-      let errorMessage = "Failed to create company. Please try again.";
-      if (error?.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      });
+      console.log('🔍 Full error object:', JSON.stringify(error, null, 2));
+      console.log('🔍 Error.response:', error?.response);
+      console.log('🔍 Error.response.data:', error?.response?.data);
+      console.log('🔍 Error.issues:', error?.issues);
+      console.log('🔍 Error.detail:', error?.detail);
+      handleValidationError(error, "Failed to create company. Please try again.");
     }
   };
 
@@ -254,13 +515,15 @@ export default function CompanyManagement() {
     try {
       await updateCompany({ id: selectedCompany.id, data: updateData });
       setIsEditDialogOpen(false);
+      clearAllFieldErrors(); // Clear any previous errors
       refetchCompanies();
       toast({
         title: "Success",
         description: "Company updated successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update company:', error);
+      handleValidationError(error, "Failed to update company. Please try again.");
     }
   };
 
@@ -273,8 +536,9 @@ export default function CompanyManagement() {
           title: "Success", 
           description: "Company deleted successfully"
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to delete company:', error);
+        handleValidationError(error, "Failed to delete company. Please try again.");
       }
     }
   };
@@ -312,21 +576,31 @@ export default function CompanyManagement() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="create-name">Company Name</Label>
+                  <Label htmlFor="create-name">Company Name <span className="text-red-500">*</span></Label>
                   <Input 
                     id="create-name" 
                     value={createFormData.name || ''}
-                    onChange={(e) => setCreateFormData({...createFormData, name: e.target.value})}
+                    onChange={(e) => {
+                      setCreateFormData({...createFormData, name: e.target.value});
+                      clearFieldError('name');
+                    }}
                     placeholder="e.g. TechCorp Inc." 
+                    className={fieldErrors.name ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {fieldErrors.name && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.name}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="create-industry">Industry</Label>
+                  <Label htmlFor="create-industry">Industry <span className="text-red-500">*</span></Label>
                   <Select 
                     value={createFormData.industry || ''} 
-                    onValueChange={(value) => setCreateFormData({...createFormData, industry: value})}
+                    onValueChange={(value) => {
+                      setCreateFormData({...createFormData, industry: value});
+                      clearFieldError('industry');
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={fieldErrors.industry ? "border-red-500 focus:border-red-500" : ""}>
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
                     <SelectContent>
@@ -339,17 +613,23 @@ export default function CompanyManagement() {
                       <SelectItem value="consulting">Consulting</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldErrors.industry && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.industry}</p>
+                  )}
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="create-size">Company Size</Label>
+                  <Label htmlFor="create-size">Company Size <span className="text-red-500">*</span></Label>
                   <Select 
                     value={createFormData.size || ''} 
-                    onValueChange={(value) => setCreateFormData({...createFormData, size: value})}
+                    onValueChange={(value) => {
+                      setCreateFormData({...createFormData, size: value});
+                      clearFieldError('size');
+                    }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className={fieldErrors.size ? "border-red-500 focus:border-red-500" : ""}>
                       <SelectValue placeholder="Select company size" />
                     </SelectTrigger>
                     <SelectContent>
@@ -363,27 +643,44 @@ export default function CompanyManagement() {
                       <SelectItem value="1000+">1000+ employees</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldErrors.size && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.size}</p>
+                  )}
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="create-location">Location</Label>
+                  <Label htmlFor="create-location">Location <span className="text-red-500">*</span></Label>
                   <Input 
                     id="create-location" 
                     value={createFormData.location || ''}
-                    onChange={(e) => setCreateFormData({...createFormData, location: e.target.value})}
+                    onChange={(e) => {
+                      setCreateFormData({...createFormData, location: e.target.value});
+                      clearFieldError('location');
+                    }}
                     placeholder="e.g. San Francisco, CA" 
+                    className={fieldErrors.location ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {fieldErrors.location && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.location}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="create-website">Website</Label>
                   <Input 
                     id="create-website" 
                     value={createFormData.website || ''}
-                    onChange={(e) => setCreateFormData({...createFormData, website: e.target.value})}
-                    placeholder="e.g. www.company.com" 
+                    onChange={(e) => {
+                      setCreateFormData({...createFormData, website: e.target.value});
+                      clearFieldError('website');
+                    }}
+                    placeholder="e.g. https://www.company.com" 
+                    className={fieldErrors.website ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {fieldErrors.website && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.website}</p>
+                  )}
                 </div>
               </div>
               
@@ -394,9 +691,16 @@ export default function CompanyManagement() {
                     id="create-employees" 
                     type="number"
                     value={createFormData.employees || ''}
-                    onChange={(e) => setCreateFormData({...createFormData, employees: e.target.value})}
+                    onChange={(e) => {
+                      setCreateFormData({...createFormData, employees: e.target.value});
+                      clearFieldError('employees');
+                    }}
                     placeholder="e.g. 500" 
+                    className={fieldErrors.employees ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {fieldErrors.employees && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.employees}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="create-founded">Founded Year</Label>
@@ -404,17 +708,27 @@ export default function CompanyManagement() {
                     id="create-founded" 
                     type="number"
                     value={createFormData.foundedYear || ''}
-                    onChange={(e) => setCreateFormData({...createFormData, foundedYear: e.target.value})}
+                    onChange={(e) => {
+                      setCreateFormData({...createFormData, foundedYear: e.target.value});
+                      clearFieldError('foundedYear');
+                    }}
                     placeholder="e.g. 2010" 
+                    className={fieldErrors.foundedYear ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {fieldErrors.foundedYear && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.foundedYear}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="create-partnership">Partnership Level</Label>
                   <Select 
                     value={createFormData.partnership || 'basic'} 
-                    onValueChange={(value) => setCreateFormData({...createFormData, partnership: value})}
+                    onValueChange={(value) => {
+                      setCreateFormData({...createFormData, partnership: value});
+                      clearFieldError('partnership');
+                    }}
                   >
-                  <SelectTrigger>
+                  <SelectTrigger className={fieldErrors.partnership ? "border-red-500 focus:border-red-500" : ""}>
                       <SelectValue placeholder="Select level" />
                   </SelectTrigger>
                   <SelectContent>
@@ -423,18 +737,27 @@ export default function CompanyManagement() {
                     <SelectItem value="premium">Premium</SelectItem>
                   </SelectContent>
                 </Select>
+                  {fieldErrors.partnership && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.partnership}</p>
+                  )}
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="create-description">Company Description</Label>
+                <Label htmlFor="create-description">Company Description <span className="text-red-500">*</span></Label>
                 <Textarea 
                   id="create-description" 
                   value={createFormData.description || ''}
-                  onChange={(e) => setCreateFormData({...createFormData, description: e.target.value})}
+                  onChange={(e) => {
+                    setCreateFormData({...createFormData, description: e.target.value});
+                    clearFieldError('description');
+                  }}
                   placeholder="Brief description of the company..."
-                  className="min-h-[100px]"
+                  className={`min-h-[100px] ${fieldErrors.description ? "border-red-500 focus:border-red-500" : ""}`}
                 />
+                {fieldErrors.description && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.description}</p>
+                )}
               </div>
               
             </div>
@@ -444,6 +767,7 @@ export default function CompanyManagement() {
                 onClick={() => {
                   setIsCreateDialogOpen(false);
                   setCreateFormData({});
+                  clearAllFieldErrors();
                 }}
               >
                 Cancel
@@ -778,21 +1102,31 @@ export default function CompanyManagement() {
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-name">Company Name</Label>
+                <Label htmlFor="edit-name">Company Name <span className="text-red-500">*</span></Label>
                 <Input 
                   id="edit-name" 
                   value={editFormData.name || ''}
-                  onChange={(e) => setEditFormData({...editFormData, name: e.target.value})}
+                  onChange={(e) => {
+                    setEditFormData({...editFormData, name: e.target.value});
+                    clearFieldError('name');
+                  }}
                   placeholder="e.g. TechCorp Inc." 
+                  className={fieldErrors.name ? "border-red-500 focus:border-red-500" : ""}
                 />
+                {fieldErrors.name && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.name}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-industry">Industry</Label>
+                <Label htmlFor="edit-industry">Industry <span className="text-red-500">*</span></Label>
                 <Select 
                   value={editFormData.industry || ''} 
-                  onValueChange={(value) => setEditFormData({...editFormData, industry: value})}
+                  onValueChange={(value) => {
+                    setEditFormData({...editFormData, industry: value});
+                    clearFieldError('industry');
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className={fieldErrors.industry ? "border-red-500 focus:border-red-500" : ""}>
                     <SelectValue placeholder="Select industry" />
                   </SelectTrigger>
                   <SelectContent>
@@ -803,27 +1137,44 @@ export default function CompanyManagement() {
                     <SelectItem value="retail">Retail</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldErrors.industry && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.industry}</p>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-location">Location</Label>
+                <Label htmlFor="edit-location">Location <span className="text-red-500">*</span></Label>
                 <Input 
                   id="edit-location" 
                   value={editFormData.location || ''}
-                  onChange={(e) => setEditFormData({...editFormData, location: e.target.value})}
+                  onChange={(e) => {
+                    setEditFormData({...editFormData, location: e.target.value});
+                    clearFieldError('location');
+                  }}
                   placeholder="e.g. San Francisco, CA" 
+                  className={fieldErrors.location ? "border-red-500 focus:border-red-500" : ""}
                 />
+                {fieldErrors.location && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.location}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-website">Website</Label>
                 <Input 
                   id="edit-website" 
                   value={editFormData.website || ''}
-                  onChange={(e) => setEditFormData({...editFormData, website: e.target.value})}
-                  placeholder="e.g. www.company.com" 
+                  onChange={(e) => {
+                    setEditFormData({...editFormData, website: e.target.value});
+                    clearFieldError('website');
+                  }}
+                  placeholder="e.g. https://www.company.com" 
+                  className={fieldErrors.website ? "border-red-500 focus:border-red-500" : ""}
                 />
+                {fieldErrors.website && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.website}</p>
+                )}
               </div>
             </div>
 
@@ -850,9 +1201,16 @@ export default function CompanyManagement() {
                   id="edit-employees" 
                   type="number"
                   value={editFormData.employees || ''}
-                  onChange={(e) => setEditFormData({...editFormData, employees: e.target.value})}
+                  onChange={(e) => {
+                    setEditFormData({...editFormData, employees: e.target.value});
+                    clearFieldError('employees');
+                  }}
                   placeholder="e.g. 500" 
+                  className={fieldErrors.employees ? "border-red-500 focus:border-red-500" : ""}
                 />
+                {fieldErrors.employees && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.employees}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-founded">Founded Year</Label>
@@ -860,19 +1218,29 @@ export default function CompanyManagement() {
                   id="edit-founded" 
                   type="number"
                   value={editFormData.foundedYear || ''}
-                  onChange={(e) => setEditFormData({...editFormData, foundedYear: e.target.value})}
+                  onChange={(e) => {
+                    setEditFormData({...editFormData, foundedYear: e.target.value});
+                    clearFieldError('foundedYear');
+                  }}
                   placeholder="e.g. 2010" 
+                  className={fieldErrors.foundedYear ? "border-red-500 focus:border-red-500" : ""}
                 />
+                {fieldErrors.foundedYear && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.foundedYear}</p>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
-                              <Label htmlFor="edit-partnership">Partnership Level</Label>
+                <Label htmlFor="edit-partnership">Partnership Level</Label>
                 <Select 
                   value={editFormData.partnership || 'basic'} 
-                  onValueChange={(value) => setEditFormData({...editFormData, partnership: value})}
+                  onValueChange={(value) => {
+                    setEditFormData({...editFormData, partnership: value});
+                    clearFieldError('partnership');
+                  }}
                 >
-                <SelectTrigger>
+                <SelectTrigger className={fieldErrors.partnership ? "border-red-500 focus:border-red-500" : ""}>
                   <SelectValue placeholder="Select partnership level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -881,24 +1249,36 @@ export default function CompanyManagement() {
                   <SelectItem value="premium">Premium</SelectItem>
                 </SelectContent>
               </Select>
+                {fieldErrors.partnership && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.partnership}</p>
+                )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Company Description</Label>
+              <Label htmlFor="edit-description">Company Description <span className="text-red-500">*</span></Label>
               <Textarea 
                 id="edit-description" 
                 value={editFormData.description || ''}
-                onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
+                onChange={(e) => {
+                  setEditFormData({...editFormData, description: e.target.value});
+                  clearFieldError('description');
+                }}
                 placeholder="Brief description of the company..."
-                className="min-h-[100px]"
+                className={`min-h-[100px] ${fieldErrors.description ? "border-red-500 focus:border-red-500" : ""}`}
               />
+              {fieldErrors.description && (
+                <p className="text-sm text-red-500 mt-1">{fieldErrors.description}</p>
+              )}
         </div>
       </div>
           
           <DialogFooter className="gap-2">
             <Button 
               variant="outline" 
-              onClick={() => setIsEditDialogOpen(false)}
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                clearAllFieldErrors();
+              }}
               disabled={updateLoading}
             >
               Cancel
