@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Check, X, Crown, IndianRupee, Users, Zap, Shield, Star, TrendingUp, Award, Building2, Newspaper, Search, Rocket } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 // Simplified static decorative elements
 function StaticDecorations() {
@@ -154,6 +155,7 @@ const competitors = [
 ];
 
 export function CompetitorComparison() {
+  const navigate=useNavigate();
   return (
     <section className="relative py-20 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
       <StaticDecorations />
@@ -244,17 +246,17 @@ export function CompetitorComparison() {
                 transition={{ duration: 0.3, delay: index * 0.1 }}
                 className="relative"
               >
-                <Card className={`p-6 h-full relative overflow-hidden ${
+                <Card className={`p-6 h-full relative overflow-visible ${
                   competitor.isOurs 
                     ? 'bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 shadow-xl' 
                     : 'bg-white/70 backdrop-blur-sm border border-gray-200'
                 }`}>
                   
                   {competitor.popular && (
-                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1">
-                        <Crown className="w-3 h-3 mr-1" />
-                        Most Popular
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
+                      <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-1 text-sm flex items-center font-medium shadow-lg rounded-full w-fit">
+                        <Crown className="w-4 h-4 mr-1" />
+                      <div className="text-white w-[90px]"> Most Popular</div>
                       </Badge>
                     </div>
                   )}
@@ -301,7 +303,7 @@ export function CompetitorComparison() {
 
                   <div className="mt-auto">
                     {competitor.isOurs ? (
-                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300" onClick={()=>navigate('/signup/hr')}> 
                         Get Started Free
                       </Button>
                     ) : (
@@ -494,6 +496,7 @@ export function CompetitorComparison() {
             <Button 
               size="lg" 
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-200"
+              onClick={()=>navigate('/signup/hr')}
             >
               Start Saving Today - It's Free!
             </Button>

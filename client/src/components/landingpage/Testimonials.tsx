@@ -6,46 +6,73 @@ import { Button } from "./ui/button";
 
 const testimonials = [
   {
-    name: "Sarah Johnson",
+    name: "Arun Krishnan",
     role: "HR Director",
-    company: "TechCorp Inc.",
-    image: "https://images.unsplash.com/photo-1736939666660-d4c776e0532c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHdvbWFuJTIwZXhlY3V0aXZlJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzU2ODg0ODU2fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    quote: "HireAccel has transformed our hiring process. We've reduced time-to-hire by 60% and found better quality candidates.",
+    company: "Chennai TechWorks Pvt. Ltd.",
+    quote: "HireAccel has made our recruitment seamless. We've cut down hiring time drastically and onboarded top local talent.",
     rating: 5
   },
   {
-    name: "Michael Chen",
-    role: "Talent Acquisition Lead",
-    company: "StartupXYZ",
-    image: "https://images.unsplash.com/photo-1723537742563-15c3d351dbf2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBidXNpbmVzcyUyMHBvcnRyYWl0fGVufDF8fHx8MTc1Njg3NTg2NHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    quote: "The intelligent matching system is incredible. We're finding candidates that are perfect fits for our culture and requirements.",
+    name: "Priya Subramanian",
+    role: "Talent Acquisition Manager",
+    company: "MarinaSoft Solutions",
+    quote: "The AI matching has been a game-changer. We are able to find Chennai-based candidates who fit perfectly into our company culture.",
     rating: 5
   },
   {
-    name: "Emily Rodriguez",
-    role: "Recruitment Manager",
-    company: "Global Solutions",
-    image: "https://images.unsplash.com/photo-1647973035166-2abf410c68b0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHBlb3BsZSUyMGhlYWRzaG90c3xlbnwxfHx8fDE3NTY4MDg2MDZ8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    quote: "The interview scheduling feature alone has saved us countless hours. The entire platform is intuitive and powerful.",
+    name: "Karthik Ramesh",
+    role: "Recruitment Head",
+    company: "Velachery Innovations",
+    quote: "Scheduling interviews is no longer a headache. The platform is simple, smart, and saves us hours every week.",
     rating: 5
   },
   {
-    name: "David Park",
-    role: "Startup Founder",
-    company: "InnovateLabs",
-    image: "https://images.unsplash.com/photo-1723537742563-15c3d351dbf2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjBidXNpbmVzcyUyMHBvcnRyYWl0fGVufDF8fHx8MTc1Njg3NTg2NHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    quote: "As a startup, the completely free platform has been revolutionary. No subscription costs means we can invest our budget in growth instead of recruitment tools.",
+    name: "Meera Natarajan",
+    role: "Founder & CEO",
+    company: "TidelStartups Hub",
+    quote: "As a growing startup in Chennai, the free access to HireAccel has been invaluable. We can focus our funds on scaling instead of tools.",
     rating: 5
   },
   {
-    name: "Lisa Wang",
+    name: "Suresh Kumar",
     role: "Tech Recruiter",
-    company: "DevPro Solutions",
-    image: "https://images.unsplash.com/photo-1736939666660-d4c776e0532c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHdvbWFuJTIwZXhlY3V0aXZlJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzU2ODg0ODU2fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    quote: "Finally, a recruitment platform that's truly free! The AI matching is incredibly accurate and there are no hidden subscription fees lurking anywhere.",
+    company: "Anna Nagar Digital Services",
+    quote: "Finally, a recruitment platform without hidden fees. The AI-driven matching system has helped us hire smarter and faster in Chennai.",
     rating: 5
   }
 ];
+
+// Avatar component for displaying initials
+const Avatar = ({ name, className = "" }: { name: string; className?: string }) => {
+  const initials = name
+    .split(' ')
+    .map(word => word.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const gradients = [
+    'bg-gradient-to-br from-blue-500 to-blue-600',
+    'bg-gradient-to-br from-purple-500 to-purple-600', 
+    'bg-gradient-to-br from-green-500 to-green-600',
+    'bg-gradient-to-br from-orange-500 to-orange-600',
+    'bg-gradient-to-br from-pink-500 to-pink-600',
+    'bg-gradient-to-br from-indigo-500 to-indigo-600',
+    'bg-gradient-to-br from-teal-500 to-teal-600',
+    'bg-gradient-to-br from-red-500 to-red-600',
+    'bg-gradient-to-br from-cyan-500 to-cyan-600',
+    'bg-gradient-to-br from-emerald-500 to-emerald-600'
+  ];
+  
+  const colorIndex = name.length % gradients.length;
+  const bgGradient = gradients[colorIndex];
+
+  return (
+    <div className={`${bgGradient} text-white rounded-full flex items-center justify-center font-bold shadow-lg ${className}`}>
+      {initials}
+    </div>
+  );
+};
 
 // Hook to detect when element is in view
 function useInView(threshold = 0.1) {
@@ -177,10 +204,9 @@ export function Testimonials() {
                           whileHover={{ scale: 1.1 }}
                           className="relative"
                         >
-                          <img
-                            src={testimonial.image}
-                            alt={testimonial.name}
-                            className="w-14 h-14 rounded-full object-cover mr-4 border-3 border-white shadow-lg"
+                          <Avatar 
+                            name={testimonial.name}
+                            className="w-14 h-14 mr-4 border-3 border-white shadow-lg"
                           />
                           <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
                         </motion.div>
@@ -223,10 +249,9 @@ export function Testimonials() {
                     </p>
                     
                     <div className="flex items-center">
-                      <img
-                        src={testimonials[currentIndex].image}
-                        alt={testimonials[currentIndex].name}
-                        className="w-12 h-12 rounded-full object-cover mr-4"
+                      <Avatar 
+                        name={testimonials[currentIndex].name}
+                        className="w-12 h-12 mr-4"
                       />
                       <div>
                         <div className="font-semibold text-gray-900">{testimonials[currentIndex].name}</div>

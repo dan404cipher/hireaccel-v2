@@ -54,9 +54,9 @@ function AnimatedCounter({ end, duration = 2000 }: { end: number; duration?: num
 }
 
 const stats = [
-  { number: 300, suffix: "+", label: "Ready-to-Join Candidates", description: "Qualified professionals available now" },
-  { number: 200, suffix: "+", label: "Experienced Professionals", description: "Industry-ready experts" },
-  { number: 100, suffix: "+", label: "Trained Freshers", description: "Job-ready talent with real-world skills" },
+  { number: 230, suffix: "+", label: "Ready-to-Join Candidates", description: "Qualified professionals available now" },
+  { number: 292, suffix: "+", label: "Experienced Professionals", description: "Industry-ready experts" },
+  { number: 104, suffix: "+", label: "Trained Freshers", description: "Job-ready talent with real-world skills" },
   { number: 0, suffix: "", special: "100% FREE", label: "Forever", description: "No hidden costs, no subscriptions" }
 ];
 
