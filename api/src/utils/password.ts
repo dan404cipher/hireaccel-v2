@@ -104,11 +104,7 @@ export const validatePasswordStrength = (password: string): void => {
     errors.push('Password is too common, please choose a different one');
   }
   
-  // Sequential or repeated character checks (disabled for easier signup)
-  // if (hasSequentialCharacters(password)) {
-  //   errors.push('Password cannot contain sequential characters (e.g., 123, abc)');
-  // }
-  
+  // Repeated character checks (disabled for easier signup)
   // if (hasRepeatedCharacters(password)) {
   //   errors.push('Password cannot contain more than 3 repeated characters');
   // }
@@ -135,34 +131,6 @@ const isCommonPassword = (password: string): boolean => {
   return commonPasswords.includes(password.toLowerCase());
 };
 
-/**
- * Check for sequential characters (e.g., 123, abc, qwe)
- */
-const hasSequentialCharacters = (password: string): boolean => {
-  const sequences = [
-    'abcdefghijklmnopqrstuvwxyz',
-    'qwertyuiopasdfghjklzxcvbnm',
-    '0123456789'
-  ];
-  
-  const lowerPassword = password.toLowerCase();
-  
-  for (const sequence of sequences) {
-    for (let i = 0; i <= sequence.length - 3; i++) {
-      const subseq = sequence.substring(i, i + 3);
-      if (lowerPassword.includes(subseq)) {
-        return true;
-      }
-      // Check reverse sequence
-      const reverseSubseq = subseq.split('').reverse().join('');
-      if (lowerPassword.includes(reverseSubseq)) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-};
 
 /**
  * Check for repeated characters (e.g., aaaa, 1111)
@@ -245,9 +213,6 @@ export const calculatePasswordStrength = (password: string): {
   // Pattern scoring
   if (!hasRepeatedCharacters(password)) score += 10;
   else feedback.push('Avoid repeated characters');
-  
-  if (!hasSequentialCharacters(password)) score += 10;
-  else feedback.push('Avoid sequential characters');
   
   if (!isCommonPassword(password)) score += 15;
   else feedback.push('Avoid common passwords');
