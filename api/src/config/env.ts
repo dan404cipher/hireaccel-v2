@@ -34,6 +34,9 @@ const envSchema = z.object({
 
   // CORS Configuration
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  
+  // Frontend URL for email links
+  FRONTEND_URL: z.string().url().optional(),
 
   // Email Configuration (optional for future implementation)
   EMAIL_HOST: z.string().optional(),
