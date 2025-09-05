@@ -36,9 +36,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { CompetitorComparison } from "@/components/landingpage/hr/CompetitorComparison";
 import { Footer } from "@/components/landingpage/Footer";
-import { CompetitorComparison } from "./CompetitorComparison";
 import { Header } from "../Header";
+import { useNavigate } from "react-router-dom";
 
 // Hook to detect when element is in view
 function useInView(threshold = 0.1) {
@@ -63,10 +64,6 @@ function useInView(threshold = 0.1) {
   }, [threshold]);
 
   return [ref, isInView] as const;
-}
-
-interface HRProfessionalsProps {
-  onBackToHome: () => void;
 }
 
 const problemPoints = [
@@ -203,7 +200,8 @@ const faqs = [
   }
 ];
 
-export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
+export function HRProfessionals() {
+  const navigate=useNavigate();
   const [heroRef, heroInView] = useInView();
   const [problemRef, problemInView] = useInView();
   const [solutionRef, solutionInView] = useInView();
@@ -214,11 +212,6 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
   const [caseStudyRef, caseStudyInView] = useInView();
   const [pricingRef, pricingInView] = useInView();
   const [faqRef, faqInView] = useInView();
-
-  // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-gray-50/30 to-white relative overflow-hidden">
@@ -262,86 +255,176 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
           { label: "Features", id: "features" },
           { label: "Testimonials", id: "testimonials" },
           { label: "FAQ", id: "faq" },
-          { label: "Competitors", id: "competitors" }
+          { label: "Compare", id: "competitor-comparison" }
         ]}
-        onBackToHome={onBackToHome}
+        showAuthButtons={true}
       />
 
       {/* 1. Hero Section */}
       <section ref={heroRef} className="relative py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.4 }}
             >
+              {/* AI Platform Badge */}
+              <div className="mb-6">
+                <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border-blue-200/50 px-4 py-2">
+                  <Users className="w-4 h-4 mr-2" />
+                  AI-Powered Recruitment Platform
+                </Badge>
+              </div>
+
+              {/* Main Headline */}
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Post a job — receive vetted candidates in 48 hours.
+                  Post a job - receive<br />
+                  vetted candidates<br />
+                </span>
+                <span className="text-gray-900">
+                  in 48 Hours
                 </span>
               </h1>
               
-              <h2 className="text-xl text-gray-600 mb-8 leading-relaxed">
-                <strong>HireAccel by V-Accel</strong> — Our expert recruitment agents personally source, screen, and submit only the most qualified candidates to your private dashboard. Full confidentiality guaranteed until you approve contact.
-              </h2>
+              {/* Subtitle */}
+              <div className="mb-8">
+                <p className="text-lg text-gray-600 mb-4">
+                  Skip the resume pile. Our expert agents personally source, screen, and deliver <span className="text-blue-600 font-semibold">only qualified candidates</span> to your private dashboard with <span className="text-purple-600 font-semibold">complete confidentiality</span>.
+                </p>
+                <p className="text-base text-gray-500">
+                  <strong>HireAccel by V-Accel</strong> — Our expert recruitment agents personally source, screen, and submit only the most qualified candidates to your private dashboard. Full confidentiality guaranteed until you approve contact.
+                </p>
+              </div>
+
+              {/* Value Props */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">48-Hour Delivery</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Pre-Vetted Only</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <HandHeart className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Zero Hassle</span>
+                </div>
+              </div>
               
+              {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                 <Button 
                   size="lg"
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg shadow-xl w-full sm:w-auto"
+                  onClick={()=>navigate('/signup/hr')}
                 >
-                  Post Your First Job (Free)
+                  Post Your First Job FREE
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
                 <Button 
                   variant="outline"
                   size="lg"
                   className="border-blue-200 text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg w-full sm:w-auto"
+                  onClick={()=>navigate('/signup/hr')}
                 >
-                  Book 15-Min Demo
-                  <Play className="w-5 h-5 ml-2" />
+                  <Play className="w-5 h-5 mr-2" />
+                  Watch 2-Min Demo
                 </Button>
               </div>
               
-              <p className="text-sm text-gray-500">
-                <Star className="w-4 h-4 inline mr-1" />
-                White-glove onboarding available for first 50 partners.
-              </p>
+              {/* Trust Indicators */}
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center">
+                  <div className="flex space-x-1">
+                    {[1,2,3,4,5].map((star) => (
+                      <Star key={star} className="w-4 h-4 text-yellow-400 fill-current" />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-600 ml-2">Trusted by 50+ HR teams</span>
+                </div>
+              </div>
             </motion.div>
 
+            {/* Right Dashboard */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={heroInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.4, delay: 0.2 }}
               className="relative"
             >
-              {/* Professional team meeting image */}
-              <div className="relative mb-6">
-                <img
-                  src="https://images.unsplash.com/photo-1709803857154-d20ee16ff763?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHRlYW0lMjBtZWV0aW5nJTIwY29uZmVyZW5jZSUyMHJvb218ZW58MXx8fHwxNzU2OTk1NDYzfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                  alt="Professional business team meeting in modern conference room"
-                  className="w-full h-64 object-cover rounded-2xl shadow-xl"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl"></div>
-              </div>
-              
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-xl">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-semibold text-gray-800">Agent Dashboard</h3>
-                  <Badge className="bg-green-100 text-green-700">Live</Badge>
+              {/* Dashboard Container */}
+              <div className="bg-white rounded-2xl shadow-2xl border border-gray-200/50 overflow-hidden">
+                {/* Dashboard Header */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 px-6 py-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <span className="font-semibold text-gray-800">Live Recruitment Dashboard</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge className="bg-green-100 text-green-700">Active</Badge>
+                      <Zap className="w-4 h-4 text-purple-500" />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Matches sent:</span>
-                    <span className="font-semibold text-blue-600">3 / 48 hrs</span>
+
+                {/* Dashboard Content */}
+                <div className="p-6 space-y-6">
+                  {/* Stats Row */}
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <div className="text-3xl font-bold text-blue-600">12</div>
+                      <div className="text-sm text-gray-600">Candidates Submitted</div>
+                      <div className="text-xs text-gray-500">4 of 5 48hrs</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-3xl font-bold text-purple-600">96%</div>
+                      <div className="text-sm text-gray-600">Quality Match Score</div>
+                      <div className="text-xs text-gray-500">Above average</div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Quality Score:</span>
-                    <span className="font-semibold text-green-600">94%</span>
+
+                  {/* Progress Section */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Screening Progress</span>
+                      <span className="text-xs text-blue-600">8/10 Complete</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style={{ width: '80%' }}></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full" style={{ width: '60%' }}></div>
+
+                  {/* Interview Ready */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Interview Ready</span>
+                      <span className="text-xs text-green-600">5 Candidates</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div className="bg-gradient-to-r from-green-400 to-emerald-500 h-3 rounded-full" style={{ width: '60%' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 cursor-no-drop">
+                    <Search className="w-4 h-4 mr-2" />
+                    Review Matches
+                  </Button>
+
+                  {/* Additional Info */}
+                  <div className="text-center py-2 border-t border-gray-100">
+                    <span className="text-xs text-gray-500">36 hrs remaining</span>
                   </div>
                 </div>
               </div>
@@ -445,52 +528,142 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* 3. How It Works */}
-      <section id="how-it-works" ref={howItWorksRef} className="relative py-20">
+      <section id="how-it-works" ref={howItWorksRef} className="relative py-24 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-blue-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <Badge className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 border-blue-200/50 px-6 py-3 mb-8">
+              <Zap className="w-5 h-5 mr-2" />
+              Simple 4-Step Process
+            </Badge>
+            
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 How It Works
               </span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Simple 4-step process to get qualified candidates fast
+            <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
+              From job posting to qualified candidates in 48 hours — here's exactly how our expert recruitment process delivers results
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {howItWorksSteps.map((step, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: index * 0.1, duration: 0.4 }}
-                className="relative"
-              >
-                <Card className="h-full bg-white/90 backdrop-blur-sm border border-gray-200/50 hover:border-blue-200 transition-colors duration-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-center mb-6">
+          {/* Process Flow */}
+          <div className="relative">
+            {/* Desktop Flow Line */}
+            <div className="hidden lg:block absolute top-24 left-1/2 transform -translate-x-1/2 w-full max-w-5xl">
+              <div className="relative h-2">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-200 via-purple-200 to-blue-200 rounded-full opacity-30"></div>
+                <motion.div
+                  initial={{ width: "0%" }}
+                  animate={howItWorksInView ? { width: "100%" } : {}}
+                  transition={{ duration: 2, delay: 0.5, ease: "easeInOut" }}
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 rounded-full"
+                />
+              </div>
+              
+              {/* Flow Dots */}
+              <div className="absolute inset-0 flex justify-between items-center px-8">
+                {howItWorksSteps.map((_, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ scale: 0 }}
+                    animate={howItWorksInView ? { scale: 1 } : {}}
+                    transition={{ duration: 0.4, delay: 0.6 + index * 0.1 }}
+                    className="w-4 h-4 bg-white border-4 border-blue-500 rounded-full shadow-lg"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Steps Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
+              {howItWorksSteps.map((step, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
+                  transition={{ delay: index * 0.2, duration: 0.6 }}
+                  className="relative group h-full"
+                >
+                  {/* Step Card */}
+                  <div className="relative bg-white/90 backdrop-blur-sm rounded-3xl p-8 border border-gray-200/50 hover:border-blue-300/50 transition-all duration-300 shadow-lg hover:shadow-2xl group-hover:scale-105 h-full flex flex-col">
+                    {/* Step Number Circle */}
+                    <div className="flex items-center justify-center mb-8 flex-shrink-0">
                       <div className="relative">
-                        <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">{step.step}</span>
+                        <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-xl transform group-hover:rotate-6 transition-transform duration-300">
+                          <span className="text-white font-bold text-2xl">{step.step}</span>
+                        </div>
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <Zap className="w-4 h-4 text-white" />
                         </div>
                       </div>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-3 text-center">
-                      {step.title}
-                    </h3>
-                    <p className="text-gray-600 text-center">
-                      {step.description}
-                    </p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                    
+                    {/* Step Content */}
+                    <div className="text-center space-y-4 flex-grow flex flex-col justify-center">
+                      <h3 className="text-xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors duration-300">
+                        {step.title}
+                      </h3>
+                      <p className="text-gray-600 leading-relaxed flex-grow flex items-center">
+                        <span className="w-full">{step.description}</span>
+                      </p>
+                    </div>
+
+                    {/* Hover Gradient Border */}
+                    <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                  </div>
+
+                  {/* Mobile Flow Arrow */}
+                  {index < howItWorksSteps.length - 1 && (
+                    <div className="lg:hidden flex justify-center mt-6 mb-2">
+                      <ArrowRight className="w-6 h-6 text-blue-400" />
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Bottom CTA Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ delay: 1.2, duration: 0.6 }}
+              className="mt-20 text-center"
+            >
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-10 border border-gray-200/50 shadow-xl max-w-4xl mx-auto">
+                <div className="flex flex-col items-center space-y-6">
+                  <div className="flex items-center space-x-3" onClick={()=>navigate('/signup/hr')}>
+                    <Clock className="w-8 h-8 text-blue-500" />
+                    <span className="text-2xl font-bold text-gray-800">Ready to get started?</span>
+                  </div>
+                  
+                  <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Join 50+ companies that have already streamlined their hiring with our 48-hour guarantee
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <Button 
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-10 py-4 text-lg shadow-xl transform hover:scale-105 transition-all duration-300"
+                      onClick={()=>navigate('/signup/hr')}
+                    >
+                      Start Your First Job Post
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                    
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Shield className="w-4 h-4 mr-2 text-green-500" />
+                      No credit card required • 100% Free
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -634,9 +807,9 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
       </section>
 
       {/* Competitor Analysis Section */}
-      <section id="competitors">
+      <div id="competitor-comparison">
         <CompetitorComparison />
-      </section>
+      </div>
 
       {/* Final CTA */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
@@ -655,6 +828,7 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
             <Button 
               size="lg" 
               className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-xl"
+              onClick={()=>navigate('/signup/hr')}
             >
               Get Started Free - Save ₹3,50,000+
               <ArrowRight className="w-5 h-5 ml-2" />
@@ -662,7 +836,6 @@ export function HRProfessionals({ onBackToHome }: HRProfessionalsProps) {
           </motion.div>
         </div>
       </section>
-
       {/* Footer */}
       <Footer />
     </div>
