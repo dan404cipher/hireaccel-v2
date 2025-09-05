@@ -18,6 +18,7 @@ interface FormData {
   email: string;
   phone: string;
   password: string;
+  confirmPassword: string;
   department?: string;
   currentLocation?: string;
   yearsOfExperience?: string;
@@ -41,6 +42,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
   
   const [userType, setUserType] = useState<'hr' | 'candidate'>(getInitialUserType());
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -48,6 +50,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     email: '',
     phone: '',
     password: '',
+    confirmPassword: '',
     department: '',
     currentLocation: '',
     yearsOfExperience: ''
@@ -126,10 +129,41 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         navigate('/dashboard');
       }
     } catch (error: any) {
+      console.log('Signup error:', error);
+      console.log('Error type:', typeof error);
+      console.log('Error keys:', Object.keys(error || {}));
+      
+      // Extract error message from different possible structures
+      let errorMessage = "Something went wrong. Please try again.";
+      
+      if (error?.type === 'network_error') {
+        errorMessage = "Server is under maintenance, please try again";
+      } else if (error?.detail) {
+        errorMessage = error.detail;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.status === 500) {
+        errorMessage = "Please try again later";
+      }
+      
+      console.log('Final error message:', errorMessage);
+      
       toast({
-        title: 'Signup failed',
-        description: error.message || 'Something went wrong. Please try again.',
-        variant: 'destructive',
+        title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      
+      console.log('Toast called with:', { 
+        title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed", 
+        description: errorMessage, 
+        variant: "destructive" 
       });
     } finally {
       setLoading(false);
@@ -149,6 +183,8 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
 
 
   const isPasswordValid = Object.values(passwordValidation).every(Boolean);
+  const isPasswordMatch = formData.password === formData.confirmPassword;
+  const isFormValid = isPasswordValid && isPasswordMatch;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -338,33 +374,76 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                     </div>
                     {formData.password && (
                       <div className="text-xs text-gray-600 mt-2">
-                        Password must meet all security requirements
-                        <div className="mt-1 space-y-1">
-                          <div className={passwordValidation.hasMinLength ? "text-green-600" : "text-red-500"}>
-                            ✓ At least 8 characters
+                        {isPasswordValid ? (
+                          <div className="text-green-600">
+                            ✓ Password meets all security requirements
                           </div>
-                          <div className={passwordValidation.hasUppercase ? "text-green-600" : "text-red-500"}>
-                            ✓ Uppercase letter
+                        ) : (
+                          <div>
+                            <div className="text-red-500 mb-1">Password requirements:</div>
+                            <div className="mt-1 space-y-1">
+                              {!passwordValidation.hasMinLength && (
+                                <div className="text-red-500">• At least 8 characters</div>
+                              )}
+                              {!passwordValidation.hasUppercase && (
+                                <div className="text-red-500">• Uppercase letter</div>
+                              )}
+                              {!passwordValidation.hasLowercase && (
+                                <div className="text-red-500">• Lowercase letter</div>
+                              )}
+                              {!passwordValidation.hasNumber && (
+                                <div className="text-red-500">• Number</div>
+                              )}
+                              {!passwordValidation.hasSpecialChar && (
+                                <div className="text-red-500">• Special character (!@#$%^&*)</div>
+                              )}
+                              {!passwordValidation.hasNoSpaces && (
+                                <div className="text-red-500">• No spaces</div>
+                              )}
+                              {!passwordValidation.hasNoRepeated && (
+                                <div className="text-red-500">• No repeated characters (aaaa)</div>
+                              )}
+                              {!passwordValidation.hasNoCommon && (
+                                <div className="text-red-500">• Not a common password</div>
+                              )}
+                            </div>
                           </div>
-                          <div className={passwordValidation.hasLowercase ? "text-green-600" : "text-red-500"}>
-                            ✓ Lowercase letter
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password*</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={formData.confirmPassword}
+                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                        required
+                        className="border border-gray-300 focus:border-blue-500 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {formData.confirmPassword && (
+                      <div className="text-xs mt-2">
+                        {isPasswordMatch ? (
+                          <div className="text-green-600">
+                            ✓ Passwords match
                           </div>
-                          <div className={passwordValidation.hasNumber ? "text-green-600" : "text-red-500"}>
-                            ✓ Number
+                        ) : (
+                          <div className="text-red-500">
+                            • Passwords do not match
                           </div>
-                          <div className={passwordValidation.hasSpecialChar ? "text-green-600" : "text-red-500"}>
-                            ✓ Special character (!@#$%^&*)
-                          </div>
-                          <div className={passwordValidation.hasNoSpaces ? "text-green-600" : "text-red-500"}>
-                            ✓ No spaces
-                          </div>
-                          <div className={passwordValidation.hasNoRepeated ? "text-green-600" : "text-red-500"}>
-                            ✓ No repeated characters (aaaa)
-                          </div>
-                          <div className={passwordValidation.hasNoCommon ? "text-green-600" : "text-red-500"}>
-                            ✓ Not a common password
-                          </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -425,7 +504,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                   <Button 
                     type="submit" 
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-6"
-                    disabled={!isPasswordValid || loading}
+                    disabled={!isFormValid || loading}
                   >
                     {loading ? 'Creating Account...' : 'Create Account →'}
                   </Button>
