@@ -105,6 +105,7 @@ export interface User {
   status: UserStatus;
   lastLoginAt?: Date;
   emailVerified: boolean;
+  phoneNumber?: string;
   createdAt: Date;
   updatedAt: Date;
 }
