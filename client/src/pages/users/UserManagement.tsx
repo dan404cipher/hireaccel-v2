@@ -78,6 +78,7 @@ interface User {
   role: 'admin' | 'hr' | 'agent' | 'candidate';
   status: 'active' | 'inactive' | 'suspended';
   lastLoginAt?: string;
+  emailVerified?: boolean;
   createdAt: string;
 }
 
@@ -343,14 +344,17 @@ export default function UserManagement() {
   const handleExport = () => {
     const selectedUserData = users.filter(user => selectedUsers.has(user._id));
     const csvContent = [
-      ['Name', 'Email', 'Role', 'Status', 'Last Login', 'Created'].join(','),
+      ['customId', 'firstName', 'lastName', 'email', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
       ...selectedUserData.map(user => [
-        `"${user.firstName} ${user.lastName}"`,
+        user.customId,
+        user.firstName,
+        user.lastName,
         user.email,
-        roleLabels[user.role],
+        user.role, // Use actual role value, not display label
         user.status,
-        user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never',
-        new Date(user.createdAt).toLocaleString()
+        user.lastLoginAt ? new Date(user.lastLoginAt).toISOString() : '',
+        new Date(user.createdAt).toISOString(),
+        user.emailVerified || 'true' // Default to true if not present
       ].join(','))
     ].join('\n');
 
