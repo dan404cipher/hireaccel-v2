@@ -462,9 +462,43 @@ const SharedCandidates: React.FC = () => {
                       View Profile
                     </DropdownMenuItem>
                     {candidate?.resumeFileId && (
-                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                      <DropdownMenuItem onClick={async () => {
+                        try {
+                          const response = await fetch(`http://localhost:3002/api/v1/files/resume/${candidate.resumeFileId}`, {
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                            },
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+                          }
+
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${candidate.userId.firstName}_${candidate.userId.lastName}_resume.pdf`;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+
+                          toast({
+                            title: 'Success',
+                            description: 'Resume downloaded successfully',
+                          });
+                        } catch (error) {
+                          console.error('Download error:', error);
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to download resume',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}>
                         <ExternalLink className="mr-2 h-4 w-4" />
-                        View Resume
+                        Download Resume
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem onClick={() => {
@@ -690,10 +724,44 @@ const SharedCandidates: React.FC = () => {
                     variant="outline" 
                     size="sm" 
                     className="text-xs h-8"
-                    onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`http://localhost:3002/api/v1/files/resume/${candidate.resumeFileId}`, {
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                          },
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+                        }
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${candidate.userId.firstName}_${candidate.userId.lastName}_resume.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        toast({
+                          title: 'Success',
+                          description: 'Resume downloaded successfully',
+                        });
+                      } catch (error) {
+                        console.error('Download error:', error);
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to download resume',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
                   >
                     <ExternalLink className="w-3 h-3 mr-1" />
-                    View Resume
+                    Download Resume
                   </Button>
                 ) : (
                   <span className="text-xs text-gray-500">No resume</span>
