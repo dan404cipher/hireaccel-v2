@@ -225,6 +225,11 @@ function AppRouter() {
             <InterviewManagement />
           </RoleProtectedRoute>
         } />
+        <Route path="candidate-interviews" element={
+          <RoleProtectedRoute allowedRoles={['candidate']}>
+            <InterviewManagement />
+          </RoleProtectedRoute>
+        } />
         <Route path="companies" element={
           <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
             <CompanyManagement />

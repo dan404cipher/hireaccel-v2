@@ -44,6 +44,7 @@ const navigationItems = [
   
   // Candidate-specific navigation
   { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
+  { title: "My Interviews", url: "/dashboard/candidate-interviews", icon: Calendar, roles: ['candidate'] },
   { 
     title: "My Profile", 
     url: (user) => `/dashboard/candidate-profile/${user?.customId}`, 
@@ -53,10 +54,10 @@ const navigationItems = [
 ];
 
 const secondaryItems = [
-  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin', 'hr'] },
-  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'hr', 'agent'] },
-  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin', 'hr'] },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'hr', 'agent', 'candidate'] },
+  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin'] },
+  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'agent'] },
+  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin'] },
+  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'agent'] },
 ];
 
 export function AppSidebar() {
@@ -143,8 +144,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Secondary Navigation - Only show for non-candidates */}
-        {user?.role !== 'candidate' && (
+        {/* Secondary Navigation - Only show for admin and agent */}
+        {(user?.role === 'admin' || user?.role === 'agent') && (
           <SidebarGroup>
             <SidebarGroupLabel>Tools & Reports</SidebarGroupLabel>
             <SidebarGroupContent>

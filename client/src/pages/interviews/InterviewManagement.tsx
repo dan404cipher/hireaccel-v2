@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,13 +102,17 @@ export default function InterviewManagement() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Get user context
+  const { user } = useAuth();
+
   // Create stable API parameters
   const interviewsParams = useMemo(() => ({
     page,
     limit: 20,
     search: debouncedSearchTerm || undefined,
     status: statusFilter !== "all" ? statusFilter : undefined,
-  }), [page, debouncedSearchTerm, statusFilter]);
+    candidateId: user?.role === 'candidate' ? user?.id : undefined,
+  }), [page, debouncedSearchTerm, statusFilter, user?.role, user?.id]);
 
   // Fetch data using hooks
   const { data: interviewsResponse, loading: interviewsLoading, error: interviewsError, refetch: refetchInterviews } = useInterviews(interviewsParams);
@@ -395,8 +400,15 @@ export default function InterviewManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Interview Management</h1>
-          <p className="text-muted-foreground">Schedule and manage candidate interviews</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            {user?.role === 'candidate' ? 'My Interviews' : 'Interview Management'}
+          </h1>
+          <p className="text-muted-foreground">
+            {user?.role === 'candidate' 
+              ? 'View your scheduled interviews and their status'
+              : 'Schedule and manage candidate interviews'
+            }
+          </p>
         </div>
         <div className="flex items-center gap-4">
           {/* View Toggle */}
@@ -420,7 +432,8 @@ export default function InterviewManagement() {
               Calendar
             </Button>
         </div>
-        <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        {user?.role !== 'candidate' && (
+          <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
           <DialogTrigger asChild>
             <Button 
               className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -589,6 +602,7 @@ export default function InterviewManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
 
         {/* Edit Interview Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -870,7 +884,7 @@ export default function InterviewManagement() {
                     <TableHead>Type & Location</TableHead>
                     <TableHead>Agent</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead></TableHead>
+                    {user?.role !== 'candidate' && <TableHead></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -902,34 +916,41 @@ export default function InterviewManagement() {
                       </TableCell>
                       <TableCell>{interview.agent}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(interview.status)}
-                          <Badge className={getStatusColor(interview.status)}>
-                            {interview.status}
-                          </Badge>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(interview.status)}
+                            <Badge className={getStatusColor(interview.status)}>
+                              {interview.status}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground capitalize">
+                            {interview.round} Round
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(interview.originalData)}>Edit Interview</DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
-                              Cancel Interview
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                      {user?.role !== 'candidate' && (
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEditDialog(interview.originalData)}>Edit Interview</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive">
+                                Cancel Interview
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
                     </TableRow>
                     
                     {/* Notes row - spans all columns */}
                     {interview.originalData?.notes?.[0]?.content && (
                       <TableRow key={`${interview.id}-notes`}>
-                        <TableCell colSpan={6} className="border-t-0 pt-0 pb-4">
+                        <TableCell colSpan={user?.role === 'candidate' ? 5 : 6} className="border-t-0 pt-0 pb-4">
                           <div className="border-t pt-4">
                             <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
                               {interview.originalData.notes[0].content}
@@ -941,7 +962,7 @@ export default function InterviewManagement() {
                     </>
                     )) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={user?.role === 'candidate' ? 5 : 6} className="text-center py-8">
                           <div className="text-muted-foreground">
                             <CalendarIcon className="w-8 h-8 mx-auto mb-2" />
                             <p>No interviews found</p>

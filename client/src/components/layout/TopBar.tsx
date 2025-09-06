@@ -99,7 +99,7 @@ export function TopBar() {
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleProfileClick}>Profile</DropdownMenuItem>
-            {user?.role !== 'candidate' && (
+            {(user?.role === 'admin' || user?.role === 'agent') && (
               <>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
