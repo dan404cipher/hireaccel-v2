@@ -31,8 +31,8 @@ const footerLinks = {
 const socialLinks = [
   { name: "Facebook", icon: Facebook, href: "#" },
   { name: "Twitter", icon: Twitter, href: "#" },
-  { name: "LinkedIn", icon: Linkedin, href: "#" },
-  { name: "Instagram", icon: Instagram, href: "#" }
+  { name: "LinkedIn", icon: Linkedin, href: "https://www.linkedin.com/company/v-accel/" },
+  { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/vaccel.ai?igsh=MWpleXRrNTc0N3I2dA==" }
 ];
 
 export function Footer() {
