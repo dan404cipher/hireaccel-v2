@@ -61,6 +61,7 @@ import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAs
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/lib/utils';
 
 interface CandidateAssignment {
   _id: string;
@@ -464,7 +465,7 @@ const SharedCandidates: React.FC = () => {
                     {candidate?.resumeFileId && (
                       <DropdownMenuItem onClick={async () => {
                         try {
-                          const response = await fetch(`http://localhost:3002/api/v1/files/resume/${candidate.resumeFileId}`, {
+                          const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
                             headers: {
                               'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
                             },
@@ -726,7 +727,7 @@ const SharedCandidates: React.FC = () => {
                     className="text-xs h-8"
                     onClick={async () => {
                       try {
-                        const response = await fetch(`http://localhost:3002/api/v1/files/resume/${candidate.resumeFileId}`, {
+                        const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
                           headers: {
                             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
                           },
