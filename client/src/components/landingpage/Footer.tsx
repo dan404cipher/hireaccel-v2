@@ -1,6 +1,9 @@
 import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 
+
+export function Footer() {
+
 const footerLinks = {
   // product: [
   //   { name: "Features", href: "#features" },
@@ -35,7 +38,6 @@ const socialLinks = [
   { name: "Instagram", icon: Instagram, href: "https://www.instagram.com/vaccel.ai?igsh=MWpleXRrNTc0N3I2dA==" }
 ];
 
-export function Footer() {
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -89,9 +91,9 @@ export function Footer() {
             <ul className="space-y-2">
               {footerLinks.company.map((link, index) => (
                 <li key={index}>
-                  <a href={link.href} target="blank" className="text-gray-300 hover:text-white transition-colors text-sm">
+                  <Link to={link.href} target="blank" className="text-gray-300 hover:text-white transition-colors text-sm">
                     {link.name}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
