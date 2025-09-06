@@ -136,9 +136,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   const handleOpenDialog = () => {
     setIsOpen(true);
-    if (!pdfData) {
-      loadPDF();
-    }
+    loadPDF(); // Always reload PDF data when opening
   };
 
   const handleCloseDialog = () => {
@@ -147,6 +145,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     setPageNumber(1);
     setScale(1.0);
     setRotation(0);
+    setPdfData(null); // Clear the PDF data when closing
   };
 
   const goToPrevPage = () => {
