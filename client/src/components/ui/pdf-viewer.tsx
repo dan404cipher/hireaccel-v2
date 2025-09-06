@@ -10,28 +10,8 @@ import { getApiUrl } from '@/lib/utils';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Set up PDF.js worker - use public worker file
-// Use local worker file
-const workerUrl = '/pdf.worker.min.js';
-console.log('Setting up PDF worker with URL:', workerUrl);
-console.log('Current location:', window.location.href);
-console.log('Origin:', window.location.origin);
-fetch(workerUrl)
-  .then(response => {
-    console.log('Worker response:', {
-      ok: response.ok,
-      status: response.status,
-      contentType: response.headers.get('content-type')
-    });
-    return response.text();
-  })
-  .then(text => {
-    console.log('Worker content starts with:', text.slice(0, 100));
-  })
-  .catch(error => {
-    console.error('Error fetching worker:', error);
-  });
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+// Set worker to use our local copy
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 interface PDFViewerProps {
   fileId: string;
@@ -94,7 +74,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
       const arrayBuffer = await response.arrayBuffer();
       console.log('PDF ArrayBuffer size:', arrayBuffer.byteLength);
-      console.log('Expected file size:', 132265);
       
       // Check if this is actually a PDF by looking at the first few bytes
       const uint8Array = new Uint8Array(arrayBuffer.slice(0, 10));
@@ -157,7 +136,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   const handleOpenDialog = () => {
     setIsOpen(true);
-    loadPDF(); // Always reload PDF data when opening
+    loadPDF();
   };
 
   const handleCloseDialog = () => {
@@ -166,7 +145,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     setPageNumber(1);
     setScale(1.0);
     setRotation(0);
-    setPdfData(null); // Clear the PDF data when closing
+    setPdfData(null);
   };
 
   const goToPrevPage = () => {
@@ -285,8 +264,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                 <Download className="w-4 h-4 mr-1" />
                 Download
               </Button>
-              
-
             </div>
           </div>
         </DialogHeader>
