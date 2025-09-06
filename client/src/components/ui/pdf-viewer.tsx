@@ -11,7 +11,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF.js worker - use public worker file
-const workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const workerUrl = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.3.93/pdf.worker.min.js';
 console.log('Setting up PDF worker with URL:', workerUrl);
 console.log('Current location:', window.location.href);
 console.log('Origin:', window.location.origin);
