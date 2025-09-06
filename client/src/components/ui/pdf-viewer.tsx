@@ -11,8 +11,8 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF.js worker - use public worker file
-// Use unpkg CDN which always has the latest versions
-const workerUrl = 'https://unpkg.com/pdfjs-dist@5.3.93/build/pdf.worker.min.js';
+// Use local worker file
+const workerUrl = '/pdf.worker.min.js';
 console.log('Setting up PDF worker with URL:', workerUrl);
 console.log('Current location:', window.location.href);
 console.log('Origin:', window.location.origin);
