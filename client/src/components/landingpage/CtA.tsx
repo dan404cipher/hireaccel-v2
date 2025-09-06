@@ -164,6 +164,7 @@ export function CTA() {
               size="lg" 
               variant="outline" 
               className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-10 py-4 font-semibold text-lg backdrop-blur-sm bg-white/10 transition-all duration-300"
+              onClick={()=>navigate('/hr')}
             >
               Learn More
             </Button>

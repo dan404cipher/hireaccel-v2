@@ -1,17 +1,18 @@
 import { Facebook, Twitter, Linkedin, Instagram, Mail, Phone, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const footerLinks = {
-  product: [
-    { name: "Features", href: "#features" },
-    { name: "How it Works", href: "#how-it-works" },
-    { name: "Pricing", href: "#pricing" },
-    { name: "API", href: "#api" }
-  ],
+  // product: [
+  //   { name: "Features", href: "#features" },
+  //   { name: "How it Works", href: "#how-it-works" },
+  //   { name: "Pricing", href: "#pricing" },
+  //   { name: "API", href: "#api" }
+  // ],
   company: [
-    { name: "About Us", href: "#about" },
-    { name: "Careers", href: "#careers" },
-    { name: "Contact", href: "#contact" },
-    { name: "Blog", href: "#blog" }
+    { name: "About Us", href: "https://v-accel.ai/" },
+    { name: "Careers", href: "https://v-accel.ai/" },
+    { name: "Contact", href: "https://v-accel.ai/" },
+    { name: "Blog", href: "https://v-accel.ai/" }
   ],
   support: [
     { name: "Help Center", href: "#help" },
@@ -38,7 +39,7 @@ export function Footer() {
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-20 space-x-5">
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
@@ -70,7 +71,7 @@ export function Footer() {
           </div>
 
           {/* Links */}
-          <div>
+          {/* <div>
             <h3 className="font-semibold mb-4">Product</h3>
             <ul className="space-y-2">
               {footerLinks.product.map((link, index) => (
@@ -81,9 +82,9 @@ export function Footer() {
                 </li>
               ))}
             </ul>
-          </div>
+          </div> */}
 
-          <div>
+          <div className="space-y-5">
             <h3 className="font-semibold mb-4">Company</h3>
             <ul className="space-y-2">
               {footerLinks.company.map((link, index) => (
@@ -96,7 +97,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="space-y-2">
             <h3 className="font-semibold mb-4">Support</h3>
             <ul className="space-y-2">
               {footerLinks.support.map((link, index) => (
@@ -109,7 +110,7 @@ export function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="space-y-2">
             <h3 className="font-semibold mb-4">Legal</h3>
             <ul className="space-y-2">
               {footerLinks.legal.map((link, index) => (

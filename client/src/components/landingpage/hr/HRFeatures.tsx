@@ -441,7 +441,7 @@ export function HRProfessionals() {
                   </div>
 
                   {/* Action Button */}
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 cursor-no-drop">
+                  <Button disabled className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 cursor-no-drop">
                     <Search className="w-4 h-4 mr-2" />
                     Review Matches
                   </Button>
@@ -863,13 +863,10 @@ export function HRProfessionals() {
       </section>
 
       {/* Contact Support Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h3 className="text-2xl font-bold text-gray-800 mb-8">Need Help? We're Here for You</h3>
-          <div className="flex flex-wrap justify-center items-center gap-6">
+      <div className="flex flex-wrap justify-center items-center gap-6 my-10">
             <a 
               href="mailto:info@v-accel.ai" 
-              className="group inline-flex items-center px-6 py-3 bg-white rounded-lg border border-blue-200/50 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="group inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-lg border border-blue-200/50 hover:border-blue-300 hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md"
             >
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
                 <Mail className="w-4 h-4 text-white" />
@@ -908,7 +905,7 @@ export function HRProfessionals() {
                   }
                 }
               }}
-              className="group inline-flex items-center px-6 py-3 bg-white rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
+              className="group inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
             >
               <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
                 <MessageCircle className="w-4 h-4 text-white" />
@@ -919,8 +916,6 @@ export function HRProfessionals() {
               </div>
             </button>
           </div>
-        </div>
-      </section>
       {/* Footer */}
       <Footer />
     </div>
