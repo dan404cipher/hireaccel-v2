@@ -196,7 +196,10 @@ export default function CandidateDashboard() {
               <CardTitle>Profile Completion</CardTitle>
               <CardDescription>Complete your profile to attract more recruiters</CardDescription>
             </div>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={() => navigate(`/dashboard/candidate-profile/${user?.customId}`)}
+            >
               <User className="h-4 w-4 mr-2" />
               Edit Profile
             </Button>
@@ -371,55 +374,6 @@ export default function CandidateDashboard() {
         </Card>
       </div>
 
-      {/* Profile Sections */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Sections</CardTitle>
-          <CardDescription>Complete your profile to increase visibility to HRs</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {profileData?.data?.profile && (
-              <>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Basic Info', fields: ['summary', 'location', 'phoneNumber'] },
-                    { name: 'Skills', fields: ['skills'] },
-                    { name: 'Experience', fields: ['experience'] },
-                    { name: 'Education', fields: ['education'] },
-                    { name: 'Preferences', fields: ['preferredSalaryRange', 'availability'] }
-                  ].map(section => {
-                    const completed = section.fields.every(field => {
-                      const value = field.split('.').reduce((obj, key) => obj?.[key], profileData.data.profile);
-                      return Array.isArray(value) ? value.length > 0 : !!value;
-                    });
-                    return (
-                      <div key={section.name} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-2">
-                          {completed ? (
-                            <CheckCircle className="w-4 h-4 text-success" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-warning" />
-                          )}
-                          <span className="text-sm font-medium">{section.name}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => navigate('/dashboard/candidate-profile')}
-                        >
-                          {completed ? 'Update' : 'Complete'}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -430,7 +384,7 @@ export default function CandidateDashboard() {
             <Button 
               variant="outline" 
               className="h-20 flex-col"
-              onClick={() => navigate('/dashboard/candidate-profile')}
+              onClick={() => navigate(`/dashboard/candidate-profile/${user?.customId}`)}
             >
               <Upload className="h-6 w-6 mb-2" />
               Upload Resume
@@ -438,7 +392,7 @@ export default function CandidateDashboard() {
             <Button 
               variant="outline" 
               className="h-20 flex-col"
-              onClick={() => navigate('/dashboard/candidate-profile')}
+              onClick={() => navigate(`/dashboard/candidate-profile/${user?.customId}`)}
             >
               <User className="h-6 w-6 mb-2" />
               Update Profile

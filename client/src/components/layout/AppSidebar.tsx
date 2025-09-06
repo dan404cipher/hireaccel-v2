@@ -44,7 +44,12 @@ const navigationItems = [
   
   // Candidate-specific navigation
   { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
-  { title: "My Profile", url: "/dashboard/candidate-profile", icon: Users, roles: ['candidate'] },
+  { 
+    title: "My Profile", 
+    url: (user) => `/dashboard/candidate-profile/${user?.customId}`, 
+    icon: Users, 
+    roles: ['candidate'] 
+  },
 ];
 
 const secondaryItems = [
@@ -124,7 +129,10 @@ export function AppSidebar() {
               {allowedNavigationItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls(item.url)}>
+                    <NavLink 
+                      to={typeof item.url === 'function' ? item.url(user) : item.url} 
+                      className={getNavCls(typeof item.url === 'function' ? item.url(user) : item.url)}
+                    >
                       <item.icon className="w-4 h-4" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
