@@ -98,14 +98,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(`http://localhost:3002/api/v1/files/resume/${fileId}/download`, {
+      const response = await fetch(`http://localhost:3002/api/v1/files/resume/${fileId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
       });
       
       if (!response.ok) {
-        throw new Error('Download failed');
+        const errorText = await response.text();
+        console.error('Download failed:', response.status, response.statusText, errorText);
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
       }
 
       const blob = await response.blob();
