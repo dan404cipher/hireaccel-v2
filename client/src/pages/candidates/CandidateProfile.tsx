@@ -946,15 +946,15 @@ const CandidateProfile: React.FC = () => {
                       </a>
                     </Button>
                   )}
-                  {/* Resume Management */}
+                    {/* Resume Management */}
                   <div className="flex flex-wrap gap-2">
                     {/* View Resume button */}
                     {isSelfView ? (
                       // Self-view mode - use resumeInfo
-                      resumeInfo?.data?.hasResume ? (
+                      profileData?.resumeFileId ? (
                         <PDFViewer
-                          fileId={resumeInfo.data.file?.id || ''}
-                          fileName={resumeInfo.data.file?.originalName || 'resume.pdf'}
+                          fileId={profileData.resumeFileId}
+                          fileName="resume.pdf"
                         >
                           <Button variant="outline" size="sm">
                             <Eye className="w-4 h-4 mr-2" />
