@@ -11,7 +11,9 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF.js worker - use public worker file
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+const workerUrl = '/pdf.worker.min.js';
+console.log('Setting up PDF worker with URL:', workerUrl);
+pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 interface PDFViewerProps {
   fileId: string;
