@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   MessageCircle
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -879,7 +880,36 @@ export function HRProfessionals() {
               </div>
             </a>
             
-            <button className="group inline-flex items-center px-6 py-3 bg-white rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md">
+            <button 
+              onClick={() => {
+                console.log('WhatsApp button clicked');
+                const whatsappUrl = 'https://wa.me/9189962056381';
+                console.log('Opening URL:', whatsappUrl);
+                
+                // Try multiple methods
+                try {
+                  // Method 1: Direct navigation
+                  window.location.href = whatsappUrl;
+                } catch (error) {
+                  console.error('Method 1 failed:', error);
+                  try {
+                    // Method 2: Open in new tab
+                    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                  } catch (error2) {
+                    console.error('Method 2 failed:', error2);
+                    // Method 3: Create temporary link
+                    const link = document.createElement('a');
+                    link.href = whatsappUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
+                }
+              }}
+              className="group inline-flex items-center px-6 py-3 bg-white rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
+            >
               <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
                 <MessageCircle className="w-4 h-4 text-white" />
               </div>
