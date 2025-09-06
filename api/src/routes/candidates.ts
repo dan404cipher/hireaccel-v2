@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { CandidateController } from '@/controllers/CandidateController';
-import { authenticate, requireHR, requireAgent } from '@/middleware/auth';
+import { authenticate, requireHR, requireAgent, requireCandidateAccess } from '@/middleware/auth';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ router.get('/', requireAgent, CandidateController.getCandidates);
  * @desc    Get candidate profile by ID
  * @access  HR, Admin, Agent
  */
-router.get('/:id', requireAgent, CandidateController.getCandidateById);
+router.get('/:id', requireCandidateAccess, CandidateController.getCandidateById);
 
 /**
  * @route   POST /candidates/:id/notes

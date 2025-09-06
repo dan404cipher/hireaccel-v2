@@ -1,4 +1,4 @@
-import { Bell, Search, User, ChevronDown, LogOut } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, User } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
 export function TopBar() {
@@ -28,8 +28,13 @@ export function TopBar() {
 
   const handleProfileClick = () => {
     if (user?.role === 'candidate') {
-      // Navigate to base profile route, it will auto-update with customId
-      navigate('/dashboard/candidate-profile');
+      // Use customId from user object
+      if (user.customId) {
+        navigate(`/dashboard/candidate-profile/${user.customId}`);
+      } else {
+        // Fallback to base route if customId is not available
+        navigate('/dashboard/candidate-profile');
+      }
     } else if (user?.role === 'hr') {
       // Navigate to HR profile route, it will auto-update with customId
       navigate('/dashboard/hr-profile');
@@ -77,7 +82,7 @@ export function TopBar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-primary-foreground" />
+                <UserIcon className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">

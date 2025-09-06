@@ -256,19 +256,19 @@ export function useCreateApplication() {
 }
 
 // Candidate Profile
-export function useCandidateProfile(id?: string) {
+export function useCandidateProfile<T = any>(id?: string) {
   const memoizedCall = useCallback(() => apiClient.getCandidateProfile(id), [id]);
-  return useApi(memoizedCall, { immediate: true });
+  return useApi<T>(memoizedCall, { immediate: true });
 }
 
-export function useUpdateCandidateProfile() {
-  return useMutation((profileData: any) => apiClient.updateCandidateProfile(profileData));
+export function useUpdateCandidateProfile<T = any>(options?: { onSuccess?: (data: T) => void; onError?: (error: any) => void }) {
+  return useMutation<T>((profileData: any) => apiClient.updateCandidateProfile(profileData), options);
 }
 
 // File Upload
-export function useResumeInfo(options: UseApiOptions = {}) {
+export function useResumeInfo<T = any>(options: UseApiOptions = {}) {
   const memoizedCall = useCallback(() => apiClient.getResumeInfo(), []);
-  return useApi(memoizedCall, { immediate: true, ...options });
+  return useApi<T>(memoizedCall, { immediate: true, ...options });
 }
 
 export function useUploadResume(options?: { onSuccess?: (data: any) => void; onError?: (error: any) => void }) {

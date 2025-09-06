@@ -5,6 +5,7 @@ export type UserRole = 'candidate' | 'agent' | 'hr' | 'partner' | 'admin';
 
 export interface User {
   id: string;
+  customId: string;
   email: string;
   firstName: string;
   lastName: string;

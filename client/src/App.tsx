@@ -14,7 +14,6 @@ import JobManagement from "./pages/jobs/JobManagementIntegrated";
 import JobDetailsPage from "./pages/jobs/JobDetailsPage";
 import JobEditPage from "./pages/jobs/JobEditPage";
 import SharedCandidates from "./pages/candidates/SharedCandidates";
-import CandidateJobs from "./pages/candidates/CandidateJobs";
 import CandidateApplications from "./pages/candidates/CandidateApplications";
 import CandidateProfile from "./pages/candidates/CandidateProfile";
 import CandidateDashboard from "./pages/dashboards/CandidateDashboard";
@@ -238,11 +237,6 @@ function AppRouter() {
         } />
         
         {/* Candidate Routes */}
-        <Route path="candidate-jobs" element={
-          <RoleProtectedRoute allowedRoles={['candidate']}>
-            <CandidateJobs />
-          </RoleProtectedRoute>
-        } />
         <Route path="candidate-applications" element={
           <RoleProtectedRoute allowedRoles={['candidate']}>
             <CandidateApplications />

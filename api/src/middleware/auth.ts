@@ -8,7 +8,8 @@ import {
 } from '@/utils/jwt';
 import { 
   createUnauthorizedError, 
-  createForbiddenError 
+  createForbiddenError,
+  createBadRequestError
 } from '@/middleware/errorHandler';
 import { logger } from '@/config/logger';
 
@@ -253,15 +254,28 @@ export const requireCandidateAccess = async (
     
     // Candidates can only access their own profile
     if (user.role === UserRole.CANDIDATE) {
+      const { User } = await import('@/models/User');
       const { Candidate } = await import('@/models/Candidate');
-      const candidate = await Candidate.findOne({ 
-        _id: candidateId, 
-        userId: user._id 
-      });
-      
+
+      // First find the user by customId
+      const targetUser = await User.findOne({ customId: candidateId });
+      if (!targetUser) {
+        throw createBadRequestError('Invalid candidate ID');
+      }
+
+      // Then find the candidate by userId
+      const candidate = await Candidate.findOne({ userId: targetUser._id });
       if (!candidate) {
+        throw createBadRequestError('Candidate profile not found');
+      }
+
+      // Check if this is the user's own profile
+      if (targetUser._id.toString() !== user._id.toString()) {
         throw createForbiddenError('Access denied. You can only access your own profile.');
       }
+
+      // Attach the candidate ID to the request for the controller
+      req.params['id'] = candidate._id.toString();
       
       next();
       return;
