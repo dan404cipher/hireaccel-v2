@@ -469,7 +469,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                     <div className="min-h-[120px] space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="currentLocation">Current Location (Optional)</Label>
+                          <Label htmlFor="currentLocation">Current Location</Label>
                           <Input
                             id="currentLocation"
                             placeholder="e.g., New York, NY"
