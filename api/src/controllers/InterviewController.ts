@@ -67,6 +67,27 @@ export class InterviewController {
     // Build MongoDB query
     const filter: any = {};
 
+    // Handle candidate-specific filtering
+    if (req.user!.role === UserRole.CANDIDATE) {
+      // Find the candidate record for this user
+      const candidate = await (await import('@/models/Candidate')).Candidate.findOne({ userId: req.user!._id });
+      if (!candidate) {
+        return res.json({
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        });
+      }
+
+      // Find applications for this candidate
+      const applications = await Application.find({ candidateId: candidate._id }).distinct('_id');
+      filter.applicationId = { $in: applications };
+    }
+
     // Search across candidate name and job title (requires population)
     if (search) {
       // We'll use text search on populated fields later
@@ -555,10 +576,25 @@ export class InterviewController {
    * @route GET /interviews/stats
    */
   static getInterviewStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    // Build base filter for HR users
+    // Build base filter for HR users and candidates
     let baseFilter: any = {};
     
-    if (req.user!.role === UserRole.HR) {
+    if (req.user!.role === UserRole.CANDIDATE) {
+      // Find the candidate record for this user
+      const candidate = await (await import('@/models/Candidate')).Candidate.findOne({ userId: req.user!._id });
+      if (!candidate) {
+        return res.json({
+          data: {
+            byStatus: [],
+            todayCount: 0,
+          },
+        });
+      }
+
+      // Find applications for this candidate
+      const applications = await Application.find({ candidateId: candidate._id }).distinct('_id');
+      baseFilter.applicationId = { $in: applications };
+    } else if (req.user!.role === UserRole.HR) {
       // Get all candidates assigned to this HR user
       const assignedCandidateIds = await CandidateAssignment.find({
         assignedTo: req.user!._id,

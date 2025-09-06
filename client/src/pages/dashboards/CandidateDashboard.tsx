@@ -15,7 +15,7 @@ import {
   Briefcase,
   Star
 } from "lucide-react";
-import { useMyCandidateAssignments, useCandidateProfile } from "@/hooks/useApi";
+import { useMyCandidateAssignments, useCandidateProfile, useInterviews } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -135,19 +135,20 @@ export default function CandidateDashboard() {
   }, [assignments]);
 
   // Get upcoming interviews
-  const upcomingInterviews = assignments.filter((assignment: any) => {
-    const interviewStatuses = [
-      'screening',
-      'phone_interview',
-      'technical_interview',
-      'hr_interview',
-      'final_interview'
-    ];
-    return (
-      assignment.status === 'active' && 
-      interviewStatuses.includes(assignment.candidateStatus)
-    );
-  }).slice(0, 3);
+  // Create stable date parameter
+  const dateFrom = useMemo(() => new Date().toISOString(), []);
+
+  // Create stable API parameters
+  const interviewsParams = useMemo(() => ({
+    page: 1,
+    limit: 3,
+    status: 'scheduled',
+    dateFrom,
+  }), [dateFrom]);
+
+  const { data: interviewsData } = useInterviews(interviewsParams);
+
+  const upcomingInterviews = Array.isArray(interviewsData) ? interviewsData : ((interviewsData as any)?.data || []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -342,24 +343,36 @@ export default function CandidateDashboard() {
                   <div key={interview._id} className="border rounded-lg p-4 bg-blue-50">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h4 className="font-medium">{interview.jobId?.title || 'Interview'}</h4>
-                        <p className="text-sm text-muted-foreground">{interview.jobId?.companyId?.name || 'Company'}</p>
+                        <h4 className="font-medium">{interview.applicationId?.jobId?.title || 'Interview'}</h4>
+                        <p className="text-sm text-muted-foreground">{interview.applicationId?.jobId?.companyId?.name || 'Company'}</p>
                       </div>
-                      <Badge variant="outline">{interview.stage?.replace('_', ' ') || 'Interview'}</Badge>
+                      <div className="flex flex-col gap-1 items-end">
+                        <Badge className={getStatusColor(interview.status)}>
+                          {formatStatus(interview.status)}
+                        </Badge>
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {interview.round} Round
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1 text-sm">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-3 w-3" />
-                        {format(new Date(interview.lastUpdated), 'MMM dd, yyyy')} (Estimated)
+                        {format(new Date(interview.scheduledAt), 'MMM dd, yyyy')} at {format(new Date(interview.scheduledAt), 'h:mm a')}
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-3 w-3" />
-                        {interview.jobId?.location || 'Location TBD'}
+                        {interview.location || interview.meetingLink || 'Location TBD'}
                       </div>
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <Button size="sm" variant="outline">View Details</Button>
-                      <Button size="sm" variant="outline">Contact HR</Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate('/dashboard/candidate-interviews')}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 ))}
