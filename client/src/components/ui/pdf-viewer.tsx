@@ -11,8 +11,25 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
 // Set up PDF.js worker - use public worker file
-const workerUrl = '/pdf.worker.min.js';
+const workerUrl = window.location.origin + '/pdf.worker.min.js';
 console.log('Setting up PDF worker with URL:', workerUrl);
+console.log('Current location:', window.location.href);
+console.log('Origin:', window.location.origin);
+fetch(workerUrl)
+  .then(response => {
+    console.log('Worker response:', {
+      ok: response.ok,
+      status: response.status,
+      contentType: response.headers.get('content-type')
+    });
+    return response.text();
+  })
+  .then(text => {
+    console.log('Worker content starts with:', text.slice(0, 100));
+  })
+  .catch(error => {
+    console.error('Error fetching worker:', error);
+  });
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
 interface PDFViewerProps {
