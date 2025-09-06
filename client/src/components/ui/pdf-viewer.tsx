@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Eye, Download, ZoomIn, ZoomOut, RotateCw, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/lib/utils';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
@@ -56,7 +57,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       console.log('API URL:', `/api/v1/files/resume/${fileId}`);
       console.log('Access token available:', !!localStorage.getItem('accessToken'));
       
-      const response = await fetch(`http://localhost:3002/api/v1/files/resume/${fileId}`, {
+      const response = await fetch(getApiUrl(`/api/v1/files/resume/${fileId}`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
@@ -98,7 +99,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(`http://localhost:3002/api/v1/files/resume/${fileId}`, {
+      const response = await fetch(getApiUrl(`/api/v1/files/resume/${fileId}`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
