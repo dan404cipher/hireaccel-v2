@@ -38,6 +38,7 @@ import { Card } from "@/components/ui/card";
 import { CardContent } from "../ui/card";
 import { Header } from "../Header";
 import { useNavigate } from "react-router-dom";
+import condidate from '@/assets/candidate.png';
 
 // Hook to detect when element is in view
 function useInView(threshold = 0.1) {
@@ -369,7 +370,7 @@ export function JobCandidates() {
               {/* Background Image */}
               <div className="relative mb-6">
                 <img
-                  src="https://images.unsplash.com/photo-1650784855038-9f4d5ed154a9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkaXZlcnNlJTIwcHJvZmVzc2lvbmFscyUyMHdvcmtpbmclMjB0b2dldGhlciUyMHN1Y2Nlc3N8ZW58MXx8fHwxNzU2OTk2Nzc5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+                  src={condidate}
                   alt="Diverse professionals working together representing career success"
                   className="w-full h-80 object-cover rounded-3xl shadow-2xl"
                 />
