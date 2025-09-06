@@ -30,8 +30,12 @@ export default defineConfig(() => ({
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
           ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          pdfjs: ['pdfjs-dist', 'pdfjs-dist/build/pdf.worker.min.js'],
         },
       },
     },
+  },
+  optimizeDeps: {
+    include: ['pdfjs-dist/build/pdf.worker.min.js'],
   },
 }));
