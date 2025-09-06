@@ -1,8 +1,8 @@
-import { DollarSign, Users, Activity, Bot, GraduationCap, Clock4 } from "lucide-react";
+import { DollarSign, Users, Activity, Bot, GraduationCap, Clock4, IndianRupee } from "lucide-react";
 
 const reasons = [
   {
-    icon: DollarSign,
+    icon: IndianRupee,
     title: "Free for HRs & Candidates",
     description: "Complete recruitment solution at no cost for both parties"
   },
