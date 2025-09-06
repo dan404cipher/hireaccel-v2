@@ -3,6 +3,7 @@ import { ArrowRight, Play, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import hero from '@/assets/main.png';
 // Floating particles component
 function FloatingParticles() {
   const [particles, setParticles] = useState<Array<{id: number, x: number, y: number, delay: number}>>([]);
@@ -216,8 +217,8 @@ export function Hero() {
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
                 >
-                  <img
-                    src="https://images.unsplash.com/photo-1739285452618-0b7b3d04f953?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBidXNpbmVzcyUyMHRlYW0lMjBjb2xsYWJvcmF0aW9ufGVufDF8fHx8MTc1NjgzMzMwNXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
+                    <img
+                      src={hero}
                     alt="Professional business team collaboration"
                     className="w-full h-auto rounded-xl"
                   />
