@@ -297,11 +297,28 @@ export function HRProfessionals() {
               {/* Subtitle */}
               <div className="mb-8">
                 <p className="text-lg text-gray-600 mb-4">
-                  Skip the resume pile. Our expert agents personally source, screen, and deliver <span className="text-blue-600 font-semibold">only qualified candidates</span> to your private dashboard with <span className="text-purple-600 font-semibold">complete confidentiality</span>.
+                <strong>HireAccel by V-Accel</strong> —  Our expert recruitment agents personally source, screen, and deliver <span className="text-blue-600 font-semibold">only qualified candidates</span> to your private dashboard with <span className="text-purple-600 font-semibold">complete confidentiality </span> guaranteed until you approve contact.
                 </p>
-                <p className="text-base text-gray-500">
-                  <strong>HireAccel by V-Accel</strong> — Our expert recruitment agents personally source, screen, and submit only the most qualified candidates to your private dashboard. Full confidentiality guaranteed until you approve contact.
-                </p>
+                <div className="grid md:grid-cols-3 gap-6 mb-8">
+              {[
+                { icon: Shield, title: "No Hidden Costs", desc: "What you see is what you get - forever free" },
+                { icon: Users, title: "No User Limits", desc: "Add unlimited team members at no extra cost" },
+                { icon: Zap, title: "Full Features", desc: "Access to all premium features included" }
+              ].map((benefit, index) => (
+                <motion.div
+                  key={index}
+                  className="bg-white/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200 flex flex-col items-center justify-center"
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.3, delay: 0.5 + index * 0.1 }}
+                >
+                  <benefit.icon className="w-8 h-8 text-blue-600 mb-3 mx-auto" />
+                  <h4 className="font-bold text-gray-900 mb-2">{benefit.title}</h4>
+                  <p className="text-sm text-gray-600 text-wrap text-center">{benefit.desc}</p>
+                </motion.div>
+              ))}
+            </div>
               </div>
 
               {/* Value Props */}
@@ -448,10 +465,10 @@ export function HRProfessionals() {
             className="text-center mb-16"
           >
             <div className="max-w-4xl mx-auto">
-              <Badge className="bg-gradient-to-r from-red-50 to-orange-50 text-red-700 border-red-200/50 px-4 py-2 mb-6">
+              {/* <Badge className="bg-gradient-to-r from-red-50 to-orange-50 text-red-700 border-red-200/50 px-4 py-2 mb-6">
                 <AlertTriangle className="w-4 h-4 mr-2" />
                 Current Hiring Challenges
-              </Badge>
+              </Badge> */}
               
               <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">

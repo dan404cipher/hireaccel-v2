@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Mail, Shield, CheckCircle, Clock, Users, TrendingUp, RotateCcw } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { toast } from 'sonner';
+import logo from '@/assets/logo.png';
+import { useNavigate } from 'react-router-dom';
 
 interface ForgetPasswordFormData {
   email: string;
@@ -17,6 +19,7 @@ interface ForgetPasswordPageProps {
 }
 
 export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }: ForgetPasswordPageProps) {
+  const navigate=useNavigate();
   const [formData, setFormData] = useState<ForgetPasswordFormData>({
     email: ''
   });
@@ -65,11 +68,8 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
         <div className="relative z-10 flex flex-col h-ful w-[90%]">
           {/* Header with logo only */}
           <div className="flex-shrink-0 p-8">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-semibold text-xl">H</span>
-              </div>
-              <span className="font-bold text-3xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">HireAccel</span>
+            <div className="flex items-center space-x-3" onClick={()=>navigate('/')}>
+              <img src={logo} alt="HireAccel" className="w-30 h-10" />
             </div>
           </div>
 

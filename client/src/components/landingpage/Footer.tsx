@@ -42,7 +42,6 @@ export function Footer() {
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mr-3"></div>
               <span className="text-xl font-semibold">HireAccel</span>
             </div>
             <p className="text-gray-300 mb-6 leading-relaxed">
@@ -52,7 +51,7 @@ export function Footer() {
             <div className="space-y-3 text-sm text-gray-300">
               <div className="flex items-center">
                 <Mail className="h-4 w-4 mr-3" />
-                <span>contact@hireaccel.com</span>
+                <span>support@hireaccel.in</span>
               </div>
               <div className="flex items-center">
                 <Phone className="h-4 w-4 mr-3" />
