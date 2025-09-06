@@ -25,7 +25,8 @@ import {
   Award,
   Building2,
   Filter,
-  AlertTriangle
+  AlertTriangle,
+  MessageCircle
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -833,6 +834,7 @@ export function HRProfessionals() {
         <CompetitorComparison />
       </div>
 
+
       {/* Final CTA */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -856,6 +858,37 @@ export function HRProfessionals() {
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </motion.div>
+        </div>
+      </section>
+
+      {/* Contact Support Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h3 className="text-2xl font-bold text-gray-800 mb-8">Need Help? We're Here for You</h3>
+          <div className="flex flex-wrap justify-center items-center gap-6">
+            <a 
+              href="mailto:info@v-accel.ai" 
+              className="group inline-flex items-center px-6 py-3 bg-white rounded-lg border border-blue-200/50 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
+                <Mail className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 text-sm">Email Support</div>
+                <div className="text-blue-600 text-xs">info@v-accel.ai</div>
+              </div>
+            </a>
+            
+            <button className="group inline-flex items-center px-6 py-3 bg-white rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md">
+              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                <MessageCircle className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 text-sm">WhatsApp Support</div>
+                <div className="text-green-600 text-xs">Instant help available</div>
+              </div>
+            </button>
+          </div>
         </div>
       </section>
       {/* Footer */}

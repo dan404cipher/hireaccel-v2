@@ -55,7 +55,12 @@ export function Footer() {
               </div>
               <div className="flex items-center">
                 <Phone className="h-4 w-4 mr-3" />
-                <span>+91 87544 53361</span>
+                <a 
+                  href="tel:+919962056381" 
+                  className="hover:text-white transition-colors cursor-pointer"
+                >
+                  +91 99620 56381
+                </a>
               </div>
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-3" />
