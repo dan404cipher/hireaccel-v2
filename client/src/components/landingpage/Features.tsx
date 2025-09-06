@@ -231,6 +231,7 @@ import { useNavigate } from "react-router-dom";
                       <Button 
                         size="lg"
                         className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 shadow-xl"
+                        onClick={()=>navigate('/signup/hr')}
                       >
                         Start Hiring Now
                         <ArrowRight className="w-5 h-5 ml-2" />
@@ -327,6 +328,7 @@ import { useNavigate } from "react-router-dom";
                       <Button 
                         size="lg"
                         className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-8 py-3 shadow-xl"
+                        onClick={()=>navigate('/signup/candidate')}
                       >
                         Find Jobs Now
                         <Star className="w-5 h-5 ml-2" />
@@ -421,6 +423,7 @@ import { useNavigate } from "react-router-dom";
                   <Button 
                     size="lg"
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 shadow-xl"
+                    onClick={()=>navigate('/signup/hr')}
                   >
                     Get Started Free
                     <Sparkles className="w-5 h-5 ml-2" />
