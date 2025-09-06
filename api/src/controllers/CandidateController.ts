@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import { Candidate } from '@/models/Candidate';
+import { CandidateAssignment } from '@/models/CandidateAssignment';
 import { AuditLog } from '@/models/AuditLog';
 import { 
   AuthenticatedRequest, 
@@ -590,6 +591,68 @@ export class CandidateController {
    * Get candidate statistics
    * GET /candidates/stats
    */
+  /**
+   * Get assignments for the current candidate
+   * @route GET /candidates/me/assignments
+   */
+  static getMyAssignments = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Find candidate by user ID
+    const candidate = await Candidate.findOne({ userId: req.user!._id });
+    if (!candidate) {
+      throw createNotFoundError('Candidate profile not found');
+    }
+
+    // Parse query parameters
+    const page = parseInt(req.query['page'] as string) || 1;
+    const limit = parseInt(req.query['limit'] as string) || 10;
+    const status = req.query['status'] as string;
+    const priority = req.query['priority'] as string;
+    const jobId = req.query['jobId'] as string;
+    const sortBy = req.query['sortBy'] as string || 'assignedAt';
+    const sortOrder = req.query['sortOrder'] as string || 'desc';
+
+    // Build filter
+    const filter: any = {
+      candidateId: candidate._id
+    };
+
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+    if (jobId) filter.jobId = jobId;
+
+    const skip = (page - 1) * limit;
+    const sort: any = {};
+    sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+    // Get assignments
+    const assignments = await CandidateAssignment.find(filter)
+      .populate('assignedBy', 'firstName lastName email')
+      .populate('assignedTo', 'firstName lastName email')
+      .populate({
+        path: 'jobId',
+        select: 'title companyId location type salaryRange',
+        populate: {
+          path: 'companyId',
+          select: 'name industry location'
+        }
+      })
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    const total = await CandidateAssignment.countDocuments(filter);
+
+    res.json({
+      data: assignments,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  });
+
   static getCandidateStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     // Only allow HR and Admin to view stats
     if (!req.user || !['admin', 'hr'].includes(req.user.role)) {

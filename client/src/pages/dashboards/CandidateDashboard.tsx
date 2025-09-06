@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,65 +15,168 @@ import {
   Briefcase,
   Star
 } from "lucide-react";
-import { useApplications, useJobs } from "@/hooks/useApi";
+import { useMyCandidateAssignments, useCandidateProfile } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 export default function CandidateDashboard() {
-  const [profileCompletion] = useState(75);
   const { user } = useAuth();
   const navigate = useNavigate();
 
   // API calls for real data
-  const { data: applicationsData, loading: applicationsLoading } = useApplications({
-    userId: user?.id,
+  const { data: profileData } = useCandidateProfile();
+  const { data: assignmentsData, loading: assignmentsLoading } = useMyCandidateAssignments({
+    page: 1,
     limit: 10,
-    sortBy: 'appliedAt',
+    sortBy: 'assignedAt',
     sortOrder: 'desc'
   });
 
-  const { data: jobsData, loading: jobsLoading } = useJobs({
-    status: 'open',
-    limit: 3,
-    sortBy: 'postedAt',
-    sortOrder: 'desc'
-  });
+  useEffect(() => {
+    console.log('Profile Data:', profileData);
+    console.log('Assignments Data:', assignmentsData);
+  }, [profileData, assignmentsData]);
 
-  // Process real data
-  const applications = Array.isArray(applicationsData) ? applicationsData : (applicationsData as any)?.data || [];
-  const jobs = Array.isArray(jobsData) ? jobsData : (jobsData as any)?.data || [];
-
-  // Get recent applications (last 5)
-  const recentApplications = applications.slice(0, 5);
-
-  // Calculate application stats
-  const applicationStats = useMemo(() => {
-    const total = applications.length;
-    const activeCount = applications.filter((app: any) => app.status === 'active').length;
-    const hiredCount = applications.filter((app: any) => app.status === 'hired').length;
-    const rejectedCount = applications.filter((app: any) => app.status === 'rejected').length;
-    const responseRate = total > 0 ? Math.round(((activeCount + hiredCount) / total) * 100) : 0;
+  // Calculate profile completion
+  const calculateProfileCompletion = (profileData: any) => {
+    if (!profileData?.profile) return 0;
     
-    return { total, activeCount, hiredCount, rejectedCount, responseRate };
-  }, [applications]);
+    const profile = profileData.profile;
+    console.log('Calculating completion for profile:', profile);
+    
+    const sections = {
+      basicInfo: {
+        fields: ['summary', 'location', 'phoneNumber'],
+        weight: 0.2
+      },
+      skills: {
+        fields: ['skills'],
+        weight: 0.2
+      },
+      experience: {
+        fields: ['experience'],
+        weight: 0.25
+      },
+      education: {
+        fields: ['education'],
+        weight: 0.2
+      },
+      preferences: {
+        fields: ['preferredSalaryRange', 'availability'],
+        weight: 0.15
+      }
+    };
 
-  // Get upcoming interviews (mock for now as we don't have interview data in applications)
-  const upcomingInterviews = applications.filter((app: any) => 
-    app.stage === 'phone_interview' || 
-    app.stage === 'technical_interview' || 
-    app.stage === 'final_interview'
-  ).slice(0, 3);
+    let totalCompletion = 0;
+    let sectionResults = {};
+    
+    for (const [key, section] of Object.entries(sections)) {
+      const sectionFields = section.fields.map(field => {
+        const value = field.split('.').reduce((obj, key) => obj?.[key], profile);
+        let isComplete = false;
+        
+        if (Array.isArray(value)) {
+          isComplete = value.length > 0;
+        } else if (field === 'preferredSalaryRange') {
+          isComplete = value?.min && value?.max && value?.currency;
+        } else if (field === 'availability') {
+          isComplete = value?.startDate && value?.notice;
+        } else {
+          isComplete = !!value;
+        }
+        
+        console.log(`Field ${field}:`, { value, isComplete });
+        return isComplete;
+      });
+
+      const sectionComplete = sectionFields.every(Boolean);
+      sectionResults[key] = { complete: sectionComplete, fields: sectionFields };
+      
+      if (sectionComplete) {
+        totalCompletion += section.weight;
+      }
+    }
+    
+    console.log('Section completion results:', sectionResults);
+    return Math.round(totalCompletion * 100);
+  };
+
+  const profileCompletion = calculateProfileCompletion(profileData);
+
+  // Process assignments data
+  console.log('Profile Data:', profileData);
+  console.log('Assignments Data:', assignmentsData);
+  
+  const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+  const recentAssignments = assignments.slice(0, 5);
+  
+  console.log('Processed assignments:', assignments);
+
+  // Calculate assignment stats
+  const assignmentStats = useMemo(() => {
+    const total = assignments.length;
+    const activeCount = assignments.filter((app: any) => 
+      app.status === 'active' || 
+      app.status === 'in_progress' || 
+      app.status === 'interviewing'
+    ).length;
+    const completedCount = assignments.filter((app: any) => 
+      app.status === 'completed' || 
+      app.status === 'hired'
+    ).length;
+    const rejectedCount = assignments.filter((app: any) => 
+      app.status === 'rejected' || 
+      app.status === 'withdrawn'
+    ).length;
+    const responseRate = total > 0 ? Math.round(((activeCount + completedCount) / total) * 100) : 0;
+    
+    return { total, activeCount, completedCount, rejectedCount, responseRate };
+  }, [assignments]);
+
+  // Get upcoming interviews
+  const upcomingInterviews = assignments.filter((assignment: any) => {
+    const interviewStatuses = [
+      'screening',
+      'phone_interview',
+      'technical_interview',
+      'hr_interview',
+      'final_interview'
+    ];
+    return (
+      assignment.status === 'active' && 
+      interviewStatuses.includes(assignment.candidateStatus)
+    );
+  }).slice(0, 3);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "interview": return "bg-blue-100 text-blue-800";
-      case "under_review": return "bg-yellow-100 text-yellow-800";
-      case "applied": return "bg-gray-100 text-gray-800";
-      case "offered": return "bg-green-100 text-green-800";
-      case "rejected": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "active":
+      case "in_progress":
+      case "interviewing":
+        return "bg-blue-100 text-blue-800";
+      case "screening":
+      case "phone_interview":
+      case "technical_interview":
+      case "hr_interview":
+      case "final_interview":
+        return "bg-yellow-100 text-yellow-800";
+      case "completed":
+      case "hired":
+        return "bg-green-100 text-green-800";
+      case "rejected":
+      case "withdrawn":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
 
   return (
@@ -133,84 +236,92 @@ export default function CandidateDashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard
-          title="Applications"
-          value={applicationStats.total}
+          title="Assignments"
+          value={assignmentStats.total}
           icon={<FileText className="h-4 w-4" />}
-          description="Total submitted"
+          description="Total assigned"
         />
         <StatCard
-          title="Active Applications"
-          value={applicationStats.activeCount}
+          title="Active Assignments"
+          value={assignmentStats.activeCount}
           icon={<Clock className="h-4 w-4" />}
           description="In progress"
         />
         <StatCard
-          title="Hired"
-          value={applicationStats.hiredCount}
+          title="Completed"
+          value={assignmentStats.completedCount}
           icon={<CheckCircle className="h-4 w-4" />}
-          description="Successful"
+          description="Successfully completed"
         />
         <StatCard
-          title="Response Rate"
-          value={`${applicationStats.responseRate}%`}
+          title="Success Rate"
+          value={`${assignmentStats.responseRate}%`}
           icon={<Star className="h-4 w-4" />}
-          description="Success rate"
+          description="Completion rate"
         />
       </div>
 
-      {/* Applications Timeline & Upcoming Interviews */}
+      {/* Assignments Timeline & Upcoming Interviews */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Application Timeline</CardTitle>
-            <CardDescription>Track your job application progress</CardDescription>
+            <CardTitle>Assignment Timeline</CardTitle>
+            <CardDescription>Track your job assignments from agents</CardDescription>
           </CardHeader>
           <CardContent>
-            {applicationsLoading ? (
+            {assignmentsLoading ? (
               <div className="flex justify-center py-8">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               </div>
-            ) : recentApplications.length > 0 ? (
+            ) : recentAssignments.length > 0 ? (
               <div className="space-y-4">
-                {recentApplications.map((app: any) => (
-                  <div key={app._id} className="border rounded-lg p-4">
+                {recentAssignments.map((assignment: any) => (
+                  <div key={assignment._id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h4 className="font-medium">{app.jobId?.title || 'Unknown Position'}</h4>
-                        <p className="text-sm text-muted-foreground">{app.jobId?.companyId?.name || 'Unknown Company'}</p>
+                        <h4 className="font-medium">{assignment.jobId?.title || 'Unknown Position'}</h4>
+                        <p className="text-sm text-muted-foreground">{assignment.jobId?.companyId?.name || 'Unknown Company'}</p>
                       </div>
-                      <Badge className={getStatusColor(app.status)}>
-                        {app.status.replace('_', ' ')}
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Badge className={getStatusColor(assignment.status)}>
+                          {formatStatus(assignment.status)}
+                        </Badge>
+                        {assignment.candidateStatus && (
+                          <Badge className={getStatusColor(assignment.candidateStatus)}>
+                            {formatStatus(assignment.candidateStatus)}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground mb-2">
                       <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          Applied {formatDistanceToNow(new Date(app.appliedAt))} ago
+                          Assigned {formatDistanceToNow(new Date(assignment.assignedAt))} ago
                         </span>
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {app.stage?.replace('_', ' ') || 'Applied'}
+                          <User className="h-3 w-3" />
+                          {`Agent: ${assignment.assignedBy?.firstName} ${assignment.assignedBy?.lastName}`}
                         </span>
                       </div>
                     </div>
-                    <p className="text-sm">{app.notes || 'Application submitted and under review'}</p>
+                    {assignment.feedback && (
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-sm text-muted-foreground">
+                          <strong>HR Feedback:</strong> {assignment.feedback}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-center py-8">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No applications yet</p>
-                <Button 
-                  className="mt-2" 
-                  size="sm"
-                  onClick={() => navigate('/candidate-jobs')}
-                >
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  Browse Jobs
-                </Button>
+                <p className="text-muted-foreground">No job assignments yet</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  You haven't been assigned to any jobs by agents yet. When an agent matches you with a job, it will appear here.
+                </p>
               </div>
             )}
           </CardContent>
@@ -260,59 +371,52 @@ export default function CandidateDashboard() {
         </Card>
       </div>
 
-      {/* Job Recommendations */}
+      {/* Profile Sections */}
       <Card>
         <CardHeader>
-          <CardTitle>Recommended Jobs</CardTitle>
-          <CardDescription>Jobs matching your profile and preferences</CardDescription>
+          <CardTitle>Profile Sections</CardTitle>
+          <CardDescription>Complete your profile to increase visibility to HRs</CardDescription>
         </CardHeader>
         <CardContent>
-          {jobsLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-            </div>
-          ) : jobs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {jobs.map((job: any) => (
-                <div key={job._id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium">{job.title}</h4>
-                      <p className="text-sm text-muted-foreground">{job.companyId?.name}</p>
-                    </div>
-                    <Badge variant="outline">{job.type?.replace('_', ' ')}</Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground mb-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <MapPin className="h-3 w-3" />
-                      {job.location}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Posted {formatDistanceToNow(new Date(job.postedAt))} ago
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">Apply Now</Button>
-                    <Button size="sm" variant="outline">Save</Button>
-                  </div>
+          <div className="space-y-4">
+            {profileData?.data?.profile && (
+              <>
+                <div className="space-y-3">
+                  {[
+                    { name: 'Basic Info', fields: ['summary', 'location', 'phoneNumber'] },
+                    { name: 'Skills', fields: ['skills'] },
+                    { name: 'Experience', fields: ['experience'] },
+                    { name: 'Education', fields: ['education'] },
+                    { name: 'Preferences', fields: ['preferredSalaryRange', 'availability'] }
+                  ].map(section => {
+                    const completed = section.fields.every(field => {
+                      const value = field.split('.').reduce((obj, key) => obj?.[key], profileData.data.profile);
+                      return Array.isArray(value) ? value.length > 0 : !!value;
+                    });
+                    return (
+                      <div key={section.name} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          {completed ? (
+                            <CheckCircle className="w-4 h-4 text-success" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-warning" />
+                          )}
+                          <span className="text-sm font-medium">{section.name}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => navigate('/dashboard/candidate-profile')}
+                        >
+                          {completed ? 'Update' : 'Complete'}
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No job recommendations available</p>
-              <Button 
-                className="mt-2" 
-                size="sm"
-                onClick={() => navigate('/candidate-jobs')}
-              >
-                <Briefcase className="h-4 w-4 mr-2" />
-                Browse All Jobs
-              </Button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -322,30 +426,30 @@ export default function CandidateDashboard() {
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-20 flex-col">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col"
+              onClick={() => navigate('/dashboard/candidate-profile')}
+            >
               <Upload className="h-6 w-6 mb-2" />
               Upload Resume
             </Button>
             <Button 
               variant="outline" 
               className="h-20 flex-col"
-              onClick={() => navigate('/candidate-jobs')}
+              onClick={() => navigate('/dashboard/candidate-profile')}
             >
-              <Briefcase className="h-6 w-6 mb-2" />
-              Browse Jobs
-            </Button>
-            <Button variant="outline" className="h-20 flex-col">
               <User className="h-6 w-6 mb-2" />
               Update Profile
             </Button>
             <Button 
               variant="outline" 
               className="h-20 flex-col"
-              onClick={() => navigate('/candidate-applications')}
+              onClick={() => navigate('/dashboard/candidate-applications')}
             >
               <Star className="h-6 w-6 mb-2" />
-              View Applications
+              View Assignments
             </Button>
           </div>
         </CardContent>

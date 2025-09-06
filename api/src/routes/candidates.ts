@@ -33,6 +33,9 @@ router.put('/profile', CandidateController.updateMyProfile);
  * @desc    Search candidates with filters
  * @access  HR, Admin, Agent
  */
+// Get my assignments
+router.get('/me/assignments', CandidateController.getMyAssignments);
+
 router.get('/', requireAgent, CandidateController.getCandidates);
 
 /**

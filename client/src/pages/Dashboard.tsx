@@ -43,7 +43,7 @@ const stats = [
   }
 ];
 
-const recentActivity = [
+const adminActivity = [
   {
     id: 1,
     type: "interview",
@@ -75,6 +75,25 @@ const recentActivity = [
     description: "Frontend Developer at WebSolutions",
     time: "1 day ago",
     status: "completed"
+  }
+];
+
+const candidateActivity = [
+  {
+    id: 1,
+    type: "profile",
+    title: "Profile Update Required",
+    description: "Complete your profile to increase visibility to HRs",
+    time: "Just now",
+    status: "active"
+  },
+  {
+    id: 2,
+    type: "assignment",
+    title: "Assignment Status",
+    description: "No active assignments yet. Agents will assign you to relevant jobs.",
+    time: "Just now",
+    status: "new"
   }
 ];
 
