@@ -155,9 +155,10 @@ const SharedCandidates: React.FC = () => {
         sortBy: 'assignedAt',
         sortOrder: 'desc'
       })
-    : useMyCandidateAssignments({
+    : useCandidateAssignments({
         page: currentPage,
         limit: 20,
+        assignedTo: user?.id,
         status: statusFilter === 'all' ? undefined : statusFilter,
         priority: priorityFilter === 'all' ? undefined : priorityFilter,
         sortBy: 'assignedAt',

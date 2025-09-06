@@ -22,22 +22,39 @@ import {
   AlertTriangle,
   MapPin,
   Briefcase,
-  ExternalLink
+  ExternalLink,
+  User
 } from 'lucide-react';
-import { useApplications, useAdvanceApplication, useRejectApplication } from '@/hooks/useApi';
+import { useMyCandidateAssignments } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
 
-interface Application {
+interface CandidateAssignment {
   _id: string;
-  candidateId: string;
-  jobId: {
+  candidateId: {
+    _id: string;
+    userId: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+    profile: {
+      skills: string[];
+      summary: string;
+      location?: string;
+      phoneNumber: string;
+    };
+    rating?: number;
+    resumeFileId?: string;
+  };
+  jobId?: {
     _id: string;
     title: string;
     companyId: {
       name: string;
       industry?: string;
+      location?: string;
     };
     location: string;
     type: string;
@@ -47,73 +64,68 @@ interface Application {
       currency: string;
     };
   };
-  status: string;
-  stage: string;
-  appliedAt: string;
-  lastActivityAt: string;
-  createdAt: string;
-  updatedAt: string;
+  assignedBy: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  assignedTo?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  status: 'active' | 'completed' | 'rejected' | 'withdrawn';
+  candidateStatus?: 'new' | 'reviewed' | 'shortlisted' | 'interview_scheduled' | 'interviewed' | 'offer_sent' | 'hired' | 'rejected';
   notes?: string;
   feedback?: string;
-  source: string;
-  timeline?: Array<{
-    stage: string;
-    date: string;
-    notes?: string;
-  }>;
+  assignedAt: string;
+  lastActivityAt: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
 }
 
 const CandidateApplications: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [stageFilter, setStageFilter] = useState('all');
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   const { user } = useAuth();
 
-  // API calls - filter applications by current candidate
+  // API calls - fetch assignments for current candidate
+  // Get the candidate's assignments
   const params = useMemo(() => ({
     page: currentPage,
     limit: 10,
-    userId: user?.id,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
-    stage: stageFilter !== 'all' ? stageFilter : undefined,
-    sortBy: 'appliedAt',
+    candidateId: user?.id, // Filter by the current user's ID
+    sortBy: 'assignedAt',
     sortOrder: 'desc'
-  }), [currentPage, user?.id, statusFilter, stageFilter]);
+  }), [currentPage, user?.id]);
 
-  const { data: applicationsData, loading, refetch } = useApplications(params);
-
-  const advanceApplication = useAdvanceApplication({
-    onSuccess: () => {
-      refetch();
-      toast({
-        title: 'Application Updated',
-        description: 'Application status has been updated successfully.',
-      });
-    }
-  });
+  const { data: assignmentsData, loading, refetch } = useMyCandidateAssignments(params);
 
   // Handle both possible response formats
-  const applications = Array.isArray(applicationsData) ? applicationsData : (applicationsData as any)?.data || [];
-  const meta = Array.isArray(applicationsData) ? {} : (applicationsData as any)?.meta || {};
+  const assignments = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData as any)?.data || [];
+  const meta = Array.isArray(assignmentsData) ? {} : (assignmentsData as any)?.meta || {};
 
-  // Filter applications based on search term
-  const filteredApplications = useMemo(() => {
-    if (!searchTerm) return applications;
+  // Filter assignments based on search term
+  const filteredAssignments = useMemo(() => {
+    if (!searchTerm) return assignments;
     
-    return applications.filter((application: Application) => {
-      const jobTitle = application.jobId?.title?.toLowerCase() || '';
-      const companyName = application.jobId?.companyId?.name?.toLowerCase() || '';
-      const stage = application.stage?.toLowerCase() || '';
+    return assignments.filter((assignment: CandidateAssignment) => {
+      const jobTitle = assignment.jobId?.title?.toLowerCase() || '';
+      const companyName = assignment.jobId?.companyId?.name?.toLowerCase() || '';
+      const hrName = assignment.assignedTo 
+        ? `${assignment.assignedTo.firstName} ${assignment.assignedTo.lastName}`.toLowerCase()
+        : '';
+      const agentName = `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`.toLowerCase();
       
       return jobTitle.includes(searchTerm.toLowerCase()) ||
         companyName.includes(searchTerm.toLowerCase()) ||
-        stage.includes(searchTerm.toLowerCase());
+        hrName.includes(searchTerm.toLowerCase()) ||
+        agentName.includes(searchTerm.toLowerCase());
     });
-  }, [applications, searchTerm]);
+  }, [assignments, searchTerm]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -126,17 +138,26 @@ const CandidateApplications: React.FC = () => {
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'low': return 'bg-blue-100 text-blue-800 border-blue-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
   const getStageColor = (stage: string) => {
     switch (stage) {
-      case 'applied': return 'bg-gray-100 text-gray-800';
-      case 'screening': return 'bg-blue-100 text-blue-800';
-      case 'phone_interview': return 'bg-purple-100 text-purple-800';
-      case 'technical_interview': return 'bg-orange-100 text-orange-800';
-      case 'final_interview': return 'bg-yellow-100 text-yellow-800';
-      case 'reference_check': return 'bg-indigo-100 text-indigo-800';
-      case 'offer_pending': return 'bg-green-100 text-green-800';
-      case 'offer_accepted': return 'bg-green-100 text-green-800';
-      case 'offer_declined': return 'bg-red-100 text-red-800';
+      case 'new': return 'bg-gray-100 text-gray-800';
+      case 'reviewed': return 'bg-blue-100 text-blue-800';
+      case 'shortlisted': return 'bg-purple-100 text-purple-800';
+      case 'interview_scheduled': return 'bg-orange-100 text-orange-800';
+      case 'interviewed': return 'bg-yellow-100 text-yellow-800';
+      case 'offer_sent': return 'bg-indigo-100 text-indigo-800';
+      case 'hired': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -191,83 +212,82 @@ const CandidateApplications: React.FC = () => {
     }
   };
 
-  const renderApplicationCard = (application: Application) => {
-    const progress = getApplicationProgress(application.stage);
-    
+  const renderAssignmentCard = (assignment: CandidateAssignment) => {
     return (
-      <Card key={application._id} className="hover:shadow-md transition-shadow">
+      <Card key={assignment._id} className="hover:shadow-md transition-shadow">
         <CardContent className="p-6">
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between">
+            {/* Left side: Job info */}
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                {application.jobId?.title || 'Unknown Job'}
+                {assignment.jobId?.title || 'Unknown Job'}
               </h3>
               <div className="flex items-center text-gray-600 mb-2">
                 <Building2 className="w-4 h-4 mr-1" />
-                <span className="mr-4">{application.jobId?.companyId?.name || 'Unknown Company'}</span>
+                <span className="mr-4">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
                 <MapPin className="w-4 h-4 mr-1" />
-                <span>{application.jobId?.location || 'Unknown Location'}</span>
+                <span>{assignment.jobId?.location || 'Unknown Location'}</span>
               </div>
               
               <div className="flex flex-wrap gap-2 mb-3">
-                <Badge className={getStatusColor(application.status)}>
+                <Badge className={getStatusColor(assignment.status)}>
                   <div className="flex items-center">
-                    {getStatusIcon(application.status)}
-                    <span className="ml-1">{application.status}</span>
+                    {getStatusIcon(assignment.status)}
+                    <span className="ml-1">{assignment.status}</span>
                   </div>
                 </Badge>
-                <Badge className={getStageColor(application.stage)}>
-                  {formatStage(application.stage)}
+                <Badge variant="outline" className="bg-blue-50">
+                  <User className="w-3 h-3 mr-1" />
+                  {`Agent: ${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`}
                 </Badge>
               </div>
 
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Application Progress</span>
-                  <span>{Math.round(progress)}%</span>
-                </div>
-                <Progress value={progress} className="h-2" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+              <div className="text-sm text-gray-600">
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1" />
-                  <span>Applied {safeDateFormat(application.appliedAt, 'Unknown')} ago</span>
-                </div>
-                <div className="flex items-center">
-                  <Clock className="w-4 h-4 mr-1" />
-                  <span>Updated {safeDateFormat(application.lastActivityAt, 'Unknown')} ago</span>
+                  <span>Assigned {safeDateFormat(assignment.assignedAt, 'Unknown')} ago</span>
                 </div>
               </div>
 
-              {application.jobId.salaryRange && (
+              {assignment.jobId?.salaryRange && (
                 <div className="mt-2 text-sm text-gray-600">
-                  <strong>Salary:</strong> {formatSalary(application.jobId.salaryRange)}
+                  <strong>Salary:</strong> {formatSalary(assignment.jobId.salaryRange)}
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedApplication(application);
-                setIsViewDialogOpen(true);
-              }}
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              View Details
-            </Button>
-            {application.feedback && (
-              <Button variant="outline" size="sm">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                View Feedback
+            {/* Right side: Status and actions */}
+            <div className="flex flex-col items-end gap-4">
+              {assignment.candidateStatus && (
+                <Badge className={getStageColor(assignment.candidateStatus)}>
+                  {formatStage(assignment.candidateStatus)}
+                </Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedAssignment(assignment);
+                  setIsViewDialogOpen(true);
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View Details
               </Button>
-            )}
+            </div>
           </div>
+          {/* Feedback Section */}
+          {assignment.feedback && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                <MessageSquare className="w-4 h-4" />
+                <span>HR Feedback</span>
+              </div>
+              <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+                {assignment.feedback}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -278,17 +298,19 @@ const CandidateApplications: React.FC = () => {
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Applications</h1>
+          <h1 className="text-3xl font-bold text-gray-900">My Job Assignments</h1>
           <p className="text-gray-600 mt-1">
-            Track the progress of your job applications
+            Track jobs that agents have assigned you to
           </p>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {['active', 'hired', 'rejected', 'on_hold'].map((status) => {
-          const count = applications.filter((app: Application) => app.status === status).length;
+        {['active', 'completed', 'rejected', 'withdrawn'].map((status) => {
+          const count = assignments.filter((assignment: CandidateAssignment) => 
+            assignment.status === status
+          ).length;
           return (
             <Card key={status}>
               <CardContent className="p-4">
@@ -308,46 +330,16 @@ const CandidateApplications: React.FC = () => {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
+          <div className="flex">
+            <div className="relative w-full max-w-sm">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search applications..."
+                placeholder="Search assignments..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="hired">Hired</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="withdrawn">Withdrawn</SelectItem>
-                <SelectItem value="on_hold">On Hold</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Stage" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Stages</SelectItem>
-                <SelectItem value="applied">Applied</SelectItem>
-                <SelectItem value="screening">Screening</SelectItem>
-                <SelectItem value="phone_interview">Phone Interview</SelectItem>
-                <SelectItem value="technical_interview">Technical Interview</SelectItem>
-                <SelectItem value="final_interview">Final Interview</SelectItem>
-                <SelectItem value="reference_check">Reference Check</SelectItem>
-                <SelectItem value="offer_pending">Offer Pending</SelectItem>
-                <SelectItem value="offer_accepted">Offer Accepted</SelectItem>
-                <SelectItem value="offer_declined">Offer Declined</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -355,7 +347,7 @@ const CandidateApplications: React.FC = () => {
       {/* Results Summary */}
       <div className="flex justify-between items-center">
         <p className="text-sm text-gray-600">
-          {loading ? 'Loading applications...' : `${filteredApplications.length} applications found`}
+          {loading ? 'Loading assignments...' : `${filteredAssignments.length} assignments found`}
         </p>
       </div>
 
@@ -364,25 +356,21 @@ const CandidateApplications: React.FC = () => {
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-      ) : filteredApplications.length === 0 ? (
+      ) : filteredAssignments.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <div className="space-y-2">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-900">No applications found</h3>
+              <h3 className="text-lg font-semibold text-gray-900">No job assignments yet</h3>
               <p className="text-gray-600">
-                You haven't applied to any jobs yet, or no applications match your current filters.
+                You haven't been assigned to any jobs by agents yet. When an agent matches you with a job, it will appear here.
               </p>
-              <Button className="mt-4">
-                <Briefcase className="w-4 h-4 mr-2" />
-                Browse Jobs
-              </Button>
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {filteredApplications.map(renderApplicationCard)}
+          {filteredAssignments.map(renderAssignmentCard)}
         </div>
       )}
 
@@ -409,111 +397,85 @@ const CandidateApplications: React.FC = () => {
         </div>
       )}
 
-      {/* Application Details Dialog */}
-      {selectedApplication && (
+      {/* Assignment Details Dialog */}
+      {selectedAssignment && (
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl">
-                {selectedApplication.jobId?.title || 'Unknown Job'}
+                {selectedAssignment.jobId?.title || 'Unknown Job'}
               </DialogTitle>
             </DialogHeader>
             
             <div className="flex items-center gap-4 -mt-2 mb-6">
               <div className="flex items-center text-gray-600">
                 <Building2 className="w-4 h-4 mr-1" />
-                {selectedApplication.jobId?.companyId?.name || 'Unknown Company'}
+                {selectedAssignment.jobId?.companyId?.name || 'Unknown Company'}
               </div>
               <div className="flex items-center text-gray-600">
                 <MapPin className="w-4 h-4 mr-1" />
-                {selectedApplication.jobId?.location || 'Unknown Location'}
+                {selectedAssignment.jobId?.location || 'Unknown Location'}
               </div>
-              <Badge className={getStatusColor(selectedApplication.status)}>
-                {selectedApplication.status}
+              <Badge className={getStatusColor(selectedAssignment.status)}>
+                {selectedAssignment.status}
               </Badge>
             </div>
             
             <div className="space-y-6">
-              {/* Application Status */}
+              {/* Assignment Status */}
               <div>
-                <h4 className="font-semibold mb-3">Application Status</h4>
+                <h4 className="font-semibold mb-3">Assignment Status</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span>Current Stage: <strong>{formatStage(selectedApplication.stage)}</strong></span>
-                    <Badge className={getStageColor(selectedApplication.stage)}>
-                      {formatStage(selectedApplication.stage)}
+                    <span>Current Status: <strong>{formatStage(selectedAssignment.candidateStatus || 'new')}</strong></span>
+                    <Badge className={getStageColor(selectedAssignment.candidateStatus || 'new')}>
+                      {formatStage(selectedAssignment.candidateStatus || 'new')}
                     </Badge>
                   </div>
-                  <Progress value={getApplicationProgress(selectedApplication.stage)} className="h-3" />
                 </div>
               </div>
 
-              {/* Timeline */}
-              {selectedApplication.timeline && selectedApplication.timeline.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-3">Application Timeline</h4>
-                  <div className="space-y-3">
-                    {selectedApplication.timeline.map((event, index) => (
-                      <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <span className="font-medium">{formatStage(event.stage)}</span>
-                            <span className="text-sm text-gray-500">
-                              {safeFullDateFormat(event.date)}
-                            </span>
-                          </div>
-                          {event.notes && (
-                            <p className="text-sm text-gray-600 mt-1">{event.notes}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Application Details */}
+              {/* Assignment Details */}
               <div>
-                <h4 className="font-semibold mb-3">Application Details</h4>
+                <h4 className="font-semibold mb-3">Assignment Details</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Applied Date:</span>
-                    <span className="ml-2">{safeFullDateFormat(selectedApplication.appliedAt)}</span>
+                    <span className="font-medium">Assigned Date:</span>
+                    <span className="ml-2">{safeFullDateFormat(selectedAssignment.assignedAt)}</span>
                   </div>
                   <div>
-                    <span className="font-medium">Source:</span>
-                    <span className="ml-2 capitalize">{selectedApplication.source.replace('_', ' ')}</span>
+                    <span className="font-medium">Assigned By:</span>
+                    <span className="ml-2">{`${selectedAssignment.assignedBy.firstName} ${selectedAssignment.assignedBy.lastName}`}</span>
                   </div>
                   <div>
                     <span className="font-medium">Last Updated:</span>
-                    <span className="ml-2">{safeFullDateFormat(selectedApplication.lastActivityAt)}</span>
+                    <span className="ml-2">{safeFullDateFormat(selectedAssignment.lastActivityAt)}</span>
                   </div>
-                  {selectedApplication.jobId.salaryRange && (
+                  {selectedAssignment.jobId?.salaryRange && (
                     <div>
                       <span className="font-medium">Salary Range:</span>
-                      <span className="ml-2">{formatSalary(selectedApplication.jobId.salaryRange)}</span>
+                      <span className="ml-2">{formatSalary(selectedAssignment.jobId.salaryRange)}</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Notes */}
-              {selectedApplication.notes && (
+              {selectedAssignment.notes && (
                 <div>
                   <h4 className="font-semibold mb-2">Notes</h4>
                   <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                    {selectedApplication.notes}
+                    {selectedAssignment.notes}
                   </p>
                 </div>
               )}
 
               {/* Feedback */}
-              {selectedApplication.feedback && (
+              {selectedAssignment.feedback && (
                 <div>
                   <h4 className="font-semibold mb-2">Feedback</h4>
                   <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded border border-blue-200">
-                    {selectedApplication.feedback}
+                    {selectedAssignment.feedback}
                   </p>
                 </div>
               )}
@@ -521,11 +483,9 @@ const CandidateApplications: React.FC = () => {
 
             <DialogFooter>
               <div className="flex space-x-2">
-                {selectedApplication.status === 'active' && (
-                  <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                    Close
-                  </Button>
-                )}
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+                  Close
+                </Button>
               </div>
             </DialogFooter>
           </DialogContent>

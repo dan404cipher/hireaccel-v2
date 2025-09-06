@@ -772,7 +772,7 @@ class ApiClient {
       }
     });
 
-    return this.request(`/api/v1/candidate-assignments/my-assignments?${queryParams.toString()}`);
+    return this.request(`/api/v1/candidates/me/assignments?${queryParams.toString()}`);
   }
 
   async getCandidateAssignmentStats() {

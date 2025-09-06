@@ -44,6 +44,7 @@ const navigationItems = [
   
   // Candidate-specific navigation
   { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
+  { title: "My Profile", url: "/dashboard/candidate-profile", icon: Users, roles: ['candidate'] },
 ];
 
 const secondaryItems = [
@@ -134,24 +135,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Secondary Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Tools & Reports</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {allowedSecondaryItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls(item.url)}>
-                      <item.icon className="w-4 h-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Secondary Navigation - Only show for non-candidates */}
+        {user?.role !== 'candidate' && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Tools & Reports</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {allowedSecondaryItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink to={item.url} className={getNavCls(item.url)}>
+                        <item.icon className="w-4 h-4" />
+                        {!collapsed && <span>{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
