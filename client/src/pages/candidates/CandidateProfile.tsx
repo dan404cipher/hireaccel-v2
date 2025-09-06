@@ -8,6 +8,93 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Calendar } from '@/components/ui/calendar';
+
+interface MonthYearPickerProps {
+  value: Date;
+  onChange: (date: Date) => void;
+  minDate?: Date;
+  maxDate?: Date;
+}
+
+const MonthYearPicker: React.FC<MonthYearPickerProps> = ({ value, onChange, minDate, maxDate }) => {
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 50 }, (_, i) => currentYear - 49 + i);
+
+  const selectedYear = value.getFullYear();
+  const selectedMonth = value.getMonth();
+
+  const handleYearChange = (year: string) => {
+    const newDate = new Date(value);
+    newDate.setFullYear(parseInt(year));
+    onChange(newDate);
+  };
+
+  const handleMonthChange = (month: string) => {
+    const newDate = new Date(value);
+    newDate.setMonth(months.indexOf(month));
+    onChange(newDate);
+  };
+
+  return (
+    <div className="flex flex-col gap-2 p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label>Year</Label>
+          <Select value={selectedYear.toString()} onValueChange={handleYearChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select year" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((year) => (
+                <SelectItem 
+                  key={year} 
+                  value={year.toString()}
+                  disabled={
+                    (minDate && year < minDate.getFullYear()) ||
+                    (maxDate && year > maxDate.getFullYear())
+                  }
+                >
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Month</Label>
+          <Select value={months[selectedMonth]} onValueChange={handleMonthChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {months.map((month) => (
+                <SelectItem 
+                  key={month} 
+                  value={month}
+                  disabled={
+                    (minDate && 
+                     selectedYear === minDate.getFullYear() && 
+                     months.indexOf(month) < minDate.getMonth()) ||
+                    (maxDate && 
+                     selectedYear === maxDate.getFullYear() && 
+                     months.indexOf(month) > maxDate.getMonth())
+                  }
+                >
+                  {month}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+};
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -90,6 +177,29 @@ interface Project {
   role?: string;
 }
 
+interface ResumeInfo {
+  data: {
+    hasResume: boolean;
+    file?: {
+      id: string;
+      originalName: string;
+    };
+  };
+  error?: any;
+}
+
+interface ProfileData {
+  customId: string;
+  userId: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  resumeFileId?: string;
+  profile: CandidateProfile;
+}
+
 interface CandidateProfile {
   skills: string[];
   experience: WorkExperience[];
@@ -107,7 +217,7 @@ interface CandidateProfile {
     currency: string;
   };
   availability: {
-    startDate: Date;
+    startDate: Date | string;
     remote: boolean;
     relocation: boolean;
   };
@@ -122,12 +232,13 @@ const CandidateProfile: React.FC = () => {
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
-  // Determine if this is self-view or other-view
-  const isSelfView = !!customId;
-  
   // API hooks
-  const { data: profileData, loading, refetch } = useCandidateProfile(customId || candidateId);
-  const { data: resumeInfo, refetch: refetchResumeInfo } = useResumeInfo({
+  const { data: profileData, loading, refetch } = useCandidateProfile<ProfileData>(customId || candidateId);
+  
+  // Determine if this is self-view or other-view
+  const isSelfView = user?.role === 'candidate' && (!candidateId || (profileData?.userId?.id === user?.id));
+  
+  const { data: resumeInfo, refetch: refetchResumeInfo } = useResumeInfo<ResumeInfo>({
     immediate: isSelfView // Only fetch resume info in self-view mode
   });
 
@@ -204,7 +315,7 @@ const CandidateProfile: React.FC = () => {
       console.log('Resume error:', resumeInfo.error);
     }
   }, [resumeInfo]);
-  const updateProfile = useUpdateCandidateProfile({
+  const updateProfile = useUpdateCandidateProfile<ProfileData>({
     onSuccess: async () => {
       toast({
         title: 'Profile Updated',
@@ -238,7 +349,7 @@ const CandidateProfile: React.FC = () => {
     preferredSalaryRange: {
       min: 0,
       max: 0,
-      currency: 'USD'
+      currency: 'INR'
     },
     availability: {
       startDate: new Date(),
@@ -249,7 +360,10 @@ const CandidateProfile: React.FC = () => {
 
   // Load profile data from API
   useEffect(() => {
+    console.log('Raw profile data received:', profileData);
     if (profileData?.profile) {
+      console.log('Loading profile data:', profileData.profile);
+      console.log('Current skills:', profileData.profile.skills);
       const apiProfile = profileData.profile;
       const newProfile = {
         skills: apiProfile.skills || [],
@@ -281,7 +395,7 @@ const CandidateProfile: React.FC = () => {
           currency: 'USD'
         },
         availability: {
-          startDate: apiProfile.availability?.startDate ? new Date(apiProfile.availability.startDate) : new Date(),
+            startDate: apiProfile.availability?.startDate ? (apiProfile.availability.startDate instanceof Date ? apiProfile.availability.startDate : new Date(apiProfile.availability.startDate)) : new Date(),
           remote: apiProfile.availability?.remote || false,
           relocation: apiProfile.availability?.relocation || false
         }
@@ -309,10 +423,11 @@ const CandidateProfile: React.FC = () => {
   };
 
   // Availability date validation
-  const validateAvailabilityDate = (date: Date): boolean => {
+  const validateAvailabilityDate = (date: Date | string): boolean => {
+    const dateObj = date instanceof Date ? date : new Date(date);
     const now = new Date();
     const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-    return date >= now && date <= oneYearFromNow;
+    return dateObj >= now && dateObj <= oneYearFromNow;
   };
 
   // File handling functions
@@ -353,14 +468,14 @@ const CandidateProfile: React.FC = () => {
 
   const handleDeleteResume = async () => {
     if (window.confirm('Are you sure you want to delete your resume? This action cannot be undone.')) {
-      await deleteResume.mutate();
+      await deleteResume.mutate(undefined);
     }
   };
 
   const handleDownloadResume = async () => {
-    if (resumeInfo?.file?.id) {
+    if (resumeInfo?.data?.file?.id) {
       try {
-        const response = await fetch(`http://localhost:3002/api/v1/files/resume/${resumeInfo.file.id}/download`, {
+        const response = await fetch(`http://localhost:3002/api/v1/files/resume/${resumeInfo.data.file.id}/download`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
           },
@@ -371,7 +486,7 @@ const CandidateProfile: React.FC = () => {
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = resumeInfo.file.originalName || 'resume.pdf';
+          a.download = resumeInfo.data.file.originalName || 'resume.pdf';
           document.body.appendChild(a);
           a.click();
           window.URL.revokeObjectURL(url);
@@ -387,6 +502,19 @@ const CandidateProfile: React.FC = () => {
         });
       }
     }
+  };
+
+  const validateExperience = (exp: WorkExperience): string[] => {
+    const errors: string[] = [];
+    if (!exp.position) errors.push('Position is required');
+    if (!exp.company) errors.push('Company is required');
+    if (!exp.startDate) errors.push('Start date is required');
+    if (!exp.current && !exp.endDate) errors.push('End date is required for past positions');
+    if (exp.startDate && exp.endDate && exp.startDate > exp.endDate) {
+      errors.push('Start date cannot be after end date');
+    }
+    if (!exp.description?.trim()) errors.push('Description is required');
+    return errors;
   };
 
   const handleSave = async () => {
@@ -411,13 +539,39 @@ const CandidateProfile: React.FC = () => {
         return;
       }
 
+      // Validate experience entries if editing experience section
+      if (editingSections.has('experience')) {
+        const allErrors: string[] = [];
+        profile.experience.forEach((exp, index) => {
+          const errors = validateExperience(exp);
+          if (errors.length > 0) {
+            allErrors.push(`Experience #${index + 1}:\n${errors.join('\n')}`);
+          }
+        });
+        
+        if (allErrors.length > 0) {
+          toast({
+            title: 'Please fix the following errors:',
+            description: allErrors.join('\n\n'),
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       let profileToSave;
       
-      // For summary-only updates, just send the summary
+      // For single section updates
       if (editingSections.has('summary')) {
         profileToSave = {
           profile: {
             summary: profile.summary || ''
+          }
+        };
+      } else if (editingSections.has('skills')) {
+        profileToSave = {
+          profile: {
+            skills: profile.skills
           }
         };
       } else {
@@ -464,7 +618,7 @@ const CandidateProfile: React.FC = () => {
         if (profile.availability) {
           updatedProfile.availability = {
             ...profile.availability,
-            startDate: profile.availability.startDate.toISOString() // Full ISO datetime
+            startDate: profile.availability.startDate instanceof Date ? profile.availability.startDate.toISOString() : profile.availability.startDate // Full ISO datetime
           };
         }
 
@@ -492,17 +646,32 @@ const CandidateProfile: React.FC = () => {
         title: 'Success',
         description: 'Profile updated successfully',
       });
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      const errorMessage = error.issues?.map(issue => issue.message).join('\n') || 
-                          error.detail || 
-                          'Failed to update profile. Please try again.';
-      toast({
-        title: 'Error',
-        description: errorMessage,
-        variant: 'destructive',
-      });
-    }
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        let errorMessage = 'Failed to update profile. Please try again.';
+        
+        if (error.issues) {
+          const errorMessages = error.issues.map(issue => {
+            // Extract the index from the field path for experience errors
+            const match = issue.field?.match(/profile\.experience\.(\d+)\./);
+            if (match) {
+              const index = parseInt(match[1]);
+              const field = issue.field.split('.').pop();
+              return `Experience #${index + 1}: ${field} - ${issue.message}`;
+            }
+            return `${issue.field}: ${issue.message}`;
+          });
+          errorMessage = errorMessages.join('\n');
+        } else if (error.detail) {
+          errorMessage = error.detail;
+        }
+        
+        toast({
+          title: 'Error Saving Profile',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
   };
 
   const addSkill = () => {
@@ -646,8 +815,8 @@ const CandidateProfile: React.FC = () => {
   };
 
   const formatDuration = (startDate: Date, endDate?: Date) => {
-    const start = format(startDate, 'MMM yyyy');
-    const end = endDate ? format(endDate, 'MMM yyyy') : 'Present';
+    const start = format(startDate, 'MMMM yyyy');
+    const end = endDate ? format(endDate, 'MMMM yyyy') : 'Present';
     return `${start} - ${end}`;
   };
 
@@ -782,10 +951,10 @@ const CandidateProfile: React.FC = () => {
                     {/* View Resume button */}
                     {isSelfView ? (
                       // Self-view mode - use resumeInfo
-                      resumeInfo?.hasResume ? (
+                      resumeInfo?.data?.hasResume ? (
                         <PDFViewer
-                          fileId={resumeInfo.file.id}
-                          fileName={resumeInfo.file.originalName}
+                          fileId={resumeInfo.data.file?.id || ''}
+                          fileName={resumeInfo.data.file?.originalName || 'resume.pdf'}
                         >
                           <Button variant="outline" size="sm">
                             <Eye className="w-4 h-4 mr-2" />
@@ -832,7 +1001,7 @@ const CandidateProfile: React.FC = () => {
                           <Button variant="outline" size="sm" asChild>
                             <span className="cursor-pointer">
                               <Upload className="w-4 h-4 mr-2" />
-                              {resumeInfo?.hasResume ? 'Replace Resume' : 'Upload Resume'}
+                              {resumeInfo?.data?.hasResume ? 'Replace Resume' : 'Upload Resume'}
                             </span>
                           </Button>
                         </label>
@@ -1132,11 +1301,44 @@ const CandidateProfile: React.FC = () => {
                         </Button>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={handleSave} size="sm" disabled={updateProfile.loading}>
+                        <Button 
+                          onClick={async () => {
+                            try {
+                              await updateProfile.mutate({
+                                profile: {
+                                  skills: profile.skills
+                                }
+                              });
+                              toggleEdit('skills');
+                            } catch (error) {
+                              console.error('Error saving skills:', error);
+                              toast({
+                                title: 'Error',
+                                description: 'Failed to save skills. Please try again.',
+                                variant: 'destructive',
+                              });
+                            }
+                          }} 
+                          size="sm" 
+                          disabled={updateProfile.loading}
+                        >
                           <Save className="w-4 h-4 mr-2" />
                           Save
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => toggleEdit('skills')}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => {
+                            // Reset skills to original state
+                            if (profileData?.profile) {
+                              setProfile(prev => ({
+                                ...prev,
+                                skills: profileData.profile.skills || []
+                              }));
+                            }
+                            toggleEdit('skills');
+                          }}
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -1213,11 +1415,12 @@ const CandidateProfile: React.FC = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                          <SelectItem value="GBP">GBP</SelectItem>
-                          <SelectItem value="CAD">CAD</SelectItem>
-                          <SelectItem value="AUD">AUD</SelectItem>
+                          <SelectItem value="INR">INR (₹)</SelectItem>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="EUR">EUR (€)</SelectItem>
+                          <SelectItem value="GBP">GBP (£)</SelectItem>
+                          <SelectItem value="CAD">CAD ($)</SelectItem>
+                          <SelectItem value="AUD">AUD ($)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1244,7 +1447,7 @@ const CandidateProfile: React.FC = () => {
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
                             mode="single"
-                            selected={profile.availability.startDate}
+                            selected={profile.availability.startDate instanceof Date ? profile.availability.startDate : new Date(profile.availability.startDate)}
                             onSelect={(date) => {
                               if (date) {
                                 setProfile(prev => ({
@@ -1397,20 +1600,34 @@ const CandidateProfile: React.FC = () => {
                           <div className="flex justify-between items-start">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
                               <div>
-                                <Label>Position</Label>
+                                <Label className="flex items-center gap-1">
+                                  Position
+                                  <span className="text-red-500">*</span>
+                                </Label>
                                 <Input
                                   value={exp.position}
                                   onChange={(e) => updateExperience(index, 'position', e.target.value)}
                                   placeholder="Job title"
+                                  className={!exp.position ? "border-red-200" : ""}
                                 />
+                                {!exp.position && (
+                                  <p className="text-sm text-red-500 mt-1">Position is required</p>
+                                )}
                               </div>
                               <div>
-                                <Label>Company</Label>
+                                <Label className="flex items-center gap-1">
+                                  Company
+                                  <span className="text-red-500">*</span>
+                                </Label>
                                 <Input
                                   value={exp.company}
                                   onChange={(e) => updateExperience(index, 'company', e.target.value)}
                                   placeholder="Company name"
+                                  className={!exp.company ? "border-red-200" : ""}
                                 />
+                                {!exp.company && (
+                                  <p className="text-sm text-red-500 mt-1">Company is required</p>
+                                )}
                               </div>
                             </div>
                             <Button 
@@ -1425,40 +1642,97 @@ const CandidateProfile: React.FC = () => {
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                              <Label>Start Date</Label>
-                              <Input
-                                type="month"
-                                value={format(exp.startDate, 'yyyy-MM')}
-                                onChange={(e) => updateExperience(index, 'startDate', new Date(e.target.value))}
-                              />
+                              <Label className="flex items-center gap-1">
+                                Start Date
+                                <span className="text-red-500">*</span>
+                              </Label>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !exp.startDate && "border-red-200 text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {exp.startDate ? format(exp.startDate, 'MMMM yyyy') : <span>Pick a date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <MonthYearPicker
+                                    value={exp.startDate}
+                                    onChange={(date) => updateExperience(index, 'startDate', date)}
+                                    maxDate={new Date()}
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              {!exp.startDate && (
+                                <p className="text-sm text-red-500 mt-1">Start date is required</p>
+                              )}
                             </div>
                             {!exp.current && (
                               <div>
-                                <Label>End Date</Label>
-                                <Input
-                                  type="month"
-                                  value={exp.endDate ? format(exp.endDate, 'yyyy-MM') : ''}
-                                  onChange={(e) => updateExperience(index, 'endDate', new Date(e.target.value))}
-                                />
+                                <Label className="flex items-center gap-1">
+                                  End Date
+                                  <span className="text-red-500">*</span>
+                                </Label>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !exp.endDate && "border-red-200 text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {exp.endDate ? format(exp.endDate, 'MMMM yyyy') : <span>Pick a date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <MonthYearPicker
+                                      value={exp.endDate || new Date()}
+                                      onChange={(date) => updateExperience(index, 'endDate', date)}
+                                      minDate={exp.startDate}
+                                      maxDate={new Date()}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                                {!exp.endDate && (
+                                  <p className="text-sm text-red-500 mt-1">End date is required unless this is your current position</p>
+                                )}
                               </div>
                             )}
                             <div className="flex items-center space-x-2">
                               <Switch
                                 checked={exp.current}
-                                onCheckedChange={(checked) => updateExperience(index, 'current', checked)}
+                                onCheckedChange={(checked) => {
+                                  updateExperience(index, 'current', checked);
+                                  if (checked) {
+                                    updateExperience(index, 'endDate', undefined);
+                                  }
+                                }}
                               />
                               <Label>Current Position</Label>
                             </div>
                           </div>
                           
                           <div>
-                            <Label>Description</Label>
+                            <Label className="flex items-center gap-1">
+                              Description
+                              <span className="text-red-500">*</span>
+                            </Label>
                             <Textarea
                               value={exp.description}
                               onChange={(e) => updateExperience(index, 'description', e.target.value)}
                               rows={4}
                               placeholder="Describe your role, responsibilities, and achievements..."
+                              className={!exp.description ? "border-red-200" : ""}
                             />
+                            {!exp.description && (
+                              <p className="text-sm text-red-500 mt-1">Description is required</p>
+                            )}
                           </div>
                         </div>
                       ) : (

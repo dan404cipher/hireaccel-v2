@@ -43,7 +43,6 @@ const navigationItems = [
   { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'] },
   
   // Candidate-specific navigation
-  { title: "Browse Jobs", url: "/dashboard/candidate-jobs", icon: Search, roles: ['candidate'] },
   { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
 ];
 

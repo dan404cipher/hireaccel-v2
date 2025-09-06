@@ -453,39 +453,19 @@ const SharedCandidates: React.FC = () => {
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Update Assignment
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => handleStatusUpdate(assignment, 'completed')}
-                      disabled={updateAssignment.loading}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Mark Complete
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => handleStatusUpdate(assignment, 'rejected')}
-                      disabled={updateAssignment.loading}
-                      className="text-red-600"
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Reject
-                    </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        setAssignmentToDelete(assignment);
-                        setDeleteConfirmOpen(true);
-                      }}
-                      disabled={updateAssignment.loading}
-                      className="text-red-600"
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Delete Assignment
-                    </DropdownMenuItem>
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem onClick={() => setSelectedAssignment(assignment)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Details
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                      <User className="mr-2 h-4 w-4" />
+                      View Profile
                     </DropdownMenuItem>
+                    {candidate?.resumeFileId && (
+                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        View Resume
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => {
                       setAssignmentForFeedback(assignment);
                       setFeedbackText(assignment.feedback || '');
@@ -695,7 +675,7 @@ const SharedCandidates: React.FC = () => {
                     variant="outline" 
                     size="sm" 
                     className="text-xs h-8"
-                    onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}
+                    onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
                   >
                     <ExternalLink className="w-3 h-3 mr-1" />
                     View Resume
@@ -709,7 +689,7 @@ const SharedCandidates: React.FC = () => {
                     variant="outline" 
                     size="sm" 
                     className="text-xs h-8"
-                    onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}
+                    onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
                   >
                     <ExternalLink className="w-3 h-3 mr-1" />
                     View Resume

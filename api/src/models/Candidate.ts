@@ -295,8 +295,8 @@ const candidateProfileSchema = new Schema<CandidateProfile>({
     },
     currency: {
       type: String,
-      default: 'USD',
-      enum: ['USD', 'EUR', 'GBP', 'CAD', 'AUD'],
+      default: 'INR',
+      enum: ['INR', 'USD', 'EUR', 'GBP', 'CAD', 'AUD'],
     },
   },
   

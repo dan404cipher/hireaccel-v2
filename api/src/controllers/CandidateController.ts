@@ -66,12 +66,18 @@ const baseProfileSchema = z.object({
   summary: z.string().max(1000),
   location: z.string().max(200),
   phoneNumber: z.string().min(1).max(20),
-  linkedinUrl: z.string().url(),
-  portfolioUrl: z.string().url(),
+  linkedinUrl: z.string().refine(
+    (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+    { message: 'Must be a valid URL or empty' }
+  ),
+  portfolioUrl: z.string().refine(
+    (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+    { message: 'Must be a valid URL or empty' }
+  ),
   preferredSalaryRange: z.object({
     min: z.number().min(0),
     max: z.number().min(0),
-    currency: z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD']).default('USD'),
+    currency: z.enum(['INR', 'USD', 'EUR', 'GBP', 'CAD', 'AUD']).default('INR'),
   }),
   availability: z.object({
     startDate: z.string(),
@@ -91,12 +97,18 @@ const profileUpdateSchema = z.object({
     projects: z.array(projectSchema).optional(),
     location: z.string().optional(),
     phoneNumber: z.string().optional(),
-    linkedinUrl: z.string().url().optional(),
-    portfolioUrl: z.string().url().optional(),
+    linkedinUrl: z.string().refine(
+      (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+      { message: 'Must be a valid URL or empty' }
+    ).optional(),
+    portfolioUrl: z.string().refine(
+      (val) => !val || val.startsWith('http://') || val.startsWith('https://'),
+      { message: 'Must be a valid URL or empty' }
+    ).optional(),
     preferredSalaryRange: z.object({
       min: z.number(),
       max: z.number(),
-      currency: z.enum(['USD', 'EUR', 'GBP', 'CAD', 'AUD']),
+      currency: z.enum(['INR', 'USD', 'EUR', 'GBP', 'CAD', 'AUD']),
     }).optional(),
     availability: z.object({
       startDate: z.string().optional(),
@@ -348,10 +360,7 @@ export class CandidateController {
   static getCandidateById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     
-    // Only allow HR and Admin to view other candidate profiles
-    if (!req.user || !['admin', 'hr', 'agent'].includes(req.user.role)) {
-      throw createForbiddenError('Access denied');
-    }
+    // Access control is handled by requireCandidateAccess middleware
     
     const candidate = await Candidate.findById(id)
       .populate('userId', 'firstName lastName email')
