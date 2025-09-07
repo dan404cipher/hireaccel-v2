@@ -16,7 +16,9 @@ import {
   AlertCircle,
   FileText,
   MapPin,
-  DollarSign
+  DollarSign,
+  Phone,
+  Video
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJobs, useApplications, useInterviews, useCompanies } from "@/hooks/useApi";
