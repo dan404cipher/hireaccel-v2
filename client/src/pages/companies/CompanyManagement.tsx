@@ -136,19 +136,19 @@ export default function CompanyManagement() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active": return "bg-success text-success-foreground";
-      case "inactive": return "bg-muted text-muted-foreground";
-      case "pending": return "bg-warning text-warning-foreground";
-      default: return "bg-muted text-muted-foreground";
+      case "active": return "bg-emerald-600 text-white border-emerald-600";
+      case "inactive": return "bg-gray-600 text-white border-gray-600";
+      case "pending": return "bg-amber-600 text-white border-amber-600";
+      default: return "bg-gray-600 text-white border-gray-600";
     }
   };
 
   const getPartnershipColor = (level: string) => {
     switch (level) {
-      case "premium": return "bg-primary text-primary-foreground";
-      case "standard": return "bg-blue-500 text-white";
-      case "basic": return "bg-gray-500 text-white";
-      default: return "bg-muted text-muted-foreground";
+      case "premium": return "bg-purple-600 text-white border-purple-600";
+      case "standard": return "bg-blue-600 text-white border-blue-600";
+      case "basic": return "bg-gray-600 text-white border-gray-600";
+      default: return "bg-gray-600 text-white border-gray-600";
     }
   };
 
@@ -565,7 +565,7 @@ export default function CompanyManagement() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg">
               <Plus className="w-4 h-4 mr-2" />
               Add Company
             </Button>
@@ -789,77 +789,88 @@ export default function CompanyManagement() {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Companies</p>
-                <p className="text-2xl font-bold text-primary">
+                <p className="text-sm text-blue-100">Total Companies</p>
+                <p className="text-2xl font-bold text-white">
                   {companiesLoading ? "..." : companies.length}
                 </p>
               </div>
-              <Building2 className="w-8 h-8 text-primary" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Building2 className="w-6 h-6 text-blue-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active Partners</p>
-                <p className="text-2xl font-bold text-success">
+                <p className="text-sm text-emerald-100">Active Partners</p>
+                <p className="text-2xl font-bold text-white">
                   {companiesLoading ? "..." : companies.filter(c => c.status === 'active').length}
                 </p>
               </div>
-              <Star className="w-8 h-8 text-success" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Star className="w-6 h-6 text-emerald-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Industries</p>
-                <p className="text-2xl font-bold text-info">
+                <p className="text-sm text-purple-100">Industries</p>
+                <p className="text-2xl font-bold text-white">
                   {companiesLoading ? "..." : new Set(companies.map(c => c.industry)).size}
                 </p>
               </div>
-              <BarChart3 className="w-8 h-8 text-info" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <BarChart3 className="w-6 h-6 text-purple-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Open Positions</p>
-                <p className="text-2xl font-bold text-warning">
+                <p className="text-sm text-amber-100">Open Positions</p>
+                <p className="text-2xl font-bold text-white">
                   {companiesLoading ? "..." : companies.reduce((sum, c) => sum + (c.activeJobs || 0), 0)}
                 </p>
               </div>
-              <Briefcase className="w-8 h-8 text-warning" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Briefcase className="w-6 h-6 text-amber-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
         {/* Companies Table */}
-          <Card>
-            <CardHeader>
-          <CardTitle>Companies</CardTitle>
+          <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+          <CardTitle className="text-slate-700 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-blue-600" />
+            Companies
+          </CardTitle>
               <div className="flex gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-600" />
                   <Input
                     placeholder="Search companies..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
-                    <Filter className="w-4 h-4 mr-2" />
+                  <SelectTrigger className="w-32 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <Filter className="w-4 h-4 mr-2 text-blue-600" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -870,7 +881,8 @@ export default function CompanyManagement() {
                   </SelectContent>
                 </Select>
                 <Select value={industryFilter} onValueChange={setIndustryFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                <BarChart3 className="w-4 h-4 mr-2 text-purple-600" />
                 <SelectValue placeholder="Industry" />
                   </SelectTrigger>
                   <SelectContent>
@@ -921,11 +933,11 @@ export default function CompanyManagement() {
                           <Building2 className="w-5 h-5 text-primary" />
                         </div>
                         <div>
-                          <div className="font-medium">{company.name}</div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="font-medium text-base">{company.name}</div>
+                          <div className="text-base text-muted-foreground">
                             {company.website && (
                             <span className="flex items-center gap-1">
-                                <Globe className="w-3 h-3" />
+                                <Globe className="w-4 h-4 text-blue-600" />
                                 {company.website}
                             </span>
                             )}
@@ -934,13 +946,16 @@ export default function CompanyManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {company.industry}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-purple-600" />
+                        <Badge variant="outline" className="capitalize text-base">
+                          {company.industry}
+                        </Badge>
+                      </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-base">
+                        <MapPin className="w-4 h-4 text-emerald-600" />
                         {company.location}
                         </div>
                       </TableCell>
@@ -955,8 +970,8 @@ export default function CompanyManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-muted-foreground" />
+                      <div className="flex items-center justify-center gap-2 text-base">
+                        <Users className="w-4 h-4 text-amber-600" />
                         {formatEmployeeCount(company.employees)}
                       </div>
                       </TableCell>

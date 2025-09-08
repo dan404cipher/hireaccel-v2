@@ -54,7 +54,6 @@ import {
   ExternalLink,
   MapPin,
   Phone,
-  Star,
   MoreHorizontal,
   Building2
 } from 'lucide-react';
@@ -90,7 +89,6 @@ interface CandidateAssignment {
         currency: string;
       };
     };
-    rating?: number;
     resumeFileId?: string;
   };
   assignedBy: {
@@ -522,14 +520,14 @@ const SharedCandidates: React.FC = () => {
             {/* Column 1: Candidate Info */}
             <div className="flex items-start space-x-3">
               <Avatar className="h-12 w-12 flex-shrink-0">
-                <AvatarFallback className="text-sm">
+                <AvatarFallback className={`text-sm text-white font-semibold ${getCandidateStatusColor(assignment.candidateStatus)}`}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 truncate">{fullName}</div>
-                <div className="text-sm text-gray-500 truncate">{email}</div>
-                <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                <div className="font-semibold text-lg text-gray-900 truncate">{fullName}</div>
+                <div className="text-base text-gray-500 truncate">{email}</div>
+                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                   {isAgentView ? (
                     <>
                       {candidate?.profile?.phoneNumber && (
@@ -547,12 +545,6 @@ const SharedCandidates: React.FC = () => {
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-gray-400" />
                           <span className="truncate text-gray-400">Location not specified</span>
-                        </div>
-                      )}
-                      {candidate?.profile?.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                          <span>{candidate.profile.rating}/5</span>
                         </div>
                       )}
                     </>
@@ -575,12 +567,6 @@ const SharedCandidates: React.FC = () => {
                           <span className="truncate text-gray-400">Location not specified</span>
                         </div>
                       )}
-                      {candidate.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                          <span>{candidate.rating}/5</span>
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -589,10 +575,10 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 2: Job */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Job Position</div>
+              <div className="text-sm font-medium text-gray-500 mb-1">Job Position</div>
               {isAgentView ? (
                 <>
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-base font-medium text-gray-900">
                     {assignment.jobId ? assignment.jobId.title : 'General'}
                   </div>
                   {assignment.jobId?.companyId && (
@@ -612,7 +598,7 @@ const SharedCandidates: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-base font-medium text-gray-900">
                     {assignment.jobId ? assignment.jobId.title : 'General'}
                   </div>
                   {assignment.jobId?.companyId && (
@@ -635,7 +621,7 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 3: Candidate Status */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Candidate Status</div>
+              <div className="text-sm font-medium text-gray-500 mb-1">Candidate Status</div>
               {isAgentView ? (
                 <Badge variant="outline" className={`capitalize ${getCandidateStatusColor(assignment.candidateStatus)}`}>
                   {assignment.candidateStatus || 'new'}
@@ -645,7 +631,7 @@ const SharedCandidates: React.FC = () => {
                   value={assignment.candidateStatus || 'new'}
                   onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
                 >
-                  <SelectTrigger className={`w-32 h-8 text-xs ${getCandidateStatusColor(assignment.candidateStatus || 'new')}`}>
+                  <SelectTrigger className={`w-48 h-10 text-sm ${getCandidateStatusColor(assignment.candidateStatus || 'new')}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -683,11 +669,11 @@ const SharedCandidates: React.FC = () => {
           <div className="grid grid-cols-3 gap-4 mb-4">
             {/* Column 1: Assigned By/HR */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
-                <User className="w-3 h-3 text-blue-600" />
+              <div className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <User className="w-4 h-4 text-blue-600" />
                 {isAgentView ? "Assigned HR" : "Assigned by"}
               </div>
-              <div className="text-sm text-gray-900">
+              <div className="text-base text-gray-900">
                 {isAgentView ? (
                   assignment.assignedTo ? (
                     `${assignment.assignedTo.firstName} ${assignment.assignedTo.lastName}`
@@ -698,8 +684,8 @@ const SharedCandidates: React.FC = () => {
                   `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`
                 )}
               </div>
-              <div className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock className="w-3 h-3 text-gray-400" />
+              <div className="text-sm text-gray-500 flex items-center gap-1">
+                <Clock className="w-4 h-4 text-gray-400" />
                 {isAgentView ? (
                   assignment.assignedAt ? formatDistanceToNow(new Date(assignment.assignedAt)) + " ago" : "Not assigned"
                 ) : (
@@ -710,16 +696,16 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 2: Experience */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
-                <Briefcase className="w-3 h-3 text-emerald-600" />
+              <div className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <Briefcase className="w-4 h-4 text-emerald-600" />
                 Experience
               </div>
               {isAgentView ? (
-                <div className="text-sm font-medium text-gray-900">
+                <div className="text-base font-medium text-gray-900">
                   {formatExperience(candidate?.profile?.experience || [])}
                 </div>
               ) : (
-                <div className="text-sm font-medium text-gray-900">
+                <div className="text-base font-medium text-gray-900">
                   {formatExperience(candidate.profile.experience || [])}
                 </div>
               )}
@@ -796,11 +782,11 @@ const SharedCandidates: React.FC = () => {
           {/* Row 3: Notes */}
           {assignment.notes && (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-                <MessageSquare className="w-3 h-3 text-amber-600" />
+              <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-4 h-4 text-amber-600" />
                 {isAgentView ? "My Notes" : "Agent Notes"}
               </div>
-              <div className="text-sm text-gray-600 bg-amber-50 p-3 rounded-md border border-amber-200">
+              <div className="text-base text-gray-600 bg-amber-50 p-3 rounded-md border border-amber-200">
                 {assignment.notes}
               </div>
             </div>
@@ -809,11 +795,11 @@ const SharedCandidates: React.FC = () => {
           {/* Row 4: Feedback */}
           {assignment.feedback && (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-                <MessageSquare className="w-3 h-3 text-blue-600" />
+              <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-4 h-4 text-blue-600" />
                 {isAgentView ? "HR's Feedback" : "My Feedback"}
               </div>
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-200">
+              <div className="text-base text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-200">
                 {assignment.feedback}
               </div>
             </div>
@@ -1228,11 +1214,6 @@ const SharedCandidates: React.FC = () => {
                   <div>
                     <span className="font-medium">Location:</span> {selectedAssignment.candidateId.profile.location || 'Not specified'}
                   </div>
-                  {selectedAssignment.candidateId.rating && (
-                    <div>
-                      <span className="font-medium">Rating:</span> {selectedAssignment.candidateId.rating}/5
-                    </div>
-                  )}
                 </div>
               </div>
 

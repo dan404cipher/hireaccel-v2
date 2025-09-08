@@ -85,16 +85,16 @@ interface User {
 }
 
 const roleColors = {
-  admin: 'bg-red-100 text-red-800',
-  hr: 'bg-blue-100 text-blue-800',
-  agent: 'bg-green-100 text-green-800',
-  candidate: 'bg-purple-100 text-purple-800',
+  admin: 'bg-red-600 text-white border-red-600',
+  hr: 'bg-blue-600 text-white border-blue-600',
+  agent: 'bg-emerald-600 text-white border-emerald-600',
+  candidate: 'bg-purple-600 text-white border-purple-600',
 };
 
 const statusColors = {
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-gray-100 text-gray-800',
-  suspended: 'bg-red-100 text-red-800',
+  active: 'bg-emerald-600 text-white border-emerald-600',
+  inactive: 'bg-gray-600 text-white border-gray-600',
+  suspended: 'bg-amber-600 text-white border-amber-600',
 };
 
 const roleLabels = {
@@ -416,10 +416,16 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage users, roles, and permissions</p>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Users className="h-8 w-8 text-blue-600" />
+            User Management
+          </h1>
+          <p className="text-muted-foreground">Manage users, roles, and permissions across the platform</p>
         </div>
-        <Button onClick={openCreateDialog}>
+        <Button 
+          onClick={openCreateDialog}
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -430,23 +436,26 @@ export default function UserManagement() {
 
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-blue-600" />
+            Filters
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
               <Input
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
               />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="border-purple-200 focus:border-purple-400 focus:ring-purple-400">
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
               <SelectContent>
@@ -458,7 +467,7 @@ export default function UserManagement() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -475,6 +484,7 @@ export default function UserManagement() {
                 setRoleFilter('all');
                 setStatusFilter('all');
               }}
+              className="text-gray-600 hover:bg-gray-100"
             >
               Clear Filters
             </Button>
@@ -483,18 +493,21 @@ export default function UserManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Users ({users.length})</CardTitle>
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            Users ({users.length})
+          </CardTitle>
         </CardHeader>
         
         {/* Bulk Actions Toolbar - Inside Users Card */}
         {selectedUsers.size > 0 && (
-          <div className="border-b border-primary/20 bg-primary/5">
+          <div className="border-b border-blue-200 bg-blue-50">
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">
+                <CheckSquare className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
                   {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected
                 </span>
               </div>
@@ -503,7 +516,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={handleExport}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
                 >
                   <Download className="h-4 w-4" />
                   Export
@@ -512,7 +525,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleBulkStatusChange('active')}
-                  className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                  className="flex items-center gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300"
                 >
                   <UserCheck className="h-4 w-4" />
                   Activate
@@ -521,7 +534,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleBulkStatusChange('inactive')}
-                  className="flex items-center gap-1 text-gray-600 hover:text-gray-700"
+                  className="flex items-center gap-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
                 >
                   <UserX className="h-4 w-4" />
                   Deactivate
@@ -530,7 +543,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleBulkStatusChange('suspended')}
-                  className="flex items-center gap-1 text-orange-600 hover:text-orange-700"
+                  className="flex items-center gap-1 border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300"
                 >
                   <UserX className="h-4 w-4" />
                   Suspend
@@ -540,7 +553,7 @@ export default function UserManagement() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                      className="flex items-center gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -573,6 +586,7 @@ export default function UserManagement() {
                     setSelectedUsers(new Set());
                     setSelectAll(false);
                   }}
+                  className="text-blue-600 hover:bg-blue-100"
                 >
                   Clear Selection
                 </Button>
@@ -604,8 +618,6 @@ export default function UserManagement() {
                     <TableHead>Phone</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead className="w-[50px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -619,21 +631,29 @@ export default function UserManagement() {
                           aria-label={`Select ${user.firstName} ${user.lastName}`}
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium text-blue-600">
-                        {user.customId}
+                      <TableCell className="font-mono text-base font-medium text-blue-600">
+                        {user.customId.startsWith('CAND') 
+                          ? user.customId.replace(/^CAND0+/, 'CAND')
+                          : user.customId.startsWith('HR') 
+                          ? user.customId.replace(/^HR0+/, 'HR')
+                          : user.customId.startsWith('ADMIN') 
+                          ? user.customId.replace(/^ADMIN0+/, 'ADMIN')
+                          : user.customId.startsWith('AGENT') 
+                          ? user.customId.replace(/^AGENT0+/, 'AGENT')
+                          : user.customId}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium text-base">
                         {user.firstName} {user.lastName}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-base">
+                          <Mail className="h-4 w-4 text-blue-600" />
                           {user.email}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-base">
+                          <Phone className="h-4 w-4 text-emerald-600" />
                           {user.phoneNumber || '-'}
                         </div>
                       </TableCell>
@@ -648,13 +668,6 @@ export default function UserManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          {formatLastLogin(user.lastLoginAt)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
-                      <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
@@ -663,27 +676,27 @@ export default function UserManagement() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setViewingUser(user)}>
-                              <Eye className="mr-2 h-4 w-4" />
+                              <Eye className="mr-2 h-4 w-4 text-blue-600" />
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                              <Edit className="mr-2 h-4 w-4" />
+                              <Edit className="mr-2 h-4 w-4 text-emerald-600" />
                               Edit User
                             </DropdownMenuItem>
                             {user.status === 'active' ? (
                               <>
                                 <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
-                                  <UserX className="mr-2 h-4 w-4" />
+                                  <UserX className="mr-2 h-4 w-4 text-gray-600" />
                                   Deactivate
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'suspended')}>
-                                  <UserX className="mr-2 h-4 w-4" />
+                                  <UserX className="mr-2 h-4 w-4 text-amber-600" />
                                   Suspend
                                 </DropdownMenuItem>
                               </>
                             ) : (
                               <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
-                                <UserCheck className="mr-2 h-4 w-4" />
+                                <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
                                 Activate
                               </DropdownMenuItem>
                             )}

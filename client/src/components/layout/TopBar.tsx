@@ -55,6 +55,21 @@ export function TopBar() {
     }
   };
 
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-red-600 text-white';
+      case 'hr': return 'bg-blue-600 text-white';
+      case 'agent': return 'bg-purple-600 text-white';
+      case 'candidate': return 'bg-emerald-600 text-white';
+      default: return 'bg-gray-600 text-white';
+    }
+  };
+
+  const getUserInitials = (user: User | null) => {
+    if (!user) return 'U';
+    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U';
+  };
+
   return (
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-4">
@@ -81,8 +96,8 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <UserIcon className="w-4 h-4 text-primary-foreground" />
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${getRoleColor(user?.role || 'default')}`}>
+                {getUserInitials(user)}
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium">

@@ -391,28 +391,34 @@ export default function AgentAllocation() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Agent Allocation</h1>
+          <p className="text-muted-foreground">Manage agent assignments for HR users and candidates</p>
+        </div>
+      </div>
 
-          <Card>
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
         <Tabs value={allocationTab} onValueChange={(value) => setAllocationTab(value as 'allocated' | 'not-allocated')}>
-            <CardHeader>
+            <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
             <div className="flex items-center justify-between">
               {/* Allocation Status Tabs */}
-              <TabsList>
-                <TabsTrigger value="not-allocated">
+              <TabsList className="bg-white">
+                <TabsTrigger value="not-allocated" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
                   Not Allocated ({getUnallocatedCount()})
                 </TabsTrigger>
-                <TabsTrigger value="allocated">
+                <TabsTrigger value="allocated" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white">
                   Allocated ({getAllocatedCount()})
                 </TabsTrigger>
               </TabsList>
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
                   <Input
                   placeholder="Search HR users and candidates..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-80"
+                  className="pl-10 w-80 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
                   />
                 </div>
             </div>
@@ -422,17 +428,17 @@ export default function AgentAllocation() {
             <TabsContent value="not-allocated" className="mt-6">
               {/* Bulk Actions Toolbar */}
               {selectedResources.size > 0 && (
-                <div className="border-b border-primary/20 bg-primary/5 p-4 mb-4 rounded-lg">
+                <div className="border-b border-blue-200 bg-blue-50 p-4 mb-4 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CheckSquare className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">
+                      <CheckSquare className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">
                         {selectedResources.size} resource{selectedResources.size !== 1 ? 's' : ''} selected
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                        <SelectTrigger className="w-48">
+                        <SelectTrigger className="w-48 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
                           <SelectValue placeholder="Select agent..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -447,6 +453,7 @@ export default function AgentAllocation() {
                         onClick={handleBulkAllocation}
                         disabled={!selectedAgent || loading}
                         size="sm"
+                        className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700"
                       >
                         {loading ? <LoadingSpinner /> : 'Allocate Selected'}
                       </Button>
@@ -457,6 +464,7 @@ export default function AgentAllocation() {
                           setSelectedResources(new Set());
                           setSelectAll(false);
                         }}
+                        className="text-blue-600 hover:bg-blue-100"
                       >
                         Clear Selection
                       </Button>
@@ -481,7 +489,6 @@ export default function AgentAllocation() {
                         />
                       </TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Last Login</TableHead>
                       <TableHead>Actions</TableHead>
@@ -509,34 +516,32 @@ export default function AgentAllocation() {
                               )}
                             </div>
                         <div>
-                              <p className="font-medium">{resource.firstName} {resource.lastName}</p>
-                              <p className="text-sm text-muted-foreground">{resource.role === 'hr' ? 'HR User' : 'Candidate'}</p>
+                              <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
+                              <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
+                                {resource.role === 'hr' ? 'HR User' : 'Candidate'}
+                              </Badge>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                          <Badge variant="outline" className={resource.role === 'hr' ? 'text-green-600' : 'text-purple-600'}>
-                            {resource.role === 'hr' ? 'HR' : 'Candidate'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex items-center gap-2 text-base">
+                            <Mail className="h-4 w-4 text-blue-600" />
                             {resource.email}
                           </div>
                         </TableCell>
-                        <TableCell>{formatLastLogin(resource.lastLoginAt)}</TableCell>
+                        <TableCell className="text-base">{formatLastLogin(resource.lastLoginAt)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => openAllocationDialog(resource)}
+                              className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300"
                             >
                               <UserPlus className="h-4 w-4 mr-1" />
                               Allocate
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
                               <Eye className="h-4 w-4 mr-1" />
                               View
                             </Button>
@@ -552,11 +557,11 @@ export default function AgentAllocation() {
             <TabsContent value="allocated" className="mt-6">
               {/* Bulk Actions Toolbar for Allocated */}
               {selectedResources.size > 0 && (
-                <div className="border-b border-primary/20 bg-primary/5 p-4 mb-4 rounded-lg">
+                <div className="border-b border-red-200 bg-red-50 p-4 mb-4 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <CheckSquare className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">
+                      <CheckSquare className="h-4 w-4 text-red-600" />
+                      <span className="text-sm font-medium text-red-800">
                         {selectedResources.size} resource{selectedResources.size !== 1 ? 's' : ''} selected
                       </span>
                     </div>
@@ -565,7 +570,7 @@ export default function AgentAllocation() {
                         onClick={handleBulkDeallocation}
                         disabled={loading}
                         size="sm"
-                        variant="destructive"
+                        className="bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700"
                       >
                         {loading ? <LoadingSpinner /> : 'Remove Selected'}
                       </Button>
@@ -576,6 +581,7 @@ export default function AgentAllocation() {
                           setSelectedResources(new Set());
                           setSelectAll(false);
                         }}
+                        className="text-red-600 hover:bg-red-100"
                       >
                         Clear Selection
                       </Button>
@@ -600,7 +606,6 @@ export default function AgentAllocation() {
                         />
                       </TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Last Login</TableHead>
                       <TableHead>Current Agent</TableHead>
@@ -634,30 +639,27 @@ export default function AgentAllocation() {
                                 )}
                         </div>
                         <div>
-                                <p className="font-medium">{resource.firstName} {resource.lastName}</p>
-                                <p className="text-sm text-muted-foreground">{resource.role === 'hr' ? 'HR User' : 'Candidate'}</p>
+                                <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
+                                <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
+                                  {resource.role === 'hr' ? 'HR User' : 'Candidate'}
+                                </Badge>
                         </div>
                       </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={resource.role === 'hr' ? 'text-green-600' : 'text-purple-600'}>
-                              {resource.role === 'hr' ? 'HR' : 'Candidate'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex items-center gap-2 text-base">
+                              <Mail className="h-4 w-4 text-blue-600" />
                               {resource.email}
                             </div>
                           </TableCell>
-                          <TableCell>{formatLastLogin(resource.lastLoginAt)}</TableCell>
+                          <TableCell className="text-base">{formatLastLogin(resource.lastLoginAt)}</TableCell>
                           <TableCell>
                             {agentInfo ? (
-                              <Badge variant="outline" className="text-blue-600">
+                              <Badge variant="outline" className="text-blue-600 border-blue-200">
                                 {agentInfo.firstName} {agentInfo.lastName}
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-gray-500">
+                              <Badge variant="outline" className="text-gray-500 border-gray-200">
                                 Unassigned
                               </Badge>
                             )}
@@ -668,11 +670,12 @@ export default function AgentAllocation() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => openAllocationDialog(resource)}
+                                className="border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
                               >
                                 <Edit className="h-4 w-4 mr-1" />
                                 Reassign
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
                       </Button>
@@ -734,7 +737,11 @@ export default function AgentAllocation() {
             <Button variant="outline" onClick={() => setIsAllocationDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveAllocation} disabled={loading || !selectedAgent}>
+            <Button 
+              onClick={handleSaveAllocation} 
+              disabled={loading || !selectedAgent}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700"
+            >
               {loading ? <LoadingSpinner /> : <Save className="h-4 w-4 mr-2" />}
               {loading ? 'Allocating...' : 'Allocate'}
             </Button>
