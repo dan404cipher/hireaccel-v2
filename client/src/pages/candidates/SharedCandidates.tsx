@@ -55,7 +55,8 @@ import {
   MapPin,
   Phone,
   Star,
-  MoreHorizontal
+  MoreHorizontal,
+  Building2
 } from 'lucide-react';
 import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats, useCandidateAssignments } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -242,15 +243,15 @@ const SharedCandidates: React.FC = () => {
 
   const getCandidateStatusColor = (status?: string) => {
     switch (status) {
-      case 'new': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'reviewed': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'shortlisted': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'interview_scheduled': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'interviewed': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'offer_sent': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'hired': return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'new': return 'bg-gray-600 text-white border-gray-600';
+      case 'reviewed': return 'bg-blue-600 text-white border-blue-600';
+      case 'shortlisted': return 'bg-purple-600 text-white border-purple-600';
+      case 'interview_scheduled': return 'bg-orange-600 text-white border-orange-600';
+      case 'interviewed': return 'bg-yellow-600 text-white border-yellow-600';
+      case 'offer_sent': return 'bg-indigo-600 text-white border-indigo-600';
+      case 'hired': return 'bg-green-600 text-white border-green-600';
+      case 'rejected': return 'bg-red-600 text-white border-red-600';
+      default: return 'bg-gray-600 text-white border-gray-600';
     }
   };
 
@@ -533,24 +534,24 @@ const SharedCandidates: React.FC = () => {
                     <>
                       {candidate?.profile?.phoneNumber && (
                         <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
+                          <Phone className="w-3 h-3 text-blue-600" />
                           <span className="truncate">{candidate.profile.phoneNumber}</span>
                         </div>
                       )}
                       {candidate?.profile?.location ? (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-3 h-3 text-emerald-600" />
                           <span className="truncate">{candidate.profile.location}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-3 h-3 text-gray-400" />
                           <span className="truncate text-gray-400">Location not specified</span>
                         </div>
                       )}
                       {candidate?.profile?.rating && (
                         <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                           <span>{candidate.profile.rating}/5</span>
                         </div>
                       )}
@@ -559,24 +560,24 @@ const SharedCandidates: React.FC = () => {
                     <>
                       {candidate.profile.phoneNumber && (
                         <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
+                          <Phone className="w-3 h-3 text-blue-600" />
                           <span className="truncate">{candidate.profile.phoneNumber}</span>
                         </div>
                       )}
                       {candidate.profile.location ? (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-3 h-3 text-emerald-600" />
                           <span className="truncate">{candidate.profile.location}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-3 h-3 text-gray-400" />
                           <span className="truncate text-gray-400">Location not specified</span>
                         </div>
                       )}
                       {candidate.rating && (
                         <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                           <span>{candidate.rating}/5</span>
                         </div>
                       )}
@@ -596,7 +597,7 @@ const SharedCandidates: React.FC = () => {
                   </div>
                   {assignment.jobId?.companyId && (
                     <div className="flex items-center gap-2 mt-1">
-                      <Briefcase className="w-3 h-3 text-gray-400" />
+                      <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
                         <span className="font-medium">{assignment.jobId.companyId.name}</span>
                         {assignment.jobId.companyId.industry && (
@@ -616,7 +617,7 @@ const SharedCandidates: React.FC = () => {
                   </div>
                   {assignment.jobId?.companyId && (
                     <div className="flex items-center gap-2 mt-1">
-                      <Briefcase className="w-3 h-3 text-gray-400" />
+                      <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
                         <span className="font-medium">{assignment.jobId.companyId.name}</span>
                         {assignment.jobId.companyId.industry && (
@@ -636,7 +637,7 @@ const SharedCandidates: React.FC = () => {
             <div>
               <div className="text-xs font-medium text-gray-500 mb-1">Candidate Status</div>
               {isAgentView ? (
-                <Badge variant="outline" className="capitalize">
+                <Badge variant="outline" className={`capitalize ${getCandidateStatusColor(assignment.candidateStatus)}`}>
                   {assignment.candidateStatus || 'new'}
                 </Badge>
               ) : (
@@ -644,18 +645,34 @@ const SharedCandidates: React.FC = () => {
                   value={assignment.candidateStatus || 'new'}
                   onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
                 >
-                  <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectTrigger className={`w-32 h-8 text-xs ${getCandidateStatusColor(assignment.candidateStatus || 'new')}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
-                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                    <SelectItem value="interviewed">Interviewed</SelectItem>
-                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
-                    <SelectItem value="hired">Hired</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="new" className="text-gray-700 hover:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:text-gray-800">
+                      New
+                    </SelectItem>
+                    <SelectItem value="reviewed" className="text-blue-700 hover:bg-blue-50 data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-800">
+                      Reviewed
+                    </SelectItem>
+                    <SelectItem value="shortlisted" className="text-purple-700 hover:bg-purple-50 data-[state=checked]:bg-purple-100 data-[state=checked]:text-purple-800">
+                      Shortlisted
+                    </SelectItem>
+                    <SelectItem value="interview_scheduled" className="text-orange-700 hover:bg-orange-50 data-[state=checked]:bg-orange-100 data-[state=checked]:text-orange-800">
+                      Interview Scheduled
+                    </SelectItem>
+                    <SelectItem value="interviewed" className="text-yellow-700 hover:bg-yellow-50 data-[state=checked]:bg-yellow-100 data-[state=checked]:text-yellow-800">
+                      Interviewed
+                    </SelectItem>
+                    <SelectItem value="offer_sent" className="text-indigo-700 hover:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-800">
+                      Offer Sent
+                    </SelectItem>
+                    <SelectItem value="hired" className="text-green-700 hover:bg-green-50 data-[state=checked]:bg-green-100 data-[state=checked]:text-green-800">
+                      Hired
+                    </SelectItem>
+                    <SelectItem value="rejected" className="text-red-700 hover:bg-red-50 data-[state=checked]:bg-red-100 data-[state=checked]:text-red-800">
+                      Rejected
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -666,7 +683,8 @@ const SharedCandidates: React.FC = () => {
           <div className="grid grid-cols-3 gap-4 mb-4">
             {/* Column 1: Assigned By/HR */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">
+              <div className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <User className="w-3 h-3 text-blue-600" />
                 {isAgentView ? "Assigned HR" : "Assigned by"}
               </div>
               <div className="text-sm text-gray-900">
@@ -680,7 +698,8 @@ const SharedCandidates: React.FC = () => {
                   `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`
                 )}
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-gray-400" />
                 {isAgentView ? (
                   assignment.assignedAt ? formatDistanceToNow(new Date(assignment.assignedAt)) + " ago" : "Not assigned"
                 ) : (
@@ -691,7 +710,10 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 2: Experience */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Experience</div>
+              <div className="text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <Briefcase className="w-3 h-3 text-emerald-600" />
+                Experience
+              </div>
               {isAgentView ? (
                 <div className="text-sm font-medium text-gray-900">
                   {formatExperience(candidate?.profile?.experience || [])}
@@ -705,13 +727,12 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 3: Resume */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Resume</div>
               {isAgentView ? (
                 candidate?.resumeFileId ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="text-xs h-8"
+                    className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
                     onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
                   >
                     <ExternalLink className="w-3 h-3 mr-1" />
@@ -725,7 +746,7 @@ const SharedCandidates: React.FC = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="text-xs h-8"
+                    className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
                     onClick={async () => {
                       try {
                         const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
@@ -775,10 +796,11 @@ const SharedCandidates: React.FC = () => {
           {/* Row 3: Notes */}
           {assignment.notes && (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-medium text-gray-500 mb-2">
+              <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-3 h-3 text-amber-600" />
                 {isAgentView ? "My Notes" : "Agent Notes"}
               </div>
-              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+              <div className="text-sm text-gray-600 bg-amber-50 p-3 rounded-md border border-amber-200">
                 {assignment.notes}
               </div>
             </div>
@@ -787,10 +809,11 @@ const SharedCandidates: React.FC = () => {
           {/* Row 4: Feedback */}
           {assignment.feedback && (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-medium text-gray-500 mb-2">
+              <div className="text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-3 h-3 text-blue-600" />
                 {isAgentView ? "HR's Feedback" : "My Feedback"}
               </div>
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-200">
                 {assignment.feedback}
               </div>
             </div>
@@ -813,28 +836,51 @@ const SharedCandidates: React.FC = () => {
       {/* Stats Cards */}
       {user?.role !== 'agent' ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {stats.byStatus && stats.byStatus.map((stat: any) => (
-            <Card key={stat._id}>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${getStatusColor(stat._id).replace('border-', 'bg-').split(' ')[0]}`}></div>
-                  <div>
-                    <p className="text-sm font-medium capitalize">{stat._id}</p>
-                    <p className="text-2xl font-bold">{stat.count}</p>
+          {stats.byStatus && stats.byStatus.map((stat: any, index: number) => {
+            const gradients = [
+              "from-blue-500 to-blue-600",
+              "from-emerald-500 to-emerald-600", 
+              "from-amber-500 to-amber-600",
+              "from-purple-500 to-purple-600"
+            ];
+            const iconColors = [
+              "text-blue-100",
+              "text-emerald-100",
+              "text-amber-100", 
+              "text-purple-100"
+            ];
+            const gradient = gradients[index % gradients.length];
+            const iconColor = iconColors[index % iconColors.length];
+            
+            return (
+              <Card key={stat._id} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+                <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`}></div>
+                <CardContent className="relative p-4">
+                  <div className="flex items-center space-x-2">
+                    <div className={`${iconColor} bg-white/20 p-2 rounded-lg backdrop-blur-sm`}>
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/90 capitalize">{stat._id}</p>
+                      <p className="text-2xl font-bold text-white">{stat.count}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
           
           {stats.overdue > 0 && (
-            <Card>
-              <CardContent className="p-4">
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-600 opacity-90"></div>
+              <CardContent className="relative p-4">
                 <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  <div className="text-red-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium text-red-600">Overdue</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+                    <p className="text-sm font-medium text-white/90">Overdue</p>
+                    <p className="text-2xl font-bold text-white">{stats.overdue}</p>
                   </div>
                 </div>
               </CardContent>
@@ -843,37 +889,46 @@ const SharedCandidates: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4">
+          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90"></div>
+            <CardContent className="relative p-4">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div className="text-blue-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <User className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Total Assigned Candidates</p>
-                  <p className="text-2xl font-bold">{assignments.length}</p>
+                  <p className="text-sm font-medium text-white/90">Total Assigned Candidates</p>
+                  <p className="text-2xl font-bold text-white">{assignments.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90"></div>
+            <CardContent className="relative p-4">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="text-emerald-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <Briefcase className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Active HRs</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm font-medium text-white/90">Active HRs</p>
+                  <p className="text-2xl font-bold text-white">
                     {Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90"></div>
+            <CardContent className="relative p-4">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <div className="text-purple-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <Building2 className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Companies</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm font-medium text-white/90">Companies</p>
+                  <p className="text-2xl font-bold text-white">
                     {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
                   </p>
                 </div>
@@ -886,24 +941,25 @@ const SharedCandidates: React.FC = () => {
 
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-200">
         <CardContent className="p-4">
           <div className="flex space-x-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-600 w-4 h-4" />
                 <Input
                   placeholder="Search candidates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                 />
               </div>
             </div>
             {user?.role !== 'agent' && (
               <>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <Filter className="w-4 h-4 mr-2 text-blue-600" />
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -915,7 +971,8 @@ const SharedCandidates: React.FC = () => {
                   </SelectContent>
                 </Select>
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                    <Filter className="w-4 h-4 mr-2 text-purple-600" />
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -929,7 +986,8 @@ const SharedCandidates: React.FC = () => {
               </>
             )}
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 border-amber-200 focus:border-amber-400 focus:ring-amber-400">
+                <Building2 className="w-4 h-4 mr-2 text-amber-600" />
                 <SelectValue placeholder="Company" />
               </SelectTrigger>
               <SelectContent>
