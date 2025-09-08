@@ -46,6 +46,7 @@ import { useJobs, useCreateJob, useDeleteJob, useCompanies } from "@/hooks/useAp
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function JobManagementIntegrated() {
   const { user } = useAuth();
@@ -398,6 +399,9 @@ export default function JobManagementIntegrated() {
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
+      {/* Banner */}
+      <DashboardBanner category="hr" />
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Job Management</h1>

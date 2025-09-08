@@ -62,6 +62,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/lib/utils';
+import { DashboardBanner } from '@/components/dashboard/Banner';
 
 interface CandidateAssignment {
   _id: string;
@@ -803,6 +804,8 @@ const SharedCandidates: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="hr" />
 
 
 

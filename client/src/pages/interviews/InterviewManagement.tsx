@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { useInterviews, useCreateInterview, useUpdateInterview, useDeleteInterview, useInterviewStats, useCandidateAssignments } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
+import { DashboardBanner } from "@/components/dashboard/Banner";
 
 import { 
   Select,
@@ -398,6 +399,9 @@ export default function InterviewManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="hr" />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">

@@ -56,6 +56,7 @@ import {
 import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, useMutation } from "@/hooks/useApi";
 import { apiClient } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
+import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CompanyManagement() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -554,6 +555,9 @@ export default function CompanyManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="hr" />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Company Management</h1>
