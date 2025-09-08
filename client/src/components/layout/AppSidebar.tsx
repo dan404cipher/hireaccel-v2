@@ -105,14 +105,13 @@ export function AppSidebar() {
     <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarContent>
         {/* Logo/Brand Section */}
-        <div className={`border-b border-sidebar-border flex items-center px-4 ${collapsed ? 'h-14 justify-center' : 'h-16'}`}>
+        <div className={`border-b border-sidebar-border flex items-center ${collapsed ? 'h-13 justify-center' : 'h-16 px-4'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/35 via-white/10 to-transparent"></div>
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
+            <img 
+              src="/app-logo.png" 
+              alt="HireAccel Logo" 
+              className={`${collapsed ? 'w-16 h-16 py-1.5' : 'w-10 h-10'} `}
+            />
             {!collapsed && (
               <div>
                 <h1 className="font-bold text-sidebar-foreground text-lg">Hire Accel</h1>
