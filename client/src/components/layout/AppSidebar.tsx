@@ -36,7 +36,6 @@ const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'], color: "text-blue-600" },
   { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin'], color: "text-green-600" },
   { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'], color: "text-orange-600" },
-  { title: "Assignment Tracking", url: "/dashboard/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'], color: "text-purple-600" },
   { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'hr'], color: "text-indigo-600" },
   { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'hr', 'agent'], color: "text-pink-600" },
   { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'], color: "text-red-600" },
@@ -136,7 +135,7 @@ export function AppSidebar() {
         <div className={`border-b border-sidebar-border flex items-center ${collapsed ? 'h-13 justify-center' : 'h-16 px-4'}`}>
           <div className="flex items-center gap-3">
             <img 
-              src="/app-logo.png" 
+              src="/logo-color.png" 
               alt="HireAccel Logo" 
               className={`${collapsed ? 'w-16 h-16 py-1.5' : 'w-10 h-10'} `}
             />

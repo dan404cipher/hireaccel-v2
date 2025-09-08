@@ -9,7 +9,6 @@ import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import AgentAllocation from "./pages/agents/AgentAllocation";
 import AgentAssignmentDashboard from "./pages/agents/AgentAssignmentDashboard";
-import AssignmentTracking from "./pages/agents/AssignmentTracking";
 import JobManagement from "./pages/jobs/JobManagementIntegrated";
 import JobDetailsPage from "./pages/jobs/JobDetailsPage";
 import JobEditPage from "./pages/jobs/JobEditPage";
@@ -194,11 +193,6 @@ function AppRouter() {
         <Route path="assignment-management" element={
           <RoleProtectedRoute allowedRoles={['agent']}>
             <AgentAssignmentDashboard />
-          </RoleProtectedRoute>
-        } />
-        <Route path="assignment-tracking" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'agent']}>
-            <AssignmentTracking />
           </RoleProtectedRoute>
         } />
         <Route path="jobs" element={
