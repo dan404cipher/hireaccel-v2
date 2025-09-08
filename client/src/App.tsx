@@ -25,6 +25,7 @@ import UserManagement from "./pages/users/UserManagement";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import AnalyticsReports from "./pages/admin/AnalyticsReports";
 import AdminProfile from "./pages/admin/AdminProfile";
+import BannerManagement from "./pages/admin/BannerManagement";
 import HRProfile from "./pages/hr/HRProfile";
 import LoginPage from "./pages/auth/LoginPage";
 import { SignupPage } from "./pages/auth/SignupPage";
@@ -275,6 +276,11 @@ function AppRouter() {
         <Route path="admin-profile" element={
           <RoleProtectedRoute allowedRoles={['admin']}>
             <AdminProfile />
+          </RoleProtectedRoute>
+        } />
+        <Route path="post-ads" element={
+          <RoleProtectedRoute allowedRoles={['admin']}>
+            <BannerManagement />
           </RoleProtectedRoute>
         } />
       </Route>

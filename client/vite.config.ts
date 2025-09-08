@@ -9,6 +9,23 @@ export default defineConfig(() => ({
     port: 5173,
     fs: {
       allow: ['..']
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/auth': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/uploads': {
+        target: 'http://localhost:3002',
+        changeOrigin: true,
+        secure: false,
+      }
     }
   },
   plugins: [

@@ -779,6 +779,56 @@ class ApiClient {
     return this.request('/api/v1/candidate-assignments/stats');
   }
 
+  // Banner methods
+  async uploadBanner(file: File) {
+    const formData = new FormData();
+    formData.append('media', file);
+
+    // Use fetch directly for file uploads to avoid Content-Type header issues
+    const url = `${this.baseURL}/api/v1/banners`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw data;
+    }
+
+    return data;
+  }
+
+  async getBanners() {
+    return this.request('/api/v1/banners');
+  }
+
+  async getActiveBanner() {
+    return this.request('/api/v1/banners/active');
+  }
+
+  async updateBannerStatus(bannerId: string, isActive: boolean) {
+    return this.request(`/api/v1/banners/${bannerId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+  }
+
+  async deleteBanner(bannerId: string) {
+    return this.request(`/api/v1/banners/${bannerId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Health check
   async healthCheck() {
     return this.request('/health');

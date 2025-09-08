@@ -24,6 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useJobs, useApplications, useInterviews, useCompanies } from "@/hooks/useApi";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from 'date-fns';
+import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function HRDashboard() {
   const { user } = useAuth();
@@ -130,6 +131,9 @@ export default function HRDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">HR Dashboard</h1>

@@ -14,7 +14,8 @@ import {
   FileText,
   Search,
   PieChart,
-  TrendingUp
+  TrendingUp,
+  Image
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
@@ -41,6 +42,7 @@ const navigationItems = [
   { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'] },
   { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'hr'] },
   { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'] },
+  { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin'] },
   
   // Candidate-specific navigation
   { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
