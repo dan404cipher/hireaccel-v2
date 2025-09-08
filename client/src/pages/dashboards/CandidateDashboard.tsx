@@ -19,6 +19,7 @@ import { useMyCandidateAssignments, useCandidateProfile, useInterviews } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CandidateDashboard() {
   const { user } = useAuth();
@@ -182,6 +183,9 @@ export default function CandidateDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="candidate" />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Welcome back, {user?.firstName || 'Candidate'}!</h1>

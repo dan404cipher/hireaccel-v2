@@ -780,9 +780,10 @@ class ApiClient {
   }
 
   // Banner methods
-  async uploadBanner(file: File) {
+  async uploadBanner(file: File, category: 'hr' | 'candidate') {
     const formData = new FormData();
     formData.append('media', file);
+    formData.append('category', category);
 
     // Use fetch directly for file uploads to avoid Content-Type header issues
     const url = `${this.baseURL}/api/v1/banners`;
@@ -808,12 +809,13 @@ class ApiClient {
     return data;
   }
 
-  async getBanners() {
-    return this.request('/api/v1/banners');
+  async getBanners(category?: 'hr' | 'candidate') {
+    const params = category ? `?category=${category}` : '';
+    return this.request(`/api/v1/banners${params}`);
   }
 
-  async getActiveBanner() {
-    return this.request('/api/v1/banners/active');
+  async getActiveBanner(category: 'hr' | 'candidate') {
+    return this.request(`/api/v1/banners/active?category=${category}`);
   }
 
   async updateBannerStatus(bannerId: string, isActive: boolean) {

@@ -132,7 +132,7 @@ export default function HRDashboard() {
   return (
     <div className="space-y-6">
       {/* Banner */}
-      <DashboardBanner />
+          <DashboardBanner category="hr" />
       
       <div className="flex justify-between items-center">
         <div>

@@ -7,6 +7,7 @@ interface Banner {
   _id: string;
   mediaUrl: string;
   mediaType: 'image' | 'gif' | 'video';
+  category: 'hr' | 'candidate';
   isActive: boolean;
   createdBy: {
     firstName: string;
@@ -14,7 +15,11 @@ interface Banner {
   };
 }
 
-export function DashboardBanner() {
+interface DashboardBannerProps {
+  category: 'hr' | 'candidate';
+}
+
+export function DashboardBanner({ category }: DashboardBannerProps) {
   const [banner, setBanner] = useState<Banner | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -22,17 +27,18 @@ export function DashboardBanner() {
   useEffect(() => {
     const fetchBanner = async () => {
       try {
-        const response = await apiClient.getActiveBanner();
-        setBanner(response.data);
+        const response = await apiClient.getActiveBanner(category);
+        setBanner(response);
       } catch (error) {
         console.error('Error fetching banner:', error);
+        // Don't show error toast for missing banners, just don't display anything
       } finally {
         setLoading(false);
       }
     };
 
     fetchBanner();
-  }, []);
+  }, [category]);
 
   if (loading || !banner) return null;
 

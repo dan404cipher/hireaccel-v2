@@ -10,6 +10,7 @@ interface Banner {
   _id: string;
   mediaUrl: string;
   mediaType: 'image' | 'gif' | 'video';
+  category: 'hr' | 'candidate';
   isActive: boolean;
   createdBy: {
     firstName: string;
@@ -19,20 +20,38 @@ interface Banner {
 }
 
 export function BannerManagement() {
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [hrBanners, setHrBanners] = useState<Banner[]>([]);
+  const [candidateBanners, setCandidateBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<'hr' | 'candidate'>('hr');
 
   useEffect(() => {
     fetchBanners();
   }, []);
 
   const fetchBanners = async () => {
+    console.log('=== FRONTEND: FETCHING BANNERS ===');
     try {
-      const response = await apiClient.getBanners();
-      // Ensure response.data is an array
-      const bannersData = Array.isArray(response.data) ? response.data : [];
-      setBanners(bannersData);
+      // Fetch HR banners
+      console.log('Fetching HR banners...');
+      const hrResponse = await apiClient.getBanners('hr');
+      console.log('HR banners response:', hrResponse);
+      // The API returns banners directly, not wrapped in a data property
+      const hrBannersData = Array.isArray(hrResponse) ? hrResponse : [];
+      console.log('HR banners data:', hrBannersData);
+      setHrBanners(hrBannersData);
+
+      // Fetch Candidate banners
+      console.log('Fetching Candidate banners...');
+      const candidateResponse = await apiClient.getBanners('candidate');
+      console.log('Candidate banners response:', candidateResponse);
+      // The API returns banners directly, not wrapped in a data property
+      const candidateBannersData = Array.isArray(candidateResponse) ? candidateResponse : [];
+      console.log('Candidate banners data:', candidateBannersData);
+      setCandidateBanners(candidateBannersData);
+      
+      console.log('=== FRONTEND: BANNERS FETCHED SUCCESSFULLY ===');
     } catch (error) {
       console.error('Error fetching banners:', error);
       toast.error('Failed to fetch banners');
@@ -59,9 +78,15 @@ export function BannerManagement() {
     }
 
     setUploading(true);
+    console.log('=== FRONTEND: UPLOADING BANNER ===');
+    console.log('File:', file);
+    console.log('Selected category:', selectedCategory);
+    
     try {
-      await apiClient.uploadBanner(file);
-      toast.success('Banner uploaded successfully');
+      const result = await apiClient.uploadBanner(file, selectedCategory);
+      console.log('Upload result:', result);
+      toast.success(`${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} banner uploaded successfully`);
+      console.log('Refreshing banners...');
       fetchBanners();
     } catch (error) {
       console.error('Error uploading banner:', error);
@@ -101,10 +126,30 @@ export function BannerManagement() {
     return <div>Loading...</div>;
   }
 
+  const currentBanners = selectedCategory === 'hr' ? hrBanners : candidateBanners;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Banner Management</CardTitle>
+        <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
+          <Button
+            variant={selectedCategory === 'hr' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setSelectedCategory('hr')}
+            className="relative"
+          >
+            HR Ads
+          </Button>
+          <Button
+            variant={selectedCategory === 'candidate' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setSelectedCategory('candidate')}
+            className="relative"
+          >
+            Candidate Ads
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -122,19 +167,69 @@ export function BannerManagement() {
                 accept="image/jpeg,image/png,image/gif,video/mp4"
               />
               <Upload className="h-4 w-4 mr-2" />
-              {uploading ? 'Uploading...' : 'Upload New Banner'}
+              {uploading ? 'Uploading...' : `Upload New ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Banner`}
             </Button>
             <p className="text-sm text-muted-foreground">
               Upload an image (JPG, PNG, GIF) or video (MP4). Max size: 10MB
             </p>
           </div>
 
-          {/* Banners List */}
+          {/* Current Active Banner */}
+          {(() => {
+            const activeBanner = currentBanners.find(banner => banner.isActive);
+            if (activeBanner) {
+              return (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h3 className="font-medium text-green-800 mb-3">
+                    Current Active {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Banner
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <div className="w-32 h-20 rounded-lg overflow-hidden">
+                      {activeBanner.mediaType === 'video' ? (
+                        <video
+                          src={activeBanner.mediaUrl}
+                          className="w-full h-full object-cover"
+                          muted
+                          loop
+                          autoPlay
+                        />
+                      ) : (
+                        <img
+                          src={activeBanner.mediaUrl}
+                          alt="Active Banner"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-green-800">
+                        {activeBanner.mediaType.charAt(0).toUpperCase() + activeBanner.mediaType.slice(1)}
+                      </p>
+                      <p className="text-sm text-green-600">
+                        Uploaded by {activeBanner.createdBy.firstName} {activeBanner.createdBy.lastName}
+                      </p>
+                      <p className="text-sm text-green-600">
+                        {new Date(activeBanner.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* All Banners List */}
           <div className="space-y-4">
-            {banners.map((banner) => (
+            <h3 className="font-medium">
+              All {selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Banners
+            </h3>
+            {currentBanners.map((banner) => (
               <div
                 key={banner._id}
-                className="border rounded-lg p-4 flex items-center justify-between"
+                className={`border rounded-lg p-4 flex items-center justify-between ${
+                  banner.isActive ? 'border-green-200 bg-green-50' : ''
+                }`}
               >
                 <div className="flex items-center gap-4">
                   {/* Preview */}
@@ -143,6 +238,7 @@ export function BannerManagement() {
                       <video
                         src={banner.mediaUrl}
                         className="w-full h-full object-cover"
+                        muted
                       />
                     ) : (
                       <img
@@ -157,6 +253,11 @@ export function BannerManagement() {
                   <div>
                     <p className="font-medium">
                       {banner.mediaType.charAt(0).toUpperCase() + banner.mediaType.slice(1)}
+                      {banner.isActive && (
+                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Active
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Uploaded by {banner.createdBy.firstName} {banner.createdBy.lastName}
@@ -189,9 +290,9 @@ export function BannerManagement() {
               </div>
             ))}
 
-            {banners.length === 0 && (
+            {currentBanners.length === 0 && (
               <p className="text-center text-muted-foreground py-8">
-                No banners uploaded yet
+                No {selectedCategory} banners uploaded yet
               </p>
             )}
           </div>
