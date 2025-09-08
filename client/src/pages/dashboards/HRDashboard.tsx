@@ -140,11 +140,17 @@ export default function HRDashboard() {
           <p className="text-muted-foreground">Manage your recruitment pipeline and job postings</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/dashboard/jobs')}>
+          <Button 
+            onClick={() => navigate('/dashboard/jobs')} 
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+          >
             <Briefcase className="h-4 w-4 mr-2" />
             Manage Jobs
           </Button>
-          <Button onClick={() => navigate('/dashboard/interviews')} variant="outline">
+          <Button 
+            onClick={() => navigate('/dashboard/interviews')} 
+            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+          >
             <Calendar className="h-4 w-4 mr-2" />
             Schedule Interviews
           </Button>
@@ -156,39 +162,43 @@ export default function HRDashboard() {
         <MetricCard
           title="Active Jobs"
           value={activeJobs}
-          icon={<Briefcase className="h-4 w-4" />}
+          icon={<Briefcase className="h-5 w-5" />}
           description="Currently open positions"
-          color="text-primary"
+          gradient="from-blue-500 to-blue-600"
+          iconColor="text-blue-100"
         />
         <MetricCard
           title="Total Applications"
           value={totalApplications}
-          icon={<FileText className="h-4 w-4" />}
+          icon={<FileText className="h-5 w-5" />}
           description="All applications received"
-          color="text-info"
+          gradient="from-emerald-500 to-emerald-600"
+          iconColor="text-emerald-100"
         />
         <MetricCard
           title="Pending Reviews"
           value={pendingApplications}
-          icon={<Clock className="h-4 w-4" />}
+          icon={<Clock className="h-5 w-5" />}
           description="Applications to review"
-          color="text-warning"
+          gradient="from-amber-500 to-amber-600"
+          iconColor="text-amber-100"
         />
         <MetricCard
           title="Interviews Today"
           value={interviewsToday}
-          icon={<Calendar className="h-4 w-4" />}
+          icon={<Calendar className="h-5 w-5" />}
           description="Scheduled for today"
-          color="text-success"
+          gradient="from-purple-500 to-purple-600"
+          iconColor="text-purple-100"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Today's Schedule */}
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-2 text-blue-700">
+              <Calendar className="w-5 h-5 text-blue-600" />
               Today's Schedule
             </CardTitle>
           </CardHeader>
@@ -248,10 +258,10 @@ export default function HRDashboard() {
         </Card>
 
         {/* Top Performing Jobs */}
-        <Card>
+        <Card className="hover:shadow-lg transition-all duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-2 text-emerald-700">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
               Top Performing Jobs
             </CardTitle>
           </CardHeader>
@@ -297,39 +307,35 @@ export default function HRDashboard() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle className="text-purple-700">Quick Actions</CardTitle>
           <CardDescription>Common tasks to manage your recruitment process</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button 
               onClick={() => navigate('/dashboard/jobs')} 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
+              className="h-20 flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <Briefcase className="h-6 w-6" />
               <span>Post New Job</span>
             </Button>
             <Button 
               onClick={() => navigate('/dashboard/interviews')} 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
+              className="h-20 flex-col gap-2 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <Calendar className="h-6 w-6" />
               <span>Schedule Interview</span>
             </Button>
             <Button 
               onClick={() => navigate('/dashboard/companies')} 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
+              className="h-20 flex-col gap-2 bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <Building2 className="h-6 w-6" />
               <span>Manage Companies</span>
             </Button>
             <Button 
               onClick={() => navigate('/dashboard/hr-profile')} 
-              variant="outline" 
-              className="h-20 flex-col gap-2"
+              className="h-20 flex-col gap-2 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <Users className="h-6 w-6" />
               <span>My Profile</span>
@@ -347,27 +353,30 @@ function MetricCard({
   value, 
   icon, 
   description, 
-  color = "text-foreground" 
+  gradient = "from-gray-500 to-gray-600",
+  iconColor = "text-gray-100"
 }: {
   title: string;
   value: number | string;
   icon: React.ReactNode;
   description: string;
-  color?: string;
+  gradient?: string;
+  iconColor?: string;
 }) {
   return (
-    <Card className="relative overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+    <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`}></div>
+      <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-white/90">
           {title}
         </CardTitle>
-        <div className={color}>
+        <div className={`${iconColor} bg-white/20 p-2 rounded-lg backdrop-blur-sm`}>
           {icon}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+      <CardContent className="relative">
+        <div className="text-2xl font-bold text-white">{value}</div>
+        <p className="text-xs text-white/80 mt-1">{description}</p>
       </CardContent>
     </Card>
   );

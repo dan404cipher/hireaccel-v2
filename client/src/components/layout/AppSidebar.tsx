@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { 
   Users, 
   Briefcase, 
@@ -33,39 +33,64 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'] },
-  { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin'] },
-  { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'] },
-  { title: "Assignment Tracking", url: "/dashboard/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'] },
-  { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'hr'] },
-  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'hr', 'agent'] },
-  { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'] },
-  { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'hr'] },
-  { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'] },
-  { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin'] },
+  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'], color: "text-blue-600" },
+  { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin'], color: "text-green-600" },
+  { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'], color: "text-orange-600" },
+  { title: "Assignment Tracking", url: "/dashboard/assignment-tracking", icon: TrendingUp, roles: ['admin', 'agent'], color: "text-purple-600" },
+  { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'hr'], color: "text-indigo-600" },
+  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'hr', 'agent'], color: "text-pink-600" },
+  { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'], color: "text-red-600" },
+  { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'hr'], color: "text-teal-600" },
+  { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'], color: "text-cyan-600" },
+  { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin'], color: "text-yellow-600" },
   
   // Candidate-specific navigation
-  { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'] },
-  { title: "My Interviews", url: "/dashboard/candidate-interviews", icon: Calendar, roles: ['candidate'] },
+  { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'], color: "text-emerald-600" },
+  { title: "My Interviews", url: "/dashboard/candidate-interviews", icon: Calendar, roles: ['candidate'], color: "text-rose-600" },
   { 
     title: "My Profile", 
     url: (user) => `/dashboard/candidate-profile/${user?.customId}`, 
     icon: Users, 
-    roles: ['candidate'] 
+    roles: ['candidate'],
+    color: "text-violet-600"
   },
 ];
 
 const secondaryItems = [
-  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin'] },
-  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'agent'] },
-  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin'] },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'agent'] },
+  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin'], color: "text-slate-600" },
+  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'agent'], color: "text-lime-600" },
+  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin'], color: "text-amber-600" },
+  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'agent'], color: "text-gray-600" },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const { user } = useAuth();
   const location = useLocation();
+
+  // Add gradient animation styles
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes gradient-x {
+        0%, 100% {
+          background-size: 200% 200%;
+          background-position: left center;
+        }
+        50% {
+          background-size: 200% 200%;
+          background-position: right center;
+        }
+      }
+      .animate-gradient-x {
+        background: linear-gradient(-45deg, #2563eb, #7c3aed, #2563eb, #7c3aed);
+        background-size: 400% 400%;
+        animation: gradient-x 3s ease infinite;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -77,10 +102,11 @@ export function AppSidebar() {
   };
 
   const getNavCls = (path: string) => {
-    const baseClasses = "transition-colors duration-200";
-    return isActive(path) 
-      ? `${baseClasses} bg-primary text-primary-foreground font-medium shadow-sm`
-      : `${baseClasses} hover:bg-accent hover:text-accent-foreground`;
+    const baseClasses = "transition-all duration-300 ease-in-out rounded-lg";
+    const isActivePath = isActive(path);
+    return isActivePath 
+      ? `${baseClasses} bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x`
+      : `${baseClasses} hover:bg-gray-100 hover:text-gray-700`;
   };
 
   // Filter navigation items based on user role
@@ -135,7 +161,7 @@ export function AppSidebar() {
                       to={typeof item.url === 'function' ? item.url(user) : item.url} 
                       className={getNavCls(typeof item.url === 'function' ? item.url(user) : item.url)}
                     >
-                      <item.icon className="w-4 h-4" />
+                      <item.icon className={`w-4 h-4 ${isActive(typeof item.url === 'function' ? item.url(user) : item.url) ? 'text-white' : item.color}`} />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -155,7 +181,7 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink to={item.url} className={getNavCls(item.url)}>
-                        <item.icon className="w-4 h-4" />
+                        <item.icon className={`w-4 h-4 ${isActive(item.url) ? 'text-white' : item.color}`} />
                         {!collapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>

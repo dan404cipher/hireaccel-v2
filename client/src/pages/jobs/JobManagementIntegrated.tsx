@@ -34,7 +34,8 @@ import {
   Trash2,
   Users,
   Briefcase,
-  UserCheck
+  UserCheck,
+  DollarSign
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -406,15 +407,10 @@ export default function JobManagementIntegrated() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Job Management</h1>
           <p className="text-muted-foreground">Manage job postings and track recruitment progress</p>
-          {user?.role === 'hr' && (
-            <p className="text-sm text-blue-600 mt-1">
-              Showing only jobs you posted
-            </p>
-          )}
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
               <Plus className="w-4 h-4 mr-2" />
               Post New Job
             </Button>
@@ -715,37 +711,44 @@ export default function JobManagementIntegrated() {
       </div>
 
       {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Search jobs by title or company..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="assigned">Assigned</SelectItem>
-              <SelectItem value="interview">Interview</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 w-4 h-4" />
+              <Input
+                placeholder="Search jobs by title or company..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                  <Filter className="w-4 h-4 mr-2 text-purple-600" />
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="assigned">Assigned</SelectItem>
+                  <SelectItem value="interview">Interview</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Jobs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Job Postings</CardTitle>
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+          <CardTitle className="text-slate-700 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-blue-600" />
+            Job Postings
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {jobsLoading ? (
@@ -769,7 +772,7 @@ export default function JobManagementIntegrated() {
           ) : (
             <div className="space-y-4">
               {filteredJobs.map((job: any) => (
-                <Card key={job.id || job._id} className="hover:shadow-md transition-shadow">
+                <Card key={job.id || job._id} className="hover:shadow-lg transition-all duration-300">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       {/* Left Section - Main Info */}
@@ -788,15 +791,15 @@ export default function JobManagementIntegrated() {
                         
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
-                            <Building2 className="w-4 h-4" />
+                            <Building2 className="w-4 h-4 text-blue-600" />
                             <span className="truncate">{job.companyId?.name || 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
+                            <MapPin className="w-4 h-4 text-emerald-600" />
                             <span>{job.location}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
+                            <Clock className="w-4 h-4 text-amber-600" />
                             <span>{job.urgency}</span>
                           </div>
                         </div>
@@ -805,15 +808,18 @@ export default function JobManagementIntegrated() {
                       {/* Center Section - Applications */}
                       <div className="flex items-center justify-center mx-4">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-primary">{job.applications || 0}</div>
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <Users className="w-4 h-4 text-purple-600" />
+                            <div className="text-2xl font-bold text-purple-600">{job.applications || 0}</div>
+                          </div>
                           <div className="text-xs text-muted-foreground">Applications</div>
                         </div>
                       </div>
 
                       {/* Right Section - Salary, Agent, Date & Actions */}
                       <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className="text-sm font-medium">{formatSalary(job)}</div>
+                        <div className="text-right w-32">
+                          <div className="text-sm font-medium text-emerald-600">{formatSalary(job)}</div>
                           <div className="text-xs text-muted-foreground">Salary</div>
                         </div>
                         <div className="text-right">
