@@ -1,24 +1,4 @@
-// TODO: Completed tasks:
-// 1. Add shared candidates route access for admin and agent roles
-// 2. Update sidebar navigation to show shared candidates for admin and agent roles
-// 3. Modify SharedCandidates component to use agent-specific API for agents
-// 4. Update UI to handle agent-specific view
-// 5. Test the changes
-// 6. Fix data structure handling for agent view
-// 7. Fix assigned by and job information for agent view
-// 8. Fix data structure handling for agent view to handle both profile and direct properties
-// 9. Fix data structure handling to use correct nested paths for agent view
-// 10. Update API call to only fetch candidates assigned by the agent
-// 11. Fix data structure handling to properly handle null/undefined values
-// 12. Fix job position display in agent view
-// 13. Add update and delete functionalities for agent view
-// 14. Add delete confirmation dialog for agent assignments
-// 15. Add update assignment functionality for agent view
-// 16. Add notes section to candidate cards
-// 17. Remove redundant status update options from HR dropdown
-// 18. Add feedback functionality for HR users
-// 19. Remove duplicate view details and view resume options for HR
-// 20. Remove mark as complete and reject buttons from view details for HR
+
 
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';

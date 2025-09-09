@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Eye, Download, AlertCircle, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -113,6 +113,9 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         {children || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="max-w-5xl w-[95vw] h-[95vh] flex flex-col p-0 overflow-hidden">
+        <DialogTitle className="sr-only">
+          {fileName || 'PDF Document'}
+        </DialogTitle>
         <div className="min-h-[32px] flex items-center px-2 border-b bg-white relative">
           <span className="text-sm font-medium text-gray-700 truncate pr-12">
             {fileName || 'PDF Document'}
