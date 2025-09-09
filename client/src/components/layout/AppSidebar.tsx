@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
+import logoColor from "@/assets/logo-color.png";
 
 import {
   Sidebar,
@@ -135,7 +136,7 @@ export function AppSidebar() {
         <div className={`border-b border-sidebar-border flex items-center ${collapsed ? 'h-13 justify-center' : 'h-16 px-4'}`}>
           <div className="flex items-center gap-3">
             <img 
-              src="/logo-color.png" 
+              src={logoColor} 
               alt="HireAccel Logo" 
               className={`${collapsed ? 'w-16 h-16 py-1.5' : 'w-10 h-10'} `}
             />
