@@ -23,59 +23,67 @@ const featureComparison = [
   {
     feature: "Job Postings",
     hireAccel: "Unlimited Free",
-    competitor1: "20-50 per month",
-    competitor2: "10-25 per month",
-    competitor3: "5-15 per month"
+    competitor1: "25 per month",
+    competitor2: "25 per month",
+    competitor3: "25 per month"
   },
   {
     feature: "AI-Powered Matching",
-    hireAccel: "Advanced AI",
-    competitor1: "Basic search filters",
-    competitor2: "Smart search",
-    competitor3: "Keyword matching"
+    hireAccel: "Advanced AI + Human verification",
+    competitor1: "Smart search filters",
+    competitor2: "Basic matching algorithm",
+    competitor3: "Keyword-based search"
   },
   {
-    feature: "Real-time Tracking",
-    hireAccel: "Full tracking",
-    competitor1: "Basic analytics",
-    competitor2: "Limited tracking",
-    competitor3: "Manual tracking"
+    feature: "Application Management",
+    hireAccel: "Full ATS Integration",
+    competitor1: "Advanced ATS feature",
+    competitor2: "Basic tracking",
+    competitor3: "Manual management"
   },
   {
-    feature: "Specialist Agents",
-    hireAccel: "Dedicated agents",
-    competitor1: "Account manager",
-    competitor2: "Email support",
-    competitor3: "Self-service"
+    feature: "Dedicated Support",
+    hireAccel: "Personal recruitment agents",
+    competitor1: "Account manager (₹3L+ plans)",
+    competitor2: "Email/phone support",
+    competitor3: "Help desk only"
   },
   {
-    feature: "Hire & Train Model",
-    hireAccel: "Complete program",
-    competitor1: "Not available",
-    competitor2: "Not available",
+    feature: "Empoyer Branding",
+    hireAccel: "Included",
+    competitor1: "Additional ₹50K/year",
+    competitor2: "Additional ₹30K/year",
     competitor3: "Not available"
   },
   {
-    feature: "Candidate Database",
-    hireAccel: "300+ ready candidates",
-    competitor1: "Resume database",
-    competitor2: "Limited database",
-    competitor3: "Basic search"
+    feature: "Interview Scheduling",
+    hireAccel: "Built-in scheduler",
+    competitor1: "Video interviewing extra",
+    competitor2: "Basic calender sync",
+    competitor3: "Manual coordination"
   },
   {
-    feature: "Support",
-    hireAccel: "24/7 Free support",
-    competitor1: "Business hours",
-    competitor2: "Email support",
-    competitor3: "Help center only"
+    feature: "Analytics & Reports",
+    hireAccel: "Real-time dashboards",
+    competitor1: "Advanced analytics",
+    competitor2: "Standard reports",
+    competitor3: "Basic metrics"
   },
   {
-    feature: "Setup Fee",
-    hireAccel: "Free",
-    competitor1: "₹50,000",
-    competitor2: "₹30,000",
-    competitor3: "₹25,000"
-  }
+    feature: "Training & Onboarding",
+    hireAccel: "Free dedicated training",
+    competitor1: "Self-service onboarding",
+    competitor2: "Basic traning materials",
+    competitor3: "Help documentation only"
+  },
+  {
+    feature: "CV Database Access",
+    hireAccel: "300+ pre-verified profiles",
+    competitor1: "5 Lakh+ database access",
+    competitor2: "3 Lakh+ database profiles",
+    competitor3: "1.5 Lakh+ database profiles"
+  },
+
 ];
 
 // Competitor pricing data
@@ -87,13 +95,13 @@ const competitors = [
     subtitle: "Forever",
     features: [
       "Unlimited job postings",
-      "AI-powered matching",
-      "Real-time tracking",
-      "Specialist agents",
-      "Hire & Train model",
-      "24/7 support",
-      "300+ ready candidates",
-      "No setup fees"
+      "AI + human agent matching",
+      "300+ pre-verified candidates",
+      "Personal recruitment agents",
+      "Real-time ATS Integration",
+      "Interview scheduling",
+      "Analytics dashboard",
+      "Free onboarding & traning"
     ],
     isOurs: true,
     popular: true
@@ -101,17 +109,17 @@ const competitors = [
   {
     name: "Naukri Recruiter",
     logo: Building2,
-    pricing: "₹29,999",
+    pricing: "₹37,500",
     subtitle: "per month",
     features: [
-      "20-50 job postings",
-      "Basic search filters",
-      "Limited analytics",
-      "Account manager",
-      "No training program",
-      "₹50,000 setup fee",
-      "Resume database access",
-      "Annual contract"
+      "25 job postings/month",
+      "5L+ CV database access",
+      "Smart search filters",
+      "Account manager (premium only)",
+      "Basic ATS features",
+      "Standard reporting",
+      "Email/phone support",
+      "Self-service onboarding"
     ],
     isOurs: false,
     popular: false
@@ -119,17 +127,17 @@ const competitors = [
   {
     name: "TimesJobs Recruiter",
     logo: Newspaper,
-    pricing: "₹18,999",
+    pricing: "₹37,500",
     subtitle: "per month",
     features: [
-      "10-25 job postings",
-      "Smart search tools",
-      "Basic tracking",
-      "Email support",
-      "No training model",
-      "₹30,000 setup fee",
-      "Limited database",
-      "6-month contract"
+      "25 job postings/month",
+      "3L+ CV database access",
+      "Basic matching algorithm",
+      "Standard reports",
+      "Email Support only",
+      "Basic traning materials",
+      "Manual application tracking",
+      "Limited customization",
     ],
     isOurs: false,
     popular: false
@@ -137,16 +145,16 @@ const competitors = [
   {
     name: "Monster India",
     logo: Search,
-    pricing: "₹15,999",
+    pricing: "₹22,500",
     subtitle: "per month",
     features: [
-      "5-15 job postings",
-      "Keyword matching",
-      "Manual tracking",
-      "Help center only",
-      "No training",
-      "₹25,000 setup fee",
-      "Basic search only",
+      "25 job postings/month",
+      "1.5+CV database access",
+      "Keyword-based search",
+      "Basic metrics only",
+      "Help desk support",
+      "Help documentation only",
+      "No dedicated support",
       "Self-service model"
     ],
     isOurs: false,
@@ -283,7 +291,7 @@ export function CompetitorComparison() {
                     {competitor.isOurs && (
                       <div className="flex items-center justify-center space-x-2 text-sm text-green-600 bg-green-50 rounded-full px-3 py-1">
                         <Check className="w-4 h-4" />
-                        <span>You save ₹4,09,988/year</span>
+                        <span>You save ₹3,63,000/year</span>
                       </div>
                     )}
                   </div>
@@ -296,7 +304,15 @@ export function CompetitorComparison() {
                         ) : (
                           <div className="w-4 h-4 bg-gray-300 rounded-full mt-0.5 flex-shrink-0" />
                         )}
-                        <span className="text-sm text-gray-700">{feature}</span>
+                        <span 
+                          className={`text-sm text-gray-700 ${featureIndex === 0 ? 'font-bold !font-bold' : ''}`}
+                          style={{ 
+                            fontWeight: featureIndex === 0 ? '700' : '400',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                          {feature}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -366,16 +382,16 @@ export function CompetitorComparison() {
                       viewport={{ once: true }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                     >
-                      <td className="p-4 font-medium text-gray-900">{row.feature}</td>
-                      <td className="p-4 text-center">
+                      <td className={`p-4 font-medium text-gray-900 ${index === 0 ? 'font-bold' : ''}`}>{row.feature}</td>
+                      <td className={`p-4 text-center ${index === 0 ? 'font-bold' : ''}`}>
                         <div className="flex items-center justify-center space-x-2">
                           <Check className="w-4 h-4 text-green-600" />
-                          <span className="text-green-700 font-medium">{row.hireAccel}</span>
+                          <span className={`text-green-700 font-medium ${index === 0 ? 'font-bold' : ''}`}>{row.hireAccel}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-center text-gray-600">{row.competitor1}</td>
-                      <td className="p-4 text-center text-gray-600">{row.competitor2}</td>
-                      <td className="p-4 text-center text-gray-600">{row.competitor3}</td>
+                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor1}</td>
+                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor2}</td>
+                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor3}</td>
                     </motion.tr>
                   ))}
                 </tbody>
