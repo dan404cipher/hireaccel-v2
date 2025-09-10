@@ -47,6 +47,7 @@ import {
   MoreHorizontal,
   Users,
   Eye,
+  EyeOff,
   Edit,
   Trash2,
   UserCheck,
@@ -124,6 +125,22 @@ export default function UserManagement() {
     password: '',
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Password validation
+  const passwordValidation = {
+    hasMinLength: formData.password.length >= 8,
+    hasUppercase: /[A-Z]/.test(formData.password),
+    hasLowercase: /[a-z]/.test(formData.password),
+    hasNumber: /\d/.test(formData.password),
+    hasSpecialChar: /[^a-zA-Z0-9]/.test(formData.password),
+    hasNoSpaces: !/\s/.test(formData.password),
+    hasNoRepeated: !/(.)\1{3,}/.test(formData.password),
+    hasNoCommon: !/^(password|password123|123456|123456789|qwerty|abc123|password1|admin|letmein|welcome|12345678|monkey|1234567890|dragon|master|baseball|football|basketball|superman|batman|trustno1|hello|welcome123|admin123|root|test|guest|user|demo|temp|temporary)$/i.test(formData.password)
+  };
+
+  const isPasswordValid = formData.password === '' || Object.values(passwordValidation).every(Boolean);
+
   // API hooks
   const { 
     data: usersResponse, 
@@ -190,9 +207,30 @@ export default function UserManagement() {
       role: 'candidate',
       password: '',
     });
+    setShowPassword(false);
   };
 
   const handleCreateUser = async () => {
+    // Validate required fields
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password if provided
+    if (formData.password && !isPasswordValid) {
+      toast({
+        title: "Password Validation Error",
+        description: "Please ensure the password meets all requirements",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await createUser(formData);
       toast({
@@ -777,29 +815,32 @@ export default function UserManagement() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                  required
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                  required
                 />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                required
               />
             </div>
             <div className="grid gap-2">
@@ -808,12 +849,18 @@ export default function UserManagement() {
                 id="phoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                onChange={(e) => {
+                  // Only allow numbers, +, -, (, ), and spaces
+                  const value = e.target.value.replace(/[^0-9+\-() ]/g, '');
+                  setFormData(prev => ({ ...prev, phoneNumber: value }));
+                }}
                 placeholder="e.g. +1234567890"
+                pattern="[0-9+\-() ]*"
+                inputMode="tel"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">Role *</Label>
               <Select value={formData.role} onValueChange={(value: any) => setFormData(prev => ({ ...prev, role: value }))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -828,20 +875,72 @@ export default function UserManagement() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Leave empty to auto-generate"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Leave empty to auto-generate"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {formData.password && (
+                <div className="text-xs text-gray-600 mt-2">
+                  {isPasswordValid ? (
+                    <div className="text-green-600">
+                      ✓ Password meets all requirements
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-red-500 mb-1">Password requirements:</div>
+                      <div className="mt-1 space-y-1">
+                        {!passwordValidation.hasMinLength && (
+                          <div className="text-red-500">• At least 8 characters</div>
+                        )}
+                        {!passwordValidation.hasUppercase && (
+                          <div className="text-red-500">• Uppercase letter</div>
+                        )}
+                        {!passwordValidation.hasLowercase && (
+                          <div className="text-red-500">• Lowercase letter</div>
+                        )}
+                        {!passwordValidation.hasNumber && (
+                          <div className="text-red-500">• Number</div>
+                        )}
+                        {!passwordValidation.hasSpecialChar && (
+                          <div className="text-red-500">• Special character (!@#$%^&*)</div>
+                        )}
+                        {!passwordValidation.hasNoSpaces && (
+                          <div className="text-red-500">• No spaces</div>
+                        )}
+                        {!passwordValidation.hasNoRepeated && (
+                          <div className="text-red-500">• No repeated characters (aaaa)</div>
+                        )}
+                        {!passwordValidation.hasNoCommon && (
+                          <div className="text-red-500">• Not a common password</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateUser} disabled={createLoading}>
+            <Button 
+              onClick={handleCreateUser} 
+              disabled={createLoading || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || (formData.password && !isPasswordValid)}
+            >
               {createLoading ? <LoadingSpinner /> : 'Create User'}
             </Button>
           </DialogFooter>
@@ -893,8 +992,14 @@ export default function UserManagement() {
                 id="editPhoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                onChange={(e) => {
+                  // Only allow numbers, +, -, (, ), and spaces
+                  const value = e.target.value.replace(/[^0-9+\-() ]/g, '');
+                  setFormData(prev => ({ ...prev, phoneNumber: value }));
+                }}
                 placeholder="e.g. +1234567890"
+                pattern="[0-9+\-() ]*"
+                inputMode="tel"
               />
             </div>
             <div className="grid gap-2">

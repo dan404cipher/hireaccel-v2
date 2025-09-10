@@ -745,10 +745,6 @@ export default function JobManagementIntegrated() {
       {/* Jobs Table */}
       <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
         <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
-          <CardTitle className="text-slate-700 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-blue-600" />
-            Job Postings
-          </CardTitle>
         </CardHeader>
         <CardContent>
           {jobsLoading ? (
@@ -780,7 +776,7 @@ export default function JobManagementIntegrated() {
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold text-lg truncate">{job.title}</h3>
                           {job.jobId && (
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-mono flex-shrink-0">
+                            <span className="text-blue-600 text-xs font-mono flex-shrink-0">
                               {job.jobId}
                             </span>
                           )}

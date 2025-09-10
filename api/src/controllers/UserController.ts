@@ -6,7 +6,8 @@ import { AgentAssignment } from '@/models/AgentAssignment';
 
 import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
-import { hashPassword } from '@/utils/password';
+import { hashPassword, generateSecurePassword } from '@/utils/password';
+import { generateCustomUserId } from '@/utils/customId';
 import mongoose from 'mongoose';
 
 /**
@@ -133,11 +134,15 @@ export class UserController {
     }
     
     // Generate password if not provided
-    const password = validatedData.password || Math.random().toString(36).slice(-8);
+    const password = validatedData.password || generateSecurePassword(12);
     const hashedPassword = await hashPassword(password);
+    
+    // Generate custom user ID based on role
+    const customId = await generateCustomUserId(validatedData.role);
     
     const user = new User({
       ...validatedData,
+      customId,
       password: hashedPassword,
       status: UserStatus.ACTIVE,
       emailVerified: true, // Admin-created users are auto-verified
@@ -164,6 +169,7 @@ export class UserController {
       data: {
         user: {
           id: user._id,
+          customId: user.customId,
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -649,7 +655,41 @@ export class UserController {
     const assignment = await AgentAssignment.getAssignmentForAgent(currentUserId);
 
     if (!assignment) {
-      throw createNotFoundError('Agent assignment not found');
+      // Return a default assignment structure for agents without assignments
+      const defaultAssignment = {
+        _id: null,
+        agentId: {
+          _id: currentUserId,
+          firstName: req.user!.firstName,
+          lastName: req.user!.lastName,
+          email: req.user!.email
+        },
+        assignedHRs: [],
+        assignedCandidates: [],
+        assignedBy: null,
+        status: 'inactive',
+        notes: 'No assignment created yet',
+        assignedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      // Log audit trail for default assignment
+      await AuditLog.createLog({
+        actor: req.user!._id,
+        action: AuditAction.READ,
+        entityType: 'AgentAssignment',
+        entityId: currentUserId,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        businessProcess: 'agent_management',
+        description: 'Retrieved default agent assignment (no assignment found)',
+      });
+
+      return res.json({
+        success: true,
+        data: defaultAssignment,
+      });
     }
 
     // Log audit trail
