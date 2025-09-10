@@ -415,7 +415,7 @@ export function CompetitorComparison() {
                 Annual Cost Comparison
               </h3>
               <p className="text-lg text-gray-600">
-                See exactly how much you save by choosing HireAccel
+                See approximately how much you save by choosing HireAccel
               </p>
             </div>
 
@@ -424,7 +424,7 @@ export function CompetitorComparison() {
                 { name: "HireAccel", cost: 0, color: "from-emerald-500 to-teal-600", savings: "₹3,63,000+" },
                 { name: "Naukri Recruiter", cost: 450000, color: "from-blue-600 to-indigo-700", setup: "₹50,000" },
                 { name: "TimesJobs", cost: 450000, color: "from-orange-500 to-red-600", setup: "₹30,000" },
-                { name: "Monster India", cost: 269999, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
+                { name: "Monster India", cost: 270000, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
               ].map((platform, index) => (
                 <motion.div
                   key={platform.name}

@@ -848,14 +848,14 @@ export function HRProfessionals() {
               Ready to revolutionize your hiring process?
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Join 50+ companies already using HireAccel and save over ₹3,50,000 per year
+              Join 50+ companies already using HireAccel and save over ₹3,60,000 per year
             </p>
             <Button 
               size="lg" 
               className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-xl"
               onClick={()=>navigate('/signup/hr')}
             >
-              Get Started Free - Save ₹3,50,000+
+              Get Started Free - Save ₹3,60,000+
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </motion.div>
