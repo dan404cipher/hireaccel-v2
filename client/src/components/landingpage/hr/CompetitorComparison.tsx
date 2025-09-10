@@ -49,7 +49,7 @@ const featureComparison = [
     competitor3: "Help desk only"
   },
   {
-    feature: "Empoyer Branding",
+    feature: "Employer Branding",
     hireAccel: "Included",
     competitor1: "Additional ₹50K/year",
     competitor2: "Additional ₹30K/year",
@@ -63,6 +63,13 @@ const featureComparison = [
     competitor3: "Manual coordination"
   },
   {
+    feature: "CV Database Access",
+    hireAccel: "300+ pre-verified profiles",
+    competitor1: "5 Lakh+ database access",
+    competitor2: "3 Lakh+  profiles",
+    competitor3: "1.5 Lakh+  profiles"
+  },
+  {
     feature: "Analytics & Reports",
     hireAccel: "Real-time dashboards",
     competitor1: "Advanced analytics",
@@ -73,16 +80,10 @@ const featureComparison = [
     feature: "Training & Onboarding",
     hireAccel: "Free dedicated training",
     competitor1: "Self-service onboarding",
-    competitor2: "Basic traning materials",
+    competitor2: "Basic training materials",
     competitor3: "Help documentation only"
   },
-  {
-    feature: "CV Database Access",
-    hireAccel: "300+ pre-verified profiles",
-    competitor1: "5 Lakh+ database access",
-    competitor2: "3 Lakh+ database profiles",
-    competitor3: "1.5 Lakh+ database profiles"
-  },
+
 
 ];
 
@@ -101,7 +102,7 @@ const competitors = [
       "Real-time ATS Integration",
       "Interview scheduling",
       "Analytics dashboard",
-      "Free onboarding & traning"
+      "Free onboarding & training"
     ],
     isOurs: true,
     popular: true
@@ -110,7 +111,7 @@ const competitors = [
     name: "Naukri Recruiter",
     logo: Building2,
     pricing: "₹37,500",
-    subtitle: "per month",
+    subtitle: "per month (approx)",
     features: [
       "25 job postings/month",
       "5L+ CV database access",
@@ -128,14 +129,14 @@ const competitors = [
     name: "TimesJobs Recruiter",
     logo: Newspaper,
     pricing: "₹37,500",
-    subtitle: "per month",
+    subtitle: "per month (approx)",
     features: [
       "25 job postings/month",
       "3L+ CV database access",
       "Basic matching algorithm",
       "Standard reports",
       "Email Support only",
-      "Basic traning materials",
+      "Basic training materials",
       "Manual application tracking",
       "Limited customization",
     ],
@@ -146,7 +147,7 @@ const competitors = [
     name: "Monster India",
     logo: Search,
     pricing: "₹22,500",
-    subtitle: "per month",
+    subtitle: "per month (approx)",
     features: [
       "25 job postings/month",
       "1.5+CV database access",
@@ -420,10 +421,10 @@ export function CompetitorComparison() {
 
             <div className="grid md:grid-cols-4 gap-6 mb-8">
               {[
-                { name: "HireAccel", cost: 0, color: "from-emerald-500 to-teal-600", savings: "₹4,09,988" },
-                { name: "Naukri Recruiter", cost: 359988, color: "from-blue-600 to-indigo-700", setup: "₹50,000" },
-                { name: "TimesJobs", cost: 227988, color: "from-orange-500 to-red-600", setup: "₹30,000" },
-                { name: "Monster India", cost: 191988, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
+                { name: "HireAccel", cost: 0, color: "from-emerald-500 to-teal-600", savings: "₹3,63,000+" },
+                { name: "Naukri Recruiter", cost: 450000, color: "from-blue-600 to-indigo-700", setup: "₹50,000" },
+                { name: "TimesJobs", cost: 450000, color: "from-orange-500 to-red-600", setup: "₹30,000" },
+                { name: "Monster India", cost: 269999, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
               ].map((platform, index) => (
                 <motion.div
                   key={platform.name}
@@ -439,13 +440,9 @@ export function CompetitorComparison() {
                       {platform.cost === 0 ? "FREE" : `₹${platform.cost.toLocaleString()}`}
                     </div>
                     <div className="text-sm opacity-90">
-                      {platform.cost === 0 ? "Forever" : "per year"}
+                      {platform.cost === 0 ? "Forever" : "per year (approx)"}
                     </div>
-                    {platform.setup && (
-                      <div className="text-xs mt-2 opacity-80">
-                        + {platform.setup} setup
-                      </div>
-                    )}
+                  
                     {platform.savings && (
                       <div className="absolute -top-2 -right-2 bg-white text-green-600 px-2 py-1 rounded-full text-xs font-bold">
                         Save {platform.savings}
@@ -460,7 +457,7 @@ export function CompetitorComparison() {
             <div className="text-center">
               <div className="inline-flex items-center justify-center space-x-2 bg-green-50 text-green-700 px-6 py-3 rounded-full mb-4">
                 <Award className="w-5 h-5" />
-                <span className="font-medium">Average savings: ₹2,59,988 per year</span>
+                <span className="font-medium">Average savings: ₹3,63,000+ per year</span>
               </div>
             </div>
           </div>
@@ -480,7 +477,7 @@ export function CompetitorComparison() {
             </div>
             
             <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Save Over <span className="text-green-600">₹3,50,000</span> Per Year
+              Save Over <span className="text-green-600">₹3,60,000</span> Per Year
             </h3>
             
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
