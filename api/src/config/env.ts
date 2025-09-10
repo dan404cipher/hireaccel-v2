@@ -20,6 +20,7 @@ const envSchema = z.object({
   UPLOADS_PATH: z.string().default('./api/uploads'),
   MAX_FILE_SIZE_MB: z.string().transform(Number).default('10'),
   MAX_IMAGE_SIZE_MB: z.string().transform(Number).default('2'),
+  MAX_BANNER_SIZE_MB: z.string().transform(Number).default('50'),
 
   // JWT Configuration
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT access secret must be at least 32 characters'),

@@ -64,7 +64,7 @@ export const ALLOWED_FILE_TYPES = {
       'video/mp4',
     ],
     extensions: ['.jpg', '.jpeg', '.png', '.gif', '.mp4'],
-    maxSize: 10 * 1024 * 1024, // 10MB max for banners
+    maxSize: env.MAX_BANNER_SIZE_MB * 1024 * 1024, // Configurable max size for banners
   },
 };
 
