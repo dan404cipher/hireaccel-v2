@@ -41,6 +41,7 @@ const updateInterviewSchema = z.object({
   location: z.string().optional(),
   interviewers: z.array(z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid interviewer ID')).optional(),
   notes: z.string().optional(),
+  status: z.nativeEnum(InterviewStatus).optional(),
 });
 
 const querySchema = z.object({
@@ -494,6 +495,11 @@ export class InterviewController {
     const updateFields = { ...validatedData };
     delete updateFields.notes; // Already handled above
     delete updateFields.location; // Already handled above
+    
+    // Preserve existing interviewers if not being updated
+    if (!updateFields.interviewers) {
+      delete updateFields.interviewers;
+    }
     
     Object.assign(interview, updateFields);
     if (validatedData.scheduledAt) {

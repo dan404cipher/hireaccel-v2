@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,6 +126,7 @@ export default function InterviewManagement() {
   const { data: interviewsResponse, loading: interviewsLoading, error: interviewsError, refetch: refetchInterviews } = useInterviews(interviewsParams);
   const { data: statsResponse } = useInterviewStats();
   const { mutate: createInterview, loading: createLoading } = useCreateInterview({
+    showToast: false, // Let component handle error display
     onSuccess: () => {
       setIsScheduleDialogOpen(false);
       resetScheduleForm();
@@ -133,6 +134,7 @@ export default function InterviewManagement() {
     }
   });
   const { mutate: updateInterview, loading: updateLoading } = useUpdateInterview({
+    showToast: false, // Let component handle error display
     onSuccess: () => {
       setIsEditDialogOpen(false);
       resetEditForm();
@@ -288,11 +290,43 @@ export default function InterviewManagement() {
         description: "Interview scheduled successfully",
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.detail || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          "Failed to schedule interview";
+      console.log('Schedule interview error:', error); // Debug log
+      
+      let errorMessage = "Failed to schedule interview";
+      
+      // Check if error has the expected structure
+      if (error && typeof error === 'object') {
+        // Handle validation errors with detailed messages
+        if (error.issues && Array.isArray(error.issues) && error.issues.length > 0) {
+          const validationErrors = error.issues.map((issue: any) => {
+            // Convert field names to user-friendly labels
+            const fieldLabels: { [key: string]: string } = {
+              scheduledAt: "Scheduled Date & Time",
+              type: "Interview Type",
+              round: "Interview Round",
+              duration: "Duration",
+              location: "Location",
+              status: "Status",
+              interviewers: "Interviewers",
+              candidateId: "Candidate"
+            };
+            
+            const fieldName = fieldLabels[issue.field] || issue.field;
+            return `${fieldName}: ${issue.message}`;
+          });
+          
+          errorMessage = validationErrors.join(". ");
+        } else if (error.detail) {
+          // Use the detail message from the API
+          errorMessage = error.detail;
+        } else if (error.message) {
+          // Use the error message
+          errorMessage = error.message;
+        } else if (error.title) {
+          // Use the title as fallback
+          errorMessage = error.title;
+        }
+      }
       
       toast({
         title: "Error",
@@ -328,6 +362,17 @@ export default function InterviewManagement() {
     }
     
     const scheduledDate = new Date(interview.scheduledAt);
+    
+    // Check if the date is valid
+    if (isNaN(scheduledDate.getTime())) {
+      toast({
+        title: "Error",
+        description: "Invalid date format. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const formattedDate = scheduledDate.toISOString().split('T')[0];
     const formattedTime = scheduledDate.toTimeString().slice(0, 5);
     
@@ -362,18 +407,49 @@ export default function InterviewManagement() {
         status: editFormData.status,
       };
 
-      await updateInterview({ id: editingInterview.id, data: updateData });
+      await updateInterview({ id: editingInterview._id || editingInterview.id, data: updateData });
       
       toast({
         title: "Success",
         description: "Interview updated successfully",
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.detail || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          "Failed to update interview";
+      console.log('Update interview error:', error); // Debug log
+      
+      let errorMessage = "Failed to update interview";
+      
+      // Check if error has the expected structure
+      if (error && typeof error === 'object') {
+        // Handle validation errors with detailed messages
+        if (error.issues && Array.isArray(error.issues) && error.issues.length > 0) {
+          const validationErrors = error.issues.map((issue: any) => {
+            // Convert field names to user-friendly labels
+            const fieldLabels: { [key: string]: string } = {
+              scheduledAt: "Scheduled Date & Time",
+              type: "Interview Type",
+              round: "Interview Round",
+              duration: "Duration",
+              location: "Location",
+              status: "Status",
+              interviewers: "Interviewers"
+            };
+            
+            const fieldName = fieldLabels[issue.field] || issue.field;
+            return `${fieldName}: ${issue.message}`;
+          });
+          
+          errorMessage = validationErrors.join(". ");
+        } else if (error.detail) {
+          // Use the detail message from the API
+          errorMessage = error.detail;
+        } else if (error.message) {
+          // Use the error message
+          errorMessage = error.message;
+        } else if (error.title) {
+          // Use the title as fallback
+          errorMessage = error.title;
+        }
+      }
       
       toast({
         title: "Error",
@@ -915,8 +991,8 @@ export default function InterviewManagement() {
                 </TableHeader>
                 <TableBody>
                     {filteredInterviews.length > 0 ? filteredInterviews.map((interview) => (
-                    <>
-                    <TableRow key={interview.id}>
+                    <React.Fragment key={interview.id}>
+                    <TableRow>
                       <TableCell>
                         <div>
                           <div className="font-medium text-base flex items-center gap-2">
@@ -1014,7 +1090,7 @@ export default function InterviewManagement() {
                         </TableCell>
                       </TableRow>
                     )}
-                    </>
+                    </React.Fragment>
                     )) : (
                       <TableRow>
                         <TableCell colSpan={user?.role === 'candidate' ? 5 : 6} className="text-center py-8">
