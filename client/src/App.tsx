@@ -195,6 +195,11 @@ function AppRouter() {
             <AgentAssignmentDashboard />
           </RoleProtectedRoute>
         } />
+        <Route path="agent-interviews" element={
+          <RoleProtectedRoute allowedRoles={['agent']}>
+            <InterviewManagement />
+          </RoleProtectedRoute>
+        } />
         <Route path="jobs" element={
           <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
             <JobManagement />
@@ -216,7 +221,7 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="interviews" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
             <InterviewManagement />
           </RoleProtectedRoute>
         } />
@@ -297,17 +302,17 @@ const App = () => {
             v7_relativeSplatPath: true,
           }}
         >
-          <AuthProvider>
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-                </div>
-              }
-            >
+          <Suspense
+            fallback={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+              </div>
+            }
+          >
+            <AuthProvider>
               <AppRouter />
-            </Suspense>
-          </AuthProvider>
+            </AuthProvider>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

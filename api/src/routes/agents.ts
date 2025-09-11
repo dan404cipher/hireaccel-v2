@@ -307,4 +307,152 @@ router.get('/me/assignments', AgentController.getMyAssignments);
  */
 router.post('/assignments', AgentController.assignCandidateToJob);
 
+/**
+ * @swagger
+ * /api/v1/agents/me/interviews:
+ *   get:
+ *     summary: Get interviews for candidates assigned to the current agent
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *           description: Search in candidate name, job title, or company name
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [scheduled, confirmed, completed, cancelled, rescheduled]
+ *           description: Filter by interview status
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [createdAt, scheduledAt]
+ *           default: scheduledAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *     responses:
+ *       200:
+ *         description: List of interviews for assigned candidates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Interview'
+ *                 meta:
+ *                   $ref: '#/components/schemas/PaginationMeta'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Only agents can access this endpoint
+ *       500:
+ *         description: Server error
+ */
+router.get('/me/interviews', AgentController.getMyInterviews);
+
+/**
+ * @swagger
+ * /api/v1/agents/me/interviews/stats:
+ *   get:
+ *     summary: Get interview statistics for agent's assigned candidates
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Interview statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     byStatus:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                           count:
+ *                             type: integer
+ *                     todayCount:
+ *                       type: integer
+ *                       description: Number of interviews scheduled for today
+ *                     upcomingCount:
+ *                       type: integer
+ *                       description: Number of upcoming interviews
+ *                     assignedCandidatesCount:
+ *                       type: integer
+ *                       description: Number of candidates assigned to agent
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Only agents can access this endpoint
+ *       500:
+ *         description: Server error
+ */
+router.get('/me/interviews/stats', AgentController.getMyInterviewStats);
+
+/**
+ * @swagger
+ * /api/v1/agents/me/interviews/{id}:
+ *   get:
+ *     summary: Get single interview by ID (for agent's assigned candidates)
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: objectId
+ *         description: Interview ID
+ *     responses:
+ *       200:
+ *         description: Interview details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   $ref: '#/components/schemas/Interview'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Only agents can access this endpoint or no access to interview
+ *       404:
+ *         description: Interview not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/me/interviews/:id', AgentController.getMyInterview);
+
 export default router;

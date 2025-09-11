@@ -62,7 +62,7 @@ const agentAssignmentSchema = new Schema<AgentAssignmentDocument>({
   
   assignedCandidates: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Candidate',
     index: true,
   }],
   

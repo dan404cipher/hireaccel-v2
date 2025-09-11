@@ -68,8 +68,58 @@ export class InterviewController {
     // Build MongoDB query
     const filter: any = {};
 
+    console.log('Request user:', {
+      id: req.user!._id,
+      role: req.user!.role,
+      email: req.user!.email
+    });
+
+    // Handle agent-specific filtering
+    if (req.user!.role === UserRole.AGENT) {
+      console.log('Agent filtering for user:', req.user!._id);
+      
+      // Get all candidates assigned to this agent
+      const AgentAssignment = (await import('@/models/AgentAssignment')).AgentAssignment;
+      console.log('Looking for agent assignment with:', {
+        agentId: req.user!._id,
+        status: 'active'
+      });
+      
+      const agentAssignment = await AgentAssignment.findOne({
+        agentId: req.user!._id,
+        status: 'active'
+      }).populate('assignedCandidates');
+      
+      console.log('Found agent assignment:', {
+        id: agentAssignment?._id,
+        assignedCandidates: agentAssignment?.assignedCandidates?.length || 0,
+        status: agentAssignment?.status
+      });
+      
+      if (!agentAssignment || !agentAssignment.assignedCandidates?.length) {
+        return res.json({
+          data: [],
+          meta: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        });
+      }
+
+      // Find applications for assigned candidates
+      console.log('Looking for applications with candidateIds:', agentAssignment.assignedCandidates);
+      const applications = await Application.find({ 
+        candidateId: { $in: agentAssignment.assignedCandidates } 
+      }).distinct('_id');
+      console.log('Found applications:', applications);
+      
+      filter.applicationId = { $in: applications };
+      console.log('Final filter:', filter);
+    }
     // Handle candidate-specific filtering
-    if (req.user!.role === UserRole.CANDIDATE) {
+    else if (req.user!.role === UserRole.CANDIDATE) {
       // Find the candidate record for this user
       const candidate = await (await import('@/models/Candidate')).Candidate.findOne({ userId: req.user!._id });
       if (!candidate) {
@@ -116,7 +166,7 @@ export class InterviewController {
       filter.interviewers = interviewer;
     }
 
-    // HR-specific filtering: Only show interviews for candidates assigned to this HR user
+    // HR-specific filtering: Show interviews for candidates assigned to this HR user OR applications created by this HR
     let candidateFilter: any = {};
     if (req.user!.role === UserRole.HR) {
       // Get all candidates assigned to this HR user
@@ -125,7 +175,15 @@ export class InterviewController {
         status: 'active'
       }).distinct('candidateId');
 
-      if (assignedCandidateIds.length === 0) {
+      // Get all applications created by this HR
+      const hrApplications = await Application.find({
+        $or: [
+          { candidateId: { $in: assignedCandidateIds } },
+          { createdBy: req.user!._id }
+        ]
+      }).distinct('_id');
+
+      if (hrApplications.length === 0) {
         // If no candidates are assigned to this HR user, return empty result
         return res.json({
           data: [],
@@ -138,7 +196,7 @@ export class InterviewController {
         });
       }
 
-      candidateFilter = { candidateId: { $in: assignedCandidateIds } };
+      filter.applicationId = { $in: hrApplications };
     }
 
     // Calculate pagination
@@ -150,6 +208,8 @@ export class InterviewController {
       filter.applicationId = { $in: eligibleApplications };
     }
 
+    console.log('Executing interview query with filter:', filter);
+    
     // Execute query with population
     const interviews = await Interview.find(filter)
       .populate({
@@ -157,12 +217,17 @@ export class InterviewController {
         populate: [
           { 
             path: 'candidateId', 
-            populate: { 
-              path: 'userId', 
-              select: 'firstName lastName email' 
-            }
-          },
-          { path: 'jobId', select: 'title companyId', populate: { path: 'companyId', select: 'name' } }
+            populate: [
+              { 
+                path: 'userId', 
+                select: 'firstName lastName email' 
+              },
+              {
+                path: 'assignedAgentId',
+                select: 'firstName lastName email'
+              }
+            ]
+          }
         ]
       })
       .populate('interviewers', 'firstName lastName email')
@@ -171,11 +236,47 @@ export class InterviewController {
       .skip(skip)
       .limit(limit);
 
+    // Fetch candidate assignments to get correct job info
+    const populatedInterviews = await Promise.all(interviews.map(async (interview: any) => {
+      const candidateId = interview.applicationId?.candidateId?._id;
+      const assignedTo = req.user!._id;
+
+      if (candidateId) {
+        const candidateAssignment = await CandidateAssignment.findOne({
+          candidateId,
+          assignedTo,
+          status: 'active'
+        }).populate({
+          path: 'jobId',
+          select: 'title companyId',
+          populate: {
+            path: 'companyId',
+            select: 'name'
+          }
+        });
+
+        if (candidateAssignment?.jobId) {
+          // Update the application's jobId with the one from candidateAssignment
+          const application = await Application.findById(interview.applicationId._id);
+          if (application) {
+            application.jobId = candidateAssignment.jobId._id;
+            await application.save();
+          }
+
+          // Update the interview response with the correct job info
+          interview.applicationId.jobId = candidateAssignment.jobId;
+        }
+      }
+      return interview;
+    }));
+      
+    console.log('Found interviews:', populatedInterviews.length);
+
     // Apply search filter on populated data if needed
-    let filteredInterviews = interviews;
+    let filteredInterviews = populatedInterviews;
     if (search) {
       const searchLower = search.toLowerCase();
-      filteredInterviews = interviews.filter(interview => {
+      filteredInterviews = populatedInterviews.filter(interview => {
         const application = interview.applicationId as any;
         const candidate = application?.candidateId;
         const job = application?.jobId;
@@ -190,8 +291,13 @@ export class InterviewController {
       });
     }
 
-    // Count total documents with the same filter applied
-    const total = await Interview.countDocuments(filter);
+    // Log the populated interviews for debugging
+    console.log('Populated interviews:', populatedInterviews.map(interview => ({
+      candidateId: interview.applicationId?.candidateId?._id,
+      jobId: interview.applicationId?.jobId?._id,
+      jobTitle: interview.applicationId?.jobId?.title,
+      companyName: interview.applicationId?.jobId?.companyId?.name
+    })));
 
     // Log audit trail (safely handle potential errors)
     try {
@@ -215,8 +321,8 @@ export class InterviewController {
       meta: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: filteredInterviews.length,
+        totalPages: Math.ceil(filteredInterviews.length / limit),
       },
     });
   });
@@ -236,7 +342,19 @@ export class InterviewController {
       .populate({
         path: 'applicationId',
         populate: [
-          { path: 'candidateId', select: 'firstName lastName email phone' },
+          { 
+            path: 'candidateId',
+            populate: [
+              { 
+                path: 'userId', 
+                select: 'firstName lastName email phone' 
+              },
+              {
+                path: 'assignedAgentId',
+                select: 'firstName lastName email'
+              }
+            ]
+          },
           { path: 'jobId', select: 'title description companyId', populate: { path: 'companyId', select: 'name' } }
         ]
       })
@@ -293,44 +411,41 @@ export class InterviewController {
       if (existingApplication) {
         applicationId = existingApplication._id.toString();
       } else {
-        // If no application exists, create a generic one for interview purposes
-        // First, try to find a job posted by the current HR user
+      // Find the candidate assignment to get the correct job
+      const candidateAssignment = await CandidateAssignment.findOne({
+        candidateId: validatedData.candidateId,
+        assignedTo: req.user!._id,
+        status: 'active'
+      }).populate('jobId');
+
+      let jobId;
+      if (candidateAssignment?.jobId) {
+        // Use the job from the candidate assignment
+        jobId = candidateAssignment.jobId._id;
+      } else {
+        // If no job in assignment, try to find a job posted by the current HR user
         const hrJob = await Job.findOne({ createdBy: req.user!._id }).sort({ createdAt: -1 });
-        
         if (!hrJob) {
-          // If HR hasn't posted any jobs, find any active job
-          const anyJob = await Job.findOne({ status: 'active' }).sort({ createdAt: -1 });
-          if (!anyJob) {
-            return res.status(400).json({
-              error: 'No jobs available. Please create a job first before scheduling interviews.'
-            });
-          }
-          
-          // Create a generic application for this candidate to the found job
-          const newApplication = await Application.create({
-            candidateId: validatedData.candidateId,
-            jobId: anyJob._id,
-            status: 'submitted',
-            stage: 'screening',
-            source: 'direct_apply',
-            appliedAt: new Date(),
+          return res.status(400).json({
+            error: 'No jobs available. Please create a job first before scheduling interviews.'
           });
-          
-          applicationId = newApplication._id.toString();
-        } else {
-          // Create application for HR's job
-          const newApplication = await Application.create({
-            candidateId: validatedData.candidateId,
-            jobId: hrJob._id,
-            status: 'submitted',
-            stage: 'screening',
-            source: 'direct_apply',
-            appliedAt: new Date(),
-          });
-          
-          applicationId = newApplication._id.toString();
         }
+        jobId = hrJob._id;
       }
+
+      // Create application with the correct job
+      const newApplication = await Application.create({
+        candidateId: validatedData.candidateId,
+        jobId: jobId,
+        status: 'submitted',
+        stage: 'screening',
+        source: 'direct_apply',
+        appliedAt: new Date(),
+        createdBy: req.user!._id
+      });
+      
+      applicationId = newApplication._id.toString();
+        }
     } else if (validatedData.applicationId) {
       // Verify application exists
       const application = await Application.findById(validatedData.applicationId);
@@ -408,10 +523,16 @@ export class InterviewController {
         populate: [
           { 
             path: 'candidateId', 
-            populate: { 
-              path: 'userId', 
-              select: 'firstName lastName email' 
-            }
+            populate: [
+              { 
+                path: 'userId', 
+                select: 'firstName lastName email' 
+              },
+              {
+                path: 'assignedAgentId',
+                select: 'firstName lastName email'
+              }
+            ]
           },
           { path: 'jobId', select: 'title companyId', populate: { path: 'companyId', select: 'name' } }
         ]
@@ -515,10 +636,16 @@ export class InterviewController {
         populate: [
           { 
             path: 'candidateId', 
-            populate: { 
-              path: 'userId', 
-              select: 'firstName lastName email' 
-            }
+            populate: [
+              { 
+                path: 'userId', 
+                select: 'firstName lastName email' 
+              },
+              {
+                path: 'assignedAgentId',
+                select: 'firstName lastName email'
+              }
+            ]
           },
           { path: 'jobId', select: 'title companyId', populate: { path: 'companyId', select: 'name' } }
         ]
@@ -582,10 +709,50 @@ export class InterviewController {
    * @route GET /interviews/stats
    */
   static getInterviewStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    // Build base filter for HR users and candidates
+    // Build base filter for HR users, agents, and candidates
     let baseFilter: any = {};
     
-    if (req.user!.role === UserRole.CANDIDATE) {
+    if (req.user!.role === UserRole.AGENT) {
+      console.log('Agent filtering stats for user:', req.user!._id);
+      
+      // Get all candidates assigned to this agent
+      const AgentAssignment = (await import('@/models/AgentAssignment')).AgentAssignment;
+      console.log('Looking for agent assignment with:', {
+        agentId: req.user!._id,
+        status: 'active'
+      });
+      
+      const agentAssignment = await AgentAssignment.findOne({
+        agentId: req.user!._id,
+        status: 'active'
+      }).populate('assignedCandidates');
+      
+      console.log('Found agent assignment:', {
+        id: agentAssignment?._id,
+        assignedCandidates: agentAssignment?.assignedCandidates?.length || 0,
+        status: agentAssignment?.status
+      });
+      
+      if (!agentAssignment || !agentAssignment.assignedCandidates?.length) {
+        return res.json({
+          data: {
+            byStatus: [],
+            todayCount: 0,
+          },
+        });
+      }
+
+      // Find applications for assigned candidates
+      console.log('Looking for applications with candidateIds:', agentAssignment.assignedCandidates);
+      const eligibleApplications = await Application.find({
+        candidateId: { $in: agentAssignment.assignedCandidates }
+      }).distinct('_id');
+      console.log('Found applications:', eligibleApplications);
+      
+      baseFilter.applicationId = { $in: eligibleApplications };
+      console.log('Final filter:', baseFilter);
+    }
+    else if (req.user!.role === UserRole.CANDIDATE) {
       // Find the candidate record for this user
       const candidate = await (await import('@/models/Candidate')).Candidate.findOne({ userId: req.user!._id });
       if (!candidate) {
@@ -607,7 +774,15 @@ export class InterviewController {
         status: 'active'
       }).distinct('candidateId');
 
-      if (assignedCandidateIds.length === 0) {
+      // Get all applications created by this HR or for assigned candidates
+      const hrApplications = await Application.find({
+        $or: [
+          { candidateId: { $in: assignedCandidateIds } },
+          { createdBy: req.user!._id }
+        ]
+      }).distinct('_id');
+
+      if (hrApplications.length === 0) {
         // If no candidates are assigned, return empty stats
         return res.json({
           data: {
@@ -616,13 +791,8 @@ export class InterviewController {
           },
         });
       }
-
-      // Get applications for assigned candidates
-      const eligibleApplications = await Application.find({
-        candidateId: { $in: assignedCandidateIds }
-      }).distinct('_id');
       
-      baseFilter.applicationId = { $in: eligibleApplications };
+      baseFilter.applicationId = { $in: hrApplications };
     }
 
     const stats = await Interview.aggregate([

@@ -480,3 +480,24 @@ export function useAvailableInterviewers() {
   
   return useApi(memoizedCall, { immediate: true });
 }
+
+// Agent Interview Management
+export function useMyAgentInterviews(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentInterviews(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
+}
+
+export function useMyAgentInterview(id: string) {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentInterview(id), [id]);
+  return useApi(memoizedCall, { 
+    immediate: !!id 
+  });
+}
+
+export function useMyAgentInterviewStats() {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentInterviewStats(), []);
+  return useApi(memoizedCall, { 
+    immediate: true,
+    showToast: false  // Don't show error toasts for stats to prevent spam
+  });
+}

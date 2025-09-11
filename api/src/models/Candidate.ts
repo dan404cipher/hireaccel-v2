@@ -11,9 +11,10 @@ import {
 /**
  * Candidate model interface extending Mongoose Document
  */
-export interface CandidateDocument extends Omit<ICandidate, '_id' | 'userId' | 'resumeFileId' | 'notes'>, Document {
+export interface CandidateDocument extends Omit<ICandidate, '_id' | 'userId' | 'resumeFileId' | 'notes' | 'assignedAgentId'>, Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
+  assignedAgentId?: mongoose.Types.ObjectId;
   resumeFileId?: mongoose.Types.ObjectId;
   
   // Override notes to match schema structure
@@ -327,6 +328,12 @@ const candidateSchema = new Schema<CandidateDocument>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User reference is required'],
+    index: true,
+  },
+
+  assignedAgentId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
     index: true,
   },
   

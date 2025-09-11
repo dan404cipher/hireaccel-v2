@@ -96,6 +96,58 @@ export interface Company {
   }>;
 }
 
+export interface Interview {
+  _id: string;
+  applicationId: {
+    _id: string;
+    candidateId: {
+      _id: string;
+      userId: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+      };
+    };
+    jobId: {
+      _id: string;
+      title: string;
+      companyId: {
+        _id: string;
+        name: string;
+      };
+    };
+  };
+  type: 'video' | 'phone' | 'in-person';
+  round: 'initial' | 'technical' | 'behavioral' | 'final' | 'cultural';
+  scheduledAt: string;
+  duration: number;
+  location?: string;
+  interviewers: Array<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  }>;
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'rescheduled';
+  feedback?: string;
+  rating?: number;
+  notes: Array<{
+    content: string;
+    createdBy: string;
+    createdAt: string;
+    isPrivate: boolean;
+  }>;
+  meetingLink?: string;
+  createdBy: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Application {
   id: string;
   candidateId: string;
@@ -972,6 +1024,41 @@ class ApiClient {
     return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Agent Interview Management
+  async getMyAgentInterviews(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    const url = `/api/v1/interviews${queryString ? `?${queryString}` : ''}`;
+    return this.request<Interview[]>(url);
+  }
+
+  async getMyAgentInterview(id: string) {
+    return this.request<Interview>(`/api/v1/interviews/${id}`);
+  }
+
+  async getMyAgentInterviewStats() {
+    return this.request<{
+      byStatus: Array<{ _id: string; count: number }>;
+      todayCount: number;
+      upcomingCount: number;
+      assignedCandidatesCount: number;
+    }>('/api/v1/interviews/stats');
   }
 
   // Authentication methods

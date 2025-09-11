@@ -248,6 +248,7 @@ export interface CandidateProfile {
 export interface Candidate {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
+  assignedAgentId?: Types.ObjectId;
   profile: CandidateProfile;
   resumeFileId?: Types.ObjectId;
   status: CandidateStatus;

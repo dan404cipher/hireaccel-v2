@@ -19,7 +19,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAgentDashboard, useMyAgentAssignment, useMyAgentAssignments } from "@/hooks/useApi";
+import { useAgentDashboard, useMyAgentAssignment, useMyAgentAssignments, useMyAgentInterviewStats } from "@/hooks/useApi";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from 'date-fns';
 
@@ -35,13 +35,14 @@ export default function AgentDashboard() {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
+  const { data: interviewStats, loading: interviewStatsLoading, error: interviewStatsError } = useMyAgentInterviewStats();
 
-  if (dashboardError || assignmentError || assignmentsError) {
+  if (dashboardError || assignmentError || assignmentsError || interviewStatsError) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Agent Dashboard</h1>
         <ApiErrorAlert 
-          error={dashboardError || assignmentError || assignmentsError}
+          error={dashboardError || assignmentError || assignmentsError || interviewStatsError}
           onRetry={() => window.location.reload()}
         />
       </div>

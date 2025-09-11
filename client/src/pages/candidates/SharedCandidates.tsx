@@ -38,6 +38,7 @@ import {
   Building2
 } from 'lucide-react';
 import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats, useCandidateAssignments } from '@/hooks/useApi';
+import { apiClient } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
@@ -267,20 +268,33 @@ const SharedCandidates: React.FC = () => {
 
   const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
     try {
-      await updateAssignment.mutate({
-        id: assignment._id,
-        data: {
-          status: newStatus,
-          feedback: feedbackText || undefined
-        }
-      });
-      refetch();
-      setSelectedAssignment(null);
-      setFeedbackText('');
-      toast({
-        title: "Success",
-        description: `Status updated to ${newStatus}`
-      });
+      if (newStatus === 'withdrawn' && user?.role === 'agent') {
+        // For agents, when withdrawing, delete the assignment completely
+        await apiClient.deleteCandidateAssignment(assignment._id);
+        refetch();
+        setSelectedAssignment(null);
+        setFeedbackText('');
+        toast({
+          title: "Success",
+          description: "Assignment deleted successfully"
+        });
+      } else {
+        // For other status updates or non-agent users
+        await updateAssignment.mutate({
+          id: assignment._id,
+          data: {
+            status: newStatus,
+            feedback: feedbackText || undefined
+          }
+        });
+        refetch();
+        setSelectedAssignment(null);
+        setFeedbackText('');
+        toast({
+          title: "Success",
+          description: `Status updated to ${newStatus}`
+        });
+      }
     } catch (error: any) {
       console.error('Failed to update status:', error);
       toast({
@@ -434,6 +448,16 @@ const SharedCandidates: React.FC = () => {
                     >
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Update Assignment
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setAssignmentToDelete(assignment);
+                        setDeleteConfirmOpen(true);
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Delete Assignment
                     </DropdownMenuItem>
                   </>
                 ) : (

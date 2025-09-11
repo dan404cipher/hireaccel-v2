@@ -165,8 +165,8 @@ export default function InterviewManagement() {
       : "Unknown Candidate",
     jobTitle: interview.applicationId?.jobId?.title || "Unknown Job",
     company: interview.applicationId?.jobId?.companyId?.name || "Unknown Company",
-    agent: interview.interviewers?.[0]?.firstName && interview.interviewers?.[0]?.lastName
-      ? `${interview.interviewers[0].firstName} ${interview.interviewers[0].lastName}`
+    agent: interview.applicationId?.candidateId?.assignedAgentId?.firstName && interview.applicationId?.candidateId?.assignedAgentId?.lastName
+      ? `${interview.applicationId.candidateId.assignedAgentId.firstName} ${interview.applicationId.candidateId.assignedAgentId.lastName}`
       : "Unassigned",
     date: new Date(interview.scheduledAt).toISOString().split('T')[0],
     time: new Date(interview.scheduledAt).toLocaleTimeString('en-US', { 
