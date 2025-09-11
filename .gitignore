@@ -153,3 +153,8 @@ bun.lockb
 
 # Upload directories
 uploads/
+
+# Google Cloud credentials
+**/hireaccel-leads-*.json
+**/google-credentials.json
+**/service-account-*.json
