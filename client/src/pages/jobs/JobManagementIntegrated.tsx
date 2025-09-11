@@ -108,8 +108,23 @@ export default function JobManagementIntegrated() {
     refetch: refetchJobs 
   } = useJobs(jobsParams);
 
-  const { data: companiesResponse } = useCompanies();
+  const { data: companiesResponse, loading: companiesLoading } = useCompanies();
   const companies = Array.isArray(companiesResponse) ? companiesResponse : (companiesResponse as any)?.data || [];
+  
+  // Check if HR has any companies
+  const hasCompanies = companies.length > 0;
+
+  // Redirect to company management if no companies exist
+  useEffect(() => {
+    if (!companiesLoading && user?.role === 'hr' && !hasCompanies) {
+      toast({
+        title: "Add a Company First",
+        description: "Please add your company before posting jobs.",
+        variant: "default"
+      });
+      navigate('/dashboard/companies');
+    }
+  }, [companiesLoading, hasCompanies, user?.role, navigate]);
 
   const { mutate: createJob, loading: createLoading } = useCreateJob();
 
@@ -410,7 +425,11 @@ export default function JobManagementIntegrated() {
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+            <Button 
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+              disabled={!hasCompanies}
+              title={!hasCompanies ? "Please add a company first" : ""}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Post New Job
             </Button>

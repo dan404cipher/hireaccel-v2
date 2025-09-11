@@ -984,7 +984,7 @@ export default function InterviewManagement() {
                     <TableHead>Candidate & Job</TableHead>
                     <TableHead>Date & Time</TableHead>
                     <TableHead>Type & Location</TableHead>
-                    <TableHead>Agent</TableHead>
+                    {user?.role !== 'agent' && <TableHead>Agent</TableHead>}
                     <TableHead>Status</TableHead>
                     {user?.role !== 'candidate' && <TableHead></TableHead>}
                   </TableRow>
@@ -1037,10 +1037,12 @@ export default function InterviewManagement() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-base flex items-center gap-2">
-                        <User className="w-4 h-4 text-purple-600" />
-                        {interview.agent}
-                      </TableCell>
+                      {user?.role !== 'agent' && (
+                        <TableCell className="text-base flex items-center gap-2">
+                          <User className="w-4 h-4 text-purple-600" />
+                          {interview.agent}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">

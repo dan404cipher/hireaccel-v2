@@ -52,6 +52,10 @@ const envSchema = z.object({
   // API Documentation
   API_DOCS_ENABLED: z.string().transform(val => val === 'true').default('true'),
 
+  // Google Sheets Integration
+  GOOGLE_SHEETS_ID: z.string().optional(),
+  GOOGLE_SHEETS_CREDENTIALS: z.string().optional(),
+
   // Security
   BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
   SESSION_SECRET: z.string().min(32, 'Session secret must be at least 32 characters').optional(),

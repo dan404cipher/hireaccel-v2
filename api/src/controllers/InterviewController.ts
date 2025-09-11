@@ -78,7 +78,7 @@ export class InterviewController {
     if (req.user!.role === UserRole.AGENT) {
       console.log('Agent filtering for user:', req.user!._id);
       
-      // Get all candidates assigned to this agent
+      // Get all HRs assigned to this agent
       const AgentAssignment = (await import('@/models/AgentAssignment')).AgentAssignment;
       console.log('Looking for agent assignment with:', {
         agentId: req.user!._id,
@@ -88,15 +88,15 @@ export class InterviewController {
       const agentAssignment = await AgentAssignment.findOne({
         agentId: req.user!._id,
         status: 'active'
-      }).populate('assignedCandidates');
+      }).populate('assignedHRs');
       
       console.log('Found agent assignment:', {
         id: agentAssignment?._id,
-        assignedCandidates: agentAssignment?.assignedCandidates?.length || 0,
+        assignedHRs: agentAssignment?.assignedHRs?.length || 0,
         status: agentAssignment?.status
       });
       
-      if (!agentAssignment || !agentAssignment.assignedCandidates?.length) {
+      if (!agentAssignment || !agentAssignment.assignedHRs?.length) {
         return res.json({
           data: [],
           meta: {
@@ -108,14 +108,15 @@ export class InterviewController {
         });
       }
 
-      // Find applications for assigned candidates
-      console.log('Looking for applications with candidateIds:', agentAssignment.assignedCandidates);
-      const applications = await Application.find({ 
-        candidateId: { $in: agentAssignment.assignedCandidates } 
+      // Find interviews created by assigned HRs
+      console.log('Looking for interviews created by HRs:', agentAssignment.assignedHRs);
+      const hrInterviews = await Interview.find({
+        createdBy: { $in: agentAssignment.assignedHRs }
       }).distinct('_id');
-      console.log('Found applications:', applications);
+      console.log('Found interviews:', hrInterviews);
       
-      filter.applicationId = { $in: applications };
+      filter._id = { $in: hrInterviews };
+      console.log('Final filter:', filter);
       console.log('Final filter:', filter);
     }
     // Handle candidate-specific filtering
@@ -217,16 +218,18 @@ export class InterviewController {
         populate: [
           { 
             path: 'candidateId', 
-            populate: [
-              { 
-                path: 'userId', 
-                select: 'firstName lastName email' 
-              },
-              {
-                path: 'assignedAgentId',
-                select: 'firstName lastName email'
-              }
-            ]
+            populate: { 
+              path: 'userId', 
+              select: 'firstName lastName email' 
+            }
+          },
+          {
+            path: 'jobId',
+            select: 'title companyId',
+            populate: {
+              path: 'companyId',
+              select: 'name industry location'
+            }
           }
         ]
       })
@@ -263,8 +266,25 @@ export class InterviewController {
             await application.save();
           }
 
-          // Update the interview response with the correct job info
+          // Update the interview response with the correct job info and agent info
           interview.applicationId.jobId = candidateAssignment.jobId;
+          
+          // Get the agent info from HR's assignment
+          const AgentAssignment = (await import('@/models/AgentAssignment')).AgentAssignment;
+          const agentAssignment = await AgentAssignment.findOne({
+            assignedHRs: req.user!._id,
+            status: 'active'
+          }).populate('agentId', 'firstName lastName email');
+
+          if (agentAssignment?.agentId) {
+            // Add agent info to both the candidate and the interview response
+            const candidate = await (await import('@/models/Candidate')).Candidate.findById(candidateId);
+            if (candidate) {
+              candidate.assignedAgentId = agentAssignment.agentId._id;
+              await candidate.save();
+            }
+            interview.applicationId.candidateId.assignedAgentId = agentAssignment.agentId;
+          }
         }
       }
       return interview;
