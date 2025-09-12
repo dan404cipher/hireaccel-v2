@@ -449,7 +449,7 @@ candidateSchema.index({
  * Total years of experience
  */
 candidateSchema.virtual('totalExperience').get(function(this: CandidateDocument) {
-  if (!this.profile.experience || this.profile.experience.length === 0) {
+  if (!this.profile || !this.profile.experience || this.profile.experience.length === 0) {
     return 0;
   }
   
@@ -496,10 +496,14 @@ candidateSchema.virtual('profileCompletion').get(function(this: CandidateDocumen
   let completed = 0;
   const total = 10;
   
+  if (!this.profile) {
+    return 0; // Return 0% if profile doesn't exist
+  }
+  
   if (this.profile.summary) completed++;
-  if (this.profile.skills.length > 0) completed++;
-  if (this.profile.experience.length > 0) completed++;
-  if (this.profile.education.length > 0) completed++;
+  if (this.profile.skills && this.profile.skills.length > 0) completed++;
+  if (this.profile.experience && this.profile.experience.length > 0) completed++;
+  if (this.profile.education && this.profile.education.length > 0) completed++;
   if (this.profile.phoneNumber) completed++;
   if (this.profile.location) completed++;
   if (this.profile.linkedinUrl) completed++;

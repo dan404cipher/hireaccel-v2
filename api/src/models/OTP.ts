@@ -9,6 +9,7 @@ export interface OTPDocument extends Document {
     firstName: string;
     lastName: string;
     role: string;
+    source?: string; // Make optional for backward compatibility
     phone?: string;
     department?: string;
     currentLocation?: string;
@@ -37,6 +38,7 @@ const otpSchema = new Schema<OTPDocument>({
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     role: { type: String, required: true },
+    source: { type: String, required: false }, // Make optional for backward compatibility
     phone: { type: String },
     department: { type: String },
     currentLocation: { type: String },

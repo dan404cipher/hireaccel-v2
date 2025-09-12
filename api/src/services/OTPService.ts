@@ -20,6 +20,7 @@ export class OTPService {
     firstName: string;
     lastName: string;
     role: string;
+    source?: string; // Make optional for backward compatibility
     phone?: string;
     department?: string;
     currentLocation?: string;

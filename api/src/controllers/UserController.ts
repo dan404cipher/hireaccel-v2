@@ -22,6 +22,19 @@ const createUserSchema = z.object({
   role: z.nativeEnum(UserRole),
   password: z.string().min(8).optional(),
   phoneNumber: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number').optional().or(z.literal('')),
+  source: z.enum([
+    'Email',
+    'WhatsApp',
+    'Telegram',
+    'Instagram',
+    'Facebook',
+    'Journals',
+    'Posters',
+    'Brochures',
+    'Forums',
+    'Google',
+    'Conversational AI (GPT, Gemini etc)'
+  ], { errorMap: () => ({ message: 'Source must be one of the valid options' }) }).optional(),
 });
 
 const updateUserSchema = z.object({

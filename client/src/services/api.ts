@@ -361,6 +361,7 @@ class ApiClient {
     department?: string;
     currentLocation?: string;
     yearsOfExperience?: string;
+    source?: string; // Make optional for backward compatibility
   }) {
     console.log('API Client signup called with:', data);
     try {

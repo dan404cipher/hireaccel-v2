@@ -42,6 +42,7 @@ export class AuthService {
     firstName: string;
     lastName: string;
     role: UserRole;
+    source?: string; // Make optional for backward compatibility
     phone?: string | undefined;
     department?: string | undefined;
     currentLocation?: string | undefined;
@@ -64,6 +65,7 @@ export class AuthService {
         firstName: userData.firstName,
         lastName: userData.lastName,
         role: userData.role,
+        ...(userData.source && { source: userData.source }),
         ...(userData.phone && { phone: userData.phone }),
         ...(userData.department && { department: userData.department }),
         ...(userData.currentLocation && { currentLocation: userData.currentLocation }),
@@ -144,6 +146,7 @@ export class AuthService {
         status: UserStatus.ACTIVE, // User is verified via OTP
         emailVerified: true, // Email is verified via OTP
         phoneNumber: userData.phone, // Save phone number
+        ...(userData.source && { source: userData.source }), // Save source if provided
       });
       
       await user.save();
@@ -273,6 +276,7 @@ export class AuthService {
     firstName: string;
     lastName: string;
     role: UserRole;
+    source?: string; // Make optional for backward compatibility
     phone?: string | undefined;
     department?: string | undefined;
     currentLocation?: string | undefined;

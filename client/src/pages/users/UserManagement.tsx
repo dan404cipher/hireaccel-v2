@@ -123,6 +123,7 @@ export default function UserManagement() {
     phoneNumber: '',
     role: 'candidate' as const,
     password: '',
+    source: '',
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -206,6 +207,7 @@ export default function UserManagement() {
       phoneNumber: '',
       role: 'candidate',
       password: '',
+      source: '',
     });
     setShowPassword(false);
   };
@@ -870,6 +872,27 @@ export default function UserManagement() {
                   <SelectItem value="agent">Agent</SelectItem>
                   <SelectItem value="hr">HR Manager</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="source">Source</Label>
+              <Select value={formData.source} onValueChange={(value: any) => setFormData(prev => ({ ...prev, source: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Email">Email</SelectItem>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                  <SelectItem value="Telegram">Telegram</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="Facebook">Facebook</SelectItem>
+                  <SelectItem value="Journals">Journals</SelectItem>
+                  <SelectItem value="Posters">Posters</SelectItem>
+                  <SelectItem value="Brochures">Brochures</SelectItem>
+                  <SelectItem value="Forums">Forums</SelectItem>
+                  <SelectItem value="Google">Google</SelectItem>
+                  <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

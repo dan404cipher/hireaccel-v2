@@ -106,6 +106,7 @@ export interface User {
   lastLoginAt?: Date;
   emailVerified: boolean;
   phoneNumber?: string;
+  source?: string; // Make optional for existing users
   createdAt: Date;
   updatedAt: Date;
 }

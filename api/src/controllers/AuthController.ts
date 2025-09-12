@@ -22,6 +22,19 @@ const registerSchema = z.object({
   department: z.string().optional(),
   currentLocation: z.string().optional(),
   yearsOfExperience: z.string().optional(),
+  source: z.enum([
+    'Email',
+    'WhatsApp',
+    'Telegram',
+    'Instagram',
+    'Facebook',
+    'Journals',
+    'Posters',
+    'Brochures',
+    'Forums',
+    'Google',
+    'Conversational AI (GPT, Gemini etc)'
+  ], { errorMap: () => ({ message: 'Source is required and must be one of the valid options' }) }),
 });
 
 const loginSchema = z.object({
@@ -79,6 +92,7 @@ export class AuthController {
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,
       role: validatedData.role,
+      source: validatedData.source,
       ...(validatedData.phone && { phone: validatedData.phone }),
       ...(validatedData.department && { department: validatedData.department }),
       ...(validatedData.currentLocation && { currentLocation: validatedData.currentLocation }),

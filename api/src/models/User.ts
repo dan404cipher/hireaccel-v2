@@ -122,6 +122,28 @@ const userSchema = new Schema<UserDocument>({
     ],
   },
   
+  source: {
+    type: String,
+    required: false, // Make optional for existing users
+    enum: {
+      values: [
+        'Email',
+        'WhatsApp',
+        'Telegram',
+        'Instagram',
+        'Facebook',
+        'Journals',
+        'Posters',
+        'Brochures',
+        'Forums',
+        'Google',
+        'Conversational AI (GPT, Gemini etc)'
+      ],
+      message: 'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc)'
+    },
+    index: true,
+  },
+  
   // Metadata for password reset
   resetPasswordToken: {
     type: String,

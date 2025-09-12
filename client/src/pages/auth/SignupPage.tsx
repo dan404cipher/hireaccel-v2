@@ -22,6 +22,7 @@ interface FormData {
   department?: string;
   currentLocation?: string;
   yearsOfExperience?: string;
+  source: string;
 }
 
 interface SignupPageProps {
@@ -53,7 +54,8 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     confirmPassword: '',
     department: '',
     currentLocation: '',
-    yearsOfExperience: ''
+    yearsOfExperience: '',
+    source: ''
   });
   
   // Update user type when route changes
@@ -76,6 +78,17 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     e.preventDefault();
     setLoading(true);
 
+    // Validate required fields
+    if (!formData.source) {
+      toast({
+        title: "Validation Error",
+        description: "Please select how you heard about us.",
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       // Prepare signup data
       const signupData = {
@@ -85,6 +98,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         phone: formData.phone,
         password: formData.password,
         role: userType,
+        source: formData.source,
         ...(userType === 'hr' && { department: formData.department }),
         ...(userType === 'candidate' && { 
           currentLocation: formData.currentLocation,
@@ -446,6 +460,31 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                         )}
                       </div>
                     )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="source">How did you hear about us?*</Label>
+                    <Select
+                      value={formData.source}
+                      onValueChange={(value) => handleInputChange('source', value)}
+                    >
+                      <SelectTrigger className="border border-gray-300 focus:border-blue-500">
+                        <SelectValue placeholder="Select how you heard about us" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Email">Email</SelectItem>
+                        <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                        <SelectItem value="Telegram">Telegram</SelectItem>
+                        <SelectItem value="Instagram">Instagram</SelectItem>
+                        <SelectItem value="Facebook">Facebook</SelectItem>
+                        <SelectItem value="Journals">Journals</SelectItem>
+                        <SelectItem value="Posters">Posters</SelectItem>
+                        <SelectItem value="Brochures">Brochures</SelectItem>
+                        <SelectItem value="Forums">Forums</SelectItem>
+                        <SelectItem value="Google">Google</SelectItem>
+                        <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* HR Specific Fields */}
