@@ -35,6 +35,7 @@ import { HRProfessionals }  from "./components/landingpage/hr/HRFeatures";
   import {JobCandidates} from "./components/landingpage/condidate/CandidateFeatures";
 import { ForgetPasswordPage } from "./pages/auth/ForgetPasswordPage";
 import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
+import PrivacyPolicy from "./pages/privacyPolicy";
 
 const queryClient = new QueryClient();
 
@@ -137,6 +138,7 @@ function AppRouter() {
           isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
         } 
       />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route 
         path="/forget-password" 
         element={
