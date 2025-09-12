@@ -82,6 +82,7 @@ interface User {
   lastLoginAt?: string;
   emailVerified?: boolean;
   phoneNumber?: string;
+  source?: string;
   createdAt: string;
 }
 
@@ -90,6 +91,21 @@ const roleColors = {
   hr: 'bg-blue-600 text-white border-blue-600',
   agent: 'bg-emerald-600 text-white border-emerald-600',
   candidate: 'bg-purple-600 text-white border-purple-600',
+};
+
+const sourceColors = {
+  'Email': 'bg-blue-100 text-blue-800 border-blue-200',
+  'WhatsApp': 'bg-green-100 text-green-800 border-green-200',
+  'Telegram': 'bg-sky-100 text-sky-800 border-sky-200',
+  'Instagram': 'bg-pink-100 text-pink-800 border-pink-200',
+  'Facebook': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  'Journals': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Posters': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Brochures': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'Forums': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Google': 'bg-red-100 text-red-800 border-red-200',
+  'Conversational AI (GPT, Gemini etc)': 'bg-violet-100 text-violet-800 border-violet-200',
+  'Not specified': 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
 const statusColors = {
@@ -390,9 +406,9 @@ export default function UserManagement() {
   const handleExport = () => {
     const selectedUserData = users.filter(user => selectedUsers.has(user._id));
     const csvContent = [
-      ['customId', 'firstName', 'lastName', 'email', 'phoneNumber', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
+      ['source', 'firstName', 'lastName', 'email', 'phoneNumber', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
       ...selectedUserData.map(user => [
-        user.customId,
+        user.source || 'Not specified',
         user.firstName,
         user.lastName,
         user.email,
@@ -652,11 +668,11 @@ export default function UserManagement() {
                         aria-label="Select all users"
                       />
                     </TableHead>
-                    <TableHead>User ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Lead Source</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[50px]">Actions</TableHead>
                   </TableRow>
@@ -670,17 +686,6 @@ export default function UserManagement() {
                           onCheckedChange={() => handleUserSelect(user._id)}
                           aria-label={`Select ${user.firstName} ${user.lastName}`}
                         />
-                      </TableCell>
-                      <TableCell className="font-mono text-base font-medium text-blue-600">
-                        {user.customId.startsWith('CAND') 
-                          ? user.customId.replace(/^CAND0+/, 'CAND')
-                          : user.customId.startsWith('HR') 
-                          ? user.customId.replace(/^HR0+/, 'HR')
-                          : user.customId.startsWith('ADMIN') 
-                          ? user.customId.replace(/^ADMIN0+/, 'ADMIN')
-                          : user.customId.startsWith('AGENT') 
-                          ? user.customId.replace(/^AGENT0+/, 'AGENT')
-                          : user.customId}
                       </TableCell>
                       <TableCell className="font-medium text-base">
                         {user.firstName} {user.lastName}
@@ -700,6 +705,11 @@ export default function UserManagement() {
                       <TableCell>
                         <Badge className={roleColors[user.role]}>
                           {roleLabels[user.role]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={sourceColors[user.source || 'Not specified']}>
+                          {user.source || 'Not specified'}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -1061,8 +1071,12 @@ export default function UserManagement() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">User ID</Label>
-                  <p className="mt-1 font-mono text-blue-600 font-medium">{viewingUser.customId}</p>
+                  <Label className="text-sm font-medium">Lead Source</Label>
+                  <div className="mt-1">
+                    <Badge className={sourceColors[viewingUser.source || 'Not specified']}>
+                      {viewingUser.source || 'Not specified'}
+                    </Badge>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Name</Label>
