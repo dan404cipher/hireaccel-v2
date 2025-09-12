@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { apiClient } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,11 +109,45 @@ export default function JobManagementIntegrated() {
     refetch: refetchJobs 
   } = useJobs(jobsParams);
 
-  const { data: companiesResponse, loading: companiesLoading } = useCompanies();
-  const companies = Array.isArray(companiesResponse) ? companiesResponse : (companiesResponse as any)?.data || [];
+  // TEMPORARY FIX: Direct API call to bypass the broken useApi hook
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [companiesError, setCompaniesError] = useState(null);
+  
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        setCompaniesLoading(true);
+        console.log('🔍 Direct API call to get companies');
+        const response = await apiClient.getCompanies({ page: 1, limit: 50 });
+        console.log('🔍 Direct API response:', response);
+        setCompanies(response.data || response);
+        setCompaniesError(null);
+      } catch (error) {
+        console.error('🔍 Direct API error:', error);
+        setCompaniesError(error);
+      } finally {
+        setCompaniesLoading(false);
+      }
+    };
+    
+    fetchCompanies();
+  }, []);
   
   // Check if HR has any companies
   const hasCompanies = companies.length > 0;
+  
+  // Debug logging for HR users
+  console.log('🔍 HR Companies Debug:', {
+    companies: companies,
+    companiesLength: companies.length,
+    hasCompanies,
+    companiesLoading,
+    companiesError
+  });
+  
+  
+  
 
   // Redirect to company management if no companies exist
   useEffect(() => {
@@ -124,7 +159,7 @@ export default function JobManagementIntegrated() {
       });
       navigate('/dashboard/companies');
     }
-  }, [companiesLoading, hasCompanies, user?.role, navigate]);
+  }, [companiesLoading, hasCompanies, user?.role, navigate, toast]);
 
   const { mutate: createJob, loading: createLoading } = useCreateJob();
 

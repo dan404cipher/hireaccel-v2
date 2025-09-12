@@ -51,6 +51,118 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const renderNotificationMessage = (notification: Notification) => {
+    const { message, metadata } = notification;
+    
+    console.log('🔍 Rendering notification:', {
+      type: notification.type,
+      metadata,
+      hasCompanyName: !!metadata?.companyName,
+      hasCreatorName: !!metadata?.creatorName,
+      fullMetadata: metadata
+    });
+    
+    // Handle company creation notifications
+    if (notification.type === 'company_create' && metadata?.companyName && metadata?.creatorName) {
+      console.log('✅ Rendering enhanced company notification with clickable elements');
+      return (
+        <div>
+          A new company has been created:{' '}
+          <span 
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/dashboard/companies/${metadata.companyCustomId || notification.entityId}`);
+            }}
+          >
+            {metadata.companyName}
+          </span>
+          {' '}by{' '}
+          <span 
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigateToUserProfile(metadata.creatorCustomId || metadata.creatorId, metadata.creatorRole);
+            }}
+          >
+            {metadata.creatorName}
+          </span>
+        </div>
+      );
+    }
+    
+    // Handle job creation notifications
+    if (notification.type === 'job_create' && metadata?.jobTitle && metadata?.creatorName) {
+      console.log('✅ Rendering enhanced job notification with clickable elements');
+      return (
+        <div>
+          A new job has been posted:{' '}
+          <span 
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/dashboard/jobs/${metadata.jobCustomId || notification.entityId}`);
+            }}
+          >
+            {metadata.jobTitle}
+          </span>
+          {' '}by{' '}
+          <span 
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigateToUserProfile(metadata.creatorCustomId || metadata.creatorId, metadata.creatorRole);
+            }}
+          >
+            {metadata.creatorName}
+          </span>
+        </div>
+      );
+    }
+    
+    // Default message for other notification types
+    return <span>{message}</span>;
+  };
+
+  const navigateToUserProfile = (userId: string, userRole: string) => {
+    console.log('🔍 Navigating to user profile:', { userId, userRole });
+    
+    // Get current user role to determine appropriate navigation
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const currentUserRole = currentUser?.role;
+    
+    console.log('🔍 Current user role:', currentUserRole);
+    
+    switch (userRole) {
+      case 'admin':
+        // Admin profile route doesn't have customId parameter, just navigate to admin profile
+        navigate(`/dashboard/admin-profile`);
+        break;
+      case 'hr':
+        // HR profile route has customId parameter - both HR and admin can access
+        navigate(`/dashboard/hr-profile/${userId}`);
+        break;
+      case 'agent':
+        // Agent profile route doesn't exist, navigate to agent dashboard
+        navigate(`/dashboard/agent-dashboard`);
+        break;
+      case 'candidate':
+        // Use different routes based on current user role
+        if (currentUserRole === 'candidate') {
+          // Candidates use candidate-profile route
+          navigate(`/dashboard/candidate-profile/${userId}`);
+        } else {
+          // Admin, HR, and agents use candidates route
+          navigate(`/dashboard/candidates/${userId}`);
+        }
+        break;
+      default:
+        console.warn('Unknown user role for navigation:', userRole);
+        navigate(`/dashboard`);
+        break;
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg">
@@ -99,9 +211,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                         {format(new Date(notification.createdAt), 'MMM d, h:mm a')}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {notification.message}
-                    </p>
+                    <div className="text-sm text-muted-foreground">
+                      {renderNotificationMessage(notification)}
+                    </div>
                   </div>
 
                   <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

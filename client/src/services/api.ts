@@ -232,6 +232,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -240,6 +241,7 @@ class ApiClient {
       });
 
       const data = await response.json();
+
 
       // Handle 401 errors - but only for authenticated requests, not for login
       if (response.status === 401 && endpoint !== '/auth/login') {
@@ -469,6 +471,7 @@ class ApiClient {
       }
     });
 
+
     return this.request<Company[]>(`/api/v1/companies?${queryParams.toString()}`);
   }
 
@@ -518,6 +521,10 @@ class ApiClient {
 
   async getUser(id: string) {
     return this.request<User>(`/api/v1/users/${id}`);
+  }
+
+  async getUserByCustomId(customId: string) {
+    return this.request<User>(`/api/v1/users/custom/${customId}`);
   }
 
   async createUser(userData: Partial<User> & { password?: string }) {

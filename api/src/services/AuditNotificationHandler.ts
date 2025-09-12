@@ -187,6 +187,23 @@ export class AuditNotificationHandler {
 
     switch (action) {
       case AuditAction.CREATE:
+        // Get creator information
+        const creator = await User.findById(actor).select('firstName lastName email role customId');
+        const creatorName = creator ? `${creator.firstName} ${creator.lastName}` : 'Unknown User';
+        
+        // Get company information to get companyId
+        const { Company } = await import('@/models/Company');
+        const company = await Company.findById(entityId).select('companyId');
+        
+        logger.debug('Company creation notification with creator info', {
+          companyName: after?.['name'],
+          creatorName,
+          creatorRole: creator?.role,
+          creatorId: actor.toString(),
+          creatorCustomId: creator?.customId,
+          companyCustomId: company?.companyId
+        });
+        
         return {
           type: NotificationType.COMPANY_CREATE,
           title: 'New Company Created',
@@ -194,7 +211,14 @@ export class AuditNotificationHandler {
           recipients: [{ id: 'admin', role: UserRole.ADMIN }], // Notify all admins
           entityType: 'Company',
           entityId: entityId.toString(),
-          metadata: { companyName: after?.['name'] },
+          metadata: { 
+            companyName: after?.['name'],
+            companyCustomId: company?.companyId,
+            creatorId: actor.toString(),
+            creatorCustomId: creator?.customId,
+            creatorName: creatorName,
+            creatorRole: creator?.role
+          },
           priority: NotificationPriority.MEDIUM
         };
 
@@ -225,6 +249,14 @@ export class AuditNotificationHandler {
 
     switch (action) {
       case AuditAction.CREATE:
+        // Get creator information
+        const jobCreator = await User.findById(actor).select('firstName lastName email role customId');
+        const jobCreatorName = jobCreator ? `${jobCreator.firstName} ${jobCreator.lastName}` : 'Unknown User';
+        
+        // Get job information to get jobId
+        const { Job } = await import('@/models/Job');
+        const job = await Job.findById(entityId).select('jobId');
+        
         return {
           type: NotificationType.JOB_CREATE,
           title: 'New Job Posted',
@@ -235,7 +267,15 @@ export class AuditNotificationHandler {
           ],
           entityType: 'Job',
           entityId: entityId.toString(),
-          metadata: { jobTitle: after?.['title'], companyId: after?.['companyId'] },
+          metadata: { 
+            jobTitle: after?.['title'], 
+            jobCustomId: job?.jobId,
+            companyId: after?.['companyId'],
+            creatorId: actor.toString(),
+            creatorCustomId: jobCreator?.customId,
+            creatorName: jobCreatorName,
+            creatorRole: jobCreator?.role
+          },
           priority: NotificationPriority.MEDIUM,
           actionUrl: `/jobs/${entityId}`
         };

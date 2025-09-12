@@ -90,6 +90,13 @@ router.get('/agent-assignments/:agentId', requireAdmin, UserController.getAgentA
 router.delete('/agent-assignments/:agentId', requireAdmin, UserController.deleteAgentAssignment);
 
 /**
+ * @route   GET /users/custom/:customId
+ * @desc    Get user by custom ID
+ * @access  Admin, HR
+ */
+router.get('/custom/:customId', requireHR, UserController.getUserByCustomId);
+
+/**
  * @route   GET /users/:id
  * @desc    Get user by ID
  * @access  Admin, HR

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { useUserByCustomId } from "@/hooks/useApi";
 
 export default function HRProfile() {
   const { user, updateAuth } = useAuth();
@@ -28,6 +29,18 @@ export default function HRProfile() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  
+  // Fetch user data by customId if provided (for viewing other users' profiles)
+  const { data: targetUser, loading: targetUserLoading } = useUserByCustomId(customId || '');
+  
+  // Determine which user data to use
+  const displayUser = useMemo(() => {
+    return customId && targetUser ? targetUser : user;
+  }, [customId, targetUser, user]);
+  
+  const isViewingOtherProfile = useMemo(() => {
+    return customId && targetUser && targetUser.id !== user?.id;
+  }, [customId, targetUser, user?.id]);
   
   // Auto-navigate to include customId in URL for HR users
   useEffect(() => {
@@ -38,18 +51,18 @@ export default function HRProfile() {
 
   // Update form data when user data changes
   useEffect(() => {
-    if (user) {
-      console.log('Updating form data with user:', user);
+    if (displayUser) {
+      console.log('Updating form data with user:', displayUser);
       setProfileData(prev => ({
         ...prev,
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        email: user.email || "",
-        customId: user.customId || "",
-        phone: user.phoneNumber || "",
+        firstName: displayUser.firstName || "",
+        lastName: displayUser.lastName || "",
+        email: displayUser.email || "",
+        customId: displayUser.customId || "",
+        phone: displayUser.phoneNumber || "",
       }));
     }
-  }, [user]);
+  }, [displayUser]);
 
   // Simple profile form state
   const [profileData, setProfileData] = useState({
@@ -67,6 +80,16 @@ export default function HRProfile() {
   const handleSave = async () => {
     console.log('Save button clicked');
     console.log('Current user:', user);
+    console.log('Is viewing other profile:', isViewingOtherProfile);
+    
+    if (isViewingOtherProfile) {
+      toast({
+        title: "Cannot Edit",
+        description: "You can only edit your own profile.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (!user?.id) {
       toast({
@@ -136,8 +159,18 @@ export default function HRProfile() {
     }));
   };
 
+  // Show loading state when fetching target user
+  if (customId && targetUserLoading) {
+    return (
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-50">
+      
       {/* Header Banner */}
       <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="absolute inset-0 bg-black opacity-20"></div>
@@ -197,7 +230,7 @@ export default function HRProfile() {
                       </div>
                     </div>
                   </div>
-                  {!editMode && (
+                  {!editMode && !isViewingOtherProfile && (
                     <Button
                       variant="default"
                       onClick={() => setEditMode(true)}

@@ -129,6 +129,24 @@ export class UserController {
   });
 
   /**
+   * Get user by custom ID
+   * GET /users/custom/:customId
+   */
+  static getUserByCustomId = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { customId } = req.params;
+    
+    const user = await User.findOne({ customId }).select('-password');
+    if (!user) {
+      throw createNotFoundError('User', customId);
+    }
+    
+    res.json({
+      success: true,
+      data: user,
+    });
+  });
+
+  /**
    * Create new user
    * POST /users
    */

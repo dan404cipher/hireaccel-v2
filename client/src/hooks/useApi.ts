@@ -38,13 +38,21 @@ export function useApi<T>(
     
     try {
       const response = await apiCall();
-      setState(prev => ({ ...prev, data: response.data!, loading: false }));
+      
+      // The API client returns the full response object, so we need to access response.data
+      const actualData = response.data || response;
+      
+      console.log('🔍 useApi setting state with actualData:', actualData);
+      setState(prev => {
+        console.log('🔍 useApi setState - prev:', prev, 'new data:', actualData);
+        return { ...prev, data: actualData, loading: false };
+      });
       
       if (onSuccess) {
-        onSuccess(response.data);
+        onSuccess(actualData);
       }
       
-      return response.data;
+      return actualData;
     } catch (error) {
       const apiError = error as ApiError;
       setState(prev => ({ ...prev, error: apiError, loading: false }));
@@ -189,8 +197,16 @@ export function useJobStats() {
 
 // Companies
 export function useCompanies(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getCompanies(params), [JSON.stringify(params)]);
-  return useApi(memoizedCall, { immediate: true });
+  // Create a stable key for the params to prevent multiple instances
+  const paramsKey = JSON.stringify(params);
+  const memoizedCall = useCallback(() => {
+    console.log('🔍 useCompanies API call with params:', params);
+    return apiClient.getCompanies(params);
+  }, [paramsKey]);
+  
+  const result = useApi(memoizedCall, { immediate: true });
+  console.log('🔍 useCompanies returning:', result);
+  return result;
 }
 
 export function useCompany(id: string) {
@@ -223,7 +239,13 @@ export function useUsers(params = {}) {
 }
 
 export function useUser(id: string) {
-  return useApi(() => apiClient.getUser(id), { immediate: !!id });
+  const memoizedCall = useCallback(() => apiClient.getUser(id), [id]);
+  return useApi(memoizedCall, { immediate: !!id });
+}
+
+export function useUserByCustomId(customId: string) {
+  const memoizedCall = useCallback(() => apiClient.getUserByCustomId(customId), [customId]);
+  return useApi(memoizedCall, { immediate: !!customId });
 }
 
 export function useCreateUser() {
