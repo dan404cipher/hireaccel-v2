@@ -1,4 +1,4 @@
-import { Bell, Search, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { Search, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -10,13 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { useAuth, User } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useState } from "react";
 
 export function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -85,12 +88,10 @@ export function TopBar() {
 
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="w-5 h-5" />
-          <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-destructive text-destructive-foreground text-xs">
-            3
-          </Badge>
-        </Button>
+        <NotificationBell 
+          onClick={() => setNotificationCenterOpen(true)}
+          className="relative"
+        />
 
         {/* User Menu */}
         <DropdownMenu>
@@ -130,6 +131,12 @@ export function TopBar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Notification Center */}
+      <NotificationCenter 
+        open={notificationCenterOpen}
+        onOpenChange={setNotificationCenterOpen}
+      />
     </header>
   );
 }

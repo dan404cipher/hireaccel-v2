@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import AgentAllocation from "./pages/agents/AgentAllocation";
@@ -310,7 +311,9 @@ const App = () => {
             }
           >
             <AuthProvider>
-              <AppRouter />
+              <NotificationProvider>
+                <AppRouter />
+              </NotificationProvider>
             </AuthProvider>
           </Suspense>
         </BrowserRouter>

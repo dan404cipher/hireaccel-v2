@@ -23,6 +23,8 @@ import { logger, logStartup, logShutdown } from '@/config/logger';
 import { connectDatabase, setupDatabaseEventListeners } from '@/config/database';
 import { initializeUploadDirectories } from '@/config/multer';
 import app from './app';
+import { Server as SocketIOServer } from 'socket.io';
+import { createServer } from 'http';
 
 /**
  * Server startup and initialization
@@ -51,22 +53,99 @@ const initializeServices = async (): Promise<void> => {
 };
 
 /**
- * Start the Express server
+ * Start the Express server with Socket.IO
  */
-const startServer = (): void => {
-  const server = app.listen(env.PORT, () => {
+const startServer = async (): Promise<void> => {
+  // Create HTTP server
+  const httpServer = createServer(app);
+  
+  // Initialize Socket.IO
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: process.env['NODE_ENV'] === 'production' 
+        ? process.env['CLIENT_URL'] 
+        : "http://localhost:5173",
+      methods: ["GET", "POST"],
+      credentials: true
+    }
+  });
+
+  // Store io instance globally for use in other modules
+  (global as any).io = io;
+
+  // Initialize SocketService
+  const { SocketService } = await import('@/services/SocketService');
+  const socketService = SocketService.getInstance();
+  socketService.initialize(io);
+
+  // Socket.IO authentication middleware
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth['token'];
+      if (!token) {
+        return next(new Error('Authentication error: No token provided'));
+      }
+
+      // Verify JWT token using the proper JWT utility
+      const { verifyAccessToken } = await import('@/utils/jwt');
+      const decoded = verifyAccessToken(token);
+      
+      // Get user from database
+      const { User } = await import('@/models/User');
+      const user = await User.findById(decoded.userId).select('_id email role status');
+      
+      if (!user || user.status !== 'active') {
+        return next(new Error('Authentication error: User not found or inactive'));
+      }
+
+      socket.data.user = user;
+      next();
+    } catch (error) {
+      next(new Error('Authentication error: Invalid token'));
+    }
+  });
+
+  // Handle socket connections
+  io.on('connection', (socket) => {
+    const user = socket.data.user;
+    logger.info(`User connected via Socket.IO: ${user.email} (${user.role})`);
+
+    // Join user to their role-based room
+    socket.join(`role:${user.role}`);
+    socket.join(`user:${user._id}`);
+
+    // Handle subscription to notifications
+    socket.on('subscribe:notifications', () => {
+      socket.join('notifications');
+      logger.debug(`User ${user.email} subscribed to notifications`);
+    });
+
+    // Handle disconnection
+    socket.on('disconnect', () => {
+      logger.info(`User disconnected: ${user.email}`);
+    });
+  });
+
+  // Start the server
+  httpServer.listen(env.PORT, () => {
     logStartup(env.PORT);
     logger.info(`🌍 Server running on http://localhost:${env.PORT}`);
     logger.info(`📚 API Documentation: http://localhost:${env.PORT}/docs`);
     logger.info(`🏥 Health Check: http://localhost:${env.PORT}/health`);
+    logger.info(`🔌 Socket.IO server ready for real-time notifications`);
   });
 
   // Graceful shutdown handlers
   const gracefulShutdown = (signal: string) => {
     logShutdown(signal);
     
-    server.close(async () => {
+    httpServer.close(async () => {
       logger.info('HTTP server closed');
+      
+      // Close Socket.IO server
+      io.close(() => {
+        logger.info('Socket.IO server closed');
+      });
       
       // Close database connection
       const { disconnectDatabase } = await import('@/config/database');
