@@ -1,248 +1,98 @@
 import { Button } from "./ui/button";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import hero from '@/assets/main.png';
-// Floating particles component
-function FloatingParticles() {
-  const [particles, setParticles] = useState<Array<{id: number, x: number, y: number, delay: number}>>([]);
-
-  useEffect(() => {
-    const newParticles = Array.from({ length: 20 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      delay: Math.random() * 4
-    }));
-    setParticles(newParticles);
-  }, []);
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {particles.map((particle) => (
-        <motion.div
-          key={particle.id}
-          className="absolute w-2 h-2 bg-blue-400 rounded-full opacity-30"
-          style={{ left: `${particle.x}%`, top: `${particle.y}%` }}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.3, 0.8, 0.3],
-            scale: [1, 1.2, 1]
-          }}
-          transition={{
-            duration: 4,
-            delay: particle.delay,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+import heroBackground from '@/assets/Hero-background.jpeg';
 
 export function Hero() {
-  const [typedText, setTypedText] = useState("");
-  const fullText = "AI-powered recruitment";
   const navigate = useNavigate();
-  useEffect(() => {
-    let index = 0;
-    const timer = setInterval(() => {
-      if (index <= fullText.length) {
-        setTypedText(fullText.slice(0, index));
-        index++;
-      } else {
-        clearInterval(timer);
-      }
-    }, 100);
-
-    return () => clearInterval(timer);
-  }, []);
 
   return (
-    <section className="relative pt-24 pb-12 lg:pt-32 lg:pb-20 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
-      <FloatingParticles />
+    <section 
+      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{
+        backgroundImage: `url(${heroBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Enhanced gradient overlay for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-transparent to-transparent"></div>
       
-      {/* Background gradient orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full opacity-10 blur-3xl"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-10 blur-3xl"></div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="lg:grid lg:grid-cols-12 lg:gap-16 items-center">
-          <motion.div 
-            className="lg:col-span-6"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="max-w-2xl">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.8 }}
-                className="inline-flex items-center px-4 py-2 mb-6 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full"
-              >
-                <Sparkles className="w-4 h-4 text-blue-600 mr-2" />
-                <span className="text-sm font-medium text-blue-700">Next-Gen Recruitment Platform</span>
-              </motion.div>
-
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent leading-tight">
-                {typedText}
-                <motion.span
-                  animate={{ opacity: [1, 0, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="text-blue-600"
-                >
-                  |
-                </motion.span>
+      <div className="container mx-auto px-4 py-20 relative z-10 h-full">
+        <div className="grid grid-cols-3 gap-8 h-full min-h-[80vh] items-start pt-20">
+          {/* Left Column - Main Content */}
+          <div className="col-span-2 flex flex-col space-y-8 p-4">
+            <div className="space-y-4">
+              <h1 className="text-7xl lg:text-7xl font-black text-white font-inter leading-tight">
+                FIND THE PERFECT
               </h1>
-              
-              <motion.h2 
-                className="text-2xl md:text-3xl font-semibold text-gray-700 mt-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.8 }}
-              >
-                Connecting Talent with Opportunity – Smarter, Faster, Always Free
-              </motion.h2>
-              
-              <motion.p 
-                className="mt-6 text-xl text-gray-600 leading-relaxed"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.8 }}
-              >
-                A completely free AI-powered recruitment platform for HR professionals and job seekers — featuring unlimited job postings, real-time tracking, specialist agents, and a comprehensive Hire & Train model. No hidden costs, no subscriptions, forever free.
-              </motion.p>
-
-              <motion.div 
-                className="mt-8 flex flex-col sm:flex-row gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.8 }}
-              >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button 
-                    size="lg" 
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-300"
-                    onClick={() => navigate("/signup")}
-                  >
-                    Sign Up Now
-                    <motion.div
-                      className="ml-2"
-                      animate={{ x: [0, 5, 0] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    >
-                      <ArrowRight className="h-5 w-5" />
-                    </motion.div>
-                  </Button>
-                </motion.div>
-                
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50 px-8 py-3 backdrop-blur-sm bg-white/70 transition-all duration-300"
-                    onClick={() => navigate("/signup")}
-                  >
-                    <Play className="mr-2 h-5 w-5" />
-                    Watch Demo
-                  </Button>
-                </motion.div>
-              </motion.div>
-
-              <motion.div 
-                className="mt-12 flex flex-wrap items-center gap-8 text-sm text-gray-500"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1, duration: 0.8 }}
-              >
-                {[
-                  { number: "300+", label: "Ready Candidates" },
-                  { number: "200+", label: "Professionals" },
-                  { number: "100%", label: "Free Forever" }
-                ].map((stat, index) => (
-                  <motion.div
-                    key={index}
-                    className="flex items-center bg-white/70 backdrop-blur-sm rounded-lg px-4 py-2 shadow-sm"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.2 + index * 0.1, duration: 0.5 }}
-                  >
-                    <span className="font-bold text-blue-600">{stat.number}</span>
-                    <span className="ml-1">{stat.label}</span>
-                  </motion.div>
-                ))}
-              </motion.div>
+              <span className="text-7xl lg:text-7xl font-black text-white font-inter italic leading-tight">
+                TALENT MATCH
+              </span>
             </div>
-          </motion.div>
-
-          <motion.div 
-            className="lg:col-span-6 mt-12 lg:mt-0"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-          >
-            <div className="relative">
-              <motion.div 
-                className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 rounded-2xl blur-3xl opacity-20"
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  opacity: [0.2, 0.3, 0.2]
-                }}
-                transition={{ 
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              ></motion.div>
-              
-              <motion.div 
-                className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20"
-                whileHover={{ 
-                  y: -10
-                }}
-                transition={{ duration: 0.3 }}
+            
+            <p className="text-lb text-white/80 leading-relaxed font-inter max-w-lg">
+              A completely free AI-powered recruitment platform for HR professionals and job seekers — featuring unlimited job postings, real-time tracking, specialist agents, and a comprehensive Hire & Train model.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button 
+                size="lg" 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-semibold rounded-full"
+                onClick={() => navigate('/signup/hr')}
               >
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5, duration: 0.5 }}
-                >
-                    <img
-                      src={hero}
-                    alt="Professional business team collaboration"
-                    className="w-full h-auto rounded-xl"
-                  />
-                </motion.div>
-                
-                {/* Floating badges */}
-                <motion.div
-                  className="absolute -top-4 -left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg"
-                  animate={{ y: [0, -10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  AI-Powered
-                </motion.div>
-                
-                <motion.div
-                  className="absolute -bottom-4 -right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium shadow-lg"
-                  animate={{ y: [0, 10, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-                >
-                  Forever Free
-                </motion.div>
-              </motion.div>
+                Get Started Free
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+              
+              <Button 
+                variant="outline backround-transparent" 
+                size="lg" 
+                className="border-none background-transparent text-purple-400 hover:bg-purple-500 hover:text-white px-8 py-4 text-lg font-semibold"
+                onClick={() => navigate('/signup/candidate')}
+              >
+                <Play className="mr-2 w-5 h-5" />
+                Watch Demo
+              </Button>
             </div>
-          </motion.div>
+          </div>
+
+          {/* Right Column - Empty space or additional content can go here */}
+          <div className="flex flex-col justify-center items-center p-4">
+            {/* This space is available for future content */}
+          </div>
+        </div>
+
+        {/* Hero Footer Section - Statistics */}
+        <div className="absolute bottom-0 left-0 right-0 bg-transparent backdrop-blur-sm border-t border-white/10">
+          <div className="container mx-auto px-4 py-6">
+            <div className="grid grid-cols-3 gap-8">
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                  <span className="text-2xl font-bold text-white font-inter">300+</span>
+                </div>
+                <p className="text-white/80 text-sm font-inter">Ready Candidates</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+                  <span className="text-2xl font-bold text-white font-inter">200+</span>
+                </div>
+                <p className="text-white/80 text-sm font-inter">Professionals</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                  <span className="text-2xl font-bold text-white font-inter">100%</span>
+                </div>
+                <p className="text-white/80 text-sm font-inter">Free Forever</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -36,7 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { motion } from "framer-motion";
+// Removed framer-motion for better performance
 import { useEffect, useRef, useState } from "react";
 import { CompetitorComparison } from "@/components/landingpage/hr/CompetitorComparison";
 import { Footer } from "@/components/landingpage/Footer";
@@ -272,7 +272,7 @@ export function HRProfessionals() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}
-            <motion.div
+            <divdiv
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.4 }}
@@ -307,7 +307,7 @@ export function HRProfessionals() {
                 { icon: Users, title: "No User Limits", desc: "Add unlimited team members at no extra cost" },
                 { icon: Zap, title: "Full Features", desc: "Access to all premium features included" }
               ].map((benefit, index) => (
-                <motion.div
+                <divdiv
                   key={index}
                   className="bg-white/70 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-gray-200 flex flex-col items-center justify-center"
                   initial={{ opacity: 0, y: 10 }}
@@ -318,7 +318,7 @@ export function HRProfessionals() {
                   <benefit.icon className="w-8 h-8 text-blue-600 mb-3 mx-auto" />
                   <h4 className="font-bold text-gray-900 mb-2">{benefit.title}</h4>
                   <p className="text-sm text-gray-600 text-wrap text-center">{benefit.desc}</p>
-                </motion.div>
+                </divdiv>
               ))}
             </div>
               </div>
@@ -377,10 +377,10 @@ export function HRProfessionals() {
                   <span className="text-sm text-gray-600 ml-2">Trusted by 50+ HR teams</span>
                 </div>
               </div>
-            </motion.div>
+            </divdiv>
 
             {/* Right Dashboard */}
-            <motion.div
+            <divdiv
               initial={{ opacity: 0, x: 20 }}
               animate={heroInView ? { opacity: 1, x: 0 } : {}}
               transition={{ duration: 0.4, delay: 0.2 }}
@@ -452,7 +452,7 @@ export function HRProfessionals() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </divdiv>
           </div>
         </div>
       </section>
@@ -460,7 +460,7 @@ export function HRProfessionals() {
       {/* 2. Problem Section */}
       <section ref={problemRef} className="relative py-20 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={problemInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
@@ -486,7 +486,7 @@ export function HRProfessionals() {
                 In today's competitive market, outdated recruitment methods waste time, money, and talent while compromising confidentiality.
               </p>
             </div>
-          </motion.div>
+          </divdiv>
 
           {/* Problem Cards Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
@@ -513,7 +513,7 @@ export function HRProfessionals() {
                 color: "from-red-600 to-orange-600"
               }
             ].map((item, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={problemInView ? { opacity: 1, y: 0 } : {}}
@@ -545,7 +545,7 @@ export function HRProfessionals() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
         </div>
@@ -555,7 +555,7 @@ export function HRProfessionals() {
       <section id="how-it-works" ref={howItWorksRef} className="relative py-24 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-blue-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
@@ -574,7 +574,7 @@ export function HRProfessionals() {
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               From job posting to qualified candidates in 48 hours — here's exactly how our expert recruitment process delivers results
             </p>
-          </motion.div>
+          </divdiv>
 
           {/* Process Flow */}
           <div className="relative">
@@ -582,7 +582,7 @@ export function HRProfessionals() {
             <div className="hidden lg:block absolute top-24 left-1/2 transform -translate-x-1/2 w-full max-w-5xl">
               <div className="relative h-2">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-200 via-purple-200 to-blue-200 rounded-full opacity-30"></div>
-                <motion.div
+                <divdiv
                   initial={{ width: "0%" }}
                   animate={howItWorksInView ? { width: "100%" } : {}}
                   transition={{ duration: 2, delay: 0.5, ease: "easeInOut" }}
@@ -593,7 +593,7 @@ export function HRProfessionals() {
               {/* Flow Dots */}
               <div className="absolute inset-0 flex justify-between items-center px-8">
                 {howItWorksSteps.map((_, index) => (
-                  <motion.div
+                  <divdiv
                     key={index}
                     initial={{ scale: 0 }}
                     animate={howItWorksInView ? { scale: 1 } : {}}
@@ -607,7 +607,7 @@ export function HRProfessionals() {
             {/* Steps Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
               {howItWorksSteps.map((step, index) => (
-                <motion.div
+                <divdiv
                   key={index}
                   initial={{ opacity: 0, y: 30 }}
                   animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
@@ -648,12 +648,12 @@ export function HRProfessionals() {
                       <ArrowRight className="w-6 h-6 text-blue-400" />
                     </div>
                   )}
-                </motion.div>
+                </divdiv>
               ))}
             </div>
 
             {/* Bottom CTA Section */}
-            <motion.div
+            <divdiv
               initial={{ opacity: 0, y: 20 }}
               animate={howItWorksInView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: 1.2, duration: 0.6 }}
@@ -687,7 +687,7 @@ export function HRProfessionals() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </divdiv>
           </div>
         </div>
       </section>
@@ -695,7 +695,7 @@ export function HRProfessionals() {
       {/* 4. Features */}
       <section id="features" ref={featuresRef} className="relative py-20 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={featuresInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
@@ -706,11 +706,11 @@ export function HRProfessionals() {
                 Premium Features for HR Teams
               </span>
             </h2>
-          </motion.div>
+          </divdiv>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={featuresInView ? { opacity: 1, y: 0 } : {}}
@@ -737,7 +737,7 @@ export function HRProfessionals() {
                     </p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
         </div>
@@ -746,7 +746,7 @@ export function HRProfessionals() {
       {/* 5. Testimonials */}
       <section id="testimonials" ref={socialProofRef} className="relative py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={socialProofInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
@@ -757,11 +757,11 @@ export function HRProfessionals() {
                 Trusted by Leading Companies
               </span>
             </h2>
-          </motion.div>
+          </divdiv>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {testimonials.map((testimonial, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={socialProofInView ? { opacity: 1, y: 0 } : {}}
@@ -786,7 +786,7 @@ export function HRProfessionals() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
         </div>
@@ -795,7 +795,7 @@ export function HRProfessionals() {
       {/* 6. FAQ */}
       <section id="faq" ref={faqRef} className="relative py-20 bg-gray-50/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={faqInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
@@ -806,11 +806,11 @@ export function HRProfessionals() {
                 Frequently Asked Questions
               </span>
             </h2>
-          </motion.div>
+          </divdiv>
 
           <Accordion type="single" collapsible className="w-full">
             {faqs.map((faq, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 10 }}
                 animate={faqInView ? { opacity: 1, y: 0 } : {}}
@@ -824,7 +824,7 @@ export function HRProfessionals() {
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
-              </motion.div>
+              </divdiv>
             ))}
           </Accordion>
         </div>
@@ -839,7 +839,7 @@ export function HRProfessionals() {
       {/* Final CTA */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -858,7 +858,7 @@ export function HRProfessionals() {
               Get Started Free - Save ₹3,60,000+
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </motion.div>
+          </divdiv>
         </div>
       </section>
 

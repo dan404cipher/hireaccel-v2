@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, X, Crown, IndianRupee, Users, Zap, Shield, Star, TrendingUp, Award, Building2, Newspaper, Search, Rocket } from "lucide-react";
-import { motion } from "framer-motion";
+// Removed framer-motion for better performance
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -176,7 +176,7 @@ export function CompetitorComparison() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <motion.div 
+        <divdiv 
           className="text-center mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -196,10 +196,10 @@ export function CompetitorComparison() {
             While leading Indian recruitment platforms charge lakhs annually for basic features, HireAccel delivers enterprise-grade recruitment solutions completely free. 
             See the difference and discover why smart HR teams across India are making the switch.
           </p>
-        </motion.div>
+        </divdiv>
 
         {/* Hero Comparison Image */}
-        <motion.div 
+        <divdiv 
           className="mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -226,10 +226,10 @@ export function CompetitorComparison() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Pricing Comparison Cards */}
-        <motion.div 
+        <divdiv 
           className="mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -247,7 +247,7 @@ export function CompetitorComparison() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {competitors.map((competitor, index) => (
-              <motion.div
+              <divdiv
                 key={competitor.name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -334,13 +334,13 @@ export function CompetitorComparison() {
                     )}
                   </div>
                 </Card>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Detailed Feature Comparison Table */}
-        <motion.div 
+        <divdiv 
           className="mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -375,7 +375,7 @@ export function CompetitorComparison() {
                 </thead>
                 <tbody>
                   {featureComparison.map((row, index) => (
-                    <motion.tr
+                    <divtr
                       key={index}
                       className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}
                       initial={{ opacity: 0, x: -10 }}
@@ -393,16 +393,16 @@ export function CompetitorComparison() {
                       <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor1}</td>
                       <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor2}</td>
                       <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor3}</td>
-                    </motion.tr>
+                    </divtr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Cost Savings Calculator */}
-        <motion.div 
+        <divdiv 
           className="mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -426,7 +426,7 @@ export function CompetitorComparison() {
                 { name: "TimesJobs", cost: 450000, color: "from-orange-500 to-red-600", setup: "₹30,000" },
                 { name: "Monster India", cost: 270000, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
               ].map((platform, index) => (
-                <motion.div
+                <divdiv
                   key={platform.name}
                   className={`bg-gradient-to-br ${platform.color} rounded-xl p-6 text-white relative overflow-hidden`}
                   initial={{ opacity: 0, y: 20 }}
@@ -450,7 +450,7 @@ export function CompetitorComparison() {
                     )}
                   </div>
                   <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-white/20 rounded-full" />
-                </motion.div>
+                </divdiv>
               ))}
             </div>
 
@@ -461,10 +461,10 @@ export function CompetitorComparison() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Cost Savings Highlight */}
-        <motion.div 
+        <divdiv 
           className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-8 md:p-12 border border-green-200/50"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -491,7 +491,7 @@ export function CompetitorComparison() {
                 { icon: Users, title: "No User Limits", desc: "Add unlimited team members at no extra cost" },
                 { icon: Zap, title: "Full Features", desc: "Access to all premium features included" }
               ].map((benefit, index) => (
-                <motion.div
+                <divdiv
                   key={index}
                   className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-white/20"
                   initial={{ opacity: 0, y: 10 }}
@@ -502,7 +502,7 @@ export function CompetitorComparison() {
                   <benefit.icon className="w-8 h-8 text-blue-600 mb-3 mx-auto" />
                   <h4 className="font-bold text-gray-900 mb-2">{benefit.title}</h4>
                   <p className="text-sm text-gray-600">{benefit.desc}</p>
-                </motion.div>
+                </divdiv>
               ))}
             </div>
 
@@ -514,7 +514,7 @@ export function CompetitorComparison() {
               Start Saving Today - It's Free!
             </Button>
           </div>
-        </motion.div>
+        </divdiv>
       </div>
     </section>
   );

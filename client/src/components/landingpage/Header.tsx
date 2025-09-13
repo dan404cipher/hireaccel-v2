@@ -1,9 +1,8 @@
 import { Button } from "./ui/button";
 import { Menu, X, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import logo from "../../assets/logo.png";
+import logoColor from "../../assets/logo-color.png";
 
 interface NavItem {
   label: string;
@@ -34,198 +33,133 @@ export function Header({
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      setIsScrolled(window.scrollY > 20);
     };
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleNavItemClick = (item: NavItem) => {
-    if (item.action) {
-      item.action();
-    } else if (item.id) {
-      const element = document.getElementById(item.id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else if (item.href) {
-      navigate(item.href);
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
     }
     setIsMenuOpen(false);
   };
 
-  const handleLogoClick = () => {
-    if (onBackToHome) {
-      onBackToHome();
-    } else {
-      navigate('/');
+  const handleNavClick = (item: NavItem) => {
+    if (item.action) {
+      item.action();
+    } else if (item.href) {
+      navigate(item.href);
+    } else if (item.id) {
+      scrollToSection(item.id);
     }
+    setIsMenuOpen(false);
   };
 
   return (
-    <motion.header 
-      className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-        isScrolled 
-          ? 'bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-lg' 
-          : 'bg-white/80 backdrop-blur-md border-b border-gray-200/30'
-      }`}
-      initial={{ y: -100, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
-          <motion.div 
-            className="flex items-center"
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div 
-              animate={{ 
-                boxShadow: [
-                  "0 4px 6px -1px rgba(59, 130, 246, 0.3)",
-                  "0 10px 15px -3px rgba(59, 130, 246, 0.4)",
-                  "0 4px 6px -1px rgba(59, 130, 246, 0.3)"
-                ]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-            </motion.div>
-            <img 
-              src={logo} 
-              alt="HireAccel" 
-              className="w-30 h-10 cursor-pointer" 
-              onClick={handleLogoClick}
-            />
-          </motion.div>
-          
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
+      isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-transparent'
+    }`}>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <img src={logoColor} alt="HireAccel Logo" className="h-10 w-10" />
+            <div>
+              <h1 className={`font-bold text-lg font-milker ${isScrolled ? 'text-gray-900' : 'text-white'}`}>Hire Accel</h1>
+              <p className={`text-xs font-medium font-milker ${isScrolled ? 'text-gray-600' : 'text-white/80'}`}>powered by v-accel</p>
+            </div>
+          </div>
+
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item, index) => (
-              <motion.button
-                key={item.id || item.label}
-                onClick={() => handleNavItemClick(item)}
-                className="text-gray-600 hover:text-blue-600 transition-colors duration-300 font-medium relative group"
-                whileHover={{ y: -1 }}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1, duration: 0.3 }}
+              <button
+                key={index}
+                onClick={() => handleNavClick(item)}
+                className={`font-medium font-milker transition-colors duration-200 ${
+                  isScrolled 
+                    ? 'text-gray-700 hover:text-blue-600' 
+                    : 'text-white hover:text-blue-300'
+                }`}
               >
                 {item.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 group-hover:w-full transition-all duration-300"></span>
-              </motion.button>
+              </button>
             ))}
           </nav>
 
+          {/* Desktop Auth Buttons */}
           {showAuthButtons && (
             <div className="hidden md:flex items-center space-x-4">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/login')}
+                className={isScrolled ? "text-gray-700 hover:text-blue-600" : "text-white hover:text-blue-300"}
               >
-                <Button 
-                  variant="ghost" 
-                  className="hover:bg-blue-50 hover:text-blue-600 transition-all duration-300"
-                  onClick={() => navigate("/login")}
-                >
-                  Sign In
-                </Button>
-              </motion.div>
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                Sign In
+              </Button>
+              <Button
+                onClick={() => navigate('/signup')}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
               >
-                <Button 
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300" 
-                  onClick={() => navigate("/signup")}
-                >
-                  Sign Up Free
-                </Button>
-              </motion.div>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Get Started
+              </Button>
             </div>
           )}
 
-          <motion.button 
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors duration-300"
+          {/* Mobile Menu Button */}
+          <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            whileTap={{ scale: 0.95 }}
+            className={`md:hidden p-2 rounded-lg transition-colors duration-200 ${
+              isScrolled 
+                ? 'text-gray-700 hover:bg-gray-100' 
+                : 'text-white hover:bg-white/10'
+            }`}
           >
-            <AnimatePresence mode="wait">
-              {isMenuOpen ? (
-                <motion.div
-                  key="close"
-                  initial={{ rotate: -90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <X size={24} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="menu"
-                  initial={{ rotate: 90, opacity: 0 }}
-                  animate={{ rotate: 0, opacity: 1 }}
-                  exit={{ rotate: -90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Menu size={24} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
+            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
 
-        <AnimatePresence>
-          {isMenuOpen && (
-            <motion.div 
-              className="md:hidden overflow-hidden bg-white/95 backdrop-blur-xl rounded-b-2xl border-t border-gray-200/50"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <nav className="flex flex-col space-y-1 p-4">
-                {navItems.map((item, index) => (
-                  <motion.button
-                    key={item.id || item.label}
-                    onClick={() => handleNavItemClick(item)}
-                    className="text-left py-3 px-4 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300 font-medium"
-                    initial={{ x: -50, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
-                    whileHover={{ x: 5 }}
+        {/* Mobile Menu */}
+        {isMenuOpen && (
+          <div className="md:hidden py-4 border-t border-gray-200 bg-white/95 backdrop-blur-md">
+            <div className="flex flex-col space-y-4">
+              {navItems.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleNavClick(item)}
+                  className="text-left px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                >
+                  {item.label}
+                </button>
+              ))}
+              
+              {showAuthButtons && (
+                <div className="flex flex-col space-y-2 px-4 pt-4 border-t border-gray-200">
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate('/login')}
+                    className="justify-start text-gray-700 hover:text-blue-600"
                   >
-                    {item.label}
-                  </motion.button>
-                ))}
-                {showAuthButtons && (
-                  <motion.div 
-                    className="flex flex-col space-y-3 pt-4 border-t border-gray-200/50"
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4, duration: 0.3 }}
+                    Sign In
+                  </Button>
+                  <Button
+                    onClick={() => navigate('/signup')}
+                    className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
                   >
-                    <Button 
-                      variant="ghost" 
-                      className="justify-start hover:bg-blue-50 hover:text-blue-600"
-                      onClick={() => navigate("/login")}
-                    >
-                      Sign In
-                    </Button>
-                    <Button 
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-                      onClick={() => navigate("/signup")}
-                    >
-                      Sign Up Free
-                    </Button>
-                  </motion.div>
-                )}
-              </nav>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Get Started
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-    </motion.header>
+    </header>
   );
 }

@@ -87,8 +87,7 @@ export default defineConfig(() => ({
           // Charts & Visualization
           'charts': ['recharts'],
           
-          // Animation & UI
-          'animation': ['framer-motion', 'embla-carousel-react'],
+          // Animation & UI (removed heavy animation libraries)
           
           // Utilities
           'utils': ['date-fns', 'clsx', 'class-variance-authority', 'tailwind-merge', 'tailwindcss-animate']
