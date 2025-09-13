@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+import React, { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,48 +7,62 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-route
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { AppLayout } from "./components/layout/AppLayout";
-import Dashboard from "./pages/Dashboard";
-import AgentAllocation from "./pages/agents/AgentAllocation";
-import AgentAssignmentDashboard from "./pages/agents/AgentAssignmentDashboard";
-import JobManagement from "./pages/jobs/JobManagementIntegrated";
-import JobDetailsPage from "./pages/jobs/JobDetailsPage";
-import JobEditPage from "./pages/jobs/JobEditPage";
-import SharedCandidates from "./pages/candidates/SharedCandidates";
-import CandidateApplications from "./pages/candidates/CandidateApplications";
-import CandidateProfile from "./pages/candidates/CandidateProfile";
-import CandidateDashboard from "./pages/dashboards/CandidateDashboard";
-import HRDashboard from "./pages/dashboards/HRDashboard";
-import AgentDashboard from "./pages/dashboards/AgentDashboard";
-import InterviewManagement from "./pages/interviews/InterviewManagement";
-import CompanyManagement from "./pages/companies/CompanyManagement";
-import UserManagement from "./pages/users/UserManagement";
-import AdminDashboard from "./pages/dashboards/AdminDashboard";
-import AnalyticsReports from "./pages/admin/AnalyticsReports";
-import AdminProfile from "./pages/admin/AdminProfile";
-import BannerManagement from "./pages/admin/BannerManagement";
-import HRProfile from "./pages/hr/HRProfile";
-import LoginPage from "./pages/auth/LoginPage";
-import { SignupPage } from "./pages/auth/SignupPage";
-import { OTPVerificationPage } from "./pages/auth/OTPVerificationPage";
-import NotFound from "./pages/NotFound";
-import LandingPage from "./pages/LandingPage";
-import { HRProfessionals }  from "./components/landingpage/hr/HRFeatures";
-  import {JobCandidates} from "./components/landingpage/condidate/CandidateFeatures";
-import { ForgetPasswordPage } from "./pages/auth/ForgetPasswordPage";
-import { ResetPasswordPage } from "./pages/auth/ResetPasswordPage";
+import { PageLoadingSpinner } from "./components/ui/LoadingSpinner";
+import { useRoutePreloader } from "./hooks/useRoutePreloader";
+import { PerformanceMonitor } from "./components/PerformanceMonitor";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
-const queryClient = new QueryClient();
+// Lazy load all page components for better performance
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const AgentAllocation = lazy(() => import("./pages/agents/AgentAllocation"));
+const AgentAssignmentDashboard = lazy(() => import("./pages/agents/AgentAssignmentDashboard"));
+const JobManagement = lazy(() => import("./pages/jobs/JobManagementIntegrated"));
+const JobDetailsPage = lazy(() => import("./pages/jobs/JobDetailsPage"));
+const JobEditPage = lazy(() => import("./pages/jobs/JobEditPage"));
+const SharedCandidates = lazy(() => import("./pages/candidates/SharedCandidates"));
+const CandidateApplications = lazy(() => import("./pages/candidates/CandidateApplications"));
+const CandidateProfile = lazy(() => import("./pages/candidates/CandidateProfile"));
+const CandidateDashboard = lazy(() => import("./pages/dashboards/CandidateDashboard"));
+const HRDashboard = lazy(() => import("./pages/dashboards/HRDashboard"));
+const AgentDashboard = lazy(() => import("./pages/dashboards/AgentDashboard"));
+const InterviewManagement = lazy(() => import("./pages/interviews/InterviewManagement"));
+const CompanyManagement = lazy(() => import("./pages/companies/CompanyManagement"));
+const UserManagement = lazy(() => import("./pages/users/UserManagement"));
+const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
+const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
+const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
+const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
+const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => ({ default: module.SignupPage })));
+const OTPVerificationPage = lazy(() => import("./pages/auth/OTPVerificationPage").then(module => ({ default: module.OTPVerificationPage })));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const HRProfessionals = lazy(() => import("./components/landingpage/hr/HRFeatures").then(module => ({ default: module.HRProfessionals })));
+const JobCandidates = lazy(() => import("./components/landingpage/condidate/CandidateFeatures").then(module => ({ default: module.JobCandidates })));
+const ForgetPasswordPage = lazy(() => import("./pages/auth/ForgetPasswordPage").then(module => ({ default: module.ForgetPasswordPage })));
+const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage").then(module => ({ default: module.ResetPasswordPage })));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime)
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <PageLoadingSpinner text="Authenticating..." />;
   }
   
   if (!isAuthenticated) {
@@ -69,11 +83,7 @@ function RoleProtectedRoute({
   const { user, isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <PageLoadingSpinner text="Authenticating..." />;
   }
   
   if (!isAuthenticated) {
@@ -115,12 +125,11 @@ function DashboardRouter() {
 function AppRouter() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+  
+  // Enable route preloading for better performance
+  useRoutePreloader();
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <PageLoadingSpinner text="Authenticating..." />;
   }
   
   return (
@@ -303,19 +312,16 @@ const App = () => {
             v7_relativeSplatPath: true,
           }}
         >
-          <Suspense
-            fallback={
-              <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-              </div>
-            }
-          >
-            <AuthProvider>
-              <NotificationProvider>
-                <AppRouter />
-              </NotificationProvider>
-            </AuthProvider>
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
+              <AuthProvider>
+                <NotificationProvider>
+                  <PerformanceMonitor />
+                  <AppRouter />
+                </NotificationProvider>
+              </AuthProvider>
+            </Suspense>
+          </ErrorBoundary>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
