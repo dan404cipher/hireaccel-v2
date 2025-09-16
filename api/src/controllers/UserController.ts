@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import { User } from '@/models/User';
+import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
 
@@ -86,6 +87,7 @@ export class UserController {
     const sort: any = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
     
+    // Get users and total count
     const [users, total] = await Promise.all([
       User.find(query)
         .sort(sort)
@@ -94,7 +96,24 @@ export class UserController {
         .select('-password'),
       User.countDocuments(query),
     ]);
-    
+
+    // For candidate users, fetch their candidate IDs
+    const candidateUsers = users.filter(u => u.role === UserRole.CANDIDATE);
+    if (candidateUsers.length > 0) {
+      const candidates = await Candidate.find({ userId: { $in: candidateUsers.map(u => u._id) } })
+        .select('_id userId');
+      
+      // Map candidate IDs to users
+      users.forEach(user => {
+        if (user.role === UserRole.CANDIDATE) {
+          const candidate = candidates.find(c => c.userId.toString() === user._id.toString());
+          if (candidate) {
+            (user as any).candidateId = candidate._id;
+          }
+        }
+      });
+    }
+
     res.json({
       success: true,
       data: users,
@@ -180,6 +199,43 @@ export class UserController {
     });
     
     await user.save();
+    
+    // If user is a candidate, create a corresponding Candidate document
+    if (validatedData.role === UserRole.CANDIDATE) {
+      const candidate = new Candidate({
+        userId: user._id,
+        status: 'active',
+        profile: {
+          preferredSalaryRange: { min: 0, max: 0, currency: 'USD' },
+          skills: [],
+          experience: [],
+          education: [],
+          certifications: [],
+          projects: [],
+          summary: '',
+          location: '',
+          phoneNumber: validatedData.phoneNumber || '',
+          linkedinUrl: '',
+          portfolioUrl: '',
+          availability: {
+            startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+            remote: false,
+            relocation: false
+          }
+        },
+        rating: 1,
+        tags: [],
+        profileViews: 0,
+        notes: [],
+        totalExperience: 0,
+        experienceLevel: 'entry',
+        hasResume: false,
+        profileCompletion: 10
+      });
+      
+      await candidate.save();
+      console.log(`✅ Created candidate document for user ${user._id}`);
+    }
     
     // Log user creation
     await AuditLog.createLog({
@@ -470,7 +526,7 @@ export class UserController {
     const agent = await User.findOne({
       _id: validatedData.agentId,
       role: UserRole.AGENT,
-      status: 'active',
+      status: UserStatus.ACTIVE,
     });
     if (!agent) {
       throw createNotFoundError('Active agent not found');
@@ -481,7 +537,7 @@ export class UserController {
       const hrUsers = await User.find({
         _id: { $in: validatedData.hrIds },
         role: UserRole.HR,
-        status: 'active',
+        status: UserStatus.ACTIVE,
       });
       if (hrUsers.length !== validatedData.hrIds.length) {
         return res.status(400).json({
@@ -491,14 +547,21 @@ export class UserController {
       }
     }
 
-    // Verify candidates exist (candidateIds are actually User IDs with role 'candidate')
+    // Verify candidates exist and get their candidate document IDs
+    let candidateDocumentIds: string[] = [];
     if (validatedData.candidateIds.length > 0) {
       console.log('🔍 Searching for candidate users:', validatedData.candidateIds);
+      
+      // First, let's check what users exist with these IDs (regardless of role/status)
+      const allUsersWithIds = await User.find({
+        _id: { $in: validatedData.candidateIds }
+      });
+      console.log('🔍 All users with these IDs:', allUsersWithIds.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status })));
       
       const candidateUsers = await User.find({
         _id: { $in: validatedData.candidateIds },
         role: UserRole.CANDIDATE,
-        status: 'active',
+        status: UserStatus.ACTIVE,
       });
       
       console.log('✅ Found candidate users:', candidateUsers.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status })));
@@ -515,6 +578,61 @@ export class UserController {
           success: false,
           message: 'One or more candidates not found or inactive',
         });
+      }
+
+      // Get the candidate document IDs for these users
+      const candidates = await Candidate.find({ userId: { $in: candidateUsers.map(u => u._id) } });
+      const foundCandidateUserIds = candidates.map(c => c.userId.toString());
+      
+      console.log('✅ Found candidate documents:', candidates.map(c => ({ id: c._id, userId: c.userId })));
+      
+      // Create missing candidate documents for users that don't have them
+      const missingCandidateUsers = candidateUsers.filter(u => !foundCandidateUserIds.includes(u._id.toString()));
+      
+      if (missingCandidateUsers.length > 0) {
+        console.log('🔧 Creating missing candidate documents for users:', missingCandidateUsers.map(u => ({ id: u._id, email: u.email })));
+        
+        for (const user of missingCandidateUsers) {
+          const newCandidate = new Candidate({
+            userId: user._id,
+            status: 'active',
+            profile: {
+              preferredSalaryRange: { min: 0, max: 0, currency: 'USD' },
+              skills: [],
+              experience: [],
+              education: [],
+              certifications: [],
+              projects: [],
+              summary: '',
+              location: '',
+              phoneNumber: user.phoneNumber || '',
+              linkedinUrl: '',
+              portfolioUrl: '',
+              availability: {
+                startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+                remote: false,
+                relocation: false
+              }
+            },
+            rating: 1,
+            tags: [],
+            profileViews: 0,
+            notes: [],
+            totalExperience: 0,
+            experienceLevel: 'entry',
+            hasResume: false,
+            profileCompletion: 10
+          });
+          
+          await newCandidate.save();
+          console.log(`✅ Created candidate document for user ${user._id}`);
+        }
+        
+        // Re-fetch all candidate documents including the newly created ones
+        const allCandidates = await Candidate.find({ userId: { $in: candidateUsers.map(u => u._id) } });
+        candidateDocumentIds = allCandidates.map(c => c._id.toString());
+      } else {
+        candidateDocumentIds = candidates.map(c => c._id.toString());
       }
     }
 
@@ -582,8 +700,21 @@ export class UserController {
       // Update existing assignment
       const beforeState = assignment.toObject();
       
-      assignment.assignedHRs = validatedData.hrIds.map(id => new mongoose.Types.ObjectId(id));
-      assignment.assignedCandidates = validatedData.candidateIds.map(id => new mongoose.Types.ObjectId(id));
+      // Merge existing and new HRs
+      const existingHRs = assignment.assignedHRs.map(id => id.toString());
+      const newHRs = validatedData.hrIds.filter(id => !existingHRs.includes(id));
+      assignment.assignedHRs = [
+        ...assignment.assignedHRs,
+        ...newHRs.map(id => new mongoose.Types.ObjectId(id))
+      ];
+
+      // Merge existing and new candidates
+      const existingCandidates = assignment.assignedCandidates.map(id => id.toString());
+      const newCandidates = candidateDocumentIds.filter(id => !existingCandidates.includes(id));
+      assignment.assignedCandidates = [
+        ...assignment.assignedCandidates,
+        ...newCandidates.map(id => new mongoose.Types.ObjectId(id))
+      ];
       if (validatedData.notes !== undefined) {
         assignment.notes = validatedData.notes;
       }
@@ -619,7 +750,7 @@ export class UserController {
       assignment = await AgentAssignment.create({
         agentId: validatedData.agentId,
         assignedHRs: validatedData.hrIds.map(id => new mongoose.Types.ObjectId(id)),
-        assignedCandidates: validatedData.candidateIds.map(id => new mongoose.Types.ObjectId(id)),
+        assignedCandidates: candidateDocumentIds.map(id => new mongoose.Types.ObjectId(id)),
         assignedBy: req.user!._id,
         notes: validatedData.notes,
         status: 'active',

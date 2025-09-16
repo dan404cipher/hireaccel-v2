@@ -333,10 +333,19 @@ export class AgentController {
     const validatedData = assignCandidateSchema.parse(req.body);
 
     // Verify agent has access to this candidate
+    console.log(`[AgentController] Verifying agent ${req.user!._id} access to candidate ${validatedData.candidateId}`);
     const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
     const candidateObjectId = new mongoose.Types.ObjectId(validatedData.candidateId);
     
-    if (!assignedCandidateIds.some(id => id.equals(candidateObjectId))) {
+    const hasAccess = assignedCandidateIds.some(id => id.equals(candidateObjectId));
+    console.log(`[AgentController] Agent access check:`, {
+      agentId: req.user!._id,
+      candidateId: validatedData.candidateId,
+      hasAccess,
+      totalAssignedCandidates: assignedCandidateIds.length
+    });
+    
+    if (!hasAccess) {
       throw createForbiddenError('You do not have access to this candidate');
     }
 
@@ -370,6 +379,14 @@ export class AgentController {
     }
 
     // Create candidate assignment
+    console.log(`[AgentController] Creating candidate assignment:`, {
+      candidateId: validatedData.candidateId,
+      jobId: validatedData.jobId,
+      assignedBy: req.user!._id,
+      assignedTo: job.createdBy,
+      priority: validatedData.priority
+    });
+    
     const assignment = await CandidateAssignment.create({
       candidateId: validatedData.candidateId,
       assignedTo: job.createdBy, // HR user who posted the job
@@ -379,6 +396,8 @@ export class AgentController {
       notes: validatedData.notes,
       dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
     });
+    
+    console.log(`[AgentController] Created candidate assignment: ${assignment._id}`);
 
     // Populate the created assignment
     const populatedAssignment = await CandidateAssignment.findById(assignment._id)

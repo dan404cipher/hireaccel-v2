@@ -23,38 +23,32 @@ const hrFeatures = [
   {
     icon: DollarSign,
     title: "Unlimited Free Job Postings",
-    description: "Post unlimited jobs with zero cost, no hidden fees, forever free",
-    color: "bg-green-500"
+    description: "Post unlimited jobs with zero cost, no hidden fees, forever free"
   },
   {
     icon: Building2,
     title: "Company Management",
-    description: "Manage multiple companies and departments from one dashboard",
-    color: "bg-blue-500"
+    description: "Manage multiple companies and departments from one dashboard"
   },
   {
     icon: UserCheck,
     title: "Smart Candidate Matching",
-    description: "AI-powered matching connects you with the best candidates instantly",
-    color: "bg-purple-500"
+    description: "AI-powered matching connects you with the best candidates instantly"
   },
   {
     icon: BarChart3,
     title: "Analytics & Insights",
-    description: "Track hiring metrics, performance, and optimize your recruitment process",
-    color: "bg-orange-500"
+    description: "Track hiring metrics, performance, and optimize your recruitment process"
   },
   {
     icon: Clock4,
     title: "Time-Saving Automation",
-    description: "Automate screening, scheduling, and follow-ups to focus on what matters",
-    color: "bg-red-500"
+    description: "Automate screening, scheduling, and follow-ups to focus on what matters"
   },
   {
     icon: GraduationCap,
     title: "Skill Assessment Tools",
-    description: "Built-in tests and assessments to evaluate candidate capabilities",
-    color: "bg-yellow-500"
+    description: "Built-in tests and assessments to evaluate candidate capabilities"
   }
 ];
 
@@ -62,38 +56,32 @@ const candidateFeatures = [
   {
     icon: Laptop,
     title: "Job Discovery",
-    description: "Find relevant jobs based on your skills, location, and preferences",
-    color: "bg-blue-500"
+    description: "Find relevant jobs based on your skills, location, and preferences"
   },
   {
     icon: Activity,
     title: "Application Tracking",
-    description: "Track all your applications and get real-time status updates",
-    color: "bg-green-500"
+    description: "Track all your applications and get real-time status updates"
   },
   {
     icon: Users,
     title: "Direct Communication",
-    description: "Chat directly with HR and hiring managers throughout the process",
-    color: "bg-purple-500"
+    description: "Chat directly with HR and hiring managers throughout the process"
   },
   {
     icon: RefreshCw,
     title: "Profile Optimization",
-    description: "AI suggestions to improve your profile and increase visibility",
-    color: "bg-orange-500"
+    description: "AI suggestions to improve your profile and increase visibility"
   },
   {
     icon: CheckCircle2,
     title: "Skill Verification",
-    description: "Showcase your skills with verified assessments and certifications",
-    color: "bg-green-500"
+    description: "Showcase your skills with verified assessments and certifications"
   },
   {
     icon: Star,
     title: "Career Growth",
-    description: "Access to career resources, tips, and growth opportunities",
-    color: "bg-yellow-500"
+    description: "Access to career resources, tips, and growth opportunities"
   }
 ];
 
@@ -146,7 +134,7 @@ export function Features() {
                   className="p-6 bg-white/20 backdrop-blur-sm rounded-xl"
                 >
                   <div className="flex items-start space-x-4">
-                    <div className={`w-12 h-12 ${feature.color} rounded-lg flex items-center justify-center flex-shrink-0 shadow-md`}>
+                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <feature.icon className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -177,7 +165,7 @@ export function Features() {
                   className="p-6 bg-white/20 backdrop-blur-sm rounded-xl"
                 >
                   <div className="flex items-start space-x-4">
-                    <div className={`w-12 h-12 ${feature.color} rounded-lg flex items-center justify-center flex-shrink-0 shadow-md`}>
+                    <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <feature.icon className="w-6 h-6 text-white" />
                     </div>
                     <div>

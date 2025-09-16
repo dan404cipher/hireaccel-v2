@@ -30,6 +30,10 @@ import {
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment } from '../../hooks/useApi';
 import { User } from '../../types';
+
+interface ExtendedUser extends User {
+  candidateId?: string; // The ID of the candidate document for users with role 'candidate'
+}
 import { useToast } from '../../hooks/use-toast';
 
 // Helper function to format last login
@@ -64,7 +68,7 @@ interface AgentAssignment {
 export default function AgentAllocation() {
   const [searchTerm, setSearchTerm] = useState('');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
-  const [selectedResource, setSelectedResource] = useState<User | null>(null);
+  const [selectedResource, setSelectedResource] = useState<ExtendedUser | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string>('');
   const [assignmentNotes, setAssignmentNotes] = useState('');
@@ -92,15 +96,14 @@ export default function AgentAllocation() {
     refetch: refetchAssignments
   } = useAgentAssignmentsList();
 
-  // Debug: Log assignments data changes
-  useEffect(() => {
-    console.log('📊 Assignments data updated:', assignmentsResponse);
-  }, [assignmentsResponse]);
 
   // API hooks for assignment operations
   const { mutate: createAgentAssignment } = useCreateAgentAssignment({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('✅ Agent assignment created/updated successfully:', data);
+      // Refresh assignments list
+      await refetchAssignments();
+      await refetchUsers();
     },
     onError: (error) => {
       console.error('❌ Agent assignment failed:', error);
@@ -132,10 +135,20 @@ export default function AgentAllocation() {
     const assignment = assignments.find((a: any) => {
       if (resourceType === 'hr') {
         return a.assignedHRs?.some((hr: any) => hr._id === resourceId);
-      } else {
-        return a.assignedCandidates?.some((c: any) => c._id === resourceId);
-      }
+        } else {
+          // For candidates, we need to check the candidate ID
+          return a.assignedCandidates?.some((c: any) => {
+            // If we have a populated candidate with userId
+            if (c.userId) {
+              return c.userId._id === resourceId;
+            }
+            // If we have an unpopulated candidate ID
+            return c === resourceId;
+          });
+        }
     });
+
+
     return assignment?.agentId || null;
   };
 
@@ -143,18 +156,25 @@ export default function AgentAllocation() {
   const getFilteredResources = () => {
     if (!allResources || !assignments) return [];
     
+    
     const searchFiltered = allResources.filter(resource =>
       resource.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       resource.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       resource.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    return searchFiltered.filter(resource => {
+
+    const filtered = searchFiltered.filter(resource => {
       const resourceType = resource.role === 'hr' ? 'hr' : 'candidate';
       const currentAgent = getCurrentAgent(resource._id, resourceType);
       const isAllocated = !!currentAgent;
+
+
       return allocationTab === 'allocated' ? isAllocated : !isAllocated;
     });
+
+
+    return filtered;
   };
 
   const filteredResources = getFilteredResources();
@@ -224,12 +244,26 @@ export default function AgentAllocation() {
         if (resource?.role === 'hr') {
           selectedHRIds.push(resourceId);
         } else if (resource?.role === 'candidate') {
+          // For candidates, we need to pass the user ID (not the candidate document ID)
+          // The backend will convert it to the candidate document ID
           selectedCandidateIds.push(resourceId);
         }
       });
       
       const existingHRs = existingAssignment?.assignedHRs?.map((hr: any) => hr._id) || [];
-      const existingCandidates = existingAssignment?.assignedCandidates?.map((c: any) => c._id) || [];
+      // For existing candidates, we need to get their user IDs, not candidate document IDs
+      const existingCandidates = existingAssignment?.assignedCandidates?.map((c: any) => {
+        // If the candidate has a userId field (populated), use that
+        if (c.userId) {
+          return c.userId._id;
+        }
+        // If it's just an ID, we need to find the user ID for this candidate
+        // For now, we'll handle this in the backend
+        return c._id || c;
+      }) || [];
+      
+      console.log('🔍 Bulk allocation - Existing candidates user IDs:', existingCandidates);
+      console.log('🔍 Bulk allocation - Selected candidate user IDs:', selectedCandidateIds);
       
       const assignmentData = {
         agentId: selectedAgent,
@@ -238,7 +272,12 @@ export default function AgentAllocation() {
         notes: assignmentNotes,
       };
 
-      await createAgentAssignment(assignmentData);
+      const result = await createAgentAssignment(assignmentData);
+      console.log('✅ Bulk assignment created/updated:', result);
+      
+      // Refresh the data
+      await refetchAssignments();
+      await refetchUsers();
       
       const agentName = agents.find(a => a._id === selectedAgent);
       toast({
@@ -249,10 +288,6 @@ export default function AgentAllocation() {
       // Clear selections
       setSelectedResources(new Set());
       setSelectAll(false);
-      
-      console.log('🔄 Refreshing assignments after bulk allocation...');
-      await refetchAssignments();
-      console.log('✅ Assignments refreshed');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -343,7 +378,7 @@ export default function AgentAllocation() {
       let assignmentData;
       if (selectedResource.role === 'hr') {
         const existingHRs = existingAssignment?.assignedHRs?.map((hr: any) => hr._id) || [];
-        const existingCandidates = existingAssignment?.assignedCandidates?.map((c: any) => c._id) || [];
+        const existingCandidates = existingAssignment?.assignedCandidates?.map((c: any) => c._id || c) || [];
         
         assignmentData = {
           agentId: selectedAgent,
@@ -353,17 +388,37 @@ export default function AgentAllocation() {
         };
       } else {
         const existingHRs = existingAssignment?.assignedHRs?.map((hr: any) => hr._id) || [];
-        const existingCandidates = existingAssignment?.assignedCandidates?.map((c: any) => c._id) || [];
+        // For existing candidates, we need to get their user IDs, not candidate document IDs
+        const existingCandidates = existingAssignment?.assignedCandidates?.map((c: any) => {
+          // If the candidate has a userId field (populated), use that
+          if (c.userId) {
+            return c.userId._id;
+          }
+          // If it's just an ID, we need to find the user ID for this candidate
+          // For now, we'll handle this in the backend
+          return c._id || c;
+        }) || [];
+        
+        console.log('🔍 Existing candidates user IDs:', existingCandidates);
+        console.log('🔍 Adding new candidate user ID:', selectedResource._id);
         
         assignmentData = {
           agentId: selectedAgent,
           hrIds: existingHRs,
+          // For candidates, we need to pass the user ID (not the candidate document ID)
+          // The backend will convert it to the candidate document ID
           candidateIds: [...new Set([...existingCandidates, selectedResource._id])],
           notes: assignmentNotes,
         };
       }
 
-      await createAgentAssignment(assignmentData);
+      console.log('🚀 Sending assignment data:', assignmentData);
+      const result = await createAgentAssignment(assignmentData);
+      console.log('✅ Assignment created/updated:', result);
+      
+      // Refresh the data
+      await refetchAssignments();
+      await refetchUsers();
       
       const agentName = agents.find(a => a._id === selectedAgent);
       toast({
@@ -375,10 +430,6 @@ export default function AgentAllocation() {
       setSelectedResource(null);
       setSelectedAgent('');
       setAssignmentNotes('');
-      
-      console.log('🔄 Refreshing assignments after allocation...');
-      await refetchAssignments();
-      console.log('✅ Assignments refreshed');
     } catch (error: any) {
       toast({
         title: "Error",

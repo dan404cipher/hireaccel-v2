@@ -77,7 +77,7 @@ export function Header({
               <Button
                 variant="ghost"
                 onClick={() => navigate('/login')}
-                className="text-white hover:text-blue-300"
+                className="text-white hover:bg-green-600 hover:text-white transition-all duration-300"
               >
                 Sign In
               </Button>
@@ -107,7 +107,7 @@ export function Header({
               <Button
                 variant="ghost"
                 onClick={() => navigate('/login')}
-                className="justify-start text-gray-700 hover:text-blue-600"
+                className="justify-start text-gray-700 hover:bg-green-600 hover:text-white transition-all duration-300"
               >
                 Sign In
               </Button>

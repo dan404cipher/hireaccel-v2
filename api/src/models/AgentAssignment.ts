@@ -197,12 +197,26 @@ agentAssignmentSchema.methods['activate'] = function(this: AgentAssignmentDocume
 /**
  * Get assignment record for specific agent
  */
-agentAssignmentSchema.statics['getAssignmentForAgent'] = function(agentId: mongoose.Types.ObjectId) {
-  return this.findOne({ agentId, status: 'active' })
+agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
+  console.log(`[AgentAssignment] Getting assignment details for agent: ${agentId}`);
+  const assignment = await this.findOne({ agentId, status: 'active' })
     .populate('agentId', 'firstName lastName email')
     .populate('assignedHRs', 'firstName lastName email')
-    .populate('assignedCandidates', 'firstName lastName email')
+    .populate({
+      path: 'assignedCandidates',
+      populate: {
+        path: 'userId',
+        select: 'firstName lastName email'
+      }
+    })
     .populate('assignedBy', 'firstName lastName email');
+  console.log(`[AgentAssignment] Assignment details:`, {
+    id: assignment?._id,
+    hrCount: assignment?.assignedHRs?.length || 0,
+    candidateCount: assignment?.assignedCandidates?.length || 0,
+    status: assignment?.status
+  });
+  return assignment;
 };
 
 /**
@@ -212,7 +226,13 @@ agentAssignmentSchema.statics['getAgentsWithAssignments'] = function() {
   return this.find({ status: 'active' })
     .populate('agentId', 'firstName lastName email')
     .populate('assignedHRs', 'firstName lastName email')
-    .populate('assignedCandidates', 'firstName lastName email')
+    .populate({
+      path: 'assignedCandidates',
+      populate: {
+        path: 'userId',
+        select: 'firstName lastName email'
+      }
+    })
     .populate('assignedBy', 'firstName lastName email')
     .sort({ assignedAt: -1 });
 };
@@ -229,7 +249,9 @@ agentAssignmentSchema.statics['getHRsForAgent'] = async function(agentId: mongoo
  * Get candidates assigned to specific agent
  */
 agentAssignmentSchema.statics['getCandidatesForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
+  console.log(`[AgentAssignment] Getting candidates for agent: ${agentId}`);
   const assignment = await this.findOne({ agentId, status: 'active' }).select('assignedCandidates');
+  console.log(`[AgentAssignment] Found assignment: ${assignment?._id}, Candidate count: ${assignment?.assignedCandidates?.length || 0}`);
   return assignment ? assignment.assignedCandidates : [];
 };
 
