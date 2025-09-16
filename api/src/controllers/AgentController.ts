@@ -153,6 +153,13 @@ export class AgentController {
     // Get candidates assigned to this agent
     const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
     
+    console.log('🔍 Agent getMyCandidates debug:', {
+      agentId: req.user!._id,
+      agentEmail: req.user!.email,
+      assignedCandidateIds: assignedCandidateIds,
+      candidateCount: assignedCandidateIds.length
+    });
+    
     if (assignedCandidateIds.length === 0) {
       return res.json({
         data: [],
@@ -166,8 +173,9 @@ export class AgentController {
     }
 
     // Build filter for assigned candidates
+    // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
     const filter: any = {
-      userId: { $in: assignedCandidateIds },
+      _id: { $in: assignedCandidateIds },
     };
 
     if (search) {

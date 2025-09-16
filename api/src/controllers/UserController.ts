@@ -515,7 +515,9 @@ export class UserController {
     console.log('🔍 Agent Assignment Request:', {
       body: req.body,
       user: req.user?.email,
-      role: req.user?.role
+      role: req.user?.role,
+      candidateIds: req.body.candidateIds,
+      hrIds: req.body.hrIds
     });
     
     const validatedData = agentAssignmentSchema.parse(req.body);
@@ -549,7 +551,7 @@ export class UserController {
 
     // Verify candidates exist and get their candidate document IDs
     let candidateDocumentIds: string[] = [];
-    if (validatedData.candidateIds.length > 0) {
+    if (validatedData.candidateIds && validatedData.candidateIds.length > 0) {
       console.log('🔍 Searching for candidate users:', validatedData.candidateIds);
       
       // First, let's check what users exist with these IDs (regardless of role/status)
