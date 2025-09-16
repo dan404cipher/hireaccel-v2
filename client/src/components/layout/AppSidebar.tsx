@@ -69,29 +69,6 @@ export function AppSidebar() {
   const { user } = useAuth();
   const location = useLocation();
 
-  // Add gradient animation styles
-  React.useEffect(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes gradient-x {
-        0%, 100% {
-          background-size: 200% 200%;
-          background-position: left center;
-        }
-        50% {
-          background-size: 200% 200%;
-          background-position: right center;
-        }
-      }
-      .animate-gradient-x {
-        background: linear-gradient(-45deg, #2563eb, #7c3aed, #2563eb, #7c3aed);
-        background-size: 400% 400%;
-        animation: gradient-x 3s ease infinite;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => document.head.removeChild(style);
-  }, []);
   const currentPath = location.pathname;
   const collapsed = state === "collapsed";
 
@@ -134,15 +111,15 @@ export function AppSidebar() {
     <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarContent>
         {/* Logo/Brand Section */}
-        <div className={`border-b border-sidebar-border flex items-center ${collapsed ? 'h-13 justify-center' : 'h-16 px-4'}`}>
+        <div className={`border-b border-sidebar-border flex items-center transition-all duration-300 ease-in-out ${collapsed ? 'h-13 justify-center' : 'h-16 px-4'}`}>
           <div className="flex items-center gap-3">
             <img 
               src={logoColor} 
               alt="HireAccel Logo" 
-              className={`${collapsed ? 'w-16 h-16 py-1.5' : 'w-10 h-10'} `}
+              className={`transition-all duration-300 ease-in-out ${collapsed ? 'w-16 h-16 py-1.5' : 'w-10 h-10'}`}
             />
             {!collapsed && (
-              <div>
+              <div className="transition-all duration-300 ease-in-out opacity-100">
                 <h1 className="font-bold text-sidebar-foreground text-lg">Hire Accel</h1>
                 <p className="text-xs text-sidebar-foreground/60 font-medium">powered by v-accel</p>
               </div>

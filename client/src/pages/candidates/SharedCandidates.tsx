@@ -174,9 +174,14 @@ const SharedCandidates: React.FC = () => {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter((assignment: CandidateAssignment) => {
-        const firstName = assignment.candidateId.userId.firstName || '';
-        const lastName = assignment.candidateId.userId.lastName || '';
-        const email = assignment.candidateId.userId.email || '';
+        // Safety check for malformed assignment data
+        if (!assignment || !assignment.candidateId) {
+          return false;
+        }
+
+        const firstName = assignment.candidateId?.userId?.firstName || '';
+        const lastName = assignment.candidateId?.userId?.lastName || '';
+        const email = assignment.candidateId?.userId?.email || '';
         const jobTitle = assignment.jobId?.title || '';
         const companyName = assignment.jobId?.companyId?.name || '';
         const notes = assignment.notes || '';
@@ -193,7 +198,7 @@ const SharedCandidates: React.FC = () => {
     // Apply company filter
     if (companyFilter !== 'all') {
       filtered = filtered.filter((assignment: CandidateAssignment) => 
-        assignment.jobId?.companyId?.name === companyFilter
+        assignment && assignment.jobId?.companyId?.name === companyFilter
       );
     }
     
@@ -268,8 +273,8 @@ const SharedCandidates: React.FC = () => {
 
   const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
     try {
-      if (newStatus === 'withdrawn' && user?.role === 'agent') {
-        // For agents, when withdrawing, delete the assignment completely
+      if (newStatus === 'withdrawn' && (user?.role === 'agent' || user?.role === 'admin')) {
+        // For agents and admins, when withdrawing, delete the assignment completely
         await apiClient.deleteCandidateAssignment(assignment._id);
         refetch();
         setSelectedAssignment(null);
@@ -387,6 +392,12 @@ const SharedCandidates: React.FC = () => {
   };
 
   const renderAssignmentCard = (assignment: any) => {
+    // Safety check for malformed assignment data
+    if (!assignment || !assignment.candidateId) {
+      console.warn('Invalid assignment data:', assignment);
+      return null;
+    }
+
     // Handle both agent candidates and candidate assignments data structures
     const isAgentView = user?.role === 'agent';
     
@@ -400,9 +411,9 @@ const SharedCandidates: React.FC = () => {
     } else {
       // HR view structure
       candidate = assignment.candidateId;
-      firstName = candidate.userId.firstName || '';
-      lastName = candidate.userId.lastName || '';
-      email = candidate.userId.email || 'No email provided';
+      firstName = candidate?.userId?.firstName || '';
+      lastName = candidate?.userId?.lastName || '';
+      email = candidate?.userId?.email || 'No email provided';
     }
     
     const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
@@ -483,7 +494,7 @@ const SharedCandidates: React.FC = () => {
                           const url = window.URL.createObjectURL(blob);
                           const a = document.createElement('a');
                           a.href = url;
-                          a.download = `${candidate.userId.firstName}_${candidate.userId.lastName}_resume.pdf`;
+                          a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
                           document.body.appendChild(a);
                           a.click();
                           window.URL.revokeObjectURL(url);
@@ -514,6 +525,18 @@ const SharedCandidates: React.FC = () => {
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Add Feedback
                     </DropdownMenuItem>
+                    {user?.role === 'admin' && (
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setAssignmentToDelete(assignment);
+                          setDeleteConfirmOpen(true);
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Delete Assignment
+                      </DropdownMenuItem>
+                    )}
                   </>
                 )}
               </DropdownMenuContent>
@@ -537,13 +560,13 @@ const SharedCandidates: React.FC = () => {
                       {candidate?.profile?.phoneNumber && (
                         <div className="flex items-center gap-1">
                           <Phone className="w-3 h-3 text-blue-600" />
-                          <span className="truncate">{candidate.profile.phoneNumber}</span>
+                          <span className="truncate">{candidate?.profile?.phoneNumber}</span>
                         </div>
                       )}
                       {candidate?.profile?.location ? (
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-emerald-600" />
-                          <span className="truncate">{candidate.profile.location}</span>
+                          <span className="truncate">{candidate?.profile?.location}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
@@ -554,16 +577,16 @@ const SharedCandidates: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      {candidate.profile.phoneNumber && (
+                      {candidate?.profile?.phoneNumber && (
                         <div className="flex items-center gap-1">
                           <Phone className="w-3 h-3 text-blue-600" />
-                          <span className="truncate">{candidate.profile.phoneNumber}</span>
+                          <span className="truncate">{candidate?.profile?.phoneNumber}</span>
                         </div>
                       )}
-                      {candidate.profile.location ? (
+                      {candidate?.profile?.location ? (
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3 h-3 text-emerald-600" />
-                          <span className="truncate">{candidate.profile.location}</span>
+                          <span className="truncate">{candidate?.profile?.location}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
@@ -589,7 +612,7 @@ const SharedCandidates: React.FC = () => {
                     <div className="flex items-center gap-2 mt-1">
                       <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
-                        <span className="font-medium">{assignment.jobId.companyId.name}</span>
+                        <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
                         {assignment.jobId.companyId.industry && (
                           <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
                         )}
@@ -609,7 +632,7 @@ const SharedCandidates: React.FC = () => {
                     <div className="flex items-center gap-2 mt-1">
                       <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
-                        <span className="font-medium">{assignment.jobId.companyId.name}</span>
+                        <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
                         {assignment.jobId.companyId.industry && (
                           <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
                         )}
@@ -685,7 +708,7 @@ const SharedCandidates: React.FC = () => {
                     "Not assigned"
                   )
                 ) : (
-                  `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`
+                  assignment.assignedBy ? `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}` : 'Unknown'
                 )}
               </div>
               <div className="text-sm text-gray-500 flex items-center gap-1">
@@ -710,7 +733,7 @@ const SharedCandidates: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-base font-medium text-gray-900">
-                  {formatExperience(candidate.profile.experience || [])}
+                  {formatExperience(candidate?.profile?.experience || [])}
                 </div>
               )}
             </div>
@@ -753,7 +776,7 @@ const SharedCandidates: React.FC = () => {
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `${candidate.userId.firstName}_${candidate.userId.lastName}_resume.pdf`;
+                        a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(url);
@@ -1014,7 +1037,7 @@ const SharedCandidates: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {filteredAssignments.map(renderAssignmentCard)}
+          {filteredAssignments.map(renderAssignmentCard).filter(Boolean)}
         </div>
       )}
 
@@ -1192,8 +1215,8 @@ const SharedCandidates: React.FC = () => {
             <DialogHeader>
               <DialogTitle>
                 {(() => {
-                  const firstName = selectedAssignment.candidateId.userId.firstName || '';
-                  const lastName = selectedAssignment.candidateId.userId.lastName || '';
+                  const firstName = selectedAssignment.candidateId?.userId?.firstName || '';
+                  const lastName = selectedAssignment.candidateId?.userId?.lastName || '';
                   return firstName && lastName ? `${firstName} ${lastName}` : 
                          firstName ? firstName : 
                          lastName ? lastName : 'Unnamed Candidate';
@@ -1210,19 +1233,19 @@ const SharedCandidates: React.FC = () => {
                 <h4 className="font-semibold mb-2">Contact Information</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Email:</span> {selectedAssignment.candidateId.userId.email || 'No email provided'}
+                    <span className="font-medium">Email:</span> {selectedAssignment.candidateId?.userId?.email || 'No email provided'}
                   </div>
                   <div>
-                    <span className="font-medium">Phone:</span> {selectedAssignment.candidateId.profile.phoneNumber || 'Not provided'}
+                    <span className="font-medium">Phone:</span> {selectedAssignment.candidateId?.profile?.phoneNumber || 'Not provided'}
                   </div>
                   <div>
-                    <span className="font-medium">Location:</span> {selectedAssignment.candidateId.profile.location || 'Not specified'}
+                    <span className="font-medium">Location:</span> {selectedAssignment.candidateId?.profile?.location || 'Not specified'}
                   </div>
                 </div>
               </div>
 
               {/* Salary Expectation */}
-              {selectedAssignment.candidateId.profile.preferredSalaryRange && selectedAssignment.candidateId.profile.preferredSalaryRange.min && selectedAssignment.candidateId.profile.preferredSalaryRange.max && (
+              {selectedAssignment.candidateId?.profile?.preferredSalaryRange && selectedAssignment.candidateId.profile.preferredSalaryRange.min && selectedAssignment.candidateId.profile.preferredSalaryRange.max && (
                 <div>
                   <h4 className="font-semibold mb-2">Salary Expectation</h4>
                   <p className="text-sm">
@@ -1232,7 +1255,7 @@ const SharedCandidates: React.FC = () => {
               )}
 
               {/* Full Skills List */}
-              {selectedAssignment.candidateId.profile.skills && selectedAssignment.candidateId.profile.skills.length > 0 && (
+              {selectedAssignment.candidateId?.profile?.skills && selectedAssignment.candidateId.profile.skills.length > 0 && (
                 <div>
                   <h4 className="font-semibold mb-2">Skills</h4>
                   <div className="flex flex-wrap gap-1">
@@ -1246,7 +1269,7 @@ const SharedCandidates: React.FC = () => {
               )}
 
               {/* Full Summary */}
-              {selectedAssignment.candidateId.profile.summary && (
+              {selectedAssignment.candidateId?.profile?.summary && (
                 <div>
                   <h4 className="font-semibold mb-2">Professional Summary</h4>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
@@ -1273,7 +1296,7 @@ const SharedCandidates: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>Assigned by:</span>
-                    <span>{selectedAssignment.assignedBy.firstName} {selectedAssignment.assignedBy.lastName}</span>
+                    <span>{selectedAssignment.assignedBy ? `${selectedAssignment.assignedBy.firstName} ${selectedAssignment.assignedBy.lastName}` : 'Unknown'}</span>
                   </div>
                   {selectedAssignment.jobId && (
                     <div className="flex justify-between">

@@ -3,17 +3,17 @@ import { ArrowRight, CheckCircle, Sparkles, Users, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const benefits = [
-  { text: "Forever free platform", icon: Sparkles },
-  { text: "No hidden costs ever", icon: Target },
-  { text: "Unlimited job postings", icon: Users },
-  { text: "Full AI-powered features", icon: CheckCircle }
+  { text: "Forever free platform", icon: Sparkles, color: "text-yellow-400" },
+  { text: "No hidden costs ever", icon: Target, color: "text-green-400" },
+  { text: "Unlimited job postings", icon: Users, color: "text-blue-400" },
+  { text: "Full AI-powered features", icon: CheckCircle, color: "text-purple-400" }
 ];
 
 export function CTA() {
   const navigate = useNavigate();
   
   return (
-    <section className="py-20 bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 relative overflow-hidden">
+    <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-black relative overflow-hidden">
       {/* Simple background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/6 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
@@ -38,7 +38,7 @@ export function CTA() {
               className="flex flex-col items-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-colors duration-200"
             >
               <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-3">
-                <benefit.icon className="h-6 w-6 text-white" />
+                <benefit.icon className={`h-6 w-6 ${benefit.color}`} />
               </div>
               <span className="text-white text-sm font-medium text-center leading-tight">
                 {benefit.text}
@@ -67,14 +67,14 @@ export function CTA() {
           </Button>
         </div>
 
-        <div className="flex items-center justify-center space-x-4 text-blue-200 animate-fade-in">
+        <div className="flex items-center justify-center space-x-4 text-white animate-fade-in">
           <div className="flex items-center space-x-2">
-            <Users className="h-5 w-5" />
+            <Users className="h-5 w-5 text-blue-400" />
             <span className="font-medium">300+ Candidates</span>
           </div>
-          <span className="text-blue-300">•</span>
+          <span className="text-white/50">•</span>
           <div className="flex items-center space-x-2">
-            <Sparkles className="h-5 w-5" />
+            <Sparkles className="h-5 w-5 text-yellow-400" />
             <span className="font-medium">Zero Cost Forever</span>
           </div>
         </div>

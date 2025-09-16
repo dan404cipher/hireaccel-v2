@@ -1,36 +1,47 @@
-import { Code, TestTube, Server, BarChart3, Users, Settings } from "lucide-react";
+import React, { lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { generateSrcSet, getOptimizedBackgroundStyle, getWebPUrl } from "@/utils/imageOptimization";
 
 const domains = [
   {
-    icon: Code,
     title: "Development",
-    description: "Frontend, Backend, Full Stack"
+    description: "Frontend, Backend, Full Stack",
+    image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&w=500&h=300&fit=crop&crop=center&q=80"
   },
   {
-    icon: TestTube,
     title: "Testing & QA",
-    description: "Quality assurance and testing specialists"
+    description: "Quality assurance and testing specialists",
+    image: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?auto=format&w=500&h=300&fit=crop&crop=center&q=80"
   },
   {
-    icon: Server,
     title: "DevOps",
-    description: "Infrastructure and deployment experts"
+    description: "Infrastructure and deployment experts",
+    image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&w=500&h=300&fit=crop&crop=center&q=80"
   },
   {
-    icon: BarChart3,
     title: "Data Analytics",
-    description: "Data scientists and analysts"
+    description: "Data scientists and analysts",
+    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&h=300&fit=crop&crop=center"
   },
   {
-    icon: Users,
     title: "Business Analysis",
-    description: "Business analysts and consultants"
+    description: "Business analysts and consultants",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&h=300&fit=crop&crop=center"
   },
   {
-    icon: Settings,
     title: "Scrum Masters & more",
-    description: "Project management and agile experts"
+    description: "Project management and agile experts",
+    image: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=500&h=300&fit=crop&crop=center"
+  },
+  {
+    title: "UI/UX Design",
+    description: "User interface and experience designers",
+    image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=500&h=300&fit=crop&crop=center"
+  },
+  {
+    title: "Product Management",
+    description: "Product managers and strategists",
+    image: "https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=500&h=300&fit=crop&crop=center"
   }
 ];
 
@@ -49,62 +60,66 @@ const talentStats = [
 
 export function TalentPool() {
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 to-blue-50">
+    <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+        <div className="text-center max-w-4xl mx-auto mb-16">
+          <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white">
             Our Growing Talent Pool
           </h2>
-          <p className="mt-4 text-xl text-gray-600">
+          <p className="mt-4 text-xl text-gray-300">
             We connect you with over 300 ready-to-join candidates
           </p>
         </div>
 
         {/* Domains Covered */}
         <div className="mb-16">
-          <h3 className="text-2xl font-semibold text-center mb-12 text-gray-800">
+          <h3 className="text-2xl font-semibold text-center mb-12 text-white">
             Domains Covered
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {domains.map((domain, index) => (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 border border-gray-200 hover:border-blue-200">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-purple-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <domain.icon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <CardTitle className="text-lg">{domain.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-gray-600 leading-relaxed">
-                    {domain.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
+              <div 
+                key={index} 
+                className="group relative overflow-hidden rounded-2xl min-h-[450px] shadow-lg hover:shadow-xl transition-all duration-300"
+                style={getOptimizedBackgroundStyle(getWebPUrl(domain.image))}
+              >
+                {/* Transparent Header Section */}
+                <div className="bg-black/50 backdrop-blur-md h-16 flex flex-col justify-center p-4 text-white relative z-10">
+                  <h3 className="text-lg font-bold">
+                    {domain.title}
+                  </h3>
+                </div>
+              </div>
             ))}
           </div>
         </div>
 
         {/* Ready Talent Stats */}
         <div>
-          <h3 className="text-2xl font-semibold text-center mb-12 text-gray-800">
-            Ready Talent
-          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {talentStats.map((stat, index) => (
-              <Card key={index} className="text-center p-8 bg-white border-2 border-gray-200 hover:border-blue-300 transition-colors duration-300">
-                <CardContent className="pt-6">
-                  <div className="text-4xl md:text-5xl font-bold text-blue-600 mb-4">
-                    {stat.number}
-                  </div>
-                  <CardTitle className="text-xl mb-3 text-gray-800">
-                    {stat.title}
-                  </CardTitle>
-                  <CardDescription className="text-gray-600 leading-relaxed">
-                    {stat.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-blue-400 mb-2">
+                200+
+              </div>
+              <div className="text-xl font-semibold text-white mb-2">
+                Experienced Professionals
+              </div>
+              <div className="text-gray-300 leading-relaxed">
+                Industry-ready experts for immediate deployment
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-4xl md:text-5xl font-bold text-green-400 mb-2">
+                100+
+              </div>
+              <div className="text-xl font-semibold text-white mb-2">
+                Trained Freshers
+              </div>
+              <div className="text-gray-300 leading-relaxed">
+                Job-ready talent trained in real-world IT skills
+              </div>
+            </div>
           </div>
         </div>
       </div>

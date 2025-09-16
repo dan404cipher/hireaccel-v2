@@ -62,7 +62,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return <PageLoadingSpinner text="Authenticating..." />;
+    return null;
   }
   
   if (!isAuthenticated) {
@@ -83,7 +83,7 @@ function RoleProtectedRoute({
   const { user, isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return <PageLoadingSpinner text="Authenticating..." />;
+    return null;
   }
   
   if (!isAuthenticated) {
@@ -129,7 +129,7 @@ function AppRouter() {
   // Enable route preloading for better performance
   useRoutePreloader();
   if (loading) {
-    return <PageLoadingSpinner text="Authenticating..." />;
+    return null;
   }
   
   return (
