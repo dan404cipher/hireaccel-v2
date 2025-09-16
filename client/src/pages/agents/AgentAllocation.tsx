@@ -25,10 +25,11 @@ import {
   UserCheck, 
   Mail,
   CheckSquare,
-  Save
+  Save,
+  Trash2
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment } from '../../hooks/useApi';
+import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment, useRemoveFromAgentAssignment } from '../../hooks/useApi';
 import { User } from '../../types';
 
 interface ExtendedUser extends User {
@@ -107,6 +108,18 @@ export default function AgentAllocation() {
     },
     onError: (error) => {
       console.error('❌ Agent assignment failed:', error);
+    }
+  });
+
+  const { mutate: removeFromAgentAssignment } = useRemoveFromAgentAssignment({
+    onSuccess: async (data) => {
+      console.log('✅ Resources removed from agent assignment successfully:', data);
+      // Refresh assignments list
+      await refetchAssignments();
+      await refetchUsers();
+    },
+    onError: (error) => {
+      console.error('❌ Remove from agent assignment failed:', error);
     }
   });
 
@@ -305,45 +318,36 @@ export default function AgentAllocation() {
 
     setLoading(true);
     try {
-      // For each selected resource, find their current agent assignment and remove them
+      // Group resources by their current agent
+      const resourcesByAgent: { [agentId: string]: { hrIds: string[], candidateIds: string[] } } = {};
+      
       for (const resourceId of selectedResources) {
         const resource = allResources.find(r => r._id === resourceId);
         const resourceType = resource?.role === 'hr' ? 'hr' : 'candidate';
         const currentAgent = getCurrentAgent(resourceId, resourceType);
         
         if (currentAgent) {
-          const existingAssignment = assignments.find((a: any) => a.agentId?._id === currentAgent._id);
-          if (existingAssignment) {
-            let assignmentData;
-            if (resourceType === 'hr') {
-              const remainingHRs = existingAssignment.assignedHRs
-                ?.map((hr: any) => hr._id)
-                .filter((id: string) => id !== resourceId) || [];
-              const existingCandidates = existingAssignment.assignedCandidates?.map((c: any) => c._id) || [];
-              
-              assignmentData = {
-                agentId: currentAgent._id,
-                hrIds: remainingHRs,
-                candidateIds: existingCandidates,
-                notes: existingAssignment.notes || '',
-              };
-            } else {
-              const existingHRs = existingAssignment.assignedHRs?.map((hr: any) => hr._id) || [];
-              const remainingCandidates = existingAssignment.assignedCandidates
-                ?.map((c: any) => c._id)
-                .filter((id: string) => id !== resourceId) || [];
-              
-              assignmentData = {
-                agentId: currentAgent._id,
-                hrIds: existingHRs,
-                candidateIds: remainingCandidates,
-                notes: existingAssignment.notes || '',
-              };
-            }
-
-            await createAgentAssignment(assignmentData);
+          if (!resourcesByAgent[currentAgent._id]) {
+            resourcesByAgent[currentAgent._id] = { hrIds: [], candidateIds: [] };
+          }
+          
+          if (resourceType === 'hr') {
+            resourcesByAgent[currentAgent._id].hrIds.push(resourceId);
+          } else {
+            resourcesByAgent[currentAgent._id].candidateIds.push(resourceId);
           }
         }
+      }
+
+      // Remove resources from each agent assignment
+      for (const [agentId, resources] of Object.entries(resourcesByAgent)) {
+        await removeFromAgentAssignment({
+          agentId,
+          data: {
+            hrIds: resources.hrIds.length > 0 ? resources.hrIds : undefined,
+            candidateIds: resources.candidateIds.length > 0 ? resources.candidateIds : undefined,
+          }
+        });
       }
       
       toast({
@@ -360,6 +364,49 @@ export default function AgentAllocation() {
       toast({
         title: "Error",
         description: error.message || "Failed to remove allocations",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Individual resource removal function
+  const handleRemoveResource = async (resourceId: string) => {
+    const resource = allResources.find(r => r._id === resourceId);
+    if (!resource) return;
+
+    const resourceType = resource.role === 'hr' ? 'hr' : 'candidate';
+    const currentAgent = getCurrentAgent(resourceId, resourceType);
+    
+    if (!currentAgent) {
+      toast({
+        title: "Error",
+        description: "No agent assignment found for this resource",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const removeData = {
+        agentId: currentAgent._id,
+        data: resourceType === 'hr' 
+          ? { hrIds: [resourceId] }
+          : { candidateIds: [resourceId] }
+      };
+
+      await removeFromAgentAssignment(removeData);
+      
+      toast({
+        title: "Success",
+        description: `Removed ${resource.firstName} ${resource.lastName} from ${currentAgent.firstName} ${currentAgent.lastName}'s assignment`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove resource from assignment",
         variant: "destructive",
       });
     } finally {
@@ -725,6 +772,16 @@ export default function AgentAllocation() {
                               >
                                 <Edit className="h-4 w-4 mr-1" />
                                 Reassign
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleRemoveResource(resource._id)}
+                                disabled={loading}
+                                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Remove
                               </Button>
                               <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
                                 <Eye className="h-4 w-4 mr-1" />

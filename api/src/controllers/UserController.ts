@@ -6,7 +6,7 @@ import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
 
 import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
-import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
+import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import { hashPassword, generateSecurePassword } from '@/utils/password';
 import { generateCustomUserId } from '@/utils/customId';
 import mongoose from 'mongoose';
@@ -640,12 +640,20 @@ export class UserController {
     if (validatedData.hrIds.length > 0 || validatedData.candidateIds.length > 0) {
       console.log('🔄 Removing HRs and candidates from other agent assignments...');
       
+      // For candidates, we need to find their candidate document IDs to remove them from other assignments
+      let candidateDocumentIdsForRemoval: string[] = [];
+      if (validatedData.candidateIds.length > 0) {
+        const candidatesForRemoval = await Candidate.find({ userId: { $in: validatedData.candidateIds } });
+        candidateDocumentIdsForRemoval = candidatesForRemoval.map(c => c._id.toString());
+        console.log('🔍 Candidate document IDs for removal:', candidateDocumentIdsForRemoval);
+      }
+      
       // Find all other assignments that contain any of the HRs or candidates we're about to assign
       const otherAssignments = await AgentAssignment.find({
         agentId: { $ne: validatedData.agentId }, // Exclude current agent
         $or: [
           { assignedHRs: { $in: validatedData.hrIds } },
-          { assignedCandidates: { $in: validatedData.candidateIds } }
+          { assignedCandidates: { $in: candidateDocumentIdsForRemoval } }
         ]
       });
 
@@ -663,9 +671,9 @@ export class UserController {
         }
         
         // Remove candidates that are being reassigned
-        if (validatedData.candidateIds.length > 0) {
+        if (candidateDocumentIdsForRemoval.length > 0) {
           assignment.assignedCandidates = assignment.assignedCandidates.filter(
-            candidateId => !validatedData.candidateIds.includes(candidateId.toString())
+            candidateId => !candidateDocumentIdsForRemoval.includes(candidateId.toString())
           );
         }
         
@@ -954,6 +962,110 @@ export class UserController {
       data: assignmentsWithDetails,
       total: assignmentsWithDetails.length,
       message: 'Debug: All agent assignments with details'
+    });
+  });
+
+  /**
+   * Remove resources from agent assignment
+   * PATCH /users/agent-assignments/:agentId/remove
+   */
+  static removeFromAgentAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { agentId } = req.params;
+    const { hrIds = [], candidateIds = [] } = req.body;
+
+    console.log('🔍 Remove from agent assignment request:', {
+      agentId,
+      hrIds,
+      candidateIds,
+      user: req.user?.email
+    });
+
+    if (hrIds.length === 0 && candidateIds.length === 0) {
+      throw createBadRequestError('At least one HR ID or candidate ID must be provided');
+    }
+
+    const assignment = await AgentAssignment.findOne({ agentId });
+
+    if (!assignment) {
+      throw createNotFoundError('Agent assignment not found');
+    }
+
+    const beforeState = assignment.toObject();
+
+    // Remove HR users
+    if (hrIds.length > 0) {
+      const hrObjectIds = hrIds.map((id: string) => new mongoose.Types.ObjectId(id));
+      assignment.assignedHRs = assignment.assignedHRs.filter(
+        (hrId: mongoose.Types.ObjectId) => !hrObjectIds.some((id: mongoose.Types.ObjectId) => id.equals(hrId))
+      );
+    }
+
+    // Remove candidates
+    if (candidateIds.length > 0) {
+      // Convert User IDs to Candidate document IDs
+      const candidateDocuments = await Candidate.find({ 
+        userId: { $in: candidateIds.map((id: string) => new mongoose.Types.ObjectId(id)) } 
+      });
+      
+      const candidateDocumentIds = candidateDocuments.map(candidate => candidate._id);
+      
+      console.log('🔍 Candidate removal debug:', {
+        inputUserIds: candidateIds,
+        foundCandidateDocuments: candidateDocuments.map(c => ({ candidateId: c._id, userId: c.userId })),
+        candidateDocumentIds: candidateDocumentIds,
+        beforeRemoval: assignment.assignedCandidates.length,
+        assignedCandidates: assignment.assignedCandidates
+      });
+      
+      assignment.assignedCandidates = assignment.assignedCandidates.filter(
+        (candidateId: mongoose.Types.ObjectId) => !candidateDocumentIds.some((id: mongoose.Types.ObjectId) => id.equals(candidateId))
+      );
+      
+      console.log('🔍 After candidate removal:', {
+        afterRemoval: assignment.assignedCandidates.length,
+        remainingCandidates: assignment.assignedCandidates
+      });
+    }
+
+    await assignment.save();
+
+    // Populate the updated assignment for response
+    const updatedAssignment = await AgentAssignment.findById(assignment._id)
+      .populate('agentId', 'firstName lastName email')
+      .populate('assignedHRs', 'firstName lastName email')
+      .populate({
+        path: 'assignedCandidates',
+        populate: {
+          path: 'userId',
+          select: 'firstName lastName email'
+        }
+      })
+      .populate('assignedBy', 'firstName lastName email');
+
+    // Log assignment update
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.UPDATE,
+      entityType: 'AgentAssignment',
+      entityId: assignment._id,
+      before: beforeState,
+      after: updatedAssignment?.toObject(),
+      metadata: { 
+        agentId, 
+        removedHRs: hrIds, 
+        removedCandidates: candidateIds,
+        remainingHRs: assignment.assignedHRs.length,
+        remainingCandidates: assignment.assignedCandidates.length
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      businessProcess: 'agent_management',
+    });
+
+    res.json({
+      success: true,
+      message: 'Resources removed from agent assignment successfully',
+      data: updatedAssignment,
     });
   });
 

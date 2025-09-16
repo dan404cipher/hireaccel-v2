@@ -83,6 +83,13 @@ router.get('/agent-assignments/debug/all', requireAdmin, UserController.debugAll
 router.get('/agent-assignments/:agentId', requireAdmin, UserController.getAgentAssignment);
 
 /**
+ * @route   PATCH /users/agent-assignments/:agentId/remove
+ * @desc    Remove resources from agent assignment
+ * @access  Admin
+ */
+router.patch('/agent-assignments/:agentId/remove', requireAdmin, UserController.removeFromAgentAssignment);
+
+/**
  * @route   DELETE /users/agent-assignments/:agentId
  * @desc    Delete agent assignment
  * @access  Admin

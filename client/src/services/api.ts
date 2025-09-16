@@ -1028,6 +1028,16 @@ class ApiClient {
     return this.request('/api/v1/users/agent-assignments/me');
   }
 
+  async removeFromAgentAssignment(agentId: string, data: {
+    hrIds?: string[];
+    candidateIds?: string[];
+  }) {
+    return this.request(`/api/v1/users/agent-assignments/${agentId}/remove`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteAgentAssignment(agentId: string) {
     return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
       method: 'DELETE',

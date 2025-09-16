@@ -352,6 +352,12 @@ export function useMyAgentAssignments(params = {}) {
   return useApi(memoizedCall, { immediate: true });
 }
 
+export function useRemoveFromAgentAssignment() {
+  return useMutation(({ agentId, data }: { agentId: string; data: { hrIds?: string[]; candidateIds?: string[] } }) => 
+    apiClient.removeFromAgentAssignment(agentId, data)
+  );
+}
+
 export function useDeleteAgentAssignment() {
   return useMutation((agentId: string) => apiClient.deleteAgentAssignment(agentId));
 }
