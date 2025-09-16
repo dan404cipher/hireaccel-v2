@@ -2,9 +2,8 @@ import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './public/index.html',
   ],
   theme: {
     container: {
@@ -97,27 +96,17 @@ const config: Config = {
     },
   },
   plugins: [],
-  // Purge unused styles in production
-  purge: {
-    enabled: process.env.NODE_ENV === 'production',
-    content: [
-      './src/**/*.{js,jsx,ts,tsx}',
-      './public/index.html',
-    ],
-    options: {
-      safelist: [
-        'bg-blue-800',
-        'bg-purple-800',
-        'text-white',
-        'hover:bg-blue-700',
-        'hover:bg-purple-700',
-        'animate-gradient-x',
-        'bg-gradient-to-r',
-        'from-blue-600',
-        'to-purple-600',
-      ],
-    },
-  },
+  safelist: [
+    'bg-blue-800',
+    'bg-purple-800',
+    'text-white',
+    'hover:bg-blue-700',
+    'hover:bg-purple-700',
+    'animate-gradient-x',
+    'bg-gradient-to-r',
+    'from-blue-600',
+    'to-purple-600',
+  ],
 }
 
 export default config;

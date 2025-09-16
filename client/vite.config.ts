@@ -25,7 +25,6 @@ export default defineConfig({
         manualChunks: {
           'vendor': ['react', 'react-dom', 'react-router-dom'],
           'ui': [
-            '@/components/ui',
             '@radix-ui/react-dialog',
             '@radix-ui/react-slot',
             'class-variance-authority',
