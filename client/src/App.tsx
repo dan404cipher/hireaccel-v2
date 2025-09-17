@@ -216,7 +216,7 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="jobs/:jobId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
             <JobDetailsPage />
           </RoleProtectedRoute>
         } />

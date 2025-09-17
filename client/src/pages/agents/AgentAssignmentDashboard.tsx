@@ -138,8 +138,8 @@ export default function AgentAssignmentDashboard() {
 
   // Extract data from API responses
   const jobs = jobsResponse || [];
-  const agentAssignment = agentAssignmentResponse?.data || agentAssignmentResponse;
-  const candidates = (candidatesResponse?.data || candidatesResponse || []); // Handle both response formats
+  const agentAssignment = (agentAssignmentResponse as any)?.data || agentAssignmentResponse;
+  const candidates = ((candidatesResponse as any)?.data || candidatesResponse || []); // Handle both response formats
 
 
 
@@ -505,7 +505,11 @@ export default function AgentAssignmentDashboard() {
                               }}>
                                 Assign Candidate
                               </DropdownMenuItem>
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                navigate(`/dashboard/jobs/${job.jobId || job.id || job._id}`);
+                              }}>
+                                View Details
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
