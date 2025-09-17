@@ -222,7 +222,7 @@ export default function HRProfile() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Phone className="w-4 h-4" />
-                        <span>{profileData.phone}</span>
+                        <span>{profileData.phone || 'Not provided'}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />

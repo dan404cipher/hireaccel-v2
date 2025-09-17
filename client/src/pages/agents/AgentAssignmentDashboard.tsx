@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +62,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function AgentAssignmentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [jobSearchTerm, setJobSearchTerm] = useState('');
   const [candidateSearchTerm, setCandidateSearchTerm] = useState('');
   const [hrSearchTerm, setHrSearchTerm] = useState('');
@@ -591,7 +593,11 @@ export default function AgentAssignmentDashboard() {
                               }}>
                                 Assign to Job
                               </DropdownMenuItem>
-                              <DropdownMenuItem>View Profile</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                navigate(`/dashboard/candidates/${candidate._id}`);
+                              }}>
+                                View Profile
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -683,7 +689,11 @@ export default function AgentAssignmentDashboard() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
-                                <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  navigate(`/dashboard/hr-profile/${hr.customId || hr._id}`);
+                                }}>
+                                  View Profile
+                                </DropdownMenuItem>
                                 <DropdownMenuItem>Contact</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

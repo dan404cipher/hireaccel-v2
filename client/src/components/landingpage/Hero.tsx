@@ -2,18 +2,21 @@ import { Button } from "./ui/button";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroBackground from '@/assets/Hero-background.jpeg';
+import { usePreloadedImage } from '@/utils/imageOptimization';
 
 export function Hero() {
   const navigate = useNavigate();
+  const { isLoaded, isLoading } = usePreloadedImage(heroBackground);
 
   return (
     <section 
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
       style={{
-        backgroundImage: `url(${heroBackground})`,
+        backgroundImage: isLoaded ? `url(${heroBackground})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Enhanced gradient overlay for better text readability */}

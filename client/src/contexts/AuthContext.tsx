@@ -13,6 +13,7 @@ export interface User {
   role: UserRole;
   status: string;
   emailVerified: boolean;
+  phoneNumber?: string;
 }
 
 interface AuthContextType {

@@ -1,5 +1,6 @@
 import { DollarSign, Users, Activity, Bot, GraduationCap, Clock4, IndianRupee } from "lucide-react";
 import section1Background from "@/assets/section1.jpg";
+import { usePreloadedImage } from '@/utils/imageOptimization';
 
 const reasons = [
   {
@@ -35,15 +36,18 @@ const reasons = [
 ];
 
 export function HowItWorks() {
+  const { isLoaded } = usePreloadedImage(section1Background);
+  
   return (
     <section 
       id="why-choose" 
       className="py-20 relative"
       style={{
-        backgroundImage: `url(${section1Background})`,
+        backgroundImage: isLoaded ? `url(${section1Background})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Black overlay with blur for better text readability and visual appeal */}

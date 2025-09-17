@@ -1,5 +1,6 @@
 import { Star, Quote } from "lucide-react";
 import section1Background from "@/assets/section1.jpg";
+import { usePreloadedImage } from '@/utils/imageOptimization';
 import { useState, useEffect } from "react";
 
 const testimonials = [
@@ -54,6 +55,8 @@ const testimonials = [
 ];
 
 export function Testimonials() {
+  const { isLoaded } = usePreloadedImage(section1Background);
+  
   // Duplicate testimonials for seamless infinite scroll
   const duplicatedTestimonials = [...testimonials, ...testimonials];
   
@@ -71,10 +74,11 @@ export function Testimonials() {
     <section 
       className="py-20 relative"
       style={{
-        backgroundImage: `url(${section1Background})`,
+        backgroundImage: isLoaded ? `url(${section1Background})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Black overlay with blur for better text readability */}

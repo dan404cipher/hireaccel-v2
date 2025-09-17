@@ -271,7 +271,7 @@ function AppRouter() {
         
         {/* HR Routes */}
         <Route path="hr-profile/:customId?" element={
-          <RoleProtectedRoute allowedRoles={['hr', 'admin']}>
+          <RoleProtectedRoute allowedRoles={['hr', 'admin', 'agent']}>
             <HRProfile />
           </RoleProtectedRoute>
         } />

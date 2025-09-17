@@ -18,6 +18,7 @@ import {
 import { Button } from "./ui/button";
 import { useNavigate } from "react-router-dom";
 import section1Background from "@/assets/section1.jpg";
+import { usePreloadedImage } from '@/utils/imageOptimization';
 
 const hrFeatures = [
   {
@@ -87,15 +88,17 @@ const candidateFeatures = [
 
 export function Features() {
   const navigate = useNavigate();
+  const { isLoaded } = usePreloadedImage(section1Background);
 
   return (
     <section 
       className="py-20 relative"
       style={{
-        backgroundImage: `url(${section1Background})`,
+        backgroundImage: isLoaded ? `url(${section1Background})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Overlay for better text readability */}

@@ -2,18 +2,21 @@ import { Button } from "./ui/button";
 import { ArrowRight, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroBackground from '@/assets/Hero-background.jpeg';
+import { usePreloadedImage } from '@/utils/imageOptimization';
 
 export function ReadyToStart() {
   const navigate = useNavigate();
+  const { isLoaded } = usePreloadedImage(heroBackground);
 
   return (
     <section 
       className="py-20 relative overflow-hidden"
       style={{
-        backgroundImage: `url(${heroBackground})`,
+        backgroundImage: isLoaded ? `url(${heroBackground})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Enhanced gradient overlay for better text readability */}

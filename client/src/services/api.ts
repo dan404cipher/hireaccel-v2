@@ -69,6 +69,7 @@ export interface User {
   role: 'candidate' | 'agent' | 'hr' | 'partner' | 'admin';
   status: 'active' | 'inactive' | 'suspended' | 'pending';
   emailVerified: boolean;
+  phoneNumber?: string;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;

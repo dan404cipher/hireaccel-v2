@@ -1,6 +1,8 @@
 import { useEffect, Suspense, lazy, useState } from "react";
 import { CardLoadingSkeleton } from "@/components/ui/LoadingSpinner";
 import { WaterLoader } from "@/components/ui/WaterLoader";
+import heroBackground from '@/assets/Hero-background.jpeg';
+import section1Background from '@/assets/section1.jpg';
 
 // Critical above-the-fold components - load immediately
 import { Header } from "@/components/landingpage/Header";
@@ -23,6 +25,18 @@ const LandingPage = () => {
   useEffect(() => {
     // Scroll to top when component mounts
     window.scrollTo(0, 0);
+
+    // Preload critical background images immediately
+    const preloadImages = () => {
+      const images = [heroBackground, section1Background];
+      images.forEach(src => {
+        const img = new Image();
+        img.src = src;
+      });
+    };
+
+    // Start preloading images immediately
+    preloadImages();
 
     // Preload components that are likely to be needed soon
     const preloadComponents = () => {
