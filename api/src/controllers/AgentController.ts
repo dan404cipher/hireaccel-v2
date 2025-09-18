@@ -107,6 +107,17 @@ export class AgentController {
 
     const total = await Job.countDocuments(filter);
 
+    // Calculate actual applications count for each job based on candidate assignments
+    const jobsWithApplicationsCount = await Promise.all(
+      jobs.map(async (job) => {
+        const applicationsCount = await Job.calculateApplicationsCount(job._id);
+        return {
+          ...job.toObject(),
+          applications: applicationsCount
+        };
+      })
+    );
+
     // Log audit trail
     await AuditLog.createLog({
       actor: req.user!._id,
@@ -126,7 +137,7 @@ export class AgentController {
     });
 
     res.json({
-      data: jobs,
+      data: jobsWithApplicationsCount,
       meta: {
         page,
         limit,

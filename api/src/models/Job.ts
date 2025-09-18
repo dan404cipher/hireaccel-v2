@@ -57,6 +57,7 @@ export interface JobModel extends mongoose.Model<JobDocument> {
   getJobsByAgent(agentId: mongoose.Types.ObjectId, options?: any): Promise<JobDocument[]>;
   getJobsApproachingDeadline(days?: number): Promise<JobDocument[]>;
   generateJobId(): Promise<string>;
+  calculateApplicationsCount(jobId: mongoose.Types.ObjectId): Promise<number>;
 }
 
 /**
@@ -630,6 +631,20 @@ jobSchema.statics['generateJobId'] = async function() {
   }
   
   return `JOB${nextNumber.toString().padStart(5, '0')}`;
+};
+
+/**
+ * Calculate applications count based on candidate assignments for this job
+ */
+jobSchema.statics['calculateApplicationsCount'] = async function(jobId: mongoose.Types.ObjectId) {
+  const { CandidateAssignment } = await import('./CandidateAssignment');
+  
+  const count = await CandidateAssignment.countDocuments({
+    jobId: jobId,
+    status: { $in: ['active', 'completed'] } // Only count active and completed assignments
+  });
+  
+  return count;
 };
 
 // ============================================================================

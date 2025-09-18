@@ -169,9 +169,20 @@ export class JobController {
       Job.countDocuments(searchQuery),
     ]);
     
+    // Calculate actual applications count for each job based on candidate assignments
+    const jobsWithApplicationsCount = await Promise.all(
+      jobs.map(async (job) => {
+        const applicationsCount = await Job.calculateApplicationsCount(job._id);
+        return {
+          ...job.toObject(),
+          applications: applicationsCount
+        };
+      })
+    );
+    
     res.json({
       success: true,
-      data: jobs,
+      data: jobsWithApplicationsCount,
       meta: {
         page: {
           current: page,
@@ -262,9 +273,16 @@ export class JobController {
     job.incrementViews();
     await job.save();
     
+    // Calculate actual applications count based on candidate assignments
+    const applicationsCount = await Job.calculateApplicationsCount(job._id);
+    const jobWithApplicationsCount = {
+      ...job.toObject(),
+      applications: applicationsCount
+    };
+    
     res.json({
       success: true,
-      data: job,
+      data: jobWithApplicationsCount,
     });
   });
 

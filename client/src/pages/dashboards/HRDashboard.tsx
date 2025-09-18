@@ -68,7 +68,7 @@ export default function HRDashboard() {
 
   // Calculate HR-specific metrics
   const activeJobs = jobs.filter((job: any) => job.status === 'open').length;
-  const totalApplications = applications.length;
+  const totalApplications = jobs.reduce((total: number, job: any) => total + (job.applications || 0), 0);
   const pendingApplications = applications.filter((app: any) => 
     ['applied', 'under_review', 'shortlisted'].includes(app.status)
   ).length;
@@ -103,11 +103,11 @@ export default function HRDashboard() {
     }))
   ];
 
-  // Top performing jobs (by application count)
+  // Top performing jobs (by application count from candidate assignments)
   const topJobs = jobs
     .map((job: any) => ({
       title: job.title,
-      applications: applications.filter((app: any) => app.job?.id === job.id).length,
+      applications: job.applications || 0, // Use the applications count from the job (calculated from candidate assignments)
       status: job.status,
       company: job.companyId?.name || 'Unknown Company'
     }))
