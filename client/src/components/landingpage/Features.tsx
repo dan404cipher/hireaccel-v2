@@ -103,12 +103,12 @@ export function Features() {
       
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
-        <div className="text-center mb-16 animate-fade-in">
-          <h2 className="text-7xl lg:text-7xl font-bold text-white mb-6">
+        <div className="text-center mb-10 animate-fade-in">
+          <h2 className="text-2xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl 2xl:text-7xl  font-bold text-white mb-5">
             Everything You Need to
             <span className="text-blue-300 block">Hire & Get Hired</span>
           </h2>
-          <p className="text-xl text-white/90 max-w-3xl mx-auto">
+          <p className="text-xs sm:text-md md:text-lg lg:text-xl xl-text-xl 2xl:text-xl text-white/90 max-w-3xl mx-auto">
             Our comprehensive platform provides all the tools and features needed for successful recruitment, 
             whether you're hiring talent or looking for your next opportunity.
           </p>
@@ -117,29 +117,29 @@ export function Features() {
         {/* Two Column Comparison Layout */}
         <div className="grid lg:grid-cols-2 gap-8 mb-16">
           {/* HR Features Column */}
-          <div className="space-y-8 p-8 bg-gradient-to-r from-blue-700/95 to-blue-800/95 backdrop-blur-sm rounded-2xl shadow-xl">
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-4">
+          <div className="space-y-6 p-8 bg-gradient-to-r from-blue-700/95 to-blue-800/95 backdrop-blur-sm rounded-2xl shadow-xl">
+            <div className="text-left">
+              <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-2">
                 <Building2 className="w-4 h-4 mr-2" />
                 For HR Professionals
               </div>
-              <h3 className="text-3xl font-bold text-white mb-4">Streamline Your Hiring Process</h3>
-              <p className="text-lg text-white/90">Powerful tools to find and manage the best talent</p>
+              <h3 className="text-sm sm:text-md md:text-lg lg:text-xl xl-text-xl 2xl:text-2xl font-bold text-white mb-2">Streamline Your Hiring Process</h3>
+              <p className="text-sm sm:text-md md:text-md lg:text-lg xl-text-lg 2xl:text-lg text-white/90">Powerful tools to find and manage the best talent</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-2">
               {hrFeatures.map((feature, index) => (
                 <div 
                   key={index}
-                  className="p-6 bg-white/20 backdrop-blur-sm rounded-xl"
+                  className="p-3 bg-white/20 backdrop-blur-sm rounded-xl"
                 >
-                  <div className="flex items-start space-x-4">
+                  <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <feature.icon className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-semibold text-white mb-2">{feature.title}</h4>
-                      <p className="text-white/90 leading-relaxed">{feature.description}</p>
+                      <h4 className="text-sm sm:text-md md:text-md lg:text-lg xl-text-lg 2xl:text-lg font-semibold text-white mb-2">{feature.title}</h4>
+                      <p className="text-xs sm:text-sm text-white/90 leading-relaxed">{feature.description}</p>
                     </div>
                   </div>
                 </div>
@@ -148,29 +148,29 @@ export function Features() {
           </div>
 
           {/* Candidate Features Column */}
-          <div className="space-y-8 p-8 bg-gradient-to-r from-purple-700/95 to-purple-800/95 backdrop-blur-sm rounded-2xl shadow-xl">
-            <div className="text-center lg:text-left">
-              <div className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
+          <div className="space-y-6 p-8 bg-gradient-to-r from-purple-700/95 to-purple-800/95 backdrop-blur-sm rounded-2xl shadow-xl">
+            <div className="text-left">
+              <div className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-2">
                 <Users className="w-4 h-4 mr-2" />
                 For Job Seekers
               </div>
-              <h3 className="text-3xl font-bold text-white mb-4">Find Your Dream Job</h3>
-              <p className="text-lg text-white/90">Advanced tools to showcase your skills and connect with employers</p>
+              <h3 className="text-sm sm:text-md md:text-lg lg:text-xl xl-text-xl 2xl:text-2xl font-bold text-white mb-2">Find Your Dream Job</h3>
+              <p className="text-sm sm:text-md md:text-md lg:text-lg xl-text-lg 2xl:text-lg text-white/90">Advanced tools to showcase your skills and connect with employers</p>
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-2">
               {candidateFeatures.map((feature, index) => (
                 <div 
                   key={index}
-                  className="p-6 bg-white/20 backdrop-blur-sm rounded-xl"
+                  className="p-3 bg-white/20 backdrop-blur-sm rounded-xl"
                 >
-                  <div className="flex items-start space-x-4">
+                  <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <feature.icon className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="text-xl font-semibold text-white mb-2">{feature.title}</h4>
-                      <p className="text-white/90 leading-relaxed">{feature.description}</p>
+                      <h4 className="text-xs sm:text-md md:text-md lg:text-lg xl-text-lg 2xl:text-lg font-semibold text-white mb-2">{feature.title}</h4>
+                      <p className="text-xs sm:text-sm text-white/90 leading-relaxed">{feature.description}</p>
                     </div>
                   </div>
                 </div>

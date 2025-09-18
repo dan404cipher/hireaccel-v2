@@ -1,5 +1,5 @@
 import { DollarSign, Users, Activity, Bot, GraduationCap, Clock4, IndianRupee } from "lucide-react";
-import section1Background from "@/assets/section1.jpg";
+import howItWorksBackground from "@/assets/HowItWorks-background.jpg";
 
 const reasons = [
   {
@@ -40,7 +40,7 @@ export function HowItWorks() {
       id="why-choose" 
       className="py-20 relative"
       style={{
-        backgroundImage: `url(${section1Background})`,
+        backgroundImage: `url(${howItWorksBackground})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
