@@ -488,13 +488,37 @@ export default function CompanyManagement() {
   const handleUpdateCompany = async () => {
     if (!selectedCompany?.id) return;
     
+    // Validate required fields
+    if (!editFormData.name || !editFormData.industry || !editFormData.location || !editFormData.description) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields: Company Name, Industry, Location, and Description",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate website URL if provided
+    if (editFormData.website && editFormData.website.trim() !== '') {
+      try {
+        new URL(editFormData.website);
+      } catch {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid website URL (e.g., https://www.company.com)",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     const updateData = {
       name: editFormData.name,
       industry: editFormData.industry,
       location: editFormData.location,
       status: editFormData.status,
       description: editFormData.description,
-      website: editFormData.website,
+      website: editFormData.website && editFormData.website.trim() !== '' ? editFormData.website.trim() : undefined,
       employees: parseInt(editFormData.employees) || 0,
       foundedYear: parseInt(editFormData.foundedYear) || new Date().getFullYear(),
       partnership: editFormData.partnership
