@@ -13,44 +13,44 @@ const testimonials = [
     avatar: "SJ"
   },
   {
-    name: "Michael Chen",
+    name: "Mohan Raj",
     role: "Software Engineer",
-    company: "Google",
+    company: "EY",
     content: "The job matching is incredible. I found my dream job in just 2 weeks using this platform.",
     rating: 5,
-    avatar: "MC"
+    avatar: "MR"
   },
   {
-    name: "Emily Rodriguez",
+    name: "Sneha Sree",
     role: "Talent Acquisition Manager",
-    company: "StartupXYZ",
+    company: "EXL",
     content: "The AI-powered screening saves us hours every week. Highly recommend to any growing company.",
     rating: 5,
-    avatar: "ER"
+    avatar: "SS"
   },
   {
-    name: "David Kim",
+    name: "Deveshwaran Kannan",
     role: "Product Manager",
-    company: "Microsoft",
+    company: "Tekishma",
     content: "Clean interface, powerful features, and excellent support. This is the future of recruitment.",
     rating: 5,
     avatar: "DK"
   },
   {
-    name: "Lisa Wang",
+    name: "Lavanya Ramachandran",
     role: "UX Designer",
     company: "Apple",
     content: "I love how easy it is to track applications and communicate with employers. Game changer!",
     rating: 5,
-    avatar: "LW"
+    avatar: "LR"
   },
   {
-    name: "James Wilson",
+    name: "Sherin Banu",
     role: "CEO",
     company: "InnovateLabs",
     content: "We've hired 15 amazing people through this platform. The quality of candidates is outstanding.",
     rating: 5,
-    avatar: "JW"
+    avatar: "SB"
   }
 ];
 

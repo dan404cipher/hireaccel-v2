@@ -21,6 +21,17 @@ const FloatingNav = lazy(() => import("@/components/landingpage/FloatingNav").th
 
 const LandingPage = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const [showFloatingNav, setShowFloatingNav] = useState(window.innerWidth >= 800 && window.innerWidth > window.innerHeight);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setShowFloatingNav(window.innerWidth >= 800 && window.innerWidth > window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     // Scroll to top when component mounts
@@ -116,9 +127,11 @@ const LandingPage = () => {
         <Footer />
       </Suspense>
       
-      <Suspense fallback={<CardLoadingSkeleton />}>
-        <FloatingNav />
-      </Suspense>
+      {showFloatingNav && (
+        <Suspense fallback={<CardLoadingSkeleton />}>
+          <FloatingNav />
+        </Suspense>
+      )}
     </div>
     </>
   );
