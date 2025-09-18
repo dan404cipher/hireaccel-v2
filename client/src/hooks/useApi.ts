@@ -42,9 +42,7 @@ export function useApi<T>(
       // The API client returns the full response object, so we need to access response.data
       const actualData = response.data || response;
       
-      console.log('🔍 useApi setting state with actualData:', actualData);
       setState(prev => {
-        console.log('🔍 useApi setState - prev:', prev, 'new data:', actualData);
         return { ...prev, data: actualData, loading: false };
       });
       
@@ -200,12 +198,10 @@ export function useCompanies(params = {}) {
   // Create a stable key for the params to prevent multiple instances
   const paramsKey = JSON.stringify(params);
   const memoizedCall = useCallback(() => {
-    console.log('🔍 useCompanies API call with params:', params);
     return apiClient.getCompanies(params);
   }, [paramsKey]);
   
   const result = useApi(memoizedCall, { immediate: true });
-  console.log('🔍 useCompanies returning:', result);
   return result;
 }
 

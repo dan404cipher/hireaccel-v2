@@ -35,8 +35,6 @@ export default function CandidateDashboard() {
   });
 
   useEffect(() => {
-    console.log('Profile Data:', profileData);
-    console.log('Assignments Data:', assignmentsData);
   }, [profileData, assignmentsData]);
 
   // Calculate profile completion
@@ -44,7 +42,6 @@ export default function CandidateDashboard() {
     if (!profileData?.profile) return 0;
     
     const profile = profileData.profile;
-    console.log('Calculating completion for profile:', profile);
     
     const sections = {
       basicInfo: {
@@ -87,7 +84,6 @@ export default function CandidateDashboard() {
           isComplete = !!value;
         }
         
-        console.log(`Field ${field}:`, { value, isComplete });
         return isComplete;
       });
 
@@ -99,20 +95,16 @@ export default function CandidateDashboard() {
       }
     }
     
-    console.log('Section completion results:', sectionResults);
     return Math.round(totalCompletion * 100);
   };
 
   const profileCompletion = calculateProfileCompletion(profileData);
 
   // Process assignments data
-  console.log('Profile Data:', profileData);
-  console.log('Assignments Data:', assignmentsData);
   
   const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
   const recentAssignments = assignments.slice(0, 5);
   
-  console.log('Processed assignments:', assignments);
 
   // Calculate assignment stats
   const assignmentStats = useMemo(() => {

@@ -67,8 +67,8 @@ interface AgentAssignment {
   notes?: string;
 }
 
-export default function AgentAllocation() {
-  console.log('🔥 AgentAllocation component rendering!');
+export default function AgentAllocation(): React.JSX.Element {
+  // AgentAllocation component rendering
   
   const [searchTerm, setSearchTerm] = useState('');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
@@ -104,7 +104,6 @@ export default function AgentAllocation() {
   // API hooks for assignment operations
   const { mutate: createAgentAssignment } = useCreateAgentAssignment({
     onSuccess: async (data) => {
-      console.log('✅ Agent assignment created/updated successfully:', data);
       // Refresh assignments list
       await refetchAssignments();
       await refetchUsers();
@@ -116,7 +115,6 @@ export default function AgentAllocation() {
 
   const { mutate: removeFromAgentAssignment } = useRemoveFromAgentAssignment({
     onSuccess: async (data) => {
-      console.log('✅ Resources removed from agent assignment successfully:', data);
       // Refresh assignments list
       await refetchAssignments();
       await refetchUsers();
@@ -221,27 +219,17 @@ export default function AgentAllocation() {
 
   // Bulk selection functions for resources
   const handleResourceSelection = (resourceId: string) => {
-    console.log('🔍 Resource selection changed:', {
-      resourceId,
-      wasSelected: selectedResources.has(resourceId),
-      currentSelectionSize: selectedResources.size
-    });
+    // Resource selection changed
     
     const newSelected = new Set(selectedResources);
     if (newSelected.has(resourceId)) {
       newSelected.delete(resourceId);
-      console.log('❌ Removed resource from selection');
     } else {
       newSelected.add(resourceId);
-      console.log('✅ Added resource to selection');
     }
     setSelectedResources(newSelected);
     setSelectAll(newSelected.size === filteredResources.length && filteredResources.length > 0);
     
-    console.log('🔍 New selection state:', {
-      newSelectionSize: newSelected.size,
-      selectedResources: Array.from(newSelected)
-    });
   };
 
   const handleSelectAllResources = () => {
@@ -256,19 +244,10 @@ export default function AgentAllocation() {
 
   // Bulk allocation function
   const handleBulkAllocation = async () => {
-    console.log('🔥🔥🔥 UPDATED CODE IS RUNNING - handleBulkAllocation 🔥🔥🔥');
-    console.log('🔍 handleBulkAllocation called with:', {
-      selectedAgent,
-      selectedResourcesSize: selectedResources.size,
-      selectedResources: Array.from(selectedResources)
-    });
-    
     if (!selectedAgent) {
-      console.log('❌ No agent selected, returning');
       return;
     }
     if (selectedResources.size === 0) {
-      console.log('❌ No resources selected, returning');
       return;
     }
 
@@ -283,10 +262,6 @@ export default function AgentAllocation() {
       
       selectedResources.forEach(resourceId => {
         const resource = allResources.find(r => r._id === resourceId);
-        console.log('🔍 Processing selected resource:', {
-          resourceId,
-          resource: resource ? { id: resource._id, name: `${resource.firstName} ${resource.lastName}`, role: resource.role } : 'NOT FOUND'
-        });
         if (resource?.role === 'hr') {
           selectedHRIds.push(resourceId);
         } else if (resource?.role === 'candidate') {
@@ -308,12 +283,6 @@ export default function AgentAllocation() {
         return c._id || c;
       }) || [];
       
-      console.log('🔍 Bulk allocation - Existing candidates user IDs:', existingCandidates);
-      console.log('🔍 Bulk allocation - Selected candidate user IDs:', selectedCandidateIds);
-      console.log('🔍 Bulk allocation - Selected HR user IDs:', selectedHRIds);
-      console.log('🔍 Bulk allocation - Existing HR user IDs:', existingHRs);
-      console.log('🔍 Bulk allocation - selectedCandidateIds.length:', selectedCandidateIds.length);
-      console.log('🔍 Bulk allocation - selectedHRIds.length:', selectedHRIds.length);
       
       // Determine if we're working with candidates or just HR users
       const isWorkingWithCandidates = selectedCandidateIds.length > 0;
@@ -328,9 +297,7 @@ export default function AgentAllocation() {
         notes: assignmentNotes,
       };
 
-      console.log('🚀 Sending assignment data:', assignmentData);
       const result = await createAgentAssignment(assignmentData);
-      console.log('✅ Bulk assignment created/updated:', result);
       
       // Refresh the data
       await refetchAssignments();
@@ -470,12 +437,6 @@ export default function AgentAllocation() {
       if (selectedResource.role === 'hr') {
         const existingHRs = existingAssignment?.assignedHRs?.map((hr: any) => hr._id) || [];
         
-        console.log('🔍 Individual assignment - HR user:', {
-          selectedResourceId: selectedResource._id,
-          existingHRs,
-          existingHRsCount: existingHRs.length
-        });
-        
         assignmentData = {
           agentId: selectedAgent,
           hrIds: [...new Set([...existingHRs, selectedResource._id])],
@@ -496,8 +457,6 @@ export default function AgentAllocation() {
           return c._id || c;
         }) || [];
         
-        console.log('🔍 Existing candidates user IDs:', existingCandidates);
-        console.log('🔍 Adding new candidate user ID:', selectedResource._id);
         
         assignmentData = {
           agentId: selectedAgent,
@@ -509,9 +468,7 @@ export default function AgentAllocation() {
         };
       }
 
-      console.log('🚀 Sending assignment data:', assignmentData);
       const result = await createAgentAssignment(assignmentData);
-      console.log('✅ Assignment created/updated:', result);
       
       // Refresh the data
       await refetchAssignments();
@@ -599,7 +556,6 @@ export default function AgentAllocation() {
                 </Select>
                       <Button 
                         onClick={() => {
-                          console.log('🔥 BUTTON CLICKED - Allocate Selected button pressed!');
                           handleBulkAllocation();
                         }}
                         disabled={!selectedAgent || loading}

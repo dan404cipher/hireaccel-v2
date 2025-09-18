@@ -70,6 +70,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiErrorAlert } from "@/components/ui/error-boundary";
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface User {
   _id: string;
@@ -122,6 +123,7 @@ const roleLabels = {
 };
 
 export default function UserManagement() {
+  const { user: currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -177,7 +179,16 @@ export default function UserManagement() {
   const { mutate: deleteUser, loading: deleteLoading } = useDeleteUser();
 
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
-  const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
+  const allUsers = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
+  
+  // Filter out current admin user to prevent self-deactivation
+  const users = useMemo(() => {
+    if (!allUsers || !Array.isArray(allUsers)) return [];
+    if (!currentUser?.id) return allUsers;
+    
+    return allUsers.filter(user => !(user.role === 'admin' && user._id === currentUser.id));
+  }, [allUsers, currentUser?.id]);
+  
   const meta = Array.isArray(usersResponse) ? null : usersResponse?.meta;
   const totalPages = meta?.page?.total || 1;
 
@@ -190,7 +201,39 @@ export default function UserManagement() {
   useEffect(() => {
     setSelectedUsers(new Set());
     setSelectAll(false);
-  }, [users]);
+  }, [users.length]);
+
+  // Cleanup to ensure navigation works properly
+  useEffect(() => {
+    const handleNavigationClick = (event: Event) => {
+      const target = event.target as Element;
+      if (target.closest('a[href*="/dashboard"]') || 
+          target.closest('[data-sidebar]') || 
+          target.closest('nav')) {
+        // Close all dialogs when navigation is attempted
+        setIsCreateDialogOpen(false);
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+        setViewingUser(null);
+        
+        // Remove modal overlays that might block navigation
+        const overlays = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-alert-dialog-overlay]');
+        overlays.forEach(overlay => overlay.parentNode?.removeChild(overlay));
+      }
+    };
+
+    document.addEventListener('click', handleNavigationClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleNavigationClick, true);
+      
+      // Cleanup on unmount
+      setIsCreateDialogOpen(false);
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      setViewingUser(null);
+    };
+  }, []);
 
   // Handle individual user selection
   const handleUserSelect = (userId: string) => {

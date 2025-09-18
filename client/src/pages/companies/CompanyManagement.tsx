@@ -74,7 +74,6 @@ export default function CompanyManagement() {
 
   // Debug fieldErrors changes
   useEffect(() => {
-    console.log('🔍 fieldErrors state changed:', fieldErrors);
   }, [fieldErrors]);
 
   // Debounce search term to prevent excessive API calls
@@ -175,7 +174,6 @@ export default function CompanyManagement() {
 
   // Helper function to handle validation errors with comprehensive user-friendly messages
   const handleValidationError = (error: any, defaultMessage: string) => {
-    console.log('🔍 handleValidationError called with:', error);
     
     // Clear previous field errors
     setFieldErrors({});
@@ -184,16 +182,13 @@ export default function CompanyManagement() {
     let issues = null;
     if (error?.issues && Array.isArray(error.issues)) {
       issues = error.issues;
-      console.log('🔍 Found issues directly on error object:', issues);
     } else if (error?.response?.data?.issues && Array.isArray(error.response.data.issues)) {
       issues = error.response.data.issues;
-      console.log('🔍 Found issues in error.response.data:', issues);
     }
     
     if (issues) {
       const fieldErrorsMap: Record<string, string> = {};
       const validationErrors = issues.map((issue: any) => {
-        console.log('🔍 Processing issue:', issue);
         let userFriendlyMessage = issue.message;
         const fieldName = issue.field || 'Field';
         
@@ -358,12 +353,10 @@ export default function CompanyManagement() {
       });
       
       // Set field errors for UI highlighting
-      console.log('🔍 Setting field errors:', fieldErrorsMap);
       setFieldErrors(fieldErrorsMap);
       
       // Debug: Check if field errors were set
       setTimeout(() => {
-        console.log('🔍 Field errors after setState:', fieldErrorsMap);
       }, 100);
       
       const errorMessage = validationErrors.length === 1 
@@ -475,7 +468,6 @@ export default function CompanyManagement() {
       contacts: []
     };
 
-    console.log('Creating company with data:', newCompanyData);
 
     try {
       await createCompany(newCompanyData);
@@ -489,11 +481,6 @@ export default function CompanyManagement() {
       });
     } catch (error: any) {
       console.error('Failed to create company:', error);
-      console.log('🔍 Full error object:', JSON.stringify(error, null, 2));
-      console.log('🔍 Error.response:', error?.response);
-      console.log('🔍 Error.response.data:', error?.response?.data);
-      console.log('🔍 Error.issues:', error?.issues);
-      console.log('🔍 Error.detail:', error?.detail);
       handleValidationError(error, "Failed to create company. Please try again.");
     }
   };

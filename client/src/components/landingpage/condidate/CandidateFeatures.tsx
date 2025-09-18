@@ -236,7 +236,6 @@ export function JobCandidates() {
 
   // Debug log to ensure features array is available
   useEffect(() => {
-    console.log('Features array:', features);
   }, []);
 
   return (
@@ -1274,9 +1273,7 @@ export function JobCandidates() {
             
             <button 
               onClick={() => {
-                console.log('WhatsApp button clicked');
                 const whatsappUrl = 'https://wa.me/919962056381';
-                console.log('Opening URL:', whatsappUrl);
                 
                 // Try multiple methods
                 try {

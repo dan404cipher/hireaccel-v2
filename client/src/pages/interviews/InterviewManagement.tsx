@@ -290,7 +290,6 @@ export default function InterviewManagement() {
         description: "Interview scheduled successfully",
       });
     } catch (error: any) {
-      console.log('Schedule interview error:', error); // Debug log
       
       let errorMessage = "Failed to schedule interview";
       
@@ -414,7 +413,6 @@ export default function InterviewManagement() {
         description: "Interview updated successfully",
       });
     } catch (error: any) {
-      console.log('Update interview error:', error); // Debug log
       
       let errorMessage = "Failed to update interview";
       
