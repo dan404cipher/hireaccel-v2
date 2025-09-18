@@ -1,4 +1,5 @@
 import { DollarSign, Users, Activity, Bot, GraduationCap, Clock4, IndianRupee } from "lucide-react";
+import { usePreloadedImage } from '@/utils/imageOptimization';
 import howItWorksBackground from "@/assets/HowItWorks-background.jpg";
 
 const reasons = [
@@ -35,15 +36,18 @@ const reasons = [
 ];
 
 export function HowItWorks() {
+  const { isLoaded } = usePreloadedImage(howItWorksBackground);
+  
   return (
     <section 
       id="why-choose" 
       className="py-20 relative"
       style={{
-        backgroundImage: `url(${howItWorksBackground})`,
+        backgroundImage: isLoaded ? `url(${howItWorksBackground})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Black overlay with blur for better text readability and visual appeal */}

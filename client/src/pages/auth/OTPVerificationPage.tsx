@@ -75,7 +75,6 @@ export const OTPVerificationPage: React.FC<OTPVerificationPageProps> = ({
         otp: otp.trim(),
       });
 
-      console.log('OTP verification response:', response);
 
       if (response.success) {
         setSuccess('Account verified successfully! Redirecting to dashboard...');
@@ -115,7 +114,6 @@ export const OTPVerificationPage: React.FC<OTPVerificationPageProps> = ({
     try {
       const response = await apiClient.post('/auth/resend-otp', { email });
       
-      console.log('Resend OTP response:', response);
       
       if (response.success) {
         setSuccess('New OTP sent to your email!');

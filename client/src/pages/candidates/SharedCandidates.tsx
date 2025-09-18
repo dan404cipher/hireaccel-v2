@@ -155,18 +155,6 @@ const SharedCandidates: React.FC = () => {
   const meta = Array.isArray(assignmentsData) ? {} : (assignmentsData as any)?.meta || {};
   const stats = (statsData as any)?.data || {};
 
-  // Debug logging
-  console.log('📊 SharedCandidates Debug:', {
-    loading,
-    assignmentsData,
-    assignmentsDataType: typeof assignmentsData,
-    assignmentsDataKeys: assignmentsData ? Object.keys(assignmentsData) : null,
-    assignments,
-    meta,
-    statusFilter,
-    priorityFilter
-  });
-
   // Filter assignments based on search term and filters
   const filteredAssignments = useMemo(() => {
     let filtered = assignments;

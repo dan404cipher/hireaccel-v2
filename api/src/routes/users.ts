@@ -99,16 +99,16 @@ router.delete('/agent-assignments/:agentId', requireAdmin, UserController.delete
 /**
  * @route   GET /users/custom/:customId
  * @desc    Get user by custom ID
- * @access  Admin, HR
+ * @access  Admin, HR, Agent
  */
-router.get('/custom/:customId', requireHR, UserController.getUserByCustomId);
+router.get('/custom/:customId', requireAgent, UserController.getUserByCustomId);
 
 /**
  * @route   GET /users/:id
  * @desc    Get user by ID
- * @access  Admin, HR
+ * @access  Admin, HR, Agent
  */
-router.get('/:id', requireHR, UserController.getUserById);
+router.get('/:id', requireAgent, UserController.getUserById);
 
 /**
  * @route   PUT /users/:id

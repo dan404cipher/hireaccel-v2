@@ -879,9 +879,7 @@ export function HRProfessionals() {
             
             <button 
               onClick={() => {
-                console.log('WhatsApp button clicked');
                 const whatsappUrl = 'https://wa.me/919962056381';
-                console.log('Opening URL:', whatsappUrl);
                 
                 // Try multiple methods
                 try {

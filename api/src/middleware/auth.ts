@@ -9,7 +9,8 @@ import {
 import { 
   createUnauthorizedError, 
   createForbiddenError,
-  createBadRequestError
+  createBadRequestError,
+  createNotFoundError
 } from '@/middleware/errorHandler';
 import { logger } from '@/config/logger';
 
@@ -283,8 +284,22 @@ export const requireCandidateAccess = async (
     
     // Agents can access their assigned candidates
     if (user.role === UserRole.AGENT) {
-      // TODO: Implement logic to check if agent is assigned to this candidate
-      // This would require checking job assignments and application assignments
+      // For now, allow agents to access all candidates
+      // TODO: Implement proper assignment checking
+      const { Candidate } = await import('@/models/Candidate');
+      
+      // Check if the candidate ID is a valid ObjectId
+      const mongoose = await import('mongoose');
+      if (!mongoose.Types.ObjectId.isValid(candidateId)) {
+        throw createBadRequestError('Invalid candidate ID format');
+      }
+      
+      // Check if candidate exists
+      const candidate = await Candidate.findById(candidateId);
+      if (!candidate) {
+        throw createNotFoundError('Candidate not found');
+      }
+      
       next();
       return;
     }

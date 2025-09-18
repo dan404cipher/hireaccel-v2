@@ -50,7 +50,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { DashboardBanner } from "@/components/dashboard/Banner";
 
-export default function JobManagementIntegrated() {
+export default function JobManagementIntegrated(): React.JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -118,9 +118,7 @@ export default function JobManagementIntegrated() {
     const fetchCompanies = async () => {
       try {
         setCompaniesLoading(true);
-        console.log('🔍 Direct API call to get companies');
         const response = await apiClient.getCompanies({ page: 1, limit: 50 });
-        console.log('🔍 Direct API response:', response);
         setCompanies(response.data || response);
         setCompaniesError(null);
       } catch (error) {
@@ -137,18 +135,6 @@ export default function JobManagementIntegrated() {
   // Check if HR has any companies
   const hasCompanies = companies.length > 0;
   
-  // Debug logging for HR users
-  console.log('🔍 HR Companies Debug:', {
-    companies: companies,
-    companiesLength: companies.length,
-    hasCompanies,
-    companiesLoading,
-    companiesError
-  });
-  
-  
-  
-
   // Redirect to company management if no companies exist
   useEffect(() => {
     if (!companiesLoading && user?.role === 'hr' && !hasCompanies) {
@@ -249,9 +235,6 @@ export default function JobManagementIntegrated() {
     };
 
     try {
-      console.log('Sending job data:', jobData);
-      console.log('Current user:', user);
-      console.log('Selected company ID:', createFormData.companyId);
       const createdJob = await createJob(jobData);
       setIsCreateDialogOpen(false);
       resetCreateForm();

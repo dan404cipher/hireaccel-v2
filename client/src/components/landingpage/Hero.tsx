@@ -3,9 +3,12 @@ import { ArrowRight, Play, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroBackground from '@/assets/Hero-background.jpeg';
 import { useEffect, useState } from "react";
+import { usePreloadedImage } from '@/utils/imageOptimization';
+        
 
 export function Hero() {
   const navigate = useNavigate();
+    const { isLoaded, isLoading } = usePreloadedImage(heroBackground);
   const [hideDemo, setHideDemo] = useState(window.innerWidth >= 800 && window.innerWidth > window.innerHeight);
   
     useEffect(() => {
@@ -22,10 +25,11 @@ export function Hero() {
     <section 
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
       style={{
-        backgroundImage: `url(${heroBackground})`,
+        backgroundImage: isLoaded ? `url(${heroBackground})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#1a1a1a' // Fallback color while loading
       }}
     >
       {/* Enhanced gradient overlay for better text readability */}

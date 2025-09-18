@@ -59,14 +59,12 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   // Initialize WebSocket connection
   useEffect(() => {
     if (user && token) {
-      console.log('🔑 Attempting Socket.IO connection with token:', token ? 'Token exists' : 'No token');
       const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:3002', {
         auth: { token },
         transports: ['websocket']
       });
 
       newSocket.on('connect', () => {
-        console.log('✅ Connected to notification server');
         newSocket.emit('subscribe:notifications');
       });
 
@@ -75,11 +73,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       });
 
       newSocket.on('disconnect', (reason) => {
-        console.log('🔌 Socket.IO disconnected:', reason);
+        // Connection lost
       });
 
       newSocket.on('notification:new', (notification: Notification) => {
-        console.log('🔔 Received new notification:', notification);
         setNotifications(prev => [notification, ...prev]);
         setUnreadCount(prev => prev + 1);
       });

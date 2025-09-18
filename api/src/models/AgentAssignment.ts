@@ -200,16 +200,16 @@ agentAssignmentSchema.methods['activate'] = function(this: AgentAssignmentDocume
 agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
   console.log(`[AgentAssignment] Getting assignment details for agent: ${agentId}`);
   const assignment = await this.findOne({ agentId, status: 'active' })
-    .populate('agentId', 'firstName lastName email')
-    .populate('assignedHRs', 'firstName lastName email')
+    .populate('agentId', 'firstName lastName email customId')
+    .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
     .populate({
       path: 'assignedCandidates',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId'
       }
     })
-    .populate('assignedBy', 'firstName lastName email');
+    .populate('assignedBy', 'firstName lastName email customId');
   console.log(`[AgentAssignment] Assignment details:`, {
     id: assignment?._id,
     hrCount: assignment?.assignedHRs?.length || 0,
@@ -224,16 +224,16 @@ agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId:
  */
 agentAssignmentSchema.statics['getAgentsWithAssignments'] = function() {
   return this.find({ status: 'active' })
-    .populate('agentId', 'firstName lastName email')
-    .populate('assignedHRs', 'firstName lastName email')
+    .populate('agentId', 'firstName lastName email customId')
+    .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
     .populate({
       path: 'assignedCandidates',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId'
       }
     })
-    .populate('assignedBy', 'firstName lastName email')
+    .populate('assignedBy', 'firstName lastName email customId')
     .sort({ assignedAt: -1 });
 };
 
