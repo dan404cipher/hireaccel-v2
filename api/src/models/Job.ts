@@ -4,6 +4,7 @@ import {
   JobStatus, 
   JobType, 
   JobUrgency,
+  WorkType,
   ExperienceLevel,
   JobRequirements 
 } from '@/types';
@@ -194,6 +195,29 @@ const jobSchema = new Schema<JobDocument>({
     },
     default: JobUrgency.MEDIUM,
     index: true,
+  },
+  
+  workType: {
+    type: String,
+    enum: {
+      values: Object.values(WorkType),
+      message: 'Work type must be one of: {VALUES}'
+    },
+    default: WorkType.WFO,
+    index: true,
+  },
+  
+  duration: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Duration cannot exceed 100 characters'],
+  },
+  
+  numberOfOpenings: {
+    type: Number,
+    required: [true, 'Number of openings is required'],
+    min: [1, 'Number of openings must be at least 1'],
+    default: 1,
   },
   
   assignedAgentId: {

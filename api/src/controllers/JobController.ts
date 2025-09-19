@@ -6,7 +6,7 @@ import { Company } from '@/models/Company';
 import { User } from '@/models/User';
 import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
-import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, ExperienceLevel, UserRole, AuditAction } from '@/types';
+import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, WorkType, ExperienceLevel, UserRole, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
 /**
@@ -28,12 +28,15 @@ const createJobSchema = z.object({
   location: z.string().min(1).max(200),
   type: z.nativeEnum(JobType),
   salaryRange: z.object({
-    min: z.number().min(0).optional(),
-    max: z.number().min(0).optional(),
+    min: z.number().min(0, 'Minimum salary must be at least 0'),
+    max: z.number().min(0, 'Maximum salary must be at least 0'),
     currency: z.string().default('INR'),
-  }).optional(),
+  }),
   companyId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID'),
   urgency: z.nativeEnum(JobUrgency).default(JobUrgency.MEDIUM),
+  workType: z.nativeEnum(WorkType).default(WorkType.WFO),
+  duration: z.string().max(100).optional(),
+  numberOfOpenings: z.number().min(1, 'Number of openings must be at least 1').default(1),
   assignedAgentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid agent ID').optional(),
   isRemote: z.boolean().default(false),
   benefits: z.array(z.string()).default([]),

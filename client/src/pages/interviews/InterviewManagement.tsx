@@ -614,8 +614,6 @@ export default function InterviewManagement() {
                       <SelectItem value="screening">HR Screening</SelectItem>
                       <SelectItem value="technical">Technical</SelectItem>
                       <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
-                      <SelectItem value="cultural">Cultural Fit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -748,7 +746,6 @@ export default function InterviewManagement() {
                     <SelectItem value="screening">Screening</SelectItem>
                     <SelectItem value="technical">Technical</SelectItem>
                     <SelectItem value="behavioral">Behavioral</SelectItem>
-                    <SelectItem value="final">Final</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

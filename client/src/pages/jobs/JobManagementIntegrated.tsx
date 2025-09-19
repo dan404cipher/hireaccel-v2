@@ -21,6 +21,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
 import { 
   Plus, 
@@ -62,7 +70,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     description: '',
     location: '',
     type: 'full-time' as const,
-    urgency: 'medium' as const,
+    workType: 'wfo' as const,
     salaryMin: '',
     salaryMax: '',
     currency: 'INR',
@@ -75,6 +83,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     applicationDeadline: '',
     interviewRounds: 2,
     estimatedDuration: '2-3 weeks',
+    duration: '',
+    numberOfOpenings: '1',
     companyId: ''
   });
 
@@ -212,13 +222,15 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       description: createFormData.description.trim(),
       location: createFormData.location.trim(),
       type: createFormData.type,
-      urgency: createFormData.urgency,
+      workType: createFormData.workType,
+      duration: (createFormData.type === 'contract' || createFormData.type === 'internship') ? createFormData.duration : undefined,
+      numberOfOpenings: parseInt(createFormData.numberOfOpenings) || 1,
       companyId: createFormData.companyId,
-      salaryRange: createFormData.salaryMin || createFormData.salaryMax ? {
-        min: createFormData.salaryMin ? parseInt(createFormData.salaryMin) : undefined,
-        max: createFormData.salaryMax ? parseInt(createFormData.salaryMax) : undefined,
+      salaryRange: {
+        min: parseInt(createFormData.salaryMin),
+        max: parseInt(createFormData.salaryMax),
         currency: createFormData.currency
-      } : undefined,
+      },
       requirements: {
         skills: createFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
         experience: createFormData.experience,
@@ -321,8 +333,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       errors.description = 'Job description cannot exceed 5000 characters';
     }
 
-    if (!createFormData.location.trim()) {
-      errors.location = 'Location is required';
+    // Location is auto-filled from company, so we only validate if company is selected
+    if (!createFormData.companyId) {
+      errors.location = 'Please select a company first to auto-fill location';
     } else if (createFormData.location.length > 200) {
       errors.location = 'Location cannot exceed 200 characters';
     }
@@ -335,7 +348,35 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       errors.skills = 'At least one skill is required';
     }
 
-    // Salary validation
+    // Duration validation for contract and internship positions
+    if ((createFormData.type === 'contract' || createFormData.type === 'internship') && !createFormData.duration.trim()) {
+      errors.duration = 'Duration is required for contract and internship positions';
+    }
+
+    // Number of openings validation
+    if (!createFormData.numberOfOpenings.trim()) {
+      errors.numberOfOpenings = 'Number of openings is required';
+    } else {
+      const openings = parseInt(createFormData.numberOfOpenings);
+      if (isNaN(openings) || openings < 1) {
+        errors.numberOfOpenings = 'Number of openings must be at least 1';
+      }
+    }
+
+    // Estimated hiring timeline validation
+    if (!createFormData.estimatedDuration) {
+      errors.estimatedDuration = 'Estimated hiring timeline is required';
+    }
+
+    // Salary validation - both min and max are required
+    if (!createFormData.salaryMin.trim()) {
+      errors.salaryMin = 'Minimum salary is required';
+    }
+    
+    if (!createFormData.salaryMax.trim()) {
+      errors.salaryMax = 'Maximum salary is required';
+    }
+    
     if (createFormData.salaryMin && createFormData.salaryMax) {
       const min = parseInt(createFormData.salaryMin);
       const max = parseInt(createFormData.salaryMax);
@@ -363,7 +404,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       description: '',
       location: '',
       type: 'full-time',
-      urgency: 'medium',
+      workType: 'wfo',
       salaryMin: '',
       salaryMax: '',
       currency: 'INR',
@@ -376,6 +417,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       applicationDeadline: '',
       interviewRounds: 2,
       estimatedDuration: '2-3 weeks',
+      duration: '',
+      numberOfOpenings: '1',
       companyId: ''
     });
     setFormErrors({});
@@ -408,28 +451,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     navigate(`/dashboard/jobs/${job.jobId || job.id || job._id}/edit`);
   };
 
-  const formatSalary = (job: any) => {
-    if (job.salaryRange?.min && job.salaryRange?.max) {
-      const currency = job.salaryRange.currency || 'INR';
-      const symbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
-      return `${symbol}${(job.salaryRange.min / 1000).toFixed(0)}k - ${symbol}${(job.salaryRange.max / 1000).toFixed(0)}k`;
-    }
-    return "Salary TBD";
-  };
-
-  const getAssignedAgent = (job: any) => {
-    if (!job.assignedAgentId) {
-      return "Unassigned";
-    }
-    
-    // If assignedAgentId is populated with agent data
-    if (typeof job.assignedAgentId === 'object' && job.assignedAgentId.firstName) {
-      return `${job.assignedAgentId.firstName} ${job.assignedAgentId.lastName}`;
-    }
-    
-    // Fallback if it's just an ID
-    return "Agent Assigned";
-  };
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
@@ -478,28 +499,53 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location *</Label>
+                    <Label htmlFor="location">Location (Auto-filled from company)</Label>
                     <Input 
                       id="location" 
-                      placeholder="e.g. Remote, New York, NY"
+                      placeholder="Select a company to auto-fill location"
                       value={createFormData.location}
-                      onChange={(e) => setCreateFormData({...createFormData, location: e.target.value})}
-                      className={formErrors.location ? "border-red-500" : ""}
+                      readOnly
+                      className="bg-muted/50 cursor-not-allowed"
                     />
-                    {formErrors.location && (
-                      <p className="text-sm text-red-500">{formErrors.location}</p>
-                    )}
+                    <p className="text-xs text-muted-foreground">Location will be automatically filled when you select a company</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company">Company *</Label>
-                    <Select value={createFormData.companyId} onValueChange={(value) => setCreateFormData({...createFormData, companyId: value})}>
+                    <Select 
+                      value={createFormData.companyId} 
+                      onValueChange={(value) => {
+                        const selectedCompany = companies.find((company: any) => company._id === value);
+                        let location = '';
+                        
+                        if (selectedCompany) {
+                          // Auto-fill location from company address
+                          if (selectedCompany.address) {
+                            const addressParts = [
+                              selectedCompany.address.street,
+                              selectedCompany.address.city,
+                              selectedCompany.address.state
+                            ].filter(Boolean);
+                            location = addressParts.join(', ');
+                          } else if (selectedCompany.location) {
+                            // Fallback to old location format
+                            location = selectedCompany.location;
+                          }
+                        }
+                        
+                        setCreateFormData({
+                          ...createFormData, 
+                          companyId: value,
+                          location: location
+                        });
+                      }}
+                    >
                       <SelectTrigger className={formErrors.companyId ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select company" />
                       </SelectTrigger>
                       <SelectContent>
                         {companies.map((company: any) => (
                           <SelectItem key={company._id} value={company._id}>
-                            {company.companyId ? `${company.companyId} - ${company.name}` : company.name}
+                            {company.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -525,16 +571,15 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="urgency">Urgency Level</Label>
-                    <Select value={createFormData.urgency} onValueChange={(value) => setCreateFormData({...createFormData, urgency: value as any})}>
+                    <Label htmlFor="workType">Work Type *</Label>
+                    <Select value={createFormData.workType} onValueChange={(value) => setCreateFormData({...createFormData, workType: value as any})}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select urgency" />
+                        <SelectValue placeholder="Select work type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="urgent">Urgent</SelectItem>
+                        <SelectItem value="remote">Remote</SelectItem>
+                        <SelectItem value="wfo">WFO (Work From Office)</SelectItem>
+                        <SelectItem value="wfh">WFH (Work From Home)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -545,17 +590,73 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                         <SelectValue placeholder="Select experience" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="entry">0-2 years</SelectItem>
-                        <SelectItem value="junior">2-5 years</SelectItem>
-                        <SelectItem value="mid">5-10 years</SelectItem>
-                        <SelectItem value="senior">10+ years</SelectItem>
-                        <SelectItem value="lead">10+ years</SelectItem>
-                        <SelectItem value="executive">10+ years</SelectItem>
+                        <SelectItem value="entry">0-2 years (Entry Level)</SelectItem>
+                        <SelectItem value="junior">2-5 years (Junior)</SelectItem>
+                        <SelectItem value="mid">5-10 years (Mid Level)</SelectItem>
+                        <SelectItem value="senior">10-15 years (Senior)</SelectItem>
+                        <SelectItem value="lead">15+ years (Lead/Principal)</SelectItem>
+                        <SelectItem value="executive">20+ years (Executive)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
+
+              {/* Number of Openings and Estimated Hiring Timeline */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="numberOfOpenings">Number of Openings *</Label>
+                  <Input 
+                    id="numberOfOpenings" 
+                    type="number"
+                    min="1"
+                    placeholder="e.g. 2"
+                    value={createFormData.numberOfOpenings}
+                    onChange={(e) => setCreateFormData({...createFormData, numberOfOpenings: e.target.value})}
+                    className={formErrors.numberOfOpenings ? "border-red-500" : ""}
+                  />
+                  {formErrors.numberOfOpenings && (
+                    <p className="text-sm text-red-500">{formErrors.numberOfOpenings}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimated-duration">Estimated Hiring Timeline <span className="text-red-500">*</span></Label>
+                  <Select value={createFormData.estimatedDuration} onValueChange={(value) => setCreateFormData({...createFormData, estimatedDuration: value})}>
+                    <SelectTrigger className={formErrors.estimatedDuration ? "border-red-500" : ""}>
+                      <SelectValue placeholder="Select timeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
+                      <SelectItem value="2-3 weeks">2-3 weeks</SelectItem>
+                      <SelectItem value="3-4 weeks">3-4 weeks</SelectItem>
+                      <SelectItem value="1-2 months">1-2 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {formErrors.estimatedDuration && (
+                    <p className="text-sm text-red-500">{formErrors.estimatedDuration}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Duration field - only show for contract and internship */}
+              {(createFormData.type === 'contract' || createFormData.type === 'internship') && (
+                <div className="space-y-2">
+                  <Label htmlFor="duration">Duration *</Label>
+                  <Input 
+                    id="duration" 
+                    placeholder="e.g. 6 months, 3 months, 1 year"
+                    value={createFormData.duration}
+                    onChange={(e) => setCreateFormData({...createFormData, duration: e.target.value})}
+                    className={formErrors.duration ? "border-red-500" : ""}
+                  />
+                  {formErrors.duration && (
+                    <p className="text-sm text-red-500">{formErrors.duration}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Specify the duration for this {createFormData.type} position
+                  </p>
+                </div>
+              )}
 
               {/* Job Description */}
               <div className="space-y-4">
@@ -618,17 +719,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                 <h3 className="text-lg font-semibold">Compensation & Benefits</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="salary-min">Minimum Salary</Label>
+                    <Label htmlFor="salary-min">Minimum Salary <span className="text-red-500">*</span></Label>
                     <Input 
                       id="salary-min" 
                       type="number"
                       placeholder="e.g. 80000"
                       value={createFormData.salaryMin}
                       onChange={(e) => setCreateFormData({...createFormData, salaryMin: e.target.value})}
+                      className={formErrors.salaryMin ? "border-red-500" : ""}
                     />
+                    {formErrors.salaryMin && (
+                      <p className="text-sm text-red-500">{formErrors.salaryMin}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="salary-max">Maximum Salary</Label>
+                    <Label htmlFor="salary-max">Maximum Salary <span className="text-red-500">*</span></Label>
                     <Input 
                       id="salary-max" 
                       type="number"
@@ -700,20 +805,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="estimated-duration">Estimated Hiring Timeline</Label>
-                  <Select value={createFormData.estimatedDuration} onValueChange={(value) => setCreateFormData({...createFormData, estimatedDuration: value})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select timeline" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
-                      <SelectItem value="2-3 weeks">2-3 weeks</SelectItem>
-                      <SelectItem value="3-4 weeks">3-4 weeks</SelectItem>
-                      <SelectItem value="1-2 months">1-2 months</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="flex items-center space-x-2">
                   <input
@@ -803,100 +894,107 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               <p className="text-sm">Try adjusting your search or filters</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredJobs.map((job: any) => (
-                <Card key={job.id || job._id} className="hover:shadow-lg transition-all duration-300">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      {/* Left Section - Main Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg truncate">{job.title}</h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Applications</TableHead>
+                  <TableHead>Openings</TableHead>
+                  <TableHead>Posted</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredJobs.map((job: any) => (
+                  <TableRow key={job.id || job._id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Briefcase className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-base">{job.title}</div>
                           {job.jobId && (
-                            <span className="text-blue-600 text-xs font-mono flex-shrink-0">
-                              {job.jobId}
-                            </span>
+                            <div className="text-sm text-muted-foreground font-mono">
+                              ID: {job.jobId}
+                            </div>
                           )}
-                          <Badge className={getStatusColor(job.status)}>
-                            {job.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Building2 className="w-4 h-4 text-blue-600" />
-                            <span className="truncate">{job.companyId?.name || 'N/A'}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4 text-emerald-600" />
-                            <span>{job.location}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4 text-amber-600" />
-                            <span>{job.urgency}</span>
-                          </div>
                         </div>
                       </div>
-
-                      {/* Center Section - Applications */}
-                      <div className="flex items-center justify-center mx-4">
-                        <div className="text-center">
-                          <div className="flex items-center justify-center gap-1 mb-1">
-                            <Users className="w-4 h-4 text-purple-600" />
-                            <div className="text-2xl font-bold text-purple-600">{job.applications || 0}</div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">Applications</div>
-                        </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm">{job.companyId?.name || 'N/A'}</span>
                       </div>
-
-                      {/* Right Section - Salary, Agent, Date & Actions */}
-                      <div className="flex items-center gap-4">
-                        <div className="text-right w-32">
-                          <div className="text-sm font-medium text-emerald-600">{formatSalary(job)}</div>
-                          <div className="text-xs text-muted-foreground">Salary</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">{getAssignedAgent(job)}</div>
-                          <div className="text-xs text-muted-foreground">Agent</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">
-                            {job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'N/A'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">Posted</div>
-                        </div>
-                        
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewJob(job)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditJob(job)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Edit Job
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteJob(job.id || job._id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Job
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-emerald-600" />
+                        <span className="text-sm">{job.location}</span>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {job.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(job.status)}>
+                        {job.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Users className="w-4 h-4 text-purple-600" />
+                        <span className="font-medium">{job.applications || 0}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <UserCheck className="w-4 h-4 text-green-600" />
+                        <span className="font-medium">{job.numberOfOpenings || 1}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewJob(job)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditJob(job)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Job
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteJob(job.id || job._id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Job
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

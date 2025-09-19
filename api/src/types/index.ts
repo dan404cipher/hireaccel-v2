@@ -297,6 +297,15 @@ export enum JobUrgency {
 }
 
 /**
+ * Work type for jobs
+ */
+export enum WorkType {
+  REMOTE = 'remote',
+  WFO = 'wfo',
+  WFH = 'wfh',
+}
+
+/**
  * Job requirements
  */
 export interface JobRequirements {
@@ -317,7 +326,7 @@ export interface Job {
   requirements: JobRequirements;
   location: string;
   type: JobType;
-  salaryRange?: {
+  salaryRange: {
     min: number;
     max: number;
     currency: string;
@@ -325,6 +334,9 @@ export interface Job {
   companyId: Types.ObjectId;
   status: JobStatus;
   urgency: JobUrgency;
+  workType: WorkType;
+  duration?: string;
+  numberOfOpenings: number;
   assignedAgentId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   applications?: number;

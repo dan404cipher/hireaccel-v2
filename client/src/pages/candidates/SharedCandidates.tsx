@@ -682,30 +682,19 @@ const SharedCandidates: React.FC = () => {
 
           {/* Row 2: Assigned By, Experience, Resume */}
           <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Column 1: Assigned By/HR */}
-            <div>
-              <div className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
-                <User className="w-4 h-4 text-blue-600" />
-                {isAgentView ? "Assigned HR" : "Assigned by"}
-              </div>
-              <div className="text-base text-gray-900">
-                {isAgentView ? (
-                  assignment.assignedTo ? (
-                    `${assignment.assignedTo.firstName} ${assignment.assignedTo.lastName}`
-                  ) : (
-                    "Not assigned"
-                  )
-                ) : (
-                  assignment.assignedBy ? `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}` : 'Unknown'
-                )}
-              </div>
-              <div className="text-sm text-gray-500 flex items-center gap-1">
-                <Clock className="w-4 h-4 text-gray-400" />
-                {isAgentView ? (
-                  assignment.assignedAt ? formatDistanceToNow(new Date(assignment.assignedAt)) + " ago" : "Not assigned"
-                ) : (
-                  formatDistanceToNow(new Date(assignment.assignedAt)) + " ago"
-                )}
+            {/* Column 1: View Profile Button */}
+            <div className="flex items-start space-x-3">
+              <div className="h-12 w-12 flex-shrink-0"></div>
+              <div className="flex-1 min-w-0">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 mt-2"
+                  onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  View Profile
+                </Button>
               </div>
             </div>
 
