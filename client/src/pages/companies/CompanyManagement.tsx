@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,7 @@ import { toast } from "@/hooks/use-toast";
 import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CompanyManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -70,6 +72,17 @@ export default function CompanyManagement() {
   const [createFormData, setCreateFormData] = useState<any>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+
+  // Check for URL action parameter to auto-open dialogs
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'add') {
+      setIsCreateDialogOpen(true);
+      // Remove the action parameter from URL to prevent re-opening
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Debug fieldErrors changes
   useEffect(() => {
@@ -876,7 +889,7 @@ export default function CompanyManagement() {
               <div>
                 <p className="text-sm text-amber-100">Open Positions</p>
                 <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : companies.reduce((sum, c) => sum + (c.activeJobs || 0), 0)}
+                  {companiesLoading ? "..." : companies.reduce((sum, c) => sum + (c.numberOfOpenings || 0), 0)}
                 </p>
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">

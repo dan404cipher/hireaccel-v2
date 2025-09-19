@@ -63,6 +63,15 @@
   }
 }
 
+@keyframes scroll-vertical {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
 }
@@ -85,6 +94,10 @@
 
 .animate-scroll {
   animation: scroll 20s linear infinite !important;
+}
+
+.animate-scroll-vertical {
+  animation: scroll-vertical 30s linear infinite !important;
 }
 
 /* Remove heavy animations and transitions */

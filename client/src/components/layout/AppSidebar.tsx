@@ -55,6 +55,13 @@ const navigationItems = [
     roles: ['candidate'],
     color: "text-violet-600"
   },
+  { 
+    title: "My Profile", 
+    url: "/dashboard/hr-profile", 
+    icon: Users, 
+    roles: ['hr'],
+    color: "text-slate-600"
+  },
 ];
 
 const secondaryItems = [
