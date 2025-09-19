@@ -455,15 +455,6 @@ export enum CompanyStatus {
   SUSPENDED = 'suspended',
 }
 
-/**
- * Partnership level
- */
-export enum PartnershipLevel {
-  BASIC = 'basic',
-  STANDARD = 'standard',
-  PREMIUM = 'premium',
-  ENTERPRISE = 'enterprise',
-}
 
 /**
  * Company contact information
@@ -482,15 +473,22 @@ export interface Company {
   _id: Types.ObjectId;
   name: string;
   description: string;
-  industry: string;
   size: string;
-  location: string;
+  address: {
+    street: string;
+    city: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  location: string; // Populated from address for backward compatibility
   website?: string;
   logoUrl?: string;
+  foundedYear: number;
   contacts: CompanyContact[];
-  partnership: PartnershipLevel;
   status: CompanyStatus;
   rating?: number;
+  numberOfOpenings?: number;
   totalJobs: number;
   totalHires: number;
   createdBy: Types.ObjectId;
