@@ -141,7 +141,6 @@ export default function JobDetailsPage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-slate-800">{job.title}</h1>
-                <p className="text-blue-600 font-mono text-sm">{job.jobId || job._id || job.id}</p>
               </div>
             </div>
             

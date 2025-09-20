@@ -253,7 +253,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       refetchJobs();
       toast({
         title: "Success",
-        description: `Job created successfully${createdJob?.jobId ? ` with ID: ${createdJob.jobId}` : ''}`
+        description: 'Job created successfully'
       });
     } catch (error: any) {
       console.error('Job creation error:', error);
@@ -918,11 +918,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                         </div>
                         <div>
                           <div className="font-medium text-base">{job.title}</div>
-                          {job.jobId && (
-                            <div className="text-sm text-muted-foreground font-mono">
-                              ID: {job.jobId}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </TableCell>

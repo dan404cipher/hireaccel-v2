@@ -101,8 +101,8 @@ interface CandidateAssignment {
 
 const SharedCandidates: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState('all');
+  const [jobFilter, setJobFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -132,8 +132,6 @@ const SharedCandidates: React.FC = () => {
     ? useCandidateAssignments({
         page: currentPage,
         limit: 20,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        priority: priorityFilter === 'all' ? undefined : priorityFilter,
         sortBy: 'assignedAt',
         sortOrder: 'desc'
       })
@@ -141,8 +139,6 @@ const SharedCandidates: React.FC = () => {
         page: currentPage,
         limit: 20,
         assignedTo: user?.id,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        priority: priorityFilter === 'all' ? undefined : priorityFilter,
         sortBy: 'assignedAt',
         sortOrder: 'desc'
       });
@@ -190,8 +186,22 @@ const SharedCandidates: React.FC = () => {
       );
     }
     
+    // Apply job filter
+    if (jobFilter !== 'all') {
+      filtered = filtered.filter((assignment: CandidateAssignment) => 
+        assignment && assignment.jobId?.title === jobFilter
+      );
+    }
+    
+    // Apply candidate status filter
+    if (candidateStatusFilter !== 'all') {
+      filtered = filtered.filter((assignment: CandidateAssignment) => 
+        assignment && (assignment.candidateStatus || 'new') === candidateStatusFilter
+      );
+    }
+    
     return filtered;
-  }, [assignments, searchTerm, companyFilter]);
+  }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -690,7 +700,7 @@ const SharedCandidates: React.FC = () => {
                   variant="outline" 
                   size="sm" 
                   className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 mt-2"
-                  onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
+                  onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}
                 >
                   <Eye className="w-3 h-3 mr-1" />
                   View Profile
@@ -723,7 +733,41 @@ const SharedCandidates: React.FC = () => {
                     variant="outline" 
                     size="sm" 
                     className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
-                    onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                          },
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+                        }
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        toast({
+                          title: 'Success',
+                          description: 'Resume downloaded successfully',
+                        });
+                      } catch (error) {
+                        console.error('Download error:', error);
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to download resume',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
                   >
                     <ExternalLink className="w-3 h-3 mr-1" />
                     View Resume
@@ -947,30 +991,38 @@ const SharedCandidates: React.FC = () => {
             </div>
             {user?.role !== 'agent' && (
               <>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={candidateStatusFilter} onValueChange={setCandidateStatusFilter}>
                   <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
-                    <Filter className="w-4 h-4 mr-2 text-blue-600" />
-                    <SelectValue placeholder="Status" />
+                    <User className="w-4 h-4 mr-2 text-blue-600" />
+                    <SelectValue placeholder="Candidate Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                    <SelectItem value="interviewed">Interviewed</SelectItem>
+                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
+                    <SelectItem value="hired">Hired</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <Select value={jobFilter} onValueChange={setJobFilter}>
                   <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
-                    <Filter className="w-4 h-4 mr-2 text-purple-600" />
-                    <SelectValue placeholder="Priority" />
+                    <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
+                    <SelectValue placeholder="Job" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="all">All Jobs</SelectItem>
+                    {Array.from(new Set(assignments
+                      .filter((a: CandidateAssignment) => a.jobId?.title)
+                      .map((a: CandidateAssignment) => a.jobId!.title)
+                    )).map((jobTitle: string) => (
+                      <SelectItem key={jobTitle} value={jobTitle}>
+                        {jobTitle}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </>
