@@ -9,8 +9,7 @@ import {
 import { 
   createUnauthorizedError, 
   createForbiddenError,
-  createBadRequestError,
-  createNotFoundError
+  createBadRequestError
 } from '@/middleware/errorHandler';
 import { logger } from '@/config/logger';
 
@@ -249,6 +248,25 @@ export const requireCandidateAccess = async (
     
     // Admin and HR have access to all candidates
     if ([UserRole.ADMIN, UserRole.HR].includes(user.role!)) {
+      // Convert customId to MongoDB _id for all users
+      const { User } = await import('@/models/User');
+      const { Candidate } = await import('@/models/Candidate');
+
+      // First find the user by customId
+      const targetUser = await User.findOne({ customId: candidateId });
+      if (!targetUser) {
+        throw createBadRequestError('Invalid candidate ID');
+      }
+
+      // Then find the candidate by userId
+      const candidate = await Candidate.findOne({ userId: targetUser._id });
+      if (!candidate) {
+        throw createBadRequestError('Candidate profile not found');
+      }
+
+      // Attach the candidate ID to the request for the controller
+      req.params['id'] = candidate._id.toString();
+      
       next();
       return;
     }
@@ -286,19 +304,23 @@ export const requireCandidateAccess = async (
     if (user.role === UserRole.AGENT) {
       // For now, allow agents to access all candidates
       // TODO: Implement proper assignment checking
+      const { User } = await import('@/models/User');
       const { Candidate } = await import('@/models/Candidate');
-      
-      // Check if the candidate ID is a valid ObjectId
-      const mongoose = await import('mongoose');
-      if (!mongoose.Types.ObjectId.isValid(candidateId)) {
-        throw createBadRequestError('Invalid candidate ID format');
+
+      // First find the user by customId
+      const targetUser = await User.findOne({ customId: candidateId });
+      if (!targetUser) {
+        throw createBadRequestError('Invalid candidate ID');
       }
-      
-      // Check if candidate exists
-      const candidate = await Candidate.findById(candidateId);
+
+      // Then find the candidate by userId
+      const candidate = await Candidate.findOne({ userId: targetUser._id });
       if (!candidate) {
-        throw createNotFoundError('Candidate not found');
+        throw createBadRequestError('Candidate profile not found');
       }
+
+      // Attach the candidate ID to the request for the controller
+      req.params['id'] = candidate._id.toString();
       
       next();
       return;

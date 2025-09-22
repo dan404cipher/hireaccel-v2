@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,8 +100,10 @@ interface CandidateAssignment {
 }
 
 const SharedCandidates: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [candidateStatusFilter, setCandidateStatusFilter] = useState('all');
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState(searchParams.get('candidateStatus') || 'all');
   const [jobFilter, setJobFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
@@ -611,9 +613,6 @@ const SharedCandidates: React.FC = () => {
                       <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
                         <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
-                        {assignment.jobId.companyId.industry && (
-                          <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
-                        )}
                         {assignment.jobId.location && (
                           <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
                         )}
@@ -631,9 +630,6 @@ const SharedCandidates: React.FC = () => {
                       <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
                         <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
-                        {assignment.jobId.companyId.industry && (
-                          <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
-                        )}
                         {assignment.jobId.location && (
                           <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
                         )}

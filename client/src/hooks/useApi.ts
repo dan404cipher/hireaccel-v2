@@ -80,7 +80,10 @@ export function useApi<T>(
 
   useEffect(() => {
     if (immediate) {
-      execute();
+      execute().catch(error => {
+        // Error is already handled in execute function
+        console.error('Unhandled promise rejection in useApi:', error);
+      });
     }
   }, [immediate, execute]);
 

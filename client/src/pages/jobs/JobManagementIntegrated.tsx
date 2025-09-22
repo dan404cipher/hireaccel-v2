@@ -52,19 +52,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useJobs, useCreateJob, useDeleteJob, useCompanies } from "@/hooks/useApi";
+import { useJobs, useCreateJob, useDeleteJob, useCompanies, useUpdateJob } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function JobManagementIntegrated(): React.JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editIdFromQuery = searchParams.get('editId');
+  
+  // Initialize filters from URL parameters
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || "all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedJobForEdit, setSelectedJobForEdit] = useState<any>(null);
   const [createFormData, setCreateFormData] = useState({
     title: '',
     description: '',
@@ -76,9 +82,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     currency: 'INR',
     skills: '',
     experience: 'mid' as const,
-    education: '',
-    languages: 'English',
-    isRemote: false,
     benefits: '',
     applicationDeadline: '',
     interviewRounds: 2,
@@ -91,6 +94,27 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   // Validation state
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
+  const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
+  const [skillInputValue, setSkillInputValue] = useState('');
+
+  // Skill suggestions data
+  const skillSuggestions = [
+    'React', 'TypeScript', 'Node.js', 'Python', 'Java', 'JavaScript', 'SQL', 'MongoDB', 
+    'AWS', 'Docker', 'Git', 'Agile', 'Vue.js', 'Angular', 'Express.js', 'PostgreSQL',
+    'Redis', 'Kubernetes', 'GraphQL', 'REST API', 'Microservices', 'CI/CD', 'Jenkins',
+    'Terraform', 'Linux', 'Bash', 'HTML', 'CSS', 'SASS', 'Webpack', 'Babel',
+    'Jest', 'Cypress', 'Selenium', 'Figma', 'Adobe XD', 'Sketch', 'Photoshop',
+    'Machine Learning', 'TensorFlow', 'PyTorch', 'Pandas', 'NumPy', 'Scikit-learn',
+    'Data Analysis', 'Business Intelligence', 'Tableau', 'Power BI', 'Excel',
+    'Project Management', 'Scrum', 'Kanban', 'JIRA', 'Confluence', 'Slack',
+    'Communication', 'Leadership', 'Problem Solving', 'Teamwork', 'Time Management'
+  ];
+
+  // Filter suggestions based on input
+  const filteredSuggestions = skillSuggestions.filter(skill => 
+    skill.toLowerCase().includes(skillInputValue.toLowerCase()) &&
+    !createFormData.skills.split(',').map(s => s.trim()).filter(Boolean).includes(skill)
+  ).slice(0, 8); // Show max 8 suggestions
 
   // Debounce search term to prevent excessive API calls
   useEffect(() => {
@@ -158,6 +182,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   }, [companiesLoading, hasCompanies, user?.role, navigate, toast]);
 
   const { mutate: createJob, loading: createLoading } = useCreateJob();
+  const { mutate: updateJob, loading: updateLoading } = useUpdateJob();
 
   const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob();
 
@@ -172,6 +197,16 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                          job.companyId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
+
+  // Auto-open edit dialog when editId is present
+  useEffect(() => {
+    if (editIdFromQuery && filteredJobs.length > 0) {
+      const found = filteredJobs.find((j: any) => (j._id || j.id || j.jobId) === editIdFromQuery);
+      if (found) {
+        handleEditJob(found);
+      }
+    }
+  }, [editIdFromQuery, filteredJobs]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -233,11 +268,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       },
       requirements: {
         skills: createFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
-        experience: createFormData.experience,
-        education: createFormData.education.split(',').map((s: string) => s.trim()).filter(Boolean),
-        languages: createFormData.languages.split(',').map((s: string) => s.trim()).filter(Boolean)
+        experience: createFormData.experience
       },
-      isRemote: createFormData.isRemote,
       benefits: createFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
       applicationDeadline: createFormData.applicationDeadline ? new Date(createFormData.applicationDeadline).toISOString() : undefined,
       interviewProcess: createFormData.interviewRounds || createFormData.estimatedDuration ? {
@@ -410,9 +442,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       currency: 'INR',
       skills: '',
       experience: 'mid',
-      education: '',
-      languages: 'English',
-      isRemote: false,
       benefits: '',
       applicationDeadline: '',
       interviewRounds: 2,
@@ -448,7 +477,101 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   };
 
   const handleEditJob = (job: any) => {
-    navigate(`/dashboard/jobs/${job.jobId || job.id || job._id}/edit`);
+    // Open inline edit dialog prefilled with job data
+    const salaryMin = job.salaryRange?.min ? String(job.salaryRange.min) : '';
+    const salaryMax = job.salaryRange?.max ? String(job.salaryRange.max) : '';
+    const currency = job.salaryRange?.currency || 'INR';
+    const skills = Array.isArray(job.requirements?.skills) ? job.requirements.skills.join(', ') : '';
+    const experience = job.requirements?.experience || 'mid';
+    const benefits = Array.isArray(job.benefits) ? job.benefits.join(', ') : '';
+    const interviewRounds = job.interviewProcess?.rounds || 2;
+    const estimatedDuration = job.interviewProcess?.estimatedDuration || '2-3 weeks';
+
+    setEditFormData({
+      title: job.title || '',
+      description: job.description || '',
+      location: job.location || '',
+      type: job.type || 'full-time',
+      workType: job.workType || 'wfo',
+      salaryMin,
+      salaryMax,
+      currency,
+      skills,
+      experience,
+      benefits,
+      applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
+      interviewRounds,
+      estimatedDuration,
+      duration: job.duration || '',
+      numberOfOpenings: String(job.numberOfOpenings || '1'),
+      companyId: job.companyId?._id || job.companyId || ''
+    });
+    setSelectedJobForEdit(job);
+    setIsEditDialogOpen(true);
+  };
+
+  const [editFormData, setEditFormData] = useState({
+    title: '',
+    description: '',
+    location: '',
+    type: 'full-time' as const,
+    workType: 'wfo' as const,
+    salaryMin: '',
+    salaryMax: '',
+    currency: 'INR',
+    skills: '',
+    experience: 'mid' as const,
+    benefits: '',
+    applicationDeadline: '',
+    interviewRounds: 2,
+    estimatedDuration: '2-3 weeks',
+    duration: '',
+    numberOfOpenings: '1',
+    companyId: ''
+  });
+
+  const handleUpdateJob = async () => {
+    if (!selectedJobForEdit) return;
+    // Reuse validateForm for essential checks (title/desc/location/company)
+    if (!editFormData.title.trim() || !editFormData.description.trim() || !editFormData.location.trim() || !editFormData.companyId) {
+      toast({ title: 'Validation Error', description: 'Please fill all required fields', variant: 'destructive' });
+      return;
+    }
+    const data = {
+      title: editFormData.title.trim(),
+      description: editFormData.description.trim(),
+      location: editFormData.location.trim(),
+      type: editFormData.type,
+      workType: editFormData.workType,
+      duration: (editFormData.type === 'contract' || editFormData.type === 'internship') ? editFormData.duration : undefined,
+      numberOfOpenings: parseInt(editFormData.numberOfOpenings) || 1,
+      companyId: editFormData.companyId,
+      salaryRange: {
+        min: parseInt(editFormData.salaryMin) || 0,
+        max: parseInt(editFormData.salaryMax) || 0,
+        currency: editFormData.currency,
+      },
+      requirements: {
+        skills: editFormData.skills.split(',').map(s => s.trim()).filter(Boolean),
+        experience: editFormData.experience,
+      },
+      benefits: editFormData.benefits.split(',').map(s => s.trim()).filter(Boolean),
+      applicationDeadline: editFormData.applicationDeadline ? new Date(editFormData.applicationDeadline).toISOString() : undefined,
+      interviewProcess: editFormData.interviewRounds || editFormData.estimatedDuration ? {
+        rounds: editFormData.interviewRounds,
+        estimatedDuration: editFormData.estimatedDuration
+      } : undefined
+    };
+
+    try {
+      await updateJob({ id: selectedJobForEdit.id || selectedJobForEdit._id, data });
+      setIsEditDialogOpen(false);
+      setSelectedJobForEdit(null);
+      refetchJobs();
+      toast({ title: 'Success', description: 'Job updated successfully' });
+    } catch (e) {
+      console.error('Update job error:', e);
+    }
   };
 
 
@@ -486,7 +609,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                 <h3 className="text-lg font-semibold">Basic Information</h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Job Title *</Label>
+                    <Label htmlFor="title">Job Title <span className="text-red-500">*</span></Label>
                     <Input 
                       id="title" 
                       placeholder="e.g. Senior React Developer"
@@ -510,7 +633,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     <p className="text-xs text-muted-foreground">Location will be automatically filled when you select a company</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="company">Company *</Label>
+                    <Label htmlFor="company">Company <span className="text-red-500">*</span></Label>
                     <Select 
                       value={createFormData.companyId} 
                       onValueChange={(value) => {
@@ -518,12 +641,14 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                         let location = '';
                         
                         if (selectedCompany) {
-                          // Auto-fill location from company address
+                          // Auto-fill complete location from company address including PIN code
                           if (selectedCompany.address) {
                             const addressParts = [
                               selectedCompany.address.street,
                               selectedCompany.address.city,
-                              selectedCompany.address.state
+                              selectedCompany.address.state,
+                              selectedCompany.address.zipCode,
+                              selectedCompany.address.country
                             ].filter(Boolean);
                             location = addressParts.join(', ');
                           } else if (selectedCompany.location) {
@@ -557,7 +682,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="type">Job Type *</Label>
+                    <Label htmlFor="type">Job Type <span className="text-red-500">*</span></Label>
                     <Select value={createFormData.type} onValueChange={(value) => setCreateFormData({...createFormData, type: value as any})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
@@ -571,15 +696,15 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="workType">Work Type *</Label>
+                    <Label htmlFor="workType">Work Type <span className="text-red-500">*</span></Label>
                     <Select value={createFormData.workType} onValueChange={(value) => setCreateFormData({...createFormData, workType: value as any})}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select work type" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="wfo">Onsite</SelectItem>
+                        <SelectItem value="wfh">Hybrid</SelectItem>
                         <SelectItem value="remote">Remote</SelectItem>
-                        <SelectItem value="wfo">WFO (Work From Office)</SelectItem>
-                        <SelectItem value="wfh">WFH (Work From Home)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -605,7 +730,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               {/* Number of Openings and Estimated Hiring Timeline */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="numberOfOpenings">Number of Openings *</Label>
+                  <Label htmlFor="numberOfOpenings">Number of Openings <span className="text-red-500">*</span></Label>
                   <Input 
                     id="numberOfOpenings" 
                     type="number"
@@ -641,7 +766,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               {/* Duration field - only show for contract and internship */}
               {(createFormData.type === 'contract' || createFormData.type === 'internship') && (
                 <div className="space-y-2">
-                  <Label htmlFor="duration">Duration *</Label>
+                  <Label htmlFor="duration">Duration <span className="text-red-500">*</span></Label>
                   <Input 
                     id="duration" 
                     placeholder="e.g. 6 months, 3 months, 1 year"
@@ -662,7 +787,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Job Description</h3>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Detailed Description *</Label>
+                  <Label htmlFor="description">Detailed Description <span className="text-red-500">*</span></Label>
                   <Textarea 
                     id="description" 
                     placeholder="Enter detailed job description, responsibilities, and expectations..."
@@ -680,37 +805,104 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Requirements</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="skills">Required Skills *</Label>
+                  <div className="space-y-2 relative col-span-2">
+                    <Label htmlFor="skills">Required Skills <span className="text-red-500">*</span></Label>
                     <Input 
                       id="skills" 
                       placeholder="e.g. React, TypeScript, Node.js (comma separated)"
                       value={createFormData.skills}
-                      onChange={(e) => setCreateFormData({...createFormData, skills: e.target.value})}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCreateFormData({...createFormData, skills: value});
+                        
+                        // Extract the last skill being typed for suggestions
+                        const skills = value.split(',').map(s => s.trim());
+                        const lastSkill = skills[skills.length - 1] || '';
+                        setSkillInputValue(lastSkill);
+                        setShowSkillSuggestions(lastSkill.length > 0);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === 'Tab' || e.key === ',') {
+                          const raw = createFormData.skills;
+                          const parts = raw.split(',');
+                          const last = parts[parts.length - 1].trim();
+                          if (last.length > 0) {
+                            e.preventDefault();
+                            const current = raw
+                              .split(',')
+                              .map(s => s.trim())
+                              .filter(Boolean);
+                            if (!current.includes(last)) {
+                              const newSkills = [...current, last].join(', ') + ', ';
+                              setCreateFormData({...createFormData, skills: newSkills});
+                            } else if (!raw.endsWith(', ')) {
+                              // Ensure consistent trailing comma+space after confirming token
+                              setCreateFormData({...createFormData, skills: current.join(', ') + ', '});
+                            }
+                            setShowSkillSuggestions(false);
+                            setSkillInputValue('');
+                          }
+                        }
+                      }}
+                      onFocus={() => {
+                        const skills = createFormData.skills.split(',').map(s => s.trim());
+                        const lastSkill = skills[skills.length - 1] || '';
+                        setSkillInputValue(lastSkill);
+                        setShowSkillSuggestions(lastSkill.length > 0);
+                      }}
+                      onBlur={() => {
+                        // Delay hiding suggestions to allow clicking on them
+                        setTimeout(() => setShowSkillSuggestions(false), 200);
+                      }}
                       className={formErrors.skills ? "border-red-500" : ""}
                     />
+                    
+                    {/* Live Skill Suggestions */}
+                    {showSkillSuggestions && filteredSuggestions.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {filteredSuggestions.map((skill) => (
+                          <button
+                            key={skill}
+                            type="button"
+                            onClick={() => {
+                              // Replace the last (partial) token with the selected suggestion
+                              const tokens = createFormData.skills.split(',').map(s => s.trim());
+                              if (tokens.length === 0) {
+                                const only = skill + ', ';
+                                setCreateFormData({...createFormData, skills: only});
+                              } else {
+                                tokens[tokens.length - 1] = skill;
+                                const unique = Array.from(new Set(tokens.filter(Boolean)));
+                                const newSkills = unique.join(', ') + ', ';
+                                setCreateFormData({...createFormData, skills: newSkills});
+                              }
+                              setShowSkillSuggestions(false);
+                              setSkillInputValue('');
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                          >
+                            {skill}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Added skills as tags */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {createFormData.skills
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(Boolean)
+                        .map(skill => (
+                          <span key={skill} className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200">
+                            {skill}
+                          </span>
+                        ))}
+                    </div>
                     {formErrors.skills && (
                       <p className="text-sm text-red-500">{formErrors.skills}</p>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="education">Education Requirements</Label>
-                    <Input 
-                      id="education" 
-                      placeholder="e.g. Bachelor's in Computer Science (comma separated)"
-                      value={createFormData.education}
-                      onChange={(e) => setCreateFormData({...createFormData, education: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="languages">Languages</Label>
-                  <Input 
-                    id="languages" 
-                    placeholder="e.g. English, Spanish (comma separated)"
-                    value={createFormData.languages}
-                    onChange={(e) => setCreateFormData({...createFormData, languages: e.target.value})}
-                  />
                 </div>
               </div>
 
@@ -806,16 +998,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     </Select>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="is-remote"
-                    checked={createFormData.isRemote}
-                    onChange={(e) => setCreateFormData({...createFormData, isRemote: e.target.checked})}
-                    className="rounded"
-                  />
-                  <Label htmlFor="is-remote">Remote work available</Label>
-                </div>
               </div>
             </div>
             
@@ -833,6 +1015,194 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               >
                 {createLoading ? "Creating..." : "Create Job"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Job Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Job</DialogTitle>
+              <DialogDescription>Update the job details.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Basic Information</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-title">Job Title <span className="text-red-500">*</span></Label>
+                    <Input id="edit-title" value={editFormData.title} onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-location">Location (Auto-filled from company)</Label>
+                    <Input id="edit-location" value={editFormData.location} readOnly className="bg-muted/50 cursor-not-allowed" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-company">Company <span className="text-red-500">*</span></Label>
+                    <Select value={editFormData.companyId} onValueChange={(value) => {
+                      const selectedCompany = companies.find((company: any) => company._id === value);
+                      let location = '';
+                      if (selectedCompany) {
+                        if (selectedCompany.address) {
+                          const addressParts = [
+                            selectedCompany.address.street,
+                            selectedCompany.address.city,
+                            selectedCompany.address.state,
+                            selectedCompany.address.zipCode,
+                            selectedCompany.address.country
+                          ].filter(Boolean);
+                          location = addressParts.join(', ');
+                        } else if (selectedCompany.location) {
+                          location = selectedCompany.location;
+                        }
+                      }
+                      setEditFormData({ ...editFormData, companyId: value, location });
+                    }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((company: any) => (
+                          <SelectItem key={company._id} value={company._id}>{company.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-type">Job Type <span className="text-red-500">*</span></Label>
+                    <Select value={editFormData.type} onValueChange={(value) => setEditFormData({...editFormData, type: value as any})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full-time">Full-time</SelectItem>
+                        <SelectItem value="part-time">Part-time</SelectItem>
+                        <SelectItem value="contract">Contract</SelectItem>
+                        <SelectItem value="internship">Internship</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-workType">Work Type <span className="text-red-500">*</span></Label>
+                    <Select value={editFormData.workType} onValueChange={(value) => setEditFormData({...editFormData, workType: value as any})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select work type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="wfo">Onsite</SelectItem>
+                        <SelectItem value="wfh">Hybrid</SelectItem>
+                        <SelectItem value="remote">Remote</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-experience">Experience Level</Label>
+                    <Select value={editFormData.experience} onValueChange={(value) => setEditFormData({...editFormData, experience: value as any})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select experience" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="entry">0-2 years (Entry Level)</SelectItem>
+                        <SelectItem value="junior">2-5 years (Junior)</SelectItem>
+                        <SelectItem value="mid">5-10 years (Mid Level)</SelectItem>
+                        <SelectItem value="senior">10-15 years (Senior)</SelectItem>
+                        <SelectItem value="lead">15+ years (Lead/Principal)</SelectItem>
+                        <SelectItem value="executive">20+ years (Executive)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Openings & Timeline */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-openings">Number of Openings <span className="text-red-500">*</span></Label>
+                  <Input id="edit-openings" type="number" min="1" value={editFormData.numberOfOpenings} onChange={(e) => setEditFormData({...editFormData, numberOfOpenings: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-estimated">Estimated Hiring Timeline <span className="text-red-500">*</span></Label>
+                  <Select value={editFormData.estimatedDuration} onValueChange={(value) => setEditFormData({...editFormData, estimatedDuration: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select timeline" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
+                      <SelectItem value="2-3 weeks">2-3 weeks</SelectItem>
+                      <SelectItem value="3-4 weeks">3-4 weeks</SelectItem>
+                      <SelectItem value="1-2 months">1-2 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Duration (conditional) */}
+              {(editFormData.type === 'contract' || editFormData.type === 'internship') && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-duration">Duration <span className="text-red-500">*</span></Label>
+                  <Input id="edit-duration" value={editFormData.duration} onChange={(e) => setEditFormData({...editFormData, duration: e.target.value})} />
+                </div>
+              )}
+
+              {/* Description */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-description">Detailed Description <span className="text-red-500">*</span></Label>
+                <Textarea id="edit-description" className="min-h-[120px]" value={editFormData.description} onChange={(e) => setEditFormData({...editFormData, description: e.target.value})} />
+              </div>
+
+              {/* Requirements */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Requirements</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 relative col-span-2">
+                    <Label htmlFor="edit-skills">Required Skills <span className="text-red-500">*</span></Label>
+                    <Input id="edit-skills" value={editFormData.skills} onChange={(e) => setEditFormData({...editFormData, skills: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Compensation & Benefits */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Compensation & Benefits</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-salary-min">Minimum Salary <span className="text-red-500">*</span></Label>
+                    <Input id="edit-salary-min" type="number" value={editFormData.salaryMin} onChange={(e) => setEditFormData({...editFormData, salaryMin: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-salary-max">Maximum Salary <span className="text-red-500">*</span></Label>
+                    <Input id="edit-salary-max" type="number" value={editFormData.salaryMax} onChange={(e) => setEditFormData({...editFormData, salaryMax: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-currency">Currency</Label>
+                    <Select value={editFormData.currency} onValueChange={(value) => setEditFormData({...editFormData, currency: value})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="INR">INR (₹)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CAD">CAD (C$)</SelectItem>
+                        <SelectItem value="AUD">AUD (A$)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-benefits">Benefits & Perks</Label>
+                  <Input id="edit-benefits" value={editFormData.benefits} onChange={(e) => setEditFormData({...editFormData, benefits: e.target.value})} />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={updateLoading}>Cancel</Button>
+              <Button onClick={handleUpdateJob} disabled={updateLoading}> {updateLoading ? 'Saving...' : 'Save Changes'} </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

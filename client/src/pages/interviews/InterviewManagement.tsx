@@ -72,7 +72,7 @@ export default function InterviewManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState(searchParams.get('date') || "all");
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [page, setPage] = useState(1);
@@ -246,7 +246,6 @@ export default function InterviewManagement() {
       case "video": return <Video className="w-4 h-4 text-blue-600" />;
       case "phone": return <Phone className="w-4 h-4 text-emerald-600" />;
       case "in-person": return <MapPin className="w-4 h-4 text-purple-600" />;
-      case "technical": return <Users className="w-4 h-4 text-amber-600" />;
       default: return <Clock className="w-4 h-4 text-gray-600" />;
     }
   };
@@ -596,8 +595,7 @@ export default function InterviewManagement() {
                     <SelectContent>
                       <SelectItem value="video">Video Call</SelectItem>
                       <SelectItem value="phone">Phone Call</SelectItem>
-                      <SelectItem value="in-person">In-Person</SelectItem>
-                      <SelectItem value="technical">Technical Interview</SelectItem>
+                      <SelectItem value="in-person">Walk In</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -727,7 +725,7 @@ export default function InterviewManagement() {
                   <SelectContent>
                     <SelectItem value="video">Video Call</SelectItem>
                     <SelectItem value="phone">Phone Call</SelectItem>
-                    <SelectItem value="in-person">In Person</SelectItem>
+                    <SelectItem value="in-person">Walk In</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

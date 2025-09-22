@@ -170,8 +170,7 @@ export default function CompanyManagement() {
       status: company.status || 'active',
       description: company.description || '',
       website: company.website || '',
-      foundedYear: company.foundedYear || '',
-      numberOfOpenings: company.numberOfOpenings || ''
+      foundedYear: company.foundedYear || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -421,10 +420,10 @@ export default function CompanyManagement() {
 
   const handleCreateCompany = async () => {
     // Validate required fields
-    if (!createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.foundedYear || !createFormData.description) {
+    if (!createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.address?.zipCode || !createFormData.foundedYear || !createFormData.description) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields: Company Name, Size, Street Address, City, Founded Year, and Description",
+        description: "Please fill in all required fields: Company Name, Size, Company Address, City, ZIP/PIN Code, Founded Year, and Description",
         variant: "destructive"
       });
       return;
@@ -457,7 +456,6 @@ export default function CompanyManagement() {
       website: createFormData.website && createFormData.website.trim() !== '' ? createFormData.website.trim() : undefined,
       description: createFormData.description.trim(),
       foundedYear: parseInt(createFormData.foundedYear) || new Date().getFullYear(),
-      numberOfOpenings: parseInt(createFormData.numberOfOpenings) || 0,
       status: 'active',
       contacts: []
     };
@@ -483,10 +481,10 @@ export default function CompanyManagement() {
     if (!selectedCompany?.id) return;
     
     // Validate required fields
-    if (!editFormData.name || !editFormData.size || !editFormData.address?.street || !editFormData.address?.city || !editFormData.foundedYear || !editFormData.description) {
+    if (!editFormData.name || !editFormData.size || !editFormData.address?.street || !editFormData.address?.city || !editFormData.address?.zipCode || !editFormData.foundedYear || !editFormData.description) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields: Company Name, Size, Street Address, City, Founded Year, and Description",
+        description: "Please fill in all required fields: Company Name, Size, Company Address, City, ZIP/PIN Code, Founded Year, and Description",
         variant: "destructive"
       });
       return;
@@ -519,8 +517,7 @@ export default function CompanyManagement() {
       status: editFormData.status,
       description: editFormData.description,
       website: editFormData.website && editFormData.website.trim() !== '' ? editFormData.website.trim() : undefined,
-      foundedYear: parseInt(editFormData.foundedYear) || new Date().getFullYear(),
-      numberOfOpenings: parseInt(editFormData.numberOfOpenings) || 0
+      foundedYear: parseInt(editFormData.foundedYear) || new Date().getFullYear()
     };
 
     try {
@@ -628,14 +625,9 @@ export default function CompanyManagement() {
               </div>
               
               <div className="space-y-4">
-                <div>
-                  <Label className="text-base font-medium">Address <span className="text-red-500">*</span></Label>
-                  <p className="text-sm text-muted-foreground mb-3">Please provide the company's complete address</p>
-                </div>
-                
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="create-street">Street Address <span className="text-red-500">*</span></Label>
+                    <Label htmlFor="create-street">Company Address <span className="text-red-500">*</span></Label>
                     <Input 
                       id="create-street" 
                       value={createFormData.address?.street || ''}
@@ -698,7 +690,7 @@ export default function CompanyManagement() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="create-zipcode">ZIP/Postal Code</Label>
+                    <Label htmlFor="create-zipcode">ZIP/PIN Code <span className="text-red-500">*</span></Label>
                     <Input 
                       id="create-zipcode" 
                       value={createFormData.address?.zipCode || ''}
@@ -774,26 +766,6 @@ export default function CompanyManagement() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-openings">Number of Openings</Label>
-                  <Input 
-                    id="create-openings" 
-                    type="number"
-                    value={createFormData.numberOfOpenings || ''}
-                    onChange={(e) => {
-                      setCreateFormData({...createFormData, numberOfOpenings: e.target.value});
-                      clearFieldError('numberOfOpenings');
-                    }}
-                    placeholder="e.g. 5" 
-                    className={fieldErrors.numberOfOpenings ? "border-red-500 focus:border-red-500" : ""}
-                  />
-                  {fieldErrors.numberOfOpenings && (
-                    <p className="text-sm text-red-500 mt-1">{fieldErrors.numberOfOpenings}</p>
-                  )}
-                </div>
-                <div></div>
-              </div>
               
               <div className="space-y-2">
                 <Label htmlFor="create-description">Company Description <span className="text-red-500">*</span></Label>
@@ -827,7 +799,7 @@ export default function CompanyManagement() {
               </Button>
               <Button 
                 onClick={handleCreateCompany} 
-                disabled={createLoading || !createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.foundedYear || !createFormData.description}
+                disabled={createLoading || !createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.address?.zipCode || !createFormData.foundedYear || !createFormData.description}
               >
                 {createLoading ? "Creating..." : "Add Company"}
               </Button>
@@ -885,17 +857,6 @@ export default function CompanyManagement() {
         </Card>
         <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-amber-100">Open Positions</p>
-                <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : companies.reduce((sum, c) => sum + (c.numberOfOpenings || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Briefcase className="w-6 h-6 text-amber-100" />
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -955,7 +916,6 @@ export default function CompanyManagement() {
                   <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
                   <TableHead>Size</TableHead>
-                  <TableHead>Openings</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1008,12 +968,6 @@ export default function CompanyManagement() {
                         <Badge variant="outline" className="text-xs">
                           {company.size}
                         </Badge>
-                      </div>
-                      </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2 text-base">
-                        <Briefcase className="w-4 h-4 text-green-600" />
-                        {company.numberOfOpenings || 0}
                       </div>
                       </TableCell>
                       <TableCell>
@@ -1094,11 +1048,6 @@ export default function CompanyManagement() {
                         <Badge variant="outline" className="text-xs">
                           {selectedCompany.size}
                         </Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Open Positions:</span>
-                        <span>{selectedCompany.numberOfOpenings || 0}</span>
                       </div>
                       {selectedCompany.website && (
                         <div className="flex items-center gap-2">
@@ -1220,14 +1169,9 @@ export default function CompanyManagement() {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <Label className="text-base font-medium">Address <span className="text-red-500">*</span></Label>
-                <p className="text-sm text-muted-foreground mb-3">Please provide the company's complete address</p>
-              </div>
-              
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-street">Street Address <span className="text-red-500">*</span></Label>
+                  <Label htmlFor="edit-street">Company Address <span className="text-red-500">*</span></Label>
                   <Input 
                     id="edit-street" 
                     value={editFormData.address?.street || ''}
@@ -1290,7 +1234,7 @@ export default function CompanyManagement() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-zipcode">ZIP/Postal Code</Label>
+                  <Label htmlFor="edit-zipcode">ZIP/PIN Code <span className="text-red-500">*</span></Label>
                   <Input 
                     id="edit-zipcode" 
                     value={editFormData.address?.zipCode || ''}
@@ -1384,26 +1328,6 @@ export default function CompanyManagement() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-openings">Number of Openings</Label>
-                <Input 
-                  id="edit-openings" 
-                  type="number"
-                  value={editFormData.numberOfOpenings || ''}
-                  onChange={(e) => {
-                    setEditFormData({...editFormData, numberOfOpenings: e.target.value});
-                    clearFieldError('numberOfOpenings');
-                  }}
-                  placeholder="e.g. 5" 
-                  className={fieldErrors.numberOfOpenings ? "border-red-500 focus:border-red-500" : ""}
-                />
-                {fieldErrors.numberOfOpenings && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.numberOfOpenings}</p>
-                )}
-              </div>
-              <div></div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="edit-description">Company Description <span className="text-red-500">*</span></Label>

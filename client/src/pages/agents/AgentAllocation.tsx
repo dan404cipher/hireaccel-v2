@@ -15,6 +15,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -27,11 +33,13 @@ import {
   Mail,
   CheckSquare,
   Save,
-  Trash2
+  Trash2,
+  MoreHorizontal
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment, useRemoveFromAgentAssignment } from '../../hooks/useApi';
 import { User } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 interface ExtendedUser extends User {
   candidateId?: string; // The ID of the candidate document for users with role 'candidate'
@@ -69,6 +77,7 @@ interface AgentAssignment {
 
 export default function AgentAllocation(): React.JSX.Element {
   // AgentAllocation component rendering
+  const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
@@ -370,7 +379,9 @@ export default function AgentAllocation(): React.JSX.Element {
       setSelectedResources(new Set());
       setSelectAll(false);
       
-      refetchAssignments();
+      // Explicitly refresh data to show immediate update
+      await refetchAssignments();
+      await refetchUsers();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -409,6 +420,10 @@ export default function AgentAllocation(): React.JSX.Element {
       };
 
       await removeFromAgentAssignment(removeData);
+      
+      // Explicitly refresh data to show immediate update
+      await refetchAssignments();
+      await refetchUsers();
       
       toast({
         title: "Success",
@@ -648,7 +663,18 @@ export default function AgentAllocation(): React.JSX.Element {
                               <UserPlus className="h-4 w-4 mr-1" />
                               Allocate
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-blue-600 hover:bg-blue-50"
+                              onClick={() => {
+                                if (resource.role === 'candidate') {
+                                  navigate(`/dashboard/candidates/${resource.customId}`);
+                                } else if (resource.role === 'hr') {
+                                  navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                }
+                              }}
+                            >
                               <Eye className="h-4 w-4 mr-1" />
                               View
                             </Button>
@@ -772,31 +798,37 @@ export default function AgentAllocation(): React.JSX.Element {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openAllocationDialog(resource)}
-                                className="border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Reassign
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleRemoveResource(resource._id)}
-                                disabled={loading}
-                                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Remove
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                      </Button>
-                    </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openAllocationDialog(resource)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Reassign
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  if (resource.role === 'candidate') {
+                                    navigate(`/dashboard/candidates/${resource.customId}`);
+                                  } else if (resource.role === 'hr') {
+                                    navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                  }
+                                }}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleRemoveResource(resource._id)}
+                                  disabled={loading}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );

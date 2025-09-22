@@ -171,6 +171,7 @@ export default function HRDashboard() {
           description="Currently open positions"
           gradient="from-blue-500 to-blue-600"
           iconColor="text-blue-100"
+          onClick={() => navigate('/dashboard/jobs?status=open')}
         />
         <MetricCard
           title="Total Applications"
@@ -179,6 +180,7 @@ export default function HRDashboard() {
           description="All applications received"
           gradient="from-emerald-500 to-emerald-600"
           iconColor="text-emerald-100"
+          onClick={() => navigate('/dashboard/shared-candidates')}
         />
         <MetricCard
           title="New Applications"
@@ -187,6 +189,7 @@ export default function HRDashboard() {
           description="New candidates assigned"
           gradient="from-amber-500 to-amber-600"
           iconColor="text-amber-100"
+          onClick={() => navigate('/dashboard/shared-candidates?candidateStatus=new')}
         />
         <MetricCard
           title="Interviews Today"
@@ -195,6 +198,7 @@ export default function HRDashboard() {
           description="Scheduled for today"
           gradient="from-purple-500 to-purple-600"
           iconColor="text-purple-100"
+          onClick={() => navigate('/dashboard/interviews?date=today')}
         />
       </div>
 
@@ -362,7 +366,8 @@ function MetricCard({
   icon, 
   description, 
   gradient = "from-gray-500 to-gray-600",
-  iconColor = "text-gray-100"
+  iconColor = "text-gray-100",
+  onClick
 }: {
   title: string;
   value: number | string;
@@ -370,9 +375,13 @@ function MetricCard({
   description: string;
   gradient?: string;
   iconColor?: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+    <Card 
+      className={`relative overflow-hidden group hover:shadow-lg transition-all duration-300 ${onClick ? 'cursor-pointer hover:scale-105' : ''}`}
+      onClick={onClick}
+    >
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`}></div>
       <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-white/90">
