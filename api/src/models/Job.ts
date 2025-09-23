@@ -141,13 +141,13 @@ const jobSchema = new Schema<JobDocument>({
   address: {
     street: {
       type: String,
-      required: [true, 'Street address is required'],
+      required: false, // Make optional for backward compatibility
       trim: true,
       maxlength: [200, 'Street address cannot exceed 200 characters'],
     },
     city: {
       type: String,
-      required: [true, 'City is required'],
+      required: false, // Make optional for backward compatibility
       trim: true,
       maxlength: [100, 'City cannot exceed 100 characters'],
     },
