@@ -75,6 +75,13 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     title: '',
     description: '',
     location: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: ''
+    },
     type: 'full-time' as const,
     workType: 'wfo' as const,
     salaryMin: '',
@@ -256,6 +263,13 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       title: createFormData.title.trim(),
       description: createFormData.description.trim(),
       location: createFormData.location.trim(),
+      address: {
+        street: createFormData.address.street.trim(),
+        city: createFormData.address.city.trim(),
+        state: createFormData.address.state.trim(),
+        zipCode: createFormData.address.zipCode.trim(),
+        country: createFormData.address.country.trim()
+      },
       type: createFormData.type,
       workType: createFormData.workType,
       duration: (createFormData.type === 'contract' || createFormData.type === 'internship') ? createFormData.duration : undefined,
@@ -639,10 +653,26 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       onValueChange={(value) => {
                         const selectedCompany = companies.find((company: any) => company._id === value);
                         let location = '';
+                        let address = {
+                          street: '',
+                          city: '',
+                          state: '',
+                          zipCode: '',
+                          country: ''
+                        };
                         
                         if (selectedCompany) {
-                          // Auto-fill complete location from company address including PIN code
+                          // Auto-fill address fields from company
                           if (selectedCompany.address) {
+                            address = {
+                              street: selectedCompany.address.street || '',
+                              city: selectedCompany.address.city || '',
+                              state: selectedCompany.address.state || '',
+                              zipCode: selectedCompany.address.zipCode || '',
+                              country: selectedCompany.address.country || ''
+                            };
+                            
+                            // Also create location string for display
                             const addressParts = [
                               selectedCompany.address.street,
                               selectedCompany.address.city,
@@ -660,7 +690,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                         setCreateFormData({
                           ...createFormData, 
                           companyId: value,
-                          location: location
+                          location: location,
+                          address: address
                         });
                       }}
                     >

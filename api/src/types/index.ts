@@ -325,6 +325,13 @@ export interface Job {
   description: string;
   requirements: JobRequirements;
   location: string;
+  address: {
+    street: string;
+    city: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
   type: JobType;
   salaryRange: {
     min: number;

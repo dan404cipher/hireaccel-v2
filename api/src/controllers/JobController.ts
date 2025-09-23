@@ -26,6 +26,13 @@ const createJobSchema = z.object({
     certifications: z.array(z.string()).default([]),
   }),
   location: z.string().min(1).max(200),
+  address: z.object({
+    street: z.string().min(1, 'Street address is required').max(200),
+    city: z.string().min(1, 'City is required').max(100),
+    state: z.string().max(100).optional(),
+    zipCode: z.string().max(20).optional(),
+    country: z.string().max(100).optional(),
+  }),
   type: z.nativeEnum(JobType),
   salaryRange: z.object({
     min: z.number().min(0, 'Minimum salary must be at least 0'),

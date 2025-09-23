@@ -138,6 +138,36 @@ const jobSchema = new Schema<JobDocument>({
     index: true,
   },
   
+  address: {
+    street: {
+      type: String,
+      required: [true, 'Street address is required'],
+      trim: true,
+      maxlength: [200, 'Street address cannot exceed 200 characters'],
+    },
+    city: {
+      type: String,
+      required: [true, 'City is required'],
+      trim: true,
+      maxlength: [100, 'City cannot exceed 100 characters'],
+    },
+    state: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'State cannot exceed 100 characters'],
+    },
+    zipCode: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'ZIP code cannot exceed 20 characters'],
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Country cannot exceed 100 characters'],
+    },
+  },
+  
   type: {
     type: String,
     enum: {
