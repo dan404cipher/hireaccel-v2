@@ -53,6 +53,7 @@ interface CandidateAssignment {
       firstName: string;
       lastName: string;
       email: string;
+      customId: string;
     };
     profile: {
       skills: string[];
@@ -76,6 +77,7 @@ interface CandidateAssignment {
     firstName: string;
     lastName: string;
     email: string;
+    customId: string;
   };
   jobId?: {
     title: string;
@@ -443,7 +445,7 @@ const SharedCandidates: React.FC = () => {
                       View Details
                     </DropdownMenuItem>
                     {candidate?.resumeFileId && (
-                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}>
                         <ExternalLink className="mr-2 h-4 w-4" />
                         View Resume
                       </DropdownMenuItem>
@@ -473,7 +475,7 @@ const SharedCandidates: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}>
                       <User className="mr-2 h-4 w-4" />
                       View Profile
                     </DropdownMenuItem>
@@ -696,7 +698,7 @@ const SharedCandidates: React.FC = () => {
                   variant="outline" 
                   size="sm" 
                   className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 mt-2"
-                  onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}
+                  onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
                 >
                   <Eye className="w-3 h-3 mr-1" />
                   View Profile

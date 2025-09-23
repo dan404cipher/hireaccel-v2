@@ -598,7 +598,7 @@ export default function AgentAssignmentDashboard() {
                                 Assign to Job
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => {
-                                navigate(`/dashboard/candidates/${candidate._id}`);
+                                navigate(`/dashboard/candidates/${candidate.customId}`);
                               }}>
                                 View Profile
                               </DropdownMenuItem>

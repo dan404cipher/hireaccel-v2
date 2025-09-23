@@ -86,11 +86,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -148,8 +148,8 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title description companyId',
@@ -287,11 +287,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -377,11 +377,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -511,11 +511,11 @@ export class CandidateAssignmentController {
           path: 'candidateId',
           populate: {
             path: 'userId',
-            select: 'firstName lastName email'
+            select: 'firstName lastName email customId'
           }
         })
-        .populate('assignedBy', 'firstName lastName email')
-        .populate('assignedTo', 'firstName lastName email')
+        .populate('assignedBy', 'firstName lastName email customId')
+        .populate('assignedTo', 'firstName lastName email customId')
         .populate({
           path: 'jobId',
           select: 'title companyId location',
