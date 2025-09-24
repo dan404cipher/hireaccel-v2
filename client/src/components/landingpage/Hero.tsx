@@ -2,12 +2,13 @@ import { Button } from "./ui/button";
 import { ArrowRight, Play, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroBackground from '@/assets/Hero-background.jpeg';
-import { usePreloadedImage } from '@/utils/imageOptimization';
 import { useEffect, useState } from "react";
+import { usePreloadedImage } from '@/utils/imageOptimization';
+        
 
 export function Hero() {
   const navigate = useNavigate();
-  const { isLoaded, isLoading } = usePreloadedImage(heroBackground);
+    const { isLoaded, isLoading } = usePreloadedImage(heroBackground);
   const [hideDemo, setHideDemo] = useState(window.innerWidth >= 800 && window.innerWidth > window.innerHeight);
   
     useEffect(() => {

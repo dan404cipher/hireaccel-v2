@@ -1,7 +1,6 @@
 import { DollarSign, Users, Activity, Bot, GraduationCap, Clock4, IndianRupee } from "lucide-react";
-import howItWorksBackground from "@/assets/HowItWorks-background.jpg";
-import section1Background from "@/assets/section1.jpg";
 import { usePreloadedImage } from '@/utils/imageOptimization';
+import howItWorksBackground from "@/assets/HowItWorks-background.jpg";
 
 const reasons = [
   {
@@ -37,7 +36,7 @@ const reasons = [
 ];
 
 export function HowItWorks() {
-  const { isLoaded } = usePreloadedImage(section1Background);
+  const { isLoaded } = usePreloadedImage(howItWorksBackground);
   
   return (
     <section 
