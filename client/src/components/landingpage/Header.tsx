@@ -62,7 +62,8 @@ export function Header({
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" 
+            onClick={() => navigate('/')}>
             <img src={logoColor} alt="HireAccel Logo" className="h-10 w-10" />
             <div>
               <h1 className="font-bold text-sm md:text-lg font-inter text-white">Hire Accel</h1>

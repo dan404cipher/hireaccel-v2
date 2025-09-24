@@ -61,13 +61,17 @@ const talentStats = [
 
 export function TalentPool() {
   return (
-    <section className="py-20 relative"
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden"
       style={{
         backgroundImage: `url(${talentPoolBackground})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
       }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-transparent to-transparent"></div>
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-20 relative z-10 h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-4xl mx-auto mb-5">
           <h2 className="text-2xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl 2xl:text-7xl font-bold text-white">
@@ -129,6 +133,7 @@ export function TalentPool() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </section>
   );
