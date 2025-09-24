@@ -5,7 +5,7 @@ import { Candidate } from '@/models/Candidate';
 import { User } from '@/models/User';
 import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, UserRole, AuditAction } from '@/types';
+import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import mongoose from 'mongoose';
 
@@ -221,7 +221,10 @@ export class CandidateAssignmentController {
       hrUser = await User.findOne({
         _id: finalAssignedTo,
         role: UserRole.HR,
-        status: 'active',
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       if (!hrUser) {
         throw createNotFoundError('HR user who posted this job not found');
@@ -243,7 +246,10 @@ export class CandidateAssignmentController {
       hrUser = await User.findOne({
         _id: validatedData.assignedTo,
         role: UserRole.HR,
-        status: 'active',
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       if (!hrUser) {
         throw createNotFoundError('HR user not found');

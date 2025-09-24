@@ -317,6 +317,16 @@ export default function JobDetailsPage() {
                         <span className="text-slate-600">{formatDate(job.applicationDeadline)}</span>
                       </div>
                     )}
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-indigo-600" />
+                      <span className="font-medium text-slate-700">Posted by:</span>
+                      <span className="text-slate-600">
+                        {job.createdBy?.firstName && job.createdBy?.lastName 
+                          ? `${job.createdBy.firstName} ${job.createdBy.lastName}`
+                          : job.createdBy?.email || 'Unknown'
+                        }
+                      </span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -88,10 +88,11 @@ export default function AgentAllocation(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [showInactiveUsers, setShowInactiveUsers] = useState(false);
 
   const { toast } = useToast();
 
-  // Fetch users data
+  // Fetch users data - conditionally fetch all users or only active users
   const { 
     data: usersResponse, 
     loading: usersLoading, 
@@ -99,6 +100,7 @@ export default function AgentAllocation(): React.JSX.Element {
     refetch: refetchUsers 
   } = useUsers({
     limit: 100,
+    status: showInactiveUsers ? undefined : 'active', // Fetch all users if toggle is on, otherwise only active
   });
 
   // Fetch agent assignments
@@ -116,6 +118,21 @@ export default function AgentAllocation(): React.JSX.Element {
       // Refresh assignments list
       await refetchAssignments();
       await refetchUsers();
+      
+      // Show message if users were filtered out
+      if (data.filteredUsers) {
+        const { originalHRCount, activeHRCount, originalCandidateCount, activeCandidateCount } = data.filteredUsers;
+        const filteredHRCount = originalHRCount - activeHRCount;
+        const filteredCandidateCount = originalCandidateCount - activeCandidateCount;
+        
+        if (filteredHRCount > 0 || filteredCandidateCount > 0) {
+          toast({
+            title: "Some users were filtered out",
+            description: `${filteredHRCount} inactive HR user(s) and ${filteredCandidateCount} inactive candidate(s) were automatically excluded from the assignment.`,
+            variant: "destructive",
+          });
+        }
+      }
     },
     onError: (error) => {
       console.error('❌ Agent assignment failed:', error);
@@ -228,7 +245,18 @@ export default function AgentAllocation(): React.JSX.Element {
 
   // Bulk selection functions for resources
   const handleResourceSelection = (resourceId: string) => {
-    // Resource selection changed
+    // Find the resource to check its status
+    const resource = filteredResources.find(r => r._id === resourceId);
+    
+    // Prevent selection of inactive users
+    if (resource && resource.status !== 'active') {
+      toast({
+        title: 'Cannot select inactive user',
+        description: `${resource.firstName} ${resource.lastName} is inactive and cannot be assigned to an agent.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     
     const newSelected = new Set(selectedResources);
     if (newSelected.has(resourceId)) {
@@ -246,8 +274,10 @@ export default function AgentAllocation(): React.JSX.Element {
       setSelectedResources(new Set());
       setSelectAll(false);
     } else {
-      setSelectedResources(new Set(filteredResources.map(resource => resource._id)));
-      setSelectAll(true);
+      // Only select active users
+      const activeResources = filteredResources.filter(resource => resource.status === 'active');
+      setSelectedResources(new Set(activeResources.map(resource => resource._id)));
+      setSelectAll(activeResources.length === filteredResources.length && filteredResources.length > 0);
     }
   };
 
@@ -265,20 +295,48 @@ export default function AgentAllocation(): React.JSX.Element {
       // Find existing assignment for the selected agent
       const existingAssignment = assignments.find((a: any) => a.agentId?._id === selectedAgent);
       
-      // Separate selected resources by type
+      // Separate selected resources by type and filter out inactive users
       const selectedHRIds: string[] = [];
       const selectedCandidateIds: string[] = [];
+      const inactiveUsers: any[] = [];
       
       selectedResources.forEach(resourceId => {
         const resource = allResources.find(r => r._id === resourceId);
-        if (resource?.role === 'hr') {
-          selectedHRIds.push(resourceId);
-        } else if (resource?.role === 'candidate') {
-          // For candidates, we need to pass the user ID (not the candidate document ID)
-          // The backend will convert it to the candidate document ID
-          selectedCandidateIds.push(resourceId);
+        if (resource) {
+          // Check if user is active
+          if (resource.status !== 'active') {
+            inactiveUsers.push(resource);
+            return; // Skip inactive users
+          }
+          
+          if (resource.role === 'hr') {
+            selectedHRIds.push(resourceId);
+          } else if (resource.role === 'candidate') {
+            // For candidates, we need to pass the user ID (not the candidate document ID)
+            // The backend will convert it to the candidate document ID
+            selectedCandidateIds.push(resourceId);
+          }
         }
       });
+      
+      // Show warning if inactive users were filtered out
+      if (inactiveUsers.length > 0) {
+        toast({
+          title: "Warning",
+          description: `Removed ${inactiveUsers.length} inactive user(s) from selection. Only active users can be assigned.`,
+          variant: "destructive",
+        });
+      }
+      
+      // Check if we have any active users to assign
+      if (selectedHRIds.length === 0 && selectedCandidateIds.length === 0) {
+        toast({
+          title: "No active users selected",
+          description: "Please select at least one active user to assign.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       const existingHRs = existingAssignment?.assignedHRs?.map((hr: any) => hr._id) || [];
       // For existing candidates, we need to get their user IDs, not candidate document IDs
@@ -313,9 +371,10 @@ export default function AgentAllocation(): React.JSX.Element {
       await refetchUsers();
       
       const agentName = agents.find(a => a._id === selectedAgent);
+      const totalAssigned = selectedHRIds.length + selectedCandidateIds.length;
       toast({
         title: "Success",
-        description: `Assigned ${selectedResources.size} resource${selectedResources.size !== 1 ? 's' : ''} to ${agentName?.firstName} ${agentName?.lastName}`,
+        description: `Assigned ${totalAssigned} active resource${totalAssigned !== 1 ? 's' : ''} to ${agentName?.firstName} ${agentName?.lastName}`,
       });
 
       // Clear selections
@@ -443,6 +502,16 @@ export default function AgentAllocation(): React.JSX.Element {
   const handleSaveAllocation = async () => {
     if (!selectedResource || !selectedAgent) return;
 
+    // Check if the selected resource is active
+    if (selectedResource.status !== 'active') {
+      toast({
+        title: 'Cannot assign inactive user',
+        description: `${selectedResource.firstName} ${selectedResource.lastName} is inactive and cannot be assigned to an agent.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       // Find existing assignment for the selected agent
@@ -532,15 +601,30 @@ export default function AgentAllocation(): React.JSX.Element {
                   Allocated ({getAllocatedCount()})
                 </TabsTrigger>
               </TabsList>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
-                  <Input
-                  placeholder="Search HR users and candidates..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-80 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+              
+              <div className="flex items-center gap-4">
+                {/* Show Inactive Users Toggle */}
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="show-inactive"
+                    checked={showInactiveUsers}
+                    onCheckedChange={setShowInactiveUsers}
                   />
+                  <Label htmlFor="show-inactive" className="text-sm text-gray-600">
+                    Show inactive users
+                  </Label>
                 </div>
+                
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
+                    <Input
+                    placeholder="Search HR users and candidates..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-80 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                    />
+                  </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -618,12 +702,17 @@ export default function AgentAllocation(): React.JSX.Element {
                 </TableHeader>
                 <TableBody>
                     {filteredResources.map((resource) => (
-                      <TableRow key={resource._id}>
+                      <TableRow 
+                        key={resource._id}
+                        className={resource.status !== 'active' ? 'opacity-60 bg-gray-50' : ''}
+                      >
                       <TableCell>
                           <Checkbox
                             checked={selectedResources.has(resource._id)}
                             onCheckedChange={() => handleResourceSelection(resource._id)}
+                            disabled={resource.status !== 'active'}
                             aria-label={`Select ${resource.firstName} ${resource.lastName}`}
+                            className={resource.status !== 'active' ? 'opacity-50 cursor-not-allowed' : ''}
                           />
                         </TableCell>
                         <TableCell className="font-medium">
@@ -639,9 +728,23 @@ export default function AgentAllocation(): React.JSX.Element {
                             </div>
                         <div>
                               <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
-                              <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
-                                {resource.role === 'hr' ? 'HR User' : 'Candidate'}
-                              </Badge>
+                              <div className="flex gap-2 mt-1">
+                                <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
+                                  {resource.role === 'hr' ? 'HR User' : 'Candidate'}
+                                </Badge>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs px-1.5 py-0.5 ${
+                                    resource.status === 'active' 
+                                      ? 'text-green-600 border-green-200 bg-green-50' 
+                                      : resource.status === 'inactive'
+                                      ? 'text-red-600 border-red-200 bg-red-50'
+                                      : 'text-yellow-600 border-yellow-200 bg-yellow-50'
+                                  }`}
+                                >
+                                  {resource.status === 'active' ? 'Active' : resource.status === 'inactive' ? 'Inactive' : resource.status}
+                                </Badge>
+                              </div>
                           </div>
                         </div>
                       </TableCell>
