@@ -2,7 +2,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 import { 
   Company as ICompany, 
   CompanyStatus, 
-  PartnershipLevel,
   CompanyContact 
 } from '@/types';
 
@@ -15,7 +14,7 @@ export interface CompanyDocument extends Omit<ICompany, '_id' | 'createdBy'>, Do
   companyId: string;
   
   // Additional properties that exist in schema but not in base interface
-  foundedYear?: number;
+  foundedYear: number;
   employees?: number;
   revenue?: {
     amount: number;
@@ -50,7 +49,6 @@ export interface CompanyDocument extends Omit<ICompany, '_id' | 'createdBy'>, Do
   updateContact(email: string, updates: Partial<CompanyContact>): void;
   incrementJobs(): void;
   incrementHires(): void;
-  updatePartnership(level: PartnershipLevel, endDate?: Date): void;
   calculateScore(): number;
 }
 
@@ -60,7 +58,6 @@ export interface CompanyDocument extends Omit<ICompany, '_id' | 'createdBy'>, Do
 export interface CompanyModel extends mongoose.Model<CompanyDocument> {
   searchCompanies(options?: any): Promise<CompanyDocument[]>;
   getTopPerformers(options?: any): Promise<CompanyDocument[]>;
-  getByPartnership(partnership: PartnershipLevel, options?: any): Promise<CompanyDocument[]>;
   getExpiringContracts(days?: number): Promise<CompanyDocument[]>;
   generateCompanyId(): Promise<string>;
 }
@@ -129,13 +126,6 @@ const companySchema = new Schema<CompanyDocument>({
     maxlength: [2000, 'Description cannot exceed 2000 characters'],
   },
   
-  industry: {
-    type: String,
-    required: [true, 'Industry is required'],
-    trim: true,
-    maxlength: [100, 'Industry cannot exceed 100 characters'],
-    index: true,
-  },
   
   size: {
     type: String,
@@ -156,9 +146,39 @@ const companySchema = new Schema<CompanyDocument>({
     index: true,
   },
   
+  address: {
+    street: {
+      type: String,
+      required: [true, 'Street address is required'],
+      trim: true,
+      maxlength: [200, 'Street address cannot exceed 200 characters'],
+    },
+    city: {
+      type: String,
+      required: [true, 'City is required'],
+      trim: true,
+      maxlength: [100, 'City cannot exceed 100 characters'],
+    },
+    state: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'State cannot exceed 100 characters'],
+    },
+    zipCode: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'ZIP code cannot exceed 20 characters'],
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Country cannot exceed 100 characters'],
+    },
+  },
+  
+  // Keep location field for backward compatibility (will be populated from address)
   location: {
     type: String,
-    required: [true, 'Company location is required'],
     trim: true,
     maxlength: [200, 'Location cannot exceed 200 characters'],
     index: true,
@@ -187,15 +207,6 @@ const companySchema = new Schema<CompanyDocument>({
     default: [],
   },
   
-  partnership: {
-    type: String,
-    enum: {
-      values: Object.values(PartnershipLevel),
-      message: 'Partnership level must be one of: {VALUES}'
-    },
-    default: PartnershipLevel.BASIC,
-    index: true,
-  },
   
   status: {
     type: String,
@@ -236,13 +247,15 @@ const companySchema = new Schema<CompanyDocument>({
   // Additional company information
   foundedYear: {
     type: Number,
+    required: [true, 'Founded year is required'],
     min: [1800, 'Founded year must be after 1800'],
     max: [new Date().getFullYear(), 'Founded year cannot be in the future'],
   },
   
-  employees: {
+  
+  numberOfOpenings: {
     type: Number,
-    min: [0, 'Number of employees cannot be negative'],
+    min: [0, 'Number of openings cannot be negative'],
     default: 0,
   },
   
@@ -367,8 +380,6 @@ const companySchema = new Schema<CompanyDocument>({
 // ============================================================================
 
 // Compound indexes for common queries
-companySchema.index({ status: 1, partnership: 1 });
-companySchema.index({ industry: 1, status: 1 });
 companySchema.index({ size: 1, location: 1 });
 companySchema.index({ rating: -1, status: 1 });
 companySchema.index({ totalJobs: -1, totalHires: -1 });
@@ -379,7 +390,6 @@ companySchema.index({ lastActivityAt: -1 });
 companySchema.index({
   name: 'text',
   description: 'text',
-  industry: 'text',
   location: 'text',
   benefits: 'text',
   culture: 'text',
@@ -512,16 +522,6 @@ companySchema.methods['incrementHires'] = function(this: CompanyDocument) {
   this.lastActivityAt = new Date();
 };
 
-/**
- * Update partnership level
- */
-companySchema.methods['updatePartnership'] = function(this: CompanyDocument, level: PartnershipLevel, endDate?: Date) {
-  this.partnership = level;
-  if (endDate) {
-    this.contractEndDate = endDate;
-  }
-  this.lastActivityAt = new Date();
-};
 
 /**
  * Calculate company score based on various metrics
@@ -539,14 +539,6 @@ companySchema.methods['calculateScore'] = function(this: CompanyDocument) {
     score += (this.hireRate / 100) * 30;
   }
   
-  // Partnership level contribution (20%)
-  const partnershipScores = {
-    [PartnershipLevel.BASIC]: 5,
-    [PartnershipLevel.STANDARD]: 10,
-    [PartnershipLevel.PREMIUM]: 15,
-    [PartnershipLevel.ENTERPRISE]: 20,
-  };
-  score += partnershipScores[this.partnership] || 0;
   
   // Activity contribution (10%)
   const daysSinceActivity = this.lastActivityAt ? 
@@ -638,20 +630,6 @@ companySchema.statics['getTopPerformers'] = function(options: any = {}) {
   .populate('createdBy', 'firstName lastName');
 };
 
-/**
- * Get companies by partnership level
- */
-companySchema.statics['getByPartnership'] = function(partnership: PartnershipLevel, options: any = {}) {
-  const { limit = 20, skip = 0 } = options;
-  
-  return this.find({
-    partnership,
-    status: CompanyStatus.ACTIVE,
-  })
-  .sort({ rating: -1, totalJobs: -1 })
-  .limit(limit)
-  .skip(skip);
-};
 
 /**
  * Get companies with expiring contracts
@@ -710,6 +688,17 @@ companySchema.pre('save', async function(this: CompanyDocument, next) {
   // Update last activity timestamp
   if (this.isModified()) {
     this.lastActivityAt = new Date();
+  }
+  
+  // Populate location field from address for backward compatibility
+  if (this.isModified('address') && this.address) {
+    const addressParts = [
+      this.address.street,
+      this.address.city,
+      this.address.state,
+      this.address.zipCode
+    ].filter(Boolean);
+    this.location = addressParts.join(', ');
   }
   
   // Contacts are now optional - no validation needed

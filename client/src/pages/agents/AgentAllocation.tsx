@@ -15,6 +15,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -27,13 +33,16 @@ import {
   Mail,
   CheckSquare,
   Save,
-  Trash2
+  Trash2,
+  MoreHorizontal
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment, useRemoveFromAgentAssignment } from '../../hooks/useApi';
-import { User } from '../../types';
+import { User } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface ExtendedUser extends User {
+  _id: string; // MongoDB ObjectId as string
   candidateId?: string; // The ID of the candidate document for users with role 'candidate'
 }
 import { useToast } from '../../hooks/use-toast';
@@ -67,8 +76,9 @@ interface AgentAssignment {
   notes?: string;
 }
 
-export default function AgentAllocation() {
-  console.log('🔥 AgentAllocation component rendering!');
+export default function AgentAllocation(): React.JSX.Element {
+  // AgentAllocation component rendering
+  const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
@@ -82,7 +92,7 @@ export default function AgentAllocation() {
 
   const { toast } = useToast();
 
-  // Fetch users data
+  // Fetch users data - only active users
   const { 
     data: usersResponse, 
     loading: usersLoading, 
@@ -90,6 +100,7 @@ export default function AgentAllocation() {
     refetch: refetchUsers 
   } = useUsers({
     limit: 100,
+    status: 'active', // Only fetch active users
   });
 
   // Fetch agent assignments
@@ -102,33 +113,13 @@ export default function AgentAllocation() {
 
 
   // API hooks for assignment operations
-  const { mutate: createAgentAssignment } = useCreateAgentAssignment({
-    onSuccess: async (data) => {
-      console.log('✅ Agent assignment created/updated successfully:', data);
-      // Refresh assignments list
-      await refetchAssignments();
-      await refetchUsers();
-    },
-    onError: (error) => {
-      console.error('❌ Agent assignment failed:', error);
-    }
-  });
+  const { mutate: createAgentAssignment } = useCreateAgentAssignment();
 
-  const { mutate: removeFromAgentAssignment } = useRemoveFromAgentAssignment({
-    onSuccess: async (data) => {
-      console.log('✅ Resources removed from agent assignment successfully:', data);
-      // Refresh assignments list
-      await refetchAssignments();
-      await refetchUsers();
-    },
-    onError: (error) => {
-      console.error('❌ Remove from agent assignment failed:', error);
-    }
-  });
+  const { mutate: removeFromAgentAssignment } = useRemoveFromAgentAssignment();
 
   // Handle response format
-  const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
-  const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : (assignmentsResponse?.data || []);
+  const users = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data || []);
+  const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : ((assignmentsResponse as any)?.data || []);
 
   // Filter users by role
   const agents = users.filter(user => user.role === 'agent' && user.status === 'active');
@@ -213,7 +204,7 @@ export default function AgentAllocation() {
   };
 
   const openAllocationDialog = (resource: User) => {
-    setSelectedResource(resource);
+    setSelectedResource(resource as ExtendedUser);
     setSelectedAgent('');
     setAssignmentNotes('');
     setIsAllocationDialogOpen(true);
@@ -221,27 +212,14 @@ export default function AgentAllocation() {
 
   // Bulk selection functions for resources
   const handleResourceSelection = (resourceId: string) => {
-    console.log('🔍 Resource selection changed:', {
-      resourceId,
-      wasSelected: selectedResources.has(resourceId),
-      currentSelectionSize: selectedResources.size
-    });
-    
     const newSelected = new Set(selectedResources);
     if (newSelected.has(resourceId)) {
       newSelected.delete(resourceId);
-      console.log('❌ Removed resource from selection');
     } else {
       newSelected.add(resourceId);
-      console.log('✅ Added resource to selection');
     }
     setSelectedResources(newSelected);
     setSelectAll(newSelected.size === filteredResources.length && filteredResources.length > 0);
-    
-    console.log('🔍 New selection state:', {
-      newSelectionSize: newSelected.size,
-      selectedResources: Array.from(newSelected)
-    });
   };
 
   const handleSelectAllResources = () => {
@@ -256,19 +234,10 @@ export default function AgentAllocation() {
 
   // Bulk allocation function
   const handleBulkAllocation = async () => {
-    console.log('🔥🔥🔥 UPDATED CODE IS RUNNING - handleBulkAllocation 🔥🔥🔥');
-    console.log('🔍 handleBulkAllocation called with:', {
-      selectedAgent,
-      selectedResourcesSize: selectedResources.size,
-      selectedResources: Array.from(selectedResources)
-    });
-    
     if (!selectedAgent) {
-      console.log('❌ No agent selected, returning');
       return;
     }
     if (selectedResources.size === 0) {
-      console.log('❌ No resources selected, returning');
       return;
     }
 
@@ -283,16 +252,14 @@ export default function AgentAllocation() {
       
       selectedResources.forEach(resourceId => {
         const resource = allResources.find(r => r._id === resourceId);
-        console.log('🔍 Processing selected resource:', {
-          resourceId,
-          resource: resource ? { id: resource._id, name: `${resource.firstName} ${resource.lastName}`, role: resource.role } : 'NOT FOUND'
-        });
-        if (resource?.role === 'hr') {
-          selectedHRIds.push(resourceId);
-        } else if (resource?.role === 'candidate') {
-          // For candidates, we need to pass the user ID (not the candidate document ID)
-          // The backend will convert it to the candidate document ID
-          selectedCandidateIds.push(resourceId);
+        if (resource) {
+          if (resource.role === 'hr') {
+            selectedHRIds.push(resourceId);
+          } else if (resource.role === 'candidate') {
+            // For candidates, we need to pass the user ID (not the candidate document ID)
+            // The backend will convert it to the candidate document ID
+            selectedCandidateIds.push(resourceId);
+          }
         }
       });
       
@@ -308,12 +275,6 @@ export default function AgentAllocation() {
         return c._id || c;
       }) || [];
       
-      console.log('🔍 Bulk allocation - Existing candidates user IDs:', existingCandidates);
-      console.log('🔍 Bulk allocation - Selected candidate user IDs:', selectedCandidateIds);
-      console.log('🔍 Bulk allocation - Selected HR user IDs:', selectedHRIds);
-      console.log('🔍 Bulk allocation - Existing HR user IDs:', existingHRs);
-      console.log('🔍 Bulk allocation - selectedCandidateIds.length:', selectedCandidateIds.length);
-      console.log('🔍 Bulk allocation - selectedHRIds.length:', selectedHRIds.length);
       
       // Determine if we're working with candidates or just HR users
       const isWorkingWithCandidates = selectedCandidateIds.length > 0;
@@ -328,18 +289,17 @@ export default function AgentAllocation() {
         notes: assignmentNotes,
       };
 
-      console.log('🚀 Sending assignment data:', assignmentData);
       const result = await createAgentAssignment(assignmentData);
-      console.log('✅ Bulk assignment created/updated:', result);
       
       // Refresh the data
       await refetchAssignments();
       await refetchUsers();
       
       const agentName = agents.find(a => a._id === selectedAgent);
+      const totalAssigned = selectedHRIds.length + selectedCandidateIds.length;
       toast({
         title: "Success",
-        description: `Assigned ${selectedResources.size} resource${selectedResources.size !== 1 ? 's' : ''} to ${agentName?.firstName} ${agentName?.lastName}`,
+        description: `Assigned ${totalAssigned} active resource${totalAssigned !== 1 ? 's' : ''} to ${agentName?.firstName} ${agentName?.lastName}`,
       });
 
       // Clear selections
@@ -403,7 +363,9 @@ export default function AgentAllocation() {
       setSelectedResources(new Set());
       setSelectAll(false);
       
-      refetchAssignments();
+      // Explicitly refresh data to show immediate update
+      await refetchAssignments();
+      await refetchUsers();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -443,6 +405,10 @@ export default function AgentAllocation() {
 
       await removeFromAgentAssignment(removeData);
       
+      // Explicitly refresh data to show immediate update
+      await refetchAssignments();
+      await refetchUsers();
+      
       toast({
         title: "Success",
         description: `Removed ${resource.firstName} ${resource.lastName} from ${currentAgent.firstName} ${currentAgent.lastName}'s assignment`,
@@ -470,12 +436,6 @@ export default function AgentAllocation() {
       if (selectedResource.role === 'hr') {
         const existingHRs = existingAssignment?.assignedHRs?.map((hr: any) => hr._id) || [];
         
-        console.log('🔍 Individual assignment - HR user:', {
-          selectedResourceId: selectedResource._id,
-          existingHRs,
-          existingHRsCount: existingHRs.length
-        });
-        
         assignmentData = {
           agentId: selectedAgent,
           hrIds: [...new Set([...existingHRs, selectedResource._id])],
@@ -496,8 +456,6 @@ export default function AgentAllocation() {
           return c._id || c;
         }) || [];
         
-        console.log('🔍 Existing candidates user IDs:', existingCandidates);
-        console.log('🔍 Adding new candidate user ID:', selectedResource._id);
         
         assignmentData = {
           agentId: selectedAgent,
@@ -509,9 +467,7 @@ export default function AgentAllocation() {
         };
       }
 
-      console.log('🚀 Sending assignment data:', assignmentData);
       const result = await createAgentAssignment(assignmentData);
-      console.log('✅ Assignment created/updated:', result);
       
       // Refresh the data
       await refetchAssignments();
@@ -560,6 +516,7 @@ export default function AgentAllocation() {
                   Allocated ({getAllocatedCount()})
                 </TabsTrigger>
               </TabsList>
+              
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
                   <Input
@@ -599,7 +556,6 @@ export default function AgentAllocation() {
                 </Select>
                       <Button 
                         onClick={() => {
-                          console.log('🔥 BUTTON CLICKED - Allocate Selected button pressed!');
                           handleBulkAllocation();
                         }}
                         disabled={!selectedAgent || loading}
@@ -668,7 +624,7 @@ export default function AgentAllocation() {
                             </div>
                         <div>
                               <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
-                              <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
+                              <Badge variant="outline" className={`text-xs px-1.5 py-0.5 mt-1 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
                                 {resource.role === 'hr' ? 'HR User' : 'Candidate'}
                               </Badge>
                           </div>
@@ -692,7 +648,18 @@ export default function AgentAllocation() {
                               <UserPlus className="h-4 w-4 mr-1" />
                               Allocate
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-blue-600 hover:bg-blue-50"
+                              onClick={() => {
+                                if (resource.role === 'candidate') {
+                                  navigate(`/dashboard/candidates/${resource.customId}`);
+                                } else if (resource.role === 'hr') {
+                                  navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                }
+                              }}
+                            >
                               <Eye className="h-4 w-4 mr-1" />
                               View
                             </Button>
@@ -816,31 +783,37 @@ export default function AgentAllocation() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openAllocationDialog(resource)}
-                                className="border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Reassign
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => handleRemoveResource(resource._id)}
-                                disabled={loading}
-                                className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Remove
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-blue-600 hover:bg-blue-50">
-                                <Eye className="h-4 w-4 mr-1" />
-                                View
-                      </Button>
-                    </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openAllocationDialog(resource)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Reassign
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  if (resource.role === 'candidate') {
+                                    navigate(`/dashboard/candidates/${resource.customId}`);
+                                  } else if (resource.role === 'hr') {
+                                    navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                  }
+                                }}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleRemoveResource(resource._id)}
+                                  disabled={loading}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Remove
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );

@@ -30,7 +30,7 @@ interface SignupPageProps {
   onSwitchToSignin: () => void;
 }
 
-export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
+export function SignupPage({ onSwitchToSignin }: SignupPageProps): React.JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -144,9 +144,6 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      console.log('Signup error:', error);
-      console.log('Error type:', typeof error);
-      console.log('Error keys:', Object.keys(error || {}));
       
       // Extract error message from different possible structures
       let errorMessage = "Something went wrong. Please try again.";
@@ -167,18 +164,11 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         errorMessage = "Please try again later";
       }
       
-      console.log('Final error message:', errorMessage);
       
       toast({
         title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed",
         description: errorMessage,
         variant: "destructive"
-      });
-      
-      console.log('Toast called with:', { 
-        title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed", 
-        description: errorMessage, 
-        variant: "destructive" 
       });
     } finally {
       setLoading(false);
@@ -550,3 +540,5 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     </div>
   );
 }
+
+export default SignupPage;

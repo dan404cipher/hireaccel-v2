@@ -52,7 +52,6 @@ export default function HRProfile() {
   // Update form data when user data changes
   useEffect(() => {
     if (displayUser) {
-      console.log('Updating form data with user:', displayUser);
       setProfileData(prev => ({
         ...prev,
         firstName: displayUser.firstName || "",
@@ -78,9 +77,6 @@ export default function HRProfile() {
   });
 
   const handleSave = async () => {
-    console.log('Save button clicked');
-    console.log('Current user:', user);
-    console.log('Is viewing other profile:', isViewingOtherProfile);
     
     if (isViewingOtherProfile) {
       toast({
@@ -108,9 +104,7 @@ export default function HRProfile() {
         phoneNumber: profileData.phone,
       };
       
-      console.log('Sending update request with data:', updateData);
       const response = await apiClient.updateUser(user.id, updateData);
-      console.log('Update response:', response);
       
       // Update the user context to reflect changes
       updateAuth({
@@ -222,7 +216,7 @@ export default function HRProfile() {
                       </div>
                       <div className="flex items-center gap-1">
                         <Phone className="w-4 h-4" />
-                        <span>{profileData.phone}</span>
+                        <span>{profileData.phone || 'Not provided'}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="w-4 h-4" />

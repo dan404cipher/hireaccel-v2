@@ -528,23 +528,72 @@ export class UserController {
     const agent = await User.findOne({
       _id: validatedData.agentId,
       role: UserRole.AGENT,
-      status: UserStatus.ACTIVE,
+      $or: [
+        { status: UserStatus.ACTIVE },
+        { status: 'active' } // Fallback for any case sensitivity issues
+      ]
     });
+    
     if (!agent) {
+      // Let's check what user exists with this ID
+      const userWithId = await User.findById(validatedData.agentId);
+      console.log('🔍 Agent validation failed:', {
+        requestedAgentId: validatedData.agentId,
+        foundUser: userWithId ? {
+          id: userWithId._id,
+          email: userWithId.email,
+          role: userWithId.role,
+          status: userWithId.status
+        } : null
+      });
+      
       throw createNotFoundError('Active agent not found');
     }
+    
+    console.log('✅ Found agent:', { id: agent._id, email: agent.email, role: agent.role, status: agent.status });
 
     // Verify HR users exist and have correct role
     if (validatedData.hrIds.length > 0) {
+      // First, let's check what users exist with these IDs (regardless of role/status)
+      const allUsersWithIds = await User.find({
+        _id: { $in: validatedData.hrIds }
+      });
+      console.log('🔍 All users with HR IDs:', allUsersWithIds.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status })));
+      
       const hrUsers = await User.find({
         _id: { $in: validatedData.hrIds },
         role: UserRole.HR,
-        status: UserStatus.ACTIVE,
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
+      
+      console.log('✅ Found active HR users:', hrUsers.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status })));
+      
       if (hrUsers.length !== validatedData.hrIds.length) {
-        return res.status(400).json({
-          success: false,
-          message: 'One or more HR users not found or inactive',
+        const missingIds = validatedData.hrIds.filter(id => 
+          !hrUsers.some(hr => hr._id.toString() === id)
+        );
+        const missingUsers = allUsersWithIds.filter(u => 
+          missingIds.includes(u._id.toString())
+        );
+        
+        console.log('⚠️ Some HR users are inactive, filtering them out:', {
+          requested: validatedData.hrIds.length,
+          found: hrUsers.length,
+          missingIds,
+          missingUsers: missingUsers.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status }))
+        });
+        
+        // Filter out inactive HR users and continue with only active ones
+        validatedData.hrIds = hrUsers.map(hr => hr._id.toString());
+        
+        // Log the filtered assignment
+        console.log('✅ Proceeding with only active HR users:', {
+          originalCount: validatedData.hrIds.length + missingUsers.length,
+          activeCount: validatedData.hrIds.length,
+          filteredOut: missingUsers.length
         });
       }
     }
@@ -563,22 +612,36 @@ export class UserController {
       const candidateUsers = await User.find({
         _id: { $in: validatedData.candidateIds },
         role: UserRole.CANDIDATE,
-        status: UserStatus.ACTIVE,
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       
       console.log('✅ Found candidate users:', candidateUsers.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status })));
       
       if (candidateUsers.length !== validatedData.candidateIds.length) {
-        console.log('❌ Candidate count mismatch:', {
+        const missingCandidateIds = validatedData.candidateIds.filter(id => 
+          !candidateUsers.some(c => c._id.toString() === id)
+        );
+        const missingCandidateUsers = allUsersWithIds.filter(u => 
+          missingCandidateIds.includes(u._id.toString())
+        );
+        
+        console.log('⚠️ Some candidates are inactive, filtering them out:', {
           requested: validatedData.candidateIds.length,
           found: candidateUsers.length,
-          requested_ids: validatedData.candidateIds,
-          found_ids: candidateUsers.map(u => u._id.toString())
+          missingIds: missingCandidateIds,
+          missingUsers: missingCandidateUsers.map(u => ({ id: u._id, email: u.email, role: u.role, status: u.status }))
         });
         
-        return res.status(400).json({
-          success: false,
-          message: 'One or more candidates not found or inactive',
+        // Filter out inactive candidates and continue with only active ones
+        validatedData.candidateIds = candidateUsers.map(c => c._id.toString());
+        
+        console.log('✅ Proceeding with only active candidates:', {
+          originalCount: validatedData.candidateIds.length + missingCandidateUsers.length,
+          activeCount: validatedData.candidateIds.length,
+          filteredOut: missingCandidateUsers.length
         });
       }
 
@@ -636,6 +699,14 @@ export class UserController {
       } else {
         candidateDocumentIds = candidates.map(c => c._id.toString());
       }
+    }
+
+    // Check if we have any active users to assign after filtering
+    if (validatedData.hrIds.length === 0 && candidateDocumentIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active users found to assign. All selected users are inactive.',
+      });
     }
 
     // IMPORTANT: Remove HRs and candidates from other agent assignments to prevent duplicates
@@ -754,6 +825,12 @@ export class UserController {
         success: true,
         message: 'Agent assignment updated successfully',
         data: assignment,
+        filteredUsers: validatedData.hrIds.length !== req.body.hrIds?.length || validatedData.candidateIds?.length !== req.body.candidateIds?.length ? {
+          originalHRCount: req.body.hrIds?.length || 0,
+          activeHRCount: validatedData.hrIds.length,
+          originalCandidateCount: req.body.candidateIds?.length || 0,
+          activeCandidateCount: validatedData.candidateIds?.length || 0
+        } : undefined
       });
     } else {
       // Create new assignment
@@ -787,6 +864,12 @@ export class UserController {
         success: true,
         message: 'Agent assignment created successfully',
         data: assignment,
+        filteredUsers: validatedData.hrIds.length !== req.body.hrIds?.length || validatedData.candidateIds?.length !== req.body.candidateIds?.length ? {
+          originalHRCount: req.body.hrIds?.length || 0,
+          activeHRCount: validatedData.hrIds.length,
+          originalCandidateCount: req.body.candidateIds?.length || 0,
+          activeCandidateCount: validatedData.candidateIds?.length || 0
+        } : undefined
       });
     }
   });

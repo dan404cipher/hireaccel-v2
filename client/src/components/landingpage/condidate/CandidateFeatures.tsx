@@ -246,7 +246,6 @@ export function JobCandidates() {
 
   // Debug log to ensure features array is available
   useEffect(() => {
-    console.log('Features array:', features);
   }, []);
 
   return (
@@ -1054,6 +1053,153 @@ export function JobCandidates() {
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </div>
+
+          {/* Bottom CTA */}
+          {/* <divdiv
+            initial={{ opacity: 0, y: 20 }}
+            animate={faqInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: 0.6, duration: 0.4 }}
+            className="text-center mt-20"
+          >
+            <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-3xl p-10 border border-gray-200/50 shadow-xl backdrop-blur-sm max-w-4xl mx-auto">
+              <div className="flex flex-col items-center space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-gray-800">Ready to Transform Your Career?</span>
+                </div>
+                
+                <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
+                  Join thousands of professionals who've already discovered their dream jobs through our platform. Setup takes just 2 minutes.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                  <Button 
+                    size="lg"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-4 text-lg shadow-xl transform hover:scale-105 transition-all duration-300"
+                  >
+                    Upload Your CV Now
+                    <Upload className="w-5 h-5 ml-2" />
+                  </Button>
+                  
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Shield className="w-4 h-4 mr-2 text-green-500" />
+                    100% Free • No Credit Card Required
+                  </div>
+                </div>
+
+                {/* Trust Indicators */}
+                {/* <div className="flex flex-wrap items-center justify-center gap-8 pt-6 border-t border-gray-200">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                    2-minute setup
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Star className="w-4 h-4 mr-2 text-yellow-500" />
+                    Free forever
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Users className="w-4 h-4 mr-2 text-purple-500" />
+                    1,200+ matched this month
+                  </div>
+                </div>
+              </div>
+            </div> */}
+          {/* </divdiv> 
+          
+          */}
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          {/* Enhanced Navigation Links */}
+          {/* <div className="flex flex-wrap justify-center items-center gap-2 text-sm mb-10">
+            {[
+              { label: "About", href: "#" },
+              { label: "How it works", href: "#" },
+              { label: "Privacy", href: "#" },
+              { label: "Terms", href: "#" }
+            ].map((link, index) => (
+              <div key={index}>
+                <button className="hover:text-blue-600 transition-colors px-4 py-2 rounded-lg hover:bg-white/50 backdrop-blur-sm font-medium text-gray-700">
+                  {link.label}
+                </button>
+                {index < 3 && <span className="text-blue-300 mx-2">•</span>}
+              </div>
+            ))}
+          </div> */}
+
+          {/* Contact Information */}
+          <div className="flex flex-wrap justify-center items-center gap-6 mb-10">
+            <a 
+              href="mailto:info@v-accel.ai" 
+              className="group inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-lg border border-blue-200/50 hover:border-blue-300 hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
+                <Mail className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 text-sm">Email Support</div>
+                <div className="text-blue-600 text-xs">info@v-accel.ai</div>
+              </div>
+            </a>
+            
+            <button 
+              onClick={() => {
+                const whatsappUrl = 'https://wa.me/919962056381';
+                
+                // Try multiple methods
+                try {
+                  // Method 1: Direct navigation
+                  window.location.href = whatsappUrl;
+                } catch (error) {
+                  console.error('Method 1 failed:', error);
+                  try {
+                    // Method 2: Open in new tab
+                    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                  } catch (error2) {
+                    console.error('Method 2 failed:', error2);
+                    // Method 3: Create temporary link
+                    const link = document.createElement('a');
+                    link.href = whatsappUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
+                }
+              }}
+              className="group inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
+            >
+              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                <MessageCircle className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 text-sm">WhatsApp Support</div>
+                <div className="text-green-600 text-xs">Instant help available</div>
+              </div>
+            </button>
+          </div>
+
+          {/* Enhanced Consent Microcopy */}
+          <div 
+            className="text-center"
+           
+          >
+            <div className="bg-white/40 backdrop-blur-sm rounded-2xl p-6 border border-blue-200/30 max-w-3xl mx-auto">
+              <div className="flex items-center justify-center mb-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mr-3">
+                  <Shield className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-semibold text-gray-800">Privacy Promise</span>
+              </div>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                By creating a profile you consent to our <span className="text-blue-600 font-medium hover:underline cursor-pointer">Terms</span> and <span className="text-blue-600 font-medium hover:underline cursor-pointer">Privacy Policy</span>. 
+                <br className="hidden sm:block" />
+                <span className="font-semibold text-gray-800">We will never share your contact info without explicit consent.</span>
+              </p>
+            </div>
+          </div>
+        </div>
         </div>
       </section>
 

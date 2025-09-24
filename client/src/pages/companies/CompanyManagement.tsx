@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,10 +60,10 @@ import { toast } from "@/hooks/use-toast";
 import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CompanyManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [industryFilter, setIndustryFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -72,9 +73,19 @@ export default function CompanyManagement() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
+  // Check for URL action parameter to auto-open dialogs
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'add') {
+      setIsCreateDialogOpen(true);
+      // Remove the action parameter from URL to prevent re-opening
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Debug fieldErrors changes
   useEffect(() => {
-    console.log('🔍 fieldErrors state changed:', fieldErrors);
   }, [fieldErrors]);
 
   // Debounce search term to prevent excessive API calls
@@ -101,12 +112,8 @@ export default function CompanyManagement() {
       params.status = statusFilter;
     }
     
-    if (industryFilter !== "all") {
-      params.industry = industryFilter;
-    }
-    
     return params;
-  }, [page, debouncedSearchTerm, statusFilter, industryFilter]);
+  }, [page, debouncedSearchTerm, statusFilter]);
 
   // API hooks
   const { 
@@ -129,8 +136,7 @@ export default function CompanyManagement() {
   // Additional client-side filtering
   const filteredCompanies = companies.filter(company => {
     if (!searchTerm) return true;
-    const matchesSearch = company.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         company.industry?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = company.name?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -143,14 +149,6 @@ export default function CompanyManagement() {
     }
   };
 
-  const getPartnershipColor = (level: string) => {
-    switch (level) {
-      case "premium": return "bg-purple-600 text-white border-purple-600";
-      case "standard": return "bg-blue-600 text-white border-blue-600";
-      case "basic": return "bg-gray-600 text-white border-gray-600";
-      default: return "bg-gray-600 text-white border-gray-600";
-    }
-  };
 
   const handleViewCompany = (company: any) => {
     setSelectedCompany(company);
@@ -161,21 +159,24 @@ export default function CompanyManagement() {
     setSelectedCompany(company);
     setEditFormData({
       name: company.name || '',
-      industry: company.industry || '',
-      location: company.location || '',
+      size: company.size || '',
+      address: {
+        street: company.address?.street || company.location || '',
+        city: company.address?.city || '',
+        state: company.address?.state || '',
+        zipCode: company.address?.zipCode || '',
+        country: company.address?.country || ''
+      },
       status: company.status || 'active',
       description: company.description || '',
       website: company.website || '',
-      employees: company.employees || '',
-      foundedYear: company.foundedYear || '',
-      partnership: company.partnership || 'basic'
+      foundedYear: company.foundedYear || ''
     });
     setIsEditDialogOpen(true);
   };
 
   // Helper function to handle validation errors with comprehensive user-friendly messages
   const handleValidationError = (error: any, defaultMessage: string) => {
-    console.log('🔍 handleValidationError called with:', error);
     
     // Clear previous field errors
     setFieldErrors({});
@@ -184,16 +185,13 @@ export default function CompanyManagement() {
     let issues = null;
     if (error?.issues && Array.isArray(error.issues)) {
       issues = error.issues;
-      console.log('🔍 Found issues directly on error object:', issues);
     } else if (error?.response?.data?.issues && Array.isArray(error.response.data.issues)) {
       issues = error.response.data.issues;
-      console.log('🔍 Found issues in error.response.data:', issues);
     }
     
     if (issues) {
       const fieldErrorsMap: Record<string, string> = {};
       const validationErrors = issues.map((issue: any) => {
-        console.log('🔍 Processing issue:', issue);
         let userFriendlyMessage = issue.message;
         const fieldName = issue.field || 'Field';
         
@@ -215,14 +213,6 @@ export default function CompanyManagement() {
               userFriendlyMessage = 'Company description is required';
             } else if (issue.code === 'too_big' || issue.message.includes('exceed 2000 characters')) {
               userFriendlyMessage = 'Description cannot exceed 2000 characters';
-            }
-            break;
-            
-          case 'industry':
-            if (issue.code === 'too_small' || issue.message.includes('required')) {
-              userFriendlyMessage = 'Industry is required';
-            } else if (issue.code === 'too_big' || issue.message.includes('exceed 100 characters')) {
-              userFriendlyMessage = 'Industry cannot exceed 100 characters';
             }
             break;
             
@@ -278,13 +268,7 @@ export default function CompanyManagement() {
             }
             break;
             
-          // Partnership and Status
-          case 'partnership':
-            if (issue.code === 'invalid_enum_value') {
-              userFriendlyMessage = 'Please select a valid partnership level (Basic, Standard, Premium, or Enterprise)';
-            }
-            break;
-            
+          // Status
           case 'status':
             if (issue.code === 'invalid_enum_value') {
               userFriendlyMessage = 'Please select a valid company status (Active, Inactive, Pending, or Suspended)';
@@ -358,12 +342,10 @@ export default function CompanyManagement() {
       });
       
       // Set field errors for UI highlighting
-      console.log('🔍 Setting field errors:', fieldErrorsMap);
       setFieldErrors(fieldErrorsMap);
       
       // Debug: Check if field errors were set
       setTimeout(() => {
-        console.log('🔍 Field errors after setState:', fieldErrorsMap);
       }, 100);
       
       const errorMessage = validationErrors.length === 1 
@@ -438,10 +420,10 @@ export default function CompanyManagement() {
 
   const handleCreateCompany = async () => {
     // Validate required fields
-    if (!createFormData.name || !createFormData.size || !createFormData.industry || !createFormData.location || !createFormData.description) {
+    if (!createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.address?.zipCode || !createFormData.foundedYear || !createFormData.description) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields: Company Name, Size, Industry, Location, and Description",
+        description: "Please fill in all required fields: Company Name, Size, Company Address, City, ZIP/PIN Code, Founded Year, and Description",
         variant: "destructive"
       });
       return;
@@ -463,19 +445,21 @@ export default function CompanyManagement() {
     
     const newCompanyData = {
       name: createFormData.name.trim(),
-      industry: createFormData.industry,
-      location: createFormData.location.trim(),
+      address: {
+        street: createFormData.address?.street?.trim() || '',
+        city: createFormData.address?.city?.trim() || '',
+        state: createFormData.address?.state?.trim() || '',
+        zipCode: createFormData.address?.zipCode?.trim() || '',
+        country: createFormData.address?.country?.trim() || ''
+      },
       size: createFormData.size,
       website: createFormData.website && createFormData.website.trim() !== '' ? createFormData.website.trim() : undefined,
       description: createFormData.description.trim(),
-      employees: parseInt(createFormData.employees) || 0,
       foundedYear: parseInt(createFormData.foundedYear) || new Date().getFullYear(),
-      partnership: createFormData.partnership || 'basic',
       status: 'active',
       contacts: []
     };
 
-    console.log('Creating company with data:', newCompanyData);
 
     try {
       await createCompany(newCompanyData);
@@ -489,11 +473,6 @@ export default function CompanyManagement() {
       });
     } catch (error: any) {
       console.error('Failed to create company:', error);
-      console.log('🔍 Full error object:', JSON.stringify(error, null, 2));
-      console.log('🔍 Error.response:', error?.response);
-      console.log('🔍 Error.response.data:', error?.response?.data);
-      console.log('🔍 Error.issues:', error?.issues);
-      console.log('🔍 Error.detail:', error?.detail);
       handleValidationError(error, "Failed to create company. Please try again.");
     }
   };
@@ -501,16 +480,44 @@ export default function CompanyManagement() {
   const handleUpdateCompany = async () => {
     if (!selectedCompany?.id) return;
     
+    // Validate required fields
+    if (!editFormData.name || !editFormData.size || !editFormData.address?.street || !editFormData.address?.city || !editFormData.address?.zipCode || !editFormData.foundedYear || !editFormData.description) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields: Company Name, Size, Company Address, City, ZIP/PIN Code, Founded Year, and Description",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate website URL if provided
+    if (editFormData.website && editFormData.website.trim() !== '') {
+      try {
+        new URL(editFormData.website);
+      } catch {
+        toast({
+          title: "Validation Error",
+          description: "Please enter a valid website URL (e.g., https://www.company.com)",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     const updateData = {
       name: editFormData.name,
-      industry: editFormData.industry,
-      location: editFormData.location,
+      size: editFormData.size,
+      address: {
+        street: editFormData.address?.street?.trim() || '',
+        city: editFormData.address?.city?.trim() || '',
+        state: editFormData.address?.state?.trim() || '',
+        zipCode: editFormData.address?.zipCode?.trim() || '',
+        country: editFormData.address?.country?.trim() || ''
+      },
       status: editFormData.status,
       description: editFormData.description,
-      website: editFormData.website,
-      employees: parseInt(editFormData.employees) || 0,
-      foundedYear: parseInt(editFormData.foundedYear) || new Date().getFullYear(),
-      partnership: editFormData.partnership
+      website: editFormData.website && editFormData.website.trim() !== '' ? editFormData.website.trim() : undefined,
+      foundedYear: parseInt(editFormData.foundedYear) || new Date().getFullYear()
     };
 
     try {
@@ -544,14 +551,6 @@ export default function CompanyManagement() {
     }
   };
 
-  const formatEmployeeCount = (count: number) => {
-    if (count === undefined || count === null) return 'N/A';
-    if (count === 0) return '0';
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}k+`;
-    }
-    return count.toString();
-  };
 
   return (
     <div className="space-y-6">
@@ -570,14 +569,15 @@ export default function CompanyManagement() {
               Add Company
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>Add New Company</DialogTitle>
               <DialogDescription>
                 Add a new partner company to your recruitment network.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="flex-1 overflow-y-auto px-2">
+              <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="create-name">Company Name <span className="text-red-500">*</span></Label>
@@ -595,35 +595,6 @@ export default function CompanyManagement() {
                     <p className="text-sm text-red-500 mt-1">{fieldErrors.name}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-industry">Industry <span className="text-red-500">*</span></Label>
-                  <Select 
-                    value={createFormData.industry || ''} 
-                    onValueChange={(value) => {
-                      setCreateFormData({...createFormData, industry: value});
-                      clearFieldError('industry');
-                    }}
-                  >
-                    <SelectTrigger className={fieldErrors.industry ? "border-red-500 focus:border-red-500" : ""}>
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="finance">Finance</SelectItem>
-                      <SelectItem value="healthcare">Healthcare</SelectItem>
-                      <SelectItem value="education">Education</SelectItem>
-                      <SelectItem value="retail">Retail</SelectItem>
-                      <SelectItem value="manufacturing">Manufacturing</SelectItem>
-                      <SelectItem value="consulting">Consulting</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {fieldErrors.industry && (
-                    <p className="text-sm text-red-500 mt-1">{fieldErrors.industry}</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="create-size">Company Size <span className="text-red-500">*</span></Label>
                   <Select 
@@ -653,23 +624,113 @@ export default function CompanyManagement() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="create-location">Location <span className="text-red-500">*</span></Label>
-                  <Input 
-                    id="create-location" 
-                    value={createFormData.location || ''}
-                    onChange={(e) => {
-                      setCreateFormData({...createFormData, location: e.target.value});
-                      clearFieldError('location');
-                    }}
-                    placeholder="e.g. San Francisco, CA" 
-                    className={fieldErrors.location ? "border-red-500 focus:border-red-500" : ""}
-                  />
-                  {fieldErrors.location && (
-                    <p className="text-sm text-red-500 mt-1">{fieldErrors.location}</p>
-                  )}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-street">Company Address <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="create-street" 
+                      value={createFormData.address?.street || ''}
+                      onChange={(e) => {
+                        setCreateFormData({
+                          ...createFormData, 
+                          address: { ...createFormData.address, street: e.target.value }
+                        });
+                        clearFieldError('street');
+                      }}
+                      placeholder="e.g. 123 Main Street, Suite 100" 
+                      className={fieldErrors.street ? "border-red-500 focus:border-red-500" : ""}
+                    />
+                    {fieldErrors.street && (
+                      <p className="text-sm text-red-500 mt-1">{fieldErrors.street}</p>
+                    )}
+                  </div>
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-city">City <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="create-city" 
+                      value={createFormData.address?.city || ''}
+                      onChange={(e) => {
+                        setCreateFormData({
+                          ...createFormData, 
+                          address: { ...createFormData.address, city: e.target.value }
+                        });
+                        clearFieldError('city');
+                      }}
+                      placeholder="e.g. San Francisco" 
+                      className={fieldErrors.city ? "border-red-500 focus:border-red-500" : ""}
+                    />
+                    {fieldErrors.city && (
+                      <p className="text-sm text-red-500 mt-1">{fieldErrors.city}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-state">State/Province</Label>
+                    <Input 
+                      id="create-state" 
+                      value={createFormData.address?.state || ''}
+                      onChange={(e) => {
+                        setCreateFormData({
+                          ...createFormData, 
+                          address: { ...createFormData.address, state: e.target.value }
+                        });
+                        clearFieldError('state');
+                      }}
+                      placeholder="e.g. California" 
+                      className={fieldErrors.state ? "border-red-500 focus:border-red-500" : ""}
+                    />
+                    {fieldErrors.state && (
+                      <p className="text-sm text-red-500 mt-1">{fieldErrors.state}</p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="create-zipcode">ZIP/PIN Code <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="create-zipcode" 
+                      value={createFormData.address?.zipCode || ''}
+                      onChange={(e) => {
+                        setCreateFormData({
+                          ...createFormData, 
+                          address: { ...createFormData.address, zipCode: e.target.value }
+                        });
+                        clearFieldError('zipCode');
+                      }}
+                      placeholder="e.g. 94105" 
+                      className={fieldErrors.zipCode ? "border-red-500 focus:border-red-500" : ""}
+                    />
+                    {fieldErrors.zipCode && (
+                      <p className="text-sm text-red-500 mt-1">{fieldErrors.zipCode}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="create-country">Country</Label>
+                    <Input 
+                      id="create-country" 
+                      value={createFormData.address?.country || ''}
+                      onChange={(e) => {
+                        setCreateFormData({
+                          ...createFormData, 
+                          address: { ...createFormData.address, country: e.target.value }
+                        });
+                        clearFieldError('country');
+                      }}
+                      placeholder="e.g. United States" 
+                      className={fieldErrors.country ? "border-red-500 focus:border-red-500" : ""}
+                    />
+                    {fieldErrors.country && (
+                      <p className="text-sm text-red-500 mt-1">{fieldErrors.country}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="create-website">Website</Label>
                   <Input 
@@ -686,28 +747,8 @@ export default function CompanyManagement() {
                     <p className="text-sm text-red-500 mt-1">{fieldErrors.website}</p>
                   )}
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="create-employees">Employee Count</Label>
-                  <Input 
-                    id="create-employees" 
-                    type="number"
-                    value={createFormData.employees || ''}
-                    onChange={(e) => {
-                      setCreateFormData({...createFormData, employees: e.target.value});
-                      clearFieldError('employees');
-                    }}
-                    placeholder="e.g. 500" 
-                    className={fieldErrors.employees ? "border-red-500 focus:border-red-500" : ""}
-                  />
-                  {fieldErrors.employees && (
-                    <p className="text-sm text-red-500 mt-1">{fieldErrors.employees}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-founded">Founded Year</Label>
+                  <Label htmlFor="create-founded">Founded Year <span className="text-red-500">*</span></Label>
                   <Input 
                     id="create-founded" 
                     type="number"
@@ -723,29 +764,8 @@ export default function CompanyManagement() {
                     <p className="text-sm text-red-500 mt-1">{fieldErrors.foundedYear}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="create-partnership">Partnership Level</Label>
-                  <Select 
-                    value={createFormData.partnership || 'basic'} 
-                    onValueChange={(value) => {
-                      setCreateFormData({...createFormData, partnership: value});
-                      clearFieldError('partnership');
-                    }}
-                  >
-                  <SelectTrigger className={fieldErrors.partnership ? "border-red-500 focus:border-red-500" : ""}>
-                      <SelectValue placeholder="Select level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="basic">Basic</SelectItem>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                  </SelectContent>
-                </Select>
-                  {fieldErrors.partnership && (
-                    <p className="text-sm text-red-500 mt-1">{fieldErrors.partnership}</p>
-                  )}
-                </div>
               </div>
+              
               
               <div className="space-y-2">
                 <Label htmlFor="create-description">Company Description <span className="text-red-500">*</span></Label>
@@ -765,7 +785,8 @@ export default function CompanyManagement() {
               </div>
               
             </div>
-            <DialogFooter>
+            </div>
+            <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4">
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -778,7 +799,7 @@ export default function CompanyManagement() {
               </Button>
               <Button 
                 onClick={handleCreateCompany} 
-                disabled={createLoading || !createFormData.name || !createFormData.size || !createFormData.industry || !createFormData.location || !createFormData.description}
+                disabled={createLoading || !createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.address?.zipCode || !createFormData.foundedYear || !createFormData.description}
               >
                 {createLoading ? "Creating..." : "Add Company"}
               </Button>
@@ -823,9 +844,9 @@ export default function CompanyManagement() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-100">Industries</p>
+                <p className="text-sm text-purple-100">Total</p>
                 <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : new Set(companies.map(c => c.industry)).size}
+                  {companiesLoading ? "..." : companies.length}
                 </p>
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
@@ -836,17 +857,6 @@ export default function CompanyManagement() {
         </Card>
         <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-amber-100">Open Positions</p>
-                <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : companies.reduce((sum, c) => sum + (c.activeJobs || 0), 0)}
-                </p>
-              </div>
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Briefcase className="w-6 h-6 text-amber-100" />
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
@@ -880,19 +890,6 @@ export default function CompanyManagement() {
                 <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={industryFilter} onValueChange={setIndustryFilter}>
-              <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
-                <BarChart3 className="w-4 h-4 mr-2 text-purple-600" />
-                <SelectValue placeholder="Industry" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Industries</SelectItem>
-                    <SelectItem value="technology">Technology</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
-                <SelectItem value="healthcare">Healthcare</SelectItem>
-                <SelectItem value="education">Education</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </CardHeader>
             <CardContent>
@@ -905,7 +902,7 @@ export default function CompanyManagement() {
               <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium">No companies found</h3>
               <p className="text-muted-foreground mb-4">
-                {searchTerm || statusFilter !== "all" || industryFilter !== "all"
+                {searchTerm || statusFilter !== "all"
                   ? "Try adjusting your search or filters" 
                   : "Get started by adding your first company"
                 }
@@ -916,11 +913,9 @@ export default function CompanyManagement() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Company</TableHead>
-                  <TableHead>Industry</TableHead>
                   <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
-                  <TableHead>Partnership</TableHead>
-                  <TableHead>Employees</TableHead>
+                  <TableHead>Size</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -945,18 +940,21 @@ export default function CompanyManagement() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-purple-600" />
-                        <Badge variant="outline" className="capitalize text-base">
-                          {company.industry}
-                        </Badge>
-                      </div>
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-base">
                         <MapPin className="w-4 h-4 text-emerald-600" />
-                        {company.location}
+                        <div className="text-sm">
+                          {company.address ? (
+                            <>
+                              <div>{company.address.street}</div>
+                              <div className="text-muted-foreground">
+                                {[company.address.city, company.address.state].filter(Boolean).join(', ')}
+                              </div>
+                            </>
+                          ) : (
+                            company.location || 'No address provided'
+                          )}
+                        </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -964,15 +962,12 @@ export default function CompanyManagement() {
                           {company.status}
                         </Badge>
                       </TableCell>
-                    <TableCell>
-                      <Badge className={getPartnershipColor(company.partnership)} variant="outline">
-                        {company.partnership || 'basic'}
-                      </Badge>
-                    </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-2 text-base">
-                        <Users className="w-4 h-4 text-amber-600" />
-                        {formatEmployeeCount(company.employees)}
+                        <Building2 className="w-4 h-4 text-amber-600" />
+                        <Badge variant="outline" className="text-xs">
+                          {company.size}
+                        </Badge>
                       </div>
                       </TableCell>
                       <TableCell>
@@ -1026,21 +1021,34 @@ export default function CompanyManagement() {
                   <div>
                     <h3 className="font-semibold text-lg mb-2">Company Information</h3>
                     <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                        <div>
+                          <span className="font-medium">Address:</span>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {selectedCompany.address ? (
+                              <>
+                                <div>{selectedCompany.address.street}</div>
+                                <div>
+                                  {[selectedCompany.address.city, selectedCompany.address.state, selectedCompany.address.zipCode].filter(Boolean).join(', ')}
+                                </div>
+                                {selectedCompany.address.country && (
+                                  <div>{selectedCompany.address.country}</div>
+                                )}
+                              </>
+                            ) : (
+                              selectedCompany.location || 'No address provided'
+                            )}
+                          </div>
+                        </div>
+                      </div>
                       <div className="flex items-center gap-2">
                         <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Industry:</span>
-                        <span className="capitalize">{selectedCompany.industry}</span>
+                        <span className="font-medium">Company Size:</span>
+                        <Badge variant="outline" className="text-xs">
+                          {selectedCompany.size}
+                        </Badge>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Location:</span>
-                        <span>{selectedCompany.location}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Employees:</span>
-                        <span>{formatEmployeeCount(selectedCompany.employees)}</span>
-                  </div>
                       {selectedCompany.website && (
                         <div className="flex items-center gap-2">
                           <Globe className="w-4 h-4 text-muted-foreground" />
@@ -1056,18 +1064,12 @@ export default function CompanyManagement() {
                   
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-semibold text-lg mb-2">Partnership Details</h3>
+                    <h3 className="font-semibold text-lg mb-2">Company Details</h3>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">Status:</span>
                         <Badge className={getStatusColor(selectedCompany.status)}>
                           {selectedCompany.status}
-                        </Badge>
-                    </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Partnership Level:</span>
-                        <Badge className={getPartnershipColor(selectedCompany.partnership)} variant="outline">
-                          {selectedCompany.partnership || 'basic'}
                         </Badge>
                     </div>
                       {selectedCompany.foundedYear && (
@@ -1110,16 +1112,17 @@ export default function CompanyManagement() {
 
       {/* Edit Company Modal */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Edit Company: {selectedCompany?.name}</DialogTitle>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Edit Company: {selectedCompany?.name}</DialogTitle>
             <DialogDescription>
               Update company details and information
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto px-2">
+            <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-name">Company Name <span className="text-red-500">*</span></Label>
                 <Input 
@@ -1137,48 +1140,141 @@ export default function CompanyManagement() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-industry">Industry <span className="text-red-500">*</span></Label>
+                <Label htmlFor="edit-size">Company Size <span className="text-red-500">*</span></Label>
                 <Select 
-                  value={editFormData.industry || ''} 
+                  value={editFormData.size || ''} 
                   onValueChange={(value) => {
-                    setEditFormData({...editFormData, industry: value});
-                    clearFieldError('industry');
+                    setEditFormData({...editFormData, size: value});
+                    clearFieldError('size');
                   }}
                 >
-                  <SelectTrigger className={fieldErrors.industry ? "border-red-500 focus:border-red-500" : ""}>
-                    <SelectValue placeholder="Select industry" />
+                  <SelectTrigger className={fieldErrors.size ? "border-red-500 focus:border-red-500" : ""}>
+                    <SelectValue placeholder="Select company size" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="technology">Technology</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="healthcare">Healthcare</SelectItem>
-                    <SelectItem value="education">Education</SelectItem>
-                    <SelectItem value="retail">Retail</SelectItem>
+                    <SelectItem value="1-10">1-10 employees</SelectItem>
+                    <SelectItem value="11-25">11-25 employees</SelectItem>
+                    <SelectItem value="26-50">26-50 employees</SelectItem>
+                    <SelectItem value="51-100">51-100 employees</SelectItem>
+                    <SelectItem value="101-250">101-250 employees</SelectItem>
+                    <SelectItem value="251-500">251-500 employees</SelectItem>
+                    <SelectItem value="501-1000">501-1000 employees</SelectItem>
+                    <SelectItem value="1000+">1000+ employees</SelectItem>
                   </SelectContent>
                 </Select>
-                {fieldErrors.industry && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.industry}</p>
+                {fieldErrors.size && (
+                  <p className="text-sm text-red-500 mt-1">{fieldErrors.size}</p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-location">Location <span className="text-red-500">*</span></Label>
-                <Input 
-                  id="edit-location" 
-                  value={editFormData.location || ''}
-                  onChange={(e) => {
-                    setEditFormData({...editFormData, location: e.target.value});
-                    clearFieldError('location');
-                  }}
-                  placeholder="e.g. San Francisco, CA" 
-                  className={fieldErrors.location ? "border-red-500 focus:border-red-500" : ""}
-                />
-                {fieldErrors.location && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.location}</p>
-                )}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-street">Company Address <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-street" 
+                    value={editFormData.address?.street || ''}
+                    onChange={(e) => {
+                      setEditFormData({
+                        ...editFormData, 
+                        address: { ...editFormData.address, street: e.target.value }
+                      });
+                      clearFieldError('street');
+                    }}
+                    placeholder="e.g. 123 Main Street, Suite 100" 
+                    className={fieldErrors.street ? "border-red-500 focus:border-red-500" : ""}
+                  />
+                  {fieldErrors.street && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.street}</p>
+                  )}
+                </div>
               </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-city">City <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-city" 
+                    value={editFormData.address?.city || ''}
+                    onChange={(e) => {
+                      setEditFormData({
+                        ...editFormData, 
+                        address: { ...editFormData.address, city: e.target.value }
+                      });
+                      clearFieldError('city');
+                    }}
+                    placeholder="e.g. San Francisco" 
+                    className={fieldErrors.city ? "border-red-500 focus:border-red-500" : ""}
+                  />
+                  {fieldErrors.city && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.city}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-state">State/Province</Label>
+                  <Input 
+                    id="edit-state" 
+                    value={editFormData.address?.state || ''}
+                    onChange={(e) => {
+                      setEditFormData({
+                        ...editFormData, 
+                        address: { ...editFormData.address, state: e.target.value }
+                      });
+                      clearFieldError('state');
+                    }}
+                    placeholder="e.g. California" 
+                    className={fieldErrors.state ? "border-red-500 focus:border-red-500" : ""}
+                  />
+                  {fieldErrors.state && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.state}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-zipcode">ZIP/PIN Code <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-zipcode" 
+                    value={editFormData.address?.zipCode || ''}
+                    onChange={(e) => {
+                      setEditFormData({
+                        ...editFormData, 
+                        address: { ...editFormData.address, zipCode: e.target.value }
+                      });
+                      clearFieldError('zipCode');
+                    }}
+                    placeholder="e.g. 94105" 
+                    className={fieldErrors.zipCode ? "border-red-500 focus:border-red-500" : ""}
+                  />
+                  {fieldErrors.zipCode && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.zipCode}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-country">Country</Label>
+                  <Input 
+                    id="edit-country" 
+                    value={editFormData.address?.country || ''}
+                    onChange={(e) => {
+                      setEditFormData({
+                        ...editFormData, 
+                        address: { ...editFormData.address, country: e.target.value }
+                      });
+                      clearFieldError('country');
+                    }}
+                    placeholder="e.g. United States" 
+                    className={fieldErrors.country ? "border-red-500 focus:border-red-500" : ""}
+                  />
+                  {fieldErrors.country && (
+                    <p className="text-sm text-red-500 mt-1">{fieldErrors.country}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-website">Website</Label>
                 <Input 
@@ -1195,44 +1291,8 @@ export default function CompanyManagement() {
                   <p className="text-sm text-red-500 mt-1">{fieldErrors.website}</p>
                 )}
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-status">Status</Label>
-                <Select 
-                  value={editFormData.status || 'active'} 
-                  onValueChange={(value) => setEditFormData({...editFormData, status: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-employees">Employee Count</Label>
-                <Input 
-                  id="edit-employees" 
-                  type="number"
-                  value={editFormData.employees || ''}
-                  onChange={(e) => {
-                    setEditFormData({...editFormData, employees: e.target.value});
-                    clearFieldError('employees');
-                  }}
-                  placeholder="e.g. 500" 
-                  className={fieldErrors.employees ? "border-red-500 focus:border-red-500" : ""}
-                />
-                {fieldErrors.employees && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.employees}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-founded">Founded Year</Label>
+                <Label htmlFor="edit-founded">Founded Year <span className="text-red-500">*</span></Label>
                 <Input 
                   id="edit-founded" 
                   type="number"
@@ -1250,28 +1310,24 @@ export default function CompanyManagement() {
               </div>
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="edit-partnership">Partnership Level</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status</Label>
                 <Select 
-                  value={editFormData.partnership || 'basic'} 
-                  onValueChange={(value) => {
-                    setEditFormData({...editFormData, partnership: value});
-                    clearFieldError('partnership');
-                  }}
+                  value={editFormData.status || 'active'} 
+                  onValueChange={(value) => setEditFormData({...editFormData, status: value})}
                 >
-                <SelectTrigger className={fieldErrors.partnership ? "border-red-500 focus:border-red-500" : ""}>
-                  <SelectValue placeholder="Select partnership level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="standard">Standard</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                </SelectContent>
-              </Select>
-                {fieldErrors.partnership && (
-                  <p className="text-sm text-red-500 mt-1">{fieldErrors.partnership}</p>
-                )}
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="edit-description">Company Description <span className="text-red-500">*</span></Label>
@@ -1290,8 +1346,9 @@ export default function CompanyManagement() {
               )}
         </div>
       </div>
+          </div>
           
-          <DialogFooter className="gap-2">
+          <DialogFooter className="flex-shrink-0 border-t pt-4 mt-4 gap-2">
             <Button 
               variant="outline" 
               onClick={() => {

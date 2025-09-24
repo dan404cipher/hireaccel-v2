@@ -18,10 +18,11 @@ import {
   MapPin,
   DollarSign,
   Phone,
-  Video
+  Video,
+  Plus
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useJobs, useApplications, useInterviews, useCompanies } from "@/hooks/useApi";
+import { useJobs, useApplications, useInterviews, useCompanies, useCandidateAssignments } from "@/hooks/useApi";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from 'date-fns';
 import { DashboardBanner } from "@/components/dashboard/Banner";
@@ -47,13 +48,18 @@ export default function HRDashboard() {
   const { data: companiesResponse, loading: companiesLoading, error: companiesError } = useCompanies({
     limit: 100
   });
+  
+  const { data: candidateAssignmentsResponse, loading: assignmentsLoading, error: assignmentsError } = useCandidateAssignments({
+    assignedTo: user?.id,
+    limit: 100
+  });
 
-  if (jobsError || applicationsError || interviewsError || companiesError) {
+  if (jobsError || applicationsError || interviewsError || companiesError || assignmentsError) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">HR Dashboard</h1>
         <ApiErrorAlert 
-          error={jobsError || applicationsError || interviewsError || companiesError}
+          error={jobsError || applicationsError || interviewsError || companiesError || assignmentsError}
           onRetry={() => window.location.reload()}
         />
       </div>
@@ -65,12 +71,13 @@ export default function HRDashboard() {
   const applications = Array.isArray(applicationsResponse) ? applicationsResponse : (applicationsResponse as any)?.data || [];
   const interviews = Array.isArray(interviewsResponse) ? interviewsResponse : (interviewsResponse as any)?.data || [];
   const companies = Array.isArray(companiesResponse) ? companiesResponse : (companiesResponse as any)?.data || [];
+  const candidateAssignments = Array.isArray(candidateAssignmentsResponse) ? candidateAssignmentsResponse : (candidateAssignmentsResponse as any)?.data || [];
 
   // Calculate HR-specific metrics
   const activeJobs = jobs.filter((job: any) => job.status === 'open').length;
-  const totalApplications = applications.length;
-  const pendingApplications = applications.filter((app: any) => 
-    ['applied', 'under_review', 'shortlisted'].includes(app.status)
+  const totalApplications = jobs.reduce((total: number, job: any) => total + (job.applications || 0), 0);
+  const newApplications = candidateAssignments.filter((assignment: any) => 
+    assignment.candidateStatus === 'new' && assignment.status === 'active'
   ).length;
   const interviewsToday = interviews.filter((interview: any) => {
     const today = new Date();
@@ -103,18 +110,17 @@ export default function HRDashboard() {
     }))
   ];
 
-  // Top performing jobs (by application count)
-  const topJobs = jobs
+  // All HR jobs for continuous scrolling
+  const myJobs = jobs
     .map((job: any) => ({
       title: job.title,
-      applications: applications.filter((app: any) => app.job?.id === job.id).length,
+      applications: job.applications || 0, // Use the applications count from the job (calculated from candidate assignments)
       status: job.status,
       company: job.companyId?.name || 'Unknown Company'
     }))
-    .sort((a, b) => b.applications - a.applications)
-    .slice(0, 5);
+    .sort((a, b) => b.applications - a.applications); // Sort by applications but show all jobs
 
-  const isLoading = jobsLoading || applicationsLoading || interviewsLoading || companiesLoading;
+  const isLoading = jobsLoading || applicationsLoading || interviewsLoading || companiesLoading || assignmentsLoading;
 
   if (isLoading) {
     return (
@@ -165,6 +171,7 @@ export default function HRDashboard() {
           description="Currently open positions"
           gradient="from-blue-500 to-blue-600"
           iconColor="text-blue-100"
+          onClick={() => navigate('/dashboard/jobs?status=open')}
         />
         <MetricCard
           title="Total Applications"
@@ -173,14 +180,16 @@ export default function HRDashboard() {
           description="All applications received"
           gradient="from-emerald-500 to-emerald-600"
           iconColor="text-emerald-100"
+          onClick={() => navigate('/dashboard/shared-candidates')}
         />
         <MetricCard
-          title="Pending Reviews"
-          value={pendingApplications}
-          icon={<Clock className="h-5 w-5" />}
-          description="Applications to review"
+          title="New Applications"
+          value={newApplications}
+          icon={<UserPlus className="h-5 w-5" />}
+          description="New candidates assigned"
           gradient="from-amber-500 to-amber-600"
           iconColor="text-amber-100"
+          onClick={() => navigate('/dashboard/shared-candidates?candidateStatus=new')}
         />
         <MetricCard
           title="Interviews Today"
@@ -189,6 +198,7 @@ export default function HRDashboard() {
           description="Scheduled for today"
           gradient="from-purple-500 to-purple-600"
           iconColor="text-purple-100"
+          onClick={() => navigate('/dashboard/interviews?date=today')}
         />
       </div>
 
@@ -261,29 +271,32 @@ export default function HRDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-700">
               <TrendingUp className="w-5 h-5 text-emerald-600" />
-              Top Performing Jobs
+              My Jobs
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {topJobs.length > 0 ? (
-                topJobs.map((job, index) => (
-                  <div key={job.title} className="flex items-center justify-between p-3 rounded-lg bg-accent/50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold text-sm">
-                        {index + 1}
+            <div className="h-64 overflow-hidden relative">
+              {myJobs.length > 0 ? (
+                <div className="animate-scroll-vertical space-y-3">
+                  {/* Duplicate the jobs list for seamless scrolling */}
+                  {[...myJobs, ...myJobs].map((job, index) => (
+                    <div key={`${job.title}-${index}`} className="flex items-center justify-between p-3 rounded-lg bg-accent/50 flex-shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold text-sm">
+                          {(index % myJobs.length) + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{job.title}</p>
+                          <p className="text-sm text-muted-foreground">{job.company}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-foreground">{job.title}</p>
-                        <p className="text-sm text-muted-foreground">{job.company}</p>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-primary">{job.applications}</p>
+                        <p className="text-xs text-muted-foreground">applications</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-primary">{job.applications}</p>
-                      <p className="text-xs text-muted-foreground">applications</p>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Briefcase className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -312,14 +325,14 @@ export default function HRDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button 
-              onClick={() => navigate('/dashboard/jobs')} 
+              onClick={() => navigate('/dashboard/companies?action=add')} 
               className="h-20 flex-col gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              <Briefcase className="h-6 w-6" />
-              <span>Post New Job</span>
+              <Plus className="h-6 w-6" />
+              <span>Add Company</span>
             </Button>
             <Button 
-              onClick={() => navigate('/dashboard/interviews')} 
+              onClick={() => navigate('/dashboard/interviews?action=schedule')} 
               className="h-20 flex-col gap-2 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               <Calendar className="h-6 w-6" />
@@ -353,7 +366,8 @@ function MetricCard({
   icon, 
   description, 
   gradient = "from-gray-500 to-gray-600",
-  iconColor = "text-gray-100"
+  iconColor = "text-gray-100",
+  onClick
 }: {
   title: string;
   value: number | string;
@@ -361,9 +375,13 @@ function MetricCard({
   description: string;
   gradient?: string;
   iconColor?: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+    <Card 
+      className={`relative overflow-hidden group hover:shadow-lg transition-all duration-300 ${onClick ? 'cursor-pointer hover:scale-105' : ''}`}
+      onClick={onClick}
+    >
       <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`}></div>
       <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-white/90">

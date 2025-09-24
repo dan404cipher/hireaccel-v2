@@ -3,7 +3,7 @@ import { env } from '../config/env';
 import { logger } from '../config/logger';
 import { Company } from '../models/Company';
 import { User } from '../models/User';
-import { PartnershipLevel, CompanyStatus } from '../types';
+import { CompanyStatus } from '../types';
 
 const fixCompanies = async () => {
   try {
@@ -82,10 +82,6 @@ const fixCompanies = async () => {
       }
 
       // Ensure required fields have default values
-      if (!company.partnership) {
-        updates.partnership = PartnershipLevel.BASIC;
-        needsUpdate = true;
-      }
 
       if (!company.status) {
         updates.status = CompanyStatus.ACTIVE;

@@ -54,17 +54,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const renderNotificationMessage = (notification: Notification) => {
     const { message, metadata } = notification;
     
-    console.log('🔍 Rendering notification:', {
-      type: notification.type,
-      metadata,
-      hasCompanyName: !!metadata?.companyName,
-      hasCreatorName: !!metadata?.creatorName,
-      fullMetadata: metadata
-    });
-    
     // Handle company creation notifications
     if (notification.type === 'company_create' && metadata?.companyName && metadata?.creatorName) {
-      console.log('✅ Rendering enhanced company notification with clickable elements');
       return (
         <div>
           A new company has been created:{' '}
@@ -93,7 +84,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     
     // Handle job creation notifications
     if (notification.type === 'job_create' && metadata?.jobTitle && metadata?.creatorName) {
-      console.log('✅ Rendering enhanced job notification with clickable elements');
       return (
         <div>
           A new job has been posted:{' '}
@@ -125,13 +115,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   const navigateToUserProfile = (userId: string, userRole: string) => {
-    console.log('🔍 Navigating to user profile:', { userId, userRole });
     
     // Get current user role to determine appropriate navigation
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const currentUserRole = currentUser?.role;
     
-    console.log('🔍 Current user role:', currentUserRole);
     
     switch (userRole) {
       case 'admin':

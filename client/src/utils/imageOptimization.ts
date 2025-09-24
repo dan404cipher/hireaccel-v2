@@ -13,7 +13,34 @@ export const generateSrcSet = (imageUrl: string, sizes: number[] = [300, 600, 90
   return '';
 };
 
-// Custom hook for lazy loading images
+// Custom hook for preloading critical images (no lazy loading)
+export const usePreloadedImage = (src: string) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const img = new Image();
+    
+    img.onload = () => {
+      setIsLoaded(true);
+      setIsLoading(false);
+      setError(false);
+    };
+    
+    img.onerror = () => {
+      setError(true);
+      setIsLoading(false);
+    };
+    
+    // Start loading immediately
+    img.src = src;
+  }, [src]);
+
+  return { isLoaded, isLoading, error };
+};
+
+// Custom hook for lazy loading images (for non-critical images)
 export const useLazyImage = (src: string, options = {}) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentSrc, setCurrentSrc] = useState('');

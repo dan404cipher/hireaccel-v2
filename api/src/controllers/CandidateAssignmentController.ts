@@ -5,7 +5,7 @@ import { Candidate } from '@/models/Candidate';
 import { User } from '@/models/User';
 import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, UserRole, AuditAction } from '@/types';
+import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import mongoose from 'mongoose';
 
@@ -86,11 +86,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -148,8 +148,8 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title description companyId',
@@ -221,7 +221,10 @@ export class CandidateAssignmentController {
       hrUser = await User.findOne({
         _id: finalAssignedTo,
         role: UserRole.HR,
-        status: 'active',
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       if (!hrUser) {
         throw createNotFoundError('HR user who posted this job not found');
@@ -243,7 +246,10 @@ export class CandidateAssignmentController {
       hrUser = await User.findOne({
         _id: validatedData.assignedTo,
         role: UserRole.HR,
-        status: 'active',
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       if (!hrUser) {
         throw createNotFoundError('HR user not found');
@@ -287,11 +293,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -377,11 +383,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -511,11 +517,11 @@ export class CandidateAssignmentController {
           path: 'candidateId',
           populate: {
             path: 'userId',
-            select: 'firstName lastName email'
+            select: 'firstName lastName email customId'
           }
         })
-        .populate('assignedBy', 'firstName lastName email')
-        .populate('assignedTo', 'firstName lastName email')
+        .populate('assignedBy', 'firstName lastName email customId')
+        .populate('assignedTo', 'firstName lastName email customId')
         .populate({
           path: 'jobId',
           select: 'title companyId location',

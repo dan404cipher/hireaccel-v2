@@ -273,7 +273,13 @@ export class AuthController {
     if (req.ip) context.ipAddress = req.ip;
     if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
     
-    await AuthService.logout(userId, refreshToken, context);
+    try {
+      await AuthService.logout(userId, refreshToken, context);
+    } catch (error) {
+      // Log the error but don't fail the logout
+      console.error('Logout service error:', error);
+      // Continue with clearing tokens even if audit logging fails
+    }
     
     // Clear refresh token cookie
     res.clearCookie('refreshToken');

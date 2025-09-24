@@ -913,20 +913,63 @@ export function HRProfessionals() {
 
 
       {/* Contact Support Section */}
-      <div className="bg-gradient-to-r from-black to-gray-800 text-white flex flex-wrap justify-center items-center gap-6 py-10">
-        <a 
-          href="mailto:info@v-accel.ai" 
-          className="group inline-flex items-center px-4 py-2 bg-white/60 backdrop-blur-sm rounded-lg border border-blue-200/50 hover:border-blue-300 hover:bg-white/80 transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
-            <Mail className="w-4 h-4 text-white" />
-          </div>
-          <div>
+      <div className="flex flex-wrap bg-gradient-to-r from-black to-gray-800 justify-center items-center gap-6 py-10">
+            <a 
+              href="mailto:info@v-accel.ai" 
+              className="group inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm rounded-lg border border-blue-200/50 hover:border-blue-300 hover:bg-white transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center mr-3">
+                <Mail className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 text-sm">Email Support</div>
+                <div className="text-blue-600 text-xs">info@v-accel.ai</div>
+              </div>
+            </a>
+            
+            <button 
+              onClick={() => {
+                const whatsappUrl = 'https://wa.me/919962056381';
+                
+                // Try multiple methods
+                try {
+                  // Method 1: Direct navigation
+                  window.location.href = whatsappUrl;
+                } catch (error) {
+                  console.error('Method 1 failed:', error);
+                  try {
+                    // Method 2: Open in new tab
+                    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                  } catch (error2) {
+                    console.error('Method 2 failed:', error2);
+                    // Method 3: Create temporary link
+                    const link = document.createElement('a');
+                    link.href = whatsappUrl;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }
+                }
+              }}
+              className="group inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm rounded-lg border border-green-200/50 hover:border-green-300 hover:bg-white transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer"
+            >
+              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mr-3">
+                <MessageCircle className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800 text-sm">WhatsApp Support</div>
+                <div className="text-green-600 text-xs">Instant help available</div>
+              </div>
+            </button>
+          {/* </div> */}
+          {/* <div>
             <div className="font-semibold text-gray-800 text-sm">Email Support</div>
             <div className="text-blue-600 text-xs">info@v-accel.ai</div>
-          </div>
-        </a>
-
+          </div> */}
+        {/* </a> */}
+{/* 
         <button 
           onClick={() => {
             console.log('WhatsApp button clicked');
@@ -964,7 +1007,7 @@ export function HRProfessionals() {
             <div className="font-semibold text-gray-800 text-sm">WhatsApp Support</div>
             <div className="text-green-600 text-xs">Instant help available</div>
           </div>
-        </button>
+        </button> */}
       </div>
       {/* Footer */}
       <Footer />

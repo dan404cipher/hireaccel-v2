@@ -31,27 +31,19 @@ export function BannerManagement() {
   }, []);
 
   const fetchBanners = async () => {
-    console.log('=== FRONTEND: FETCHING BANNERS ===');
     try {
       // Fetch HR banners
-      console.log('Fetching HR banners...');
       const hrResponse = await apiClient.getBanners('hr');
-      console.log('HR banners response:', hrResponse);
       // The API returns banners directly, not wrapped in a data property
       const hrBannersData = Array.isArray(hrResponse) ? hrResponse : [];
-      console.log('HR banners data:', hrBannersData);
       setHrBanners(hrBannersData);
 
       // Fetch Candidate banners
-      console.log('Fetching Candidate banners...');
       const candidateResponse = await apiClient.getBanners('candidate');
-      console.log('Candidate banners response:', candidateResponse);
       // The API returns banners directly, not wrapped in a data property
       const candidateBannersData = Array.isArray(candidateResponse) ? candidateResponse : [];
-      console.log('Candidate banners data:', candidateBannersData);
       setCandidateBanners(candidateBannersData);
       
-      console.log('=== FRONTEND: BANNERS FETCHED SUCCESSFULLY ===');
     } catch (error) {
       console.error('Error fetching banners:', error);
       toast.error('Failed to fetch banners');
@@ -78,15 +70,10 @@ export function BannerManagement() {
     }
 
     setUploading(true);
-    console.log('=== FRONTEND: UPLOADING BANNER ===');
-    console.log('File:', file);
-    console.log('Selected category:', selectedCategory);
     
     try {
       const result = await apiClient.uploadBanner(file, selectedCategory);
-      console.log('Upload result:', result);
       toast.success(`${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} banner uploaded successfully`);
-      console.log('Refreshing banners...');
       fetchBanners();
     } catch (error) {
       console.error('Error uploading banner:', error);

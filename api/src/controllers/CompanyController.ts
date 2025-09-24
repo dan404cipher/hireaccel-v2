@@ -3,25 +3,29 @@ import { z } from 'zod';
 import { Company } from '@/models/Company';
 import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, CompanyStatus, PartnershipLevel, AuditAction, UserRole } from '@/types';
+import { AuthenticatedRequest, CompanyStatus, AuditAction, UserRole } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
 const createCompanySchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().min(1).max(2000),
-  industry: z.string().min(1).max(100),
   size: z.enum(['1-10', '11-25', '26-50', '51-100', '101-250', '251-500', '501-1000', '1000+']),
-  location: z.string().min(1).max(200),
+  address: z.object({
+    street: z.string().min(1, 'Street address is required').max(200),
+    city: z.string().min(1, 'City is required').max(100),
+    state: z.string().max(100).optional(),
+    zipCode: z.string().max(20).optional(),
+    country: z.string().max(100).optional(),
+  }),
   website: z.string().url().optional(),
-  employees: z.number().min(0).optional().default(0),
-  foundedYear: z.number().min(1800).max(new Date().getFullYear()).optional().default(new Date().getFullYear()),
+  foundedYear: z.number().min(1800, 'Founded year must be after 1800').max(new Date().getFullYear(), 'Founded year cannot be in the future'),
+  numberOfOpenings: z.number().min(0).optional().default(0),
   contacts: z.array(z.object({
     name: z.string().min(1).max(100),
     email: z.string().email(),
     phone: z.string().min(1),
     position: z.string().min(1).max(100),
   })).optional().default([]),
-  partnership: z.nativeEnum(PartnershipLevel).default(PartnershipLevel.BASIC),
   companyId: z.string().optional(), // Allow but don't require companyId
 });
 
@@ -29,13 +33,11 @@ const updateCompanySchema = createCompanySchema.partial();
 
 export class CompanyController {
   static getCompanies = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { page = 1, limit = 20, status, partnership, industry, search } = req.query;
+    const { page = 1, limit = 20, status, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
     const query: any = {};
     if (status) query.status = status;
-    if (partnership) query.partnership = partnership;
-    if (industry) query.industry = { $regex: industry, $options: 'i' };
     if (search) query.$text = { $search: search as string };
     
     // HR-specific filtering: Show companies the HR user created OR has posted jobs for
@@ -206,10 +208,10 @@ export class CompanyController {
 
   static getCompanyStats = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {
     const stats = await Company.aggregate([
-      { $group: { _id: '$partnership', count: { $sum: 1 }, avgRating: { $avg: '$rating' }, totalJobs: { $sum: '$totalJobs' } } },
-      { $group: { _id: null, partnershipStats: { $push: { partnership: '$_id', count: '$count', avgRating: '$avgRating', totalJobs: '$totalJobs' } }, totalCompanies: { $sum: '$count' } } },
+      { $group: { _id: '$status', count: { $sum: 1 }, avgRating: { $avg: '$rating' }, totalJobs: { $sum: '$totalJobs' } } },
+      { $group: { _id: null, statusStats: { $push: { status: '$_id', count: '$count', avgRating: '$avgRating', totalJobs: '$totalJobs' } }, totalCompanies: { $sum: '$count' } } },
     ]);
     
-    res.json({ success: true, data: stats[0] || { partnershipStats: [], totalCompanies: 0 } });
+    res.json({ success: true, data: stats[0] || { statusStats: [], totalCompanies: 0 } });
   });
 }

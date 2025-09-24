@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,10 +68,11 @@ import {
 // Removed mock data - will use real API data
 
 export default function InterviewManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState(searchParams.get('date') || "all");
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [page, setPage] = useState(1);
@@ -101,6 +103,17 @@ export default function InterviewManagement() {
     notes: '',
     status: '',
   });
+
+  // Check for URL action parameter to auto-open dialogs
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'schedule') {
+      setIsScheduleDialogOpen(true);
+      // Remove the action parameter from URL to prevent re-opening
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Debounce search term to prevent excessive API calls
   useEffect(() => {
@@ -233,7 +246,6 @@ export default function InterviewManagement() {
       case "video": return <Video className="w-4 h-4 text-blue-600" />;
       case "phone": return <Phone className="w-4 h-4 text-emerald-600" />;
       case "in-person": return <MapPin className="w-4 h-4 text-purple-600" />;
-      case "technical": return <Users className="w-4 h-4 text-amber-600" />;
       default: return <Clock className="w-4 h-4 text-gray-600" />;
     }
   };
@@ -290,7 +302,6 @@ export default function InterviewManagement() {
         description: "Interview scheduled successfully",
       });
     } catch (error: any) {
-      console.log('Schedule interview error:', error); // Debug log
       
       let errorMessage = "Failed to schedule interview";
       
@@ -414,7 +425,6 @@ export default function InterviewManagement() {
         description: "Interview updated successfully",
       });
     } catch (error: any) {
-      console.log('Update interview error:', error); // Debug log
       
       let errorMessage = "Failed to update interview";
       
@@ -585,8 +595,7 @@ export default function InterviewManagement() {
                     <SelectContent>
                       <SelectItem value="video">Video Call</SelectItem>
                       <SelectItem value="phone">Phone Call</SelectItem>
-                      <SelectItem value="in-person">In-Person</SelectItem>
-                      <SelectItem value="technical">Technical Interview</SelectItem>
+                      <SelectItem value="in-person">Walk In</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -603,8 +612,6 @@ export default function InterviewManagement() {
                       <SelectItem value="screening">HR Screening</SelectItem>
                       <SelectItem value="technical">Technical</SelectItem>
                       <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
-                      <SelectItem value="cultural">Cultural Fit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -718,7 +725,7 @@ export default function InterviewManagement() {
                   <SelectContent>
                     <SelectItem value="video">Video Call</SelectItem>
                     <SelectItem value="phone">Phone Call</SelectItem>
-                    <SelectItem value="in-person">In Person</SelectItem>
+                    <SelectItem value="in-person">Walk In</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -737,7 +744,6 @@ export default function InterviewManagement() {
                     <SelectItem value="screening">Screening</SelectItem>
                     <SelectItem value="technical">Technical</SelectItem>
                     <SelectItem value="behavioral">Behavioral</SelectItem>
-                    <SelectItem value="final">Final</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -984,7 +990,6 @@ export default function InterviewManagement() {
                     <TableHead>Candidate & Job</TableHead>
                     <TableHead>Date & Time</TableHead>
                     <TableHead>Type & Location</TableHead>
-                    {user?.role !== 'agent' && <TableHead>Agent</TableHead>}
                     <TableHead>Status</TableHead>
                     {user?.role !== 'candidate' && <TableHead></TableHead>}
                   </TableRow>
@@ -1037,12 +1042,6 @@ export default function InterviewManagement() {
                           </div>
                         </div>
                       </TableCell>
-                      {user?.role !== 'agent' && (
-                        <TableCell className="text-base flex items-center gap-2">
-                          <User className="w-4 h-4 text-purple-600" />
-                          {interview.agent}
-                        </TableCell>
-                      )}
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">

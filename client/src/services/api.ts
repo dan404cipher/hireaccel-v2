@@ -69,6 +69,7 @@ export interface User {
   role: 'candidate' | 'agent' | 'hr' | 'partner' | 'admin';
   status: 'active' | 'inactive' | 'suspended' | 'pending';
   emailVerified: boolean;
+  phoneNumber?: string;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -183,7 +184,7 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<string> {
     try {
-      console.log('Refreshing access token...');
+      // Refreshing access token
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
@@ -195,13 +196,13 @@ class ApiClient {
       const data = await response.json();
       
       if (!response.ok) {
-        console.log('Token refresh failed:', data);
+        // Token refresh failed
         this.clearToken();
         console.error('Token refresh failed:', response.status);
         throw new Error('Token refresh failed');
       }
       
-      console.log('Token refresh response:', data);
+      // Token refresh successful
       
       if (!data.data?.accessToken) {
         console.error('No access token in response');
@@ -283,8 +284,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        console.log('API Error Response:', data);
-        console.log('Response Status:', response.status);
+        // API Error Response
         throw data as ApiError;
       }
 
@@ -339,16 +339,13 @@ class ApiClient {
   }
 
   async login(data: { email: string; password: string }) {
-    console.log('API Client login called with:', data);
     try {
       const result = await this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      console.log('API Client login success:', result);
       return result;
     } catch (error) {
-      console.log('API Client login error:', error);
       throw error;
     }
   }
@@ -365,16 +362,13 @@ class ApiClient {
     yearsOfExperience?: string;
     source?: string; // Make optional for backward compatibility
   }) {
-    console.log('API Client signup called with:', data);
     try {
       const result = await this.request<{ requiresOTP?: boolean; email: string; message: string }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      console.log('API Client signup success:', result);
       return result;
     } catch (error) {
-      console.log('API Client signup error:', error);
       throw error;
     }
   }
@@ -579,15 +573,15 @@ class ApiClient {
 
   async updateCandidateProfile(profileData: any) {
     try {
-      console.log('Raw profile data received:', profileData);
+      // Profile data received
       
       // Send the data as-is since it's already wrapped in a profile object
-      console.log('Sending profile update request with data:', profileData);
+      // Sending profile update
       const response = await this.request('/api/v1/candidates/profile', {
         method: 'PUT',
         body: JSON.stringify(profileData),
       });
-      console.log('Profile update response:', response);
+      // Profile update successful
       return response;
     } catch (error) {
       console.error('Profile update error:', error);
