@@ -56,6 +56,9 @@ const envSchema = z.object({
   GOOGLE_SHEETS_ID: z.string().optional(),
   GOOGLE_SHEETS_CREDENTIALS: z.string().optional(),
 
+  // OpenAI Integration
+  OPENAI_API_KEY: z.string().min(1, 'OpenAI API key is required'),
+
   // Security
   BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
   SESSION_SECRET: z.string().min(32, 'Session secret must be at least 32 characters').optional(),

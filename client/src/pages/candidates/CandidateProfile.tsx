@@ -97,6 +97,7 @@ const MonthYearPicker: React.FC<MonthYearPickerProps> = ({ value, onChange, minD
 };
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   User, 
@@ -138,6 +139,7 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import PDFViewer from '@/components/ui/pdf-viewer';
+import { ResumePreviewModal } from '@/components/candidates/ResumePreviewModal';
 
 interface WorkExperience {
   company: string;
@@ -231,6 +233,8 @@ const CandidateProfile: React.FC = () => {
   const [newSkill, setNewSkill] = useState('');
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [parsedProfile, setParsedProfile] = useState<Partial<CandidateProfile> | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   
   // API hooks
   const { data: profileData, loading, refetch } = useCandidateProfile<ProfileData>(customId || candidateId);
@@ -253,14 +257,45 @@ const CandidateProfile: React.FC = () => {
     }
   }, [profileData?.customId, customId, navigate, isSelfView]);
   
+  const updateProfile = useUpdateCandidateProfile<ProfileData>({
+    onSuccess: async () => {
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+      });
+      // Close any open modals and reset states
+      setShowPreviewModal(false);
+      setParsedProfile(null);
+      setEditingSections(new Set());
+      // Force a refetch of the profile data
+      await refetch();
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.detail || error?.message || 'Failed to update profile. Please try again.';
+      toast({
+        title: 'Update Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  });
+
   const uploadResume = useUploadResume({
     onSuccess: async (data) => {
-      toast({
-        title: 'Resume Uploaded',
-        description: 'Your resume has been uploaded successfully.',
-      });
+      if (data.data.parsedProfile) {
+        setParsedProfile(data.data.parsedProfile);
+        setShowPreviewModal(true);
+        toast({
+          title: 'Resume Parsed',
+          description: 'Please review the extracted information before updating your profile.',
+        });
+      } else {
+        toast({
+          title: 'Resume Uploaded',
+          description: 'Your resume has been uploaded successfully, but no information could be extracted.',
+        });
+      }
       setSelectedFile(null);
-      // Refresh resume info to get updated data
       await refetchResumeInfo();
     },
     onError: (error: any) => {
@@ -306,24 +341,6 @@ const CandidateProfile: React.FC = () => {
     if (resumeInfo?.error) {
     }
   }, [resumeInfo]);
-  const updateProfile = useUpdateCandidateProfile<ProfileData>({
-    onSuccess: async () => {
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been updated successfully.',
-      });
-      setEditingSections(new Set());
-      // Force a refetch of the profile data
-      await refetch();
-    },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to update profile. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  });
 
   // Profile state
   const [profile, setProfile] = useState<CandidateProfile>({
@@ -2346,6 +2363,61 @@ const CandidateProfile: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Resume Upload Modal */}
+        <Dialog open={!!selectedFile} onOpenChange={() => setSelectedFile(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Resume</DialogTitle>
+              <DialogDescription>
+                Upload your resume in PDF or Word format.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <FileText className="h-12 w-12 text-muted-foreground" />
+                <div className="flex-1">
+                  <p className="font-medium">{selectedFile?.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {(selectedFile?.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedFile(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUploadResume}>
+                Upload Resume
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Resume Preview Modal */}
+        {parsedProfile && profileData && (
+          <ResumePreviewModal
+            isOpen={showPreviewModal}
+            onClose={() => {
+              setShowPreviewModal(false);
+              setParsedProfile(null);
+            }}
+            parsedProfile={parsedProfile}
+            currentProfile={profileData.profile}
+            onApplyChanges={() => {
+              // Update the profile with the parsed data
+              updateProfile.mutate({
+                profile: {
+                  ...profileData.profile,
+                  ...parsedProfile,
+                },
+              });
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -2,12 +2,14 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '@/types';
 import { File } from '@/models/File';
 import { Candidate } from '@/models/Candidate';
-import { FileCategory } from '@/types';
+import { FileCategory, CandidateProfile } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import { logger } from '@/config/logger';
 import path from 'path';
 import fs from 'fs';
 import { env } from '@/config/env';
+import { TextExtractor } from '@/utils/textExtractor';
+import { resumeParserService } from '@/services/ResumeParserService';
 
 /**
  * File Controller
@@ -95,20 +97,89 @@ export class FileController {
       // Update candidate with new resume file ID
       candidate.resumeFileId = fileRecord._id;
       candidate.updatedAt = new Date();
+      // Validate file size (moved from client-side)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (req.file.size > maxSize) {
+        throw createBadRequestError('File size exceeds 5MB limit');
+      }
+
+      // Validate file type (moved from client-side)
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        throw createBadRequestError('Invalid file type. Please upload a PDF or Word document (.pdf, .doc, .docx)');
+      }
+
+      let resumeText;
+      try {
+        // Extract text from the resume
+        resumeText = await TextExtractor.extractText(req.file.path, req.file.mimetype);
+        
+        // Basic validation of extracted text
+        if (!resumeText || resumeText.trim().length < 50) {
+          throw createBadRequestError('Could not extract sufficient text from the resume. Please ensure the file is not corrupted or empty.');
+        }
+      } catch (error) {
+        throw createBadRequestError('Failed to extract text from resume: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
+      
+      let parsedProfile;
+      try {
+        // Parse the resume using OpenAI
+        parsedProfile = await resumeParserService.parseResume(resumeText);
+        
+        // Validate parsed profile
+        if (!parsedProfile || Object.keys(parsedProfile).length === 0) {
+          throw createBadRequestError('Failed to parse resume content. Please ensure the resume contains relevant information.');
+        }
+      } catch (error) {
+        throw createBadRequestError('Failed to parse resume: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
+      
+      // Merge the parsed profile with existing profile
+      // Only update fields that are not already set or are empty
+      const updatedProfile = {
+        ...candidate.profile,
+        skills: parsedProfile.skills?.length ? parsedProfile.skills : candidate.profile.skills,
+        experience: parsedProfile.experience?.length ? parsedProfile.experience : candidate.profile.experience,
+        education: parsedProfile.education?.length ? parsedProfile.education : candidate.profile.education,
+        certifications: parsedProfile.certifications?.length ? parsedProfile.certifications : candidate.profile.certifications,
+        projects: parsedProfile.projects?.length ? parsedProfile.projects : candidate.profile.projects,
+        summary: candidate.profile.summary || parsedProfile.summary,
+        location: candidate.profile.location || parsedProfile.location,
+        phoneNumber: candidate.profile.phoneNumber || parsedProfile.phoneNumber,
+        linkedinUrl: candidate.profile.linkedinUrl || parsedProfile.linkedinUrl,
+        portfolioUrl: candidate.profile.portfolioUrl || parsedProfile.portfolioUrl,
+      };
+
+      candidate.profile = updatedProfile;
       await candidate.save();
 
-      logger.info('Resume uploaded successfully', {
+      // Helper function to check if a field has content
+      const hasContent = (key: keyof Partial<CandidateProfile>) => {
+        const value = parsedProfile[key];
+        if (!value) return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      };
+
+      // Get fields that have content
+      const extractedFields = Object.keys(parsedProfile)
+        .filter(key => hasContent(key as keyof Partial<CandidateProfile>));
+
+      logger.info('Resume uploaded and parsed successfully', {
         userId,
         candidateId: candidate._id,
         fileId: fileRecord._id,
         filename: req.file.originalname,
         filepath: relativePath,
         businessProcess: 'file_management',
+        fieldsExtracted: extractedFields
       });
 
+      // Don't update the profile yet, just return the parsed data
       res.status(201).json({
         success: true,
-        message: 'Resume uploaded successfully',
+        message: 'Resume uploaded and parsed successfully',
         data: {
           file: {
             id: fileRecord._id,
@@ -118,6 +189,8 @@ export class FileController {
             mimetype: fileRecord.mimetype,
             uploadedAt: fileRecord.createdAt,
           },
+          parsedProfile, // Return the full parsed profile data
+          parsedFields: extractedFields,
         },
       });
     } catch (error) {
