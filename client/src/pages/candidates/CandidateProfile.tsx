@@ -288,9 +288,9 @@ const CandidateProfile: React.FC = () => {
         title: 'Resume Uploaded',
         description: 'Your resume has been uploaded successfully.',
       });
+      await Promise.all([refetchResumeInfo(), refetch()]);
       setUploadState('idle');
       setShowPostUpload(true);
-      await refetchResumeInfo();
     },
     onError: (error: any) => {
       console.error('Resume upload error:', error);
@@ -2396,12 +2396,13 @@ const CandidateProfile: React.FC = () => {
                     Would you like to update your profile with information from your resume?
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => {
-                      setSelectedFile(null);
-                      setShowPostUpload(false);
-                    }}>
-                      No, Just Save
-                    </Button>
+                  <Button variant="outline" onClick={async () => {
+                    await Promise.all([refetchResumeInfo(), refetch()]);
+                    setSelectedFile(null);
+                    setShowPostUpload(false);
+                  }}>
+                    No, Just Save
+                  </Button>
                     <Button 
                       onClick={async () => {
                         setUploadState('parsing');
@@ -2414,6 +2415,7 @@ const CandidateProfile: React.FC = () => {
                           });
                           const data = await response.json();
                           if (data.data.parsedProfile) {
+                            await Promise.all([refetchResumeInfo(), refetch()]);
                             setParsedProfile(data.data.parsedProfile);
                             setShowPreviewModal(true);
                             setSelectedFile(null);
