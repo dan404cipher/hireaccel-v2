@@ -40,6 +40,7 @@ export interface AgentAssignmentModel extends mongoose.Model<AgentAssignmentDocu
   getAgentsWithAssignments(): Promise<AgentAssignmentDocument[]>;
   getHRsForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>;
   getCandidatesForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>;
+  cleanupBrokenCandidateReferences(): Promise<void>;
 }
 
 /**
@@ -62,7 +63,7 @@ const agentAssignmentSchema = new Schema<AgentAssignmentDocument>({
   
   assignedCandidates: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Candidate',
     index: true,
   }],
   
@@ -195,14 +196,59 @@ agentAssignmentSchema.methods['activate'] = function(this: AgentAssignmentDocume
 // ============================================================================
 
 /**
+ * Clean up broken candidate references
+ * This method removes references to candidates that no longer exist
+ */
+agentAssignmentSchema.statics['cleanupBrokenCandidateReferences'] = async function() {
+  const Candidate = mongoose.model('Candidate');
+  
+  // Get all agent assignments
+  const assignments = await this.find({ status: 'active' });
+  
+  for (const assignment of assignments) {
+    if (!assignment.assignedCandidates.length) continue;
+    
+    // Check each candidate reference
+    const validCandidates = await Candidate.find({
+      _id: { $in: assignment.assignedCandidates },
+      userId: { $exists: true }
+    });
+    
+    const validCandidateIds = validCandidates.map(c => c._id);
+    
+    // Update assignment if there are broken references
+    if (validCandidateIds.length !== assignment.assignedCandidates.length) {
+      assignment.assignedCandidates = validCandidateIds;
+      await assignment.save();
+      console.log(`[AgentAssignment] Cleaned up broken candidate references for assignment ${assignment._id}`);
+    }
+  }
+};
+
+/**
  * Get assignment record for specific agent
  */
-agentAssignmentSchema.statics['getAssignmentForAgent'] = function(agentId: mongoose.Types.ObjectId) {
-  return this.findOne({ agentId, status: 'active' })
-    .populate('agentId', 'firstName lastName email')
-    .populate('assignedHRs', 'firstName lastName email')
-    .populate('assignedCandidates', 'firstName lastName email')
-    .populate('assignedBy', 'firstName lastName email');
+agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
+  console.log(`[AgentAssignment] Getting assignment details for agent: ${agentId}`);
+  const assignment = await this.findOne({ agentId, status: 'active' })
+    .populate('agentId', 'firstName lastName email customId')
+    .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
+    .populate({
+      path: 'assignedCandidates',
+      match: { userId: { $exists: true } }, // Only include candidates that have a valid userId
+      populate: {
+        path: 'userId',
+        select: 'firstName lastName email customId'
+      }
+    })
+    .populate('assignedBy', 'firstName lastName email customId');
+  console.log(`[AgentAssignment] Assignment details:`, {
+    id: assignment?._id,
+    hrCount: assignment?.assignedHRs?.length || 0,
+    candidateCount: assignment?.assignedCandidates?.length || 0,
+    status: assignment?.status
+  });
+  return assignment;
 };
 
 /**
@@ -210,10 +256,16 @@ agentAssignmentSchema.statics['getAssignmentForAgent'] = function(agentId: mongo
  */
 agentAssignmentSchema.statics['getAgentsWithAssignments'] = function() {
   return this.find({ status: 'active' })
-    .populate('agentId', 'firstName lastName email')
-    .populate('assignedHRs', 'firstName lastName email')
-    .populate('assignedCandidates', 'firstName lastName email')
-    .populate('assignedBy', 'firstName lastName email')
+    .populate('agentId', 'firstName lastName email customId')
+    .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
+    .populate({
+      path: 'assignedCandidates',
+      populate: {
+        path: 'userId',
+        select: 'firstName lastName email customId'
+      }
+    })
+    .populate('assignedBy', 'firstName lastName email customId')
     .sort({ assignedAt: -1 });
 };
 
@@ -229,7 +281,9 @@ agentAssignmentSchema.statics['getHRsForAgent'] = async function(agentId: mongoo
  * Get candidates assigned to specific agent
  */
 agentAssignmentSchema.statics['getCandidatesForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
+  console.log(`[AgentAssignment] Getting candidates for agent: ${agentId}`);
   const assignment = await this.findOne({ agentId, status: 'active' }).select('assignedCandidates');
+  console.log(`[AgentAssignment] Found assignment: ${assignment?._id}, Candidate count: ${assignment?.assignedCandidates?.length || 0}`);
   return assignment ? assignment.assignedCandidates : [];
 };
 

@@ -6,7 +6,7 @@ import { Company } from '@/models/Company';
 import { User } from '@/models/User';
 import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
-import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, ExperienceLevel, UserRole, AuditAction } from '@/types';
+import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, WorkType, ExperienceLevel, UserRole, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
 /**
@@ -26,14 +26,24 @@ const createJobSchema = z.object({
     certifications: z.array(z.string()).default([]),
   }),
   location: z.string().min(1).max(200),
+  address: z.object({
+    street: z.string().min(1, 'Street address is required').max(200),
+    city: z.string().min(1, 'City is required').max(100),
+    state: z.string().max(100).optional(),
+    zipCode: z.string().max(20).optional(),
+    country: z.string().max(100).optional(),
+  }),
   type: z.nativeEnum(JobType),
   salaryRange: z.object({
-    min: z.number().min(0).optional(),
-    max: z.number().min(0).optional(),
+    min: z.number().min(0, 'Minimum salary must be at least 0'),
+    max: z.number().min(0, 'Maximum salary must be at least 0'),
     currency: z.string().default('INR'),
-  }).optional(),
+  }),
   companyId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid company ID'),
   urgency: z.nativeEnum(JobUrgency).default(JobUrgency.MEDIUM),
+  workType: z.nativeEnum(WorkType).default(WorkType.WFO),
+  duration: z.string().max(100).optional(),
+  numberOfOpenings: z.number().min(1, 'Number of openings must be at least 1').default(1),
   assignedAgentId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid agent ID').optional(),
   isRemote: z.boolean().default(false),
   benefits: z.array(z.string()).default([]),
@@ -169,9 +179,20 @@ export class JobController {
       Job.countDocuments(searchQuery),
     ]);
     
+    // Calculate actual applications count for each job based on candidate assignments
+    const jobsWithApplicationsCount = await Promise.all(
+      jobs.map(async (job) => {
+        const applicationsCount = await Job.calculateApplicationsCount(job._id);
+        return {
+          ...job.toObject(),
+          applications: applicationsCount
+        };
+      })
+    );
+    
     res.json({
       success: true,
-      data: jobs,
+      data: jobsWithApplicationsCount,
       meta: {
         page: {
           current: page,
@@ -262,9 +283,16 @@ export class JobController {
     job.incrementViews();
     await job.save();
     
+    // Calculate actual applications count based on candidate assignments
+    const applicationsCount = await Job.calculateApplicationsCount(job._id);
+    const jobWithApplicationsCount = {
+      ...job.toObject(),
+      applications: applicationsCount
+    };
+    
     res.json({
       success: true,
-      data: job,
+      data: jobWithApplicationsCount,
     });
   });
 

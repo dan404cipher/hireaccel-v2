@@ -83,6 +83,13 @@ router.get('/agent-assignments/debug/all', requireAdmin, UserController.debugAll
 router.get('/agent-assignments/:agentId', requireAdmin, UserController.getAgentAssignment);
 
 /**
+ * @route   PATCH /users/agent-assignments/:agentId/remove
+ * @desc    Remove resources from agent assignment
+ * @access  Admin
+ */
+router.patch('/agent-assignments/:agentId/remove', requireAdmin, UserController.removeFromAgentAssignment);
+
+/**
  * @route   DELETE /users/agent-assignments/:agentId
  * @desc    Delete agent assignment
  * @access  Admin
@@ -90,11 +97,18 @@ router.get('/agent-assignments/:agentId', requireAdmin, UserController.getAgentA
 router.delete('/agent-assignments/:agentId', requireAdmin, UserController.deleteAgentAssignment);
 
 /**
+ * @route   GET /users/custom/:customId
+ * @desc    Get user by custom ID
+ * @access  Admin, HR, Agent
+ */
+router.get('/custom/:customId', requireAgent, UserController.getUserByCustomId);
+
+/**
  * @route   GET /users/:id
  * @desc    Get user by ID
- * @access  Admin, HR
+ * @access  Admin, HR, Agent
  */
-router.get('/:id', requireHR, UserController.getUserById);
+router.get('/:id', requireAgent, UserController.getUserById);
 
 /**
  * @route   PUT /users/:id

@@ -152,7 +152,11 @@ app.get('/health/detailed', async (_req, res) => {
  * API routes
  */
 import routes from '@/routes';
+import notificationRoutes from '@/routes/notificationRoutes';
+
+// API routes
 app.use('/', routes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // API Documentation
 import { specs, swaggerUi, swaggerUiOptions } from '@/config/swagger';

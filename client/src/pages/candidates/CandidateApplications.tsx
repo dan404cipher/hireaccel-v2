@@ -38,6 +38,7 @@ interface CandidateAssignment {
       firstName: string;
       lastName: string;
       email: string;
+      customId: string;
     };
     profile: {
       skills: string[];
@@ -68,12 +69,14 @@ interface CandidateAssignment {
     firstName: string;
     lastName: string;
     email: string;
+    customId: string;
   };
   assignedTo?: {
     _id: string;
     firstName: string;
     lastName: string;
     email: string;
+    customId: string;
   };
   status: 'active' | 'completed' | 'rejected' | 'withdrawn';
   candidateStatus?: 'new' | 'reviewed' | 'shortlisted' | 'interview_scheduled' | 'interviewed' | 'offer_sent' | 'hired' | 'rejected';

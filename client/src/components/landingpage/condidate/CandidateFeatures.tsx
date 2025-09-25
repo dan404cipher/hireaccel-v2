@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
-import { motion } from "framer-motion";
+// Removed framer-motion for better performance
 import { useEffect, useRef, useState } from "react";
 import { Footer } from "@/components/landingpage/Footer";
 import { Card } from "@/components/ui/card";
@@ -236,7 +236,6 @@ export function JobCandidates() {
 
   // Debug log to ensure features array is available
   useEffect(() => {
-    console.log('Features array:', features);
   }, []);
 
   return (
@@ -264,14 +263,14 @@ export function JobCandidates() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Left Content - 7 columns */}
-            <motion.div
+            <divdiv
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5 }}
               className="lg:col-span-7"
             >
               {/* Success Badge */}
-              <motion.div
+              <divdiv
                 initial={{ opacity: 0 }}
                 animate={heroInView ? { opacity: 1 } : {}}
                 transition={{ delay: 0.1, duration: 0.4 }}
@@ -279,7 +278,7 @@ export function JobCandidates() {
               >
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
                 <span className="text-green-700 font-semibold text-sm">1,200+ candidates already matched this month</span>
-              </motion.div>
+              </divdiv>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-6 leading-tight">
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -302,7 +301,7 @@ export function JobCandidates() {
               </div>
 
               {/* Success Stats */}
-              <motion.div
+              <divdiv
                 initial={{ opacity: 0 }}
                 animate={heroInView ? { opacity: 1 } : {}}
                 transition={{ delay: 0.2, duration: 0.4 }}
@@ -326,7 +325,7 @@ export function JobCandidates() {
                   </div>
                   <span className="text-gray-700 font-medium">100% confidential</span>
                 </div>
-              </motion.div>
+              </divdiv>
               
               <div className="flex flex-col sm:flex-row items-start space-y-4 sm:space-y-0 sm:space-x-4 mb-6">
                 <Button 
@@ -358,10 +357,10 @@ export function JobCandidates() {
                   <span>Free forever</span>
                 </div>
               </div>
-            </motion.div>
+            </divdiv>
 
             {/* Right Visual Content - 5 columns */}
-            <motion.div
+            <divdiv
               initial={{ opacity: 0, y: 20 }}
               animate={heroInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: 0.2 }}
@@ -377,7 +376,7 @@ export function JobCandidates() {
                 <div className="absolute inset-0 bg-gradient-to-t from-blue-900/40 via-transparent to-transparent rounded-3xl"></div>
                 
                 {/* Floating Success Cards */}
-                <motion.div
+                <divdiv
                   initial={{ opacity: 0 }}
                   animate={heroInView ? { opacity: 1 } : {}}
                   transition={{ delay: 0.3, duration: 0.4 }}
@@ -392,9 +391,9 @@ export function JobCandidates() {
                       <p className="text-xs text-gray-600">Software Engineer at TechCorp</p>
                     </div>
                   </div>
-                </motion.div>
+                </divdiv>
 
-                <motion.div
+                <divdiv
                   initial={{ opacity: 0 }}
                   animate={heroInView ? { opacity: 1 } : {}}
                   transition={{ delay: 0.4, duration: 0.4 }}
@@ -409,11 +408,11 @@ export function JobCandidates() {
                       <p className="text-xs text-gray-600">Companies interested in you</p>
                     </div>
                   </div>
-                </motion.div>
+                </divdiv>
               </div>
 
               {/* Dashboard Mockup */}
-              <motion.div
+              <divdiv
                 initial={{ opacity: 0 }}
                 animate={heroInView ? { opacity: 1 } : {}}
                 transition={{ delay: 0.3, duration: 0.4 }}
@@ -445,10 +444,10 @@ export function JobCandidates() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </divdiv>
 
               {/* Animated Activity Feed */}
-              <motion.div
+              <divdiv
                 initial={{ opacity: 0 }}
                 animate={heroInView ? { opacity: 1 } : {}}
                 transition={{ delay: 0.4, duration: 0.4 }}
@@ -464,8 +463,8 @@ export function JobCandidates() {
                 <p className="text-sm text-gray-600 mt-2">
                   Your profile submitted to senior developer role at FinTech startup
                 </p>
-              </motion.div>
-            </motion.div>
+              </divdiv>
+            </divdiv>
           </div>
         </div>
 
@@ -476,7 +475,7 @@ export function JobCandidates() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {quickBenefits.map((benefit, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={benefitsInView ? { opacity: 1, y: 0 } : {}}
@@ -487,18 +486,18 @@ export function JobCandidates() {
                   <benefit.icon className="w-6 h-6 text-white" />
                 </div>
                 <p className="text-gray-700 font-medium">{benefit.text}</p>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
           
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={benefitsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.4, duration: 0.5 }}
             className="text-center mt-8"
           >
             <p className="text-gray-500 font-medium">No fees. No hassle. Just one profile.</p>
-          </motion.div>
+          </divdiv>
         </div>
       </section>
 
@@ -512,7 +511,7 @@ export function JobCandidates() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Enhanced Header */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={stepsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.3 }}
@@ -529,7 +528,7 @@ export function JobCandidates() {
             <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Simple 4-step process powered by AI to get you directly connected with hiring teams looking for your exact skills and experience.
             </p>
-          </motion.div>
+          </divdiv>
 
           {/* Enhanced Process Flow */}
           <div className="relative">
@@ -538,7 +537,7 @@ export function JobCandidates() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
               {howItWorksSteps.map((step, index) => (
-                <motion.div
+                <divdiv
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={stepsInView ? { opacity: 1, y: 0 } : {}}
@@ -595,13 +594,13 @@ export function JobCandidates() {
                       </div>
                     </div>
                   )}
-                </motion.div>
+                </divdiv>
               ))}
             </div>
           </div>
           
           {/* Enhanced Bottom Text & CTA */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={stepsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.4, duration: 0.3 }}
@@ -622,7 +621,7 @@ export function JobCandidates() {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
-          </motion.div>
+          </divdiv>
         </div>
       </section>
 
@@ -630,7 +629,7 @@ export function JobCandidates() {
       <section id="features" ref={featuresRef} className="relative py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={featuresInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6 }}
@@ -652,12 +651,12 @@ export function JobCandidates() {
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Built specifically for job seekers who want complete control over their career opportunities
             </p>
-          </motion.div>
+          </divdiv>
 
           {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {features && features.length > 0 ? features.map((feature, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={featuresInView ? { opacity: 1, y: 0 } : {}}
@@ -692,7 +691,7 @@ export function JobCandidates() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </divdiv>
             )) : (
               <div className="col-span-full text-center py-12">
                 <div className="text-gray-500 text-lg">Loading features...</div>
@@ -701,7 +700,7 @@ export function JobCandidates() {
           </div>
 
           {/* Bottom Stats */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={featuresInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.8, duration: 0.6 }}
@@ -721,14 +720,14 @@ export function JobCandidates() {
                 <div className="text-gray-600">Get Interviews Within 2 Days</div>
               </div>
             </div>
-          </motion.div>
+          </divdiv>
         </div>
       </section>
               {/* 4. Proof & Testimonials Section */}
         <section id="testimonials" ref={testimonialsRef} className="relative py-24 bg-gradient-to-br from-white via-gray-50/30 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={testimonialsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6 }}
@@ -750,10 +749,10 @@ export function JobCandidates() {
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Join professionals who've already transformed their job search with our platform
             </p>
-          </motion.div>
+          </divdiv>
 
           {/* Trust Metrics */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={testimonialsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.2, duration: 0.6 }}
@@ -761,7 +760,7 @@ export function JobCandidates() {
           >
             <div className="bg-gradient-to-r from-blue-50/80 via-purple-50/50 to-blue-50/80 rounded-3xl p-8 border border-blue-200/30 shadow-lg backdrop-blur-sm">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                <motion.div
+                <divdiv
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={testimonialsInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ delay: 0.3, duration: 0.5 }}
@@ -772,9 +771,9 @@ export function JobCandidates() {
                   </div>
                   <div className="text-gray-600 font-medium">Candidates in pool</div>
                   <div className="text-sm text-gray-500">Ready to join immediately</div>
-                </motion.div>
+                </divdiv>
 
-                <motion.div
+                <divdiv
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={testimonialsInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ delay: 0.4, duration: 0.5 }}
@@ -785,9 +784,9 @@ export function JobCandidates() {
                   </div>
                   <div className="text-gray-600 font-medium">Matches sent this month</div>
                   <div className="text-sm text-gray-500">Direct to hiring teams</div>
-                </motion.div>
+                </divdiv>
 
-                <motion.div
+                <divdiv
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={testimonialsInView ? { opacity: 1, scale: 1 } : {}}
                   transition={{ delay: 0.5, duration: 0.5 }}
@@ -798,13 +797,13 @@ export function JobCandidates() {
                   </div>
                   <div className="text-gray-600 font-medium">Avg time to first submission</div>
                   <div className="text-sm text-gray-500">Industry-leading speed</div>
-                </motion.div>
+                </divdiv>
               </div>
             </div>
-          </motion.div>
+          </divdiv>
 
           {/* Company Trust Section */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={testimonialsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.6, duration: 0.6 }}
@@ -836,7 +835,7 @@ export function JobCandidates() {
                 <p className="text-sm text-gray-500 mt-4">Representative companies in our network</p>
               </div>
             </div>
-          </motion.div>
+          </divdiv>
 
           {/* Testimonials */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -860,7 +859,7 @@ export function JobCandidates() {
                 time: "11:15 AM"
               }
             ].map((testimonial, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={testimonialsInView ? { opacity: 1, y: 0 } : {}}
@@ -908,12 +907,12 @@ export function JobCandidates() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
 
           {/* Bottom CTA */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={testimonialsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 1.0, duration: 0.6 }}
@@ -958,7 +957,7 @@ export function JobCandidates() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </divdiv>
         </div>
       </section>
 
@@ -967,7 +966,7 @@ export function JobCandidates() {
       <section id="benefits" ref={deepBenefitsRef} className="relative py-24 bg-gray-50/50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={deepBenefitsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6 }}
@@ -989,12 +988,12 @@ export function JobCandidates() {
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Join thousands of professionals who've already discovered a smarter way to find their dream job
             </p>
-          </motion.div>
+          </divdiv>
 
           {/* Benefits List */}
           <div className="space-y-8">
             {benefits.map((benefit, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={deepBenefitsInView ? { opacity: 1, y: 0 } : {}}
@@ -1017,12 +1016,12 @@ export function JobCandidates() {
                     {benefit.description}
                   </p>
                 </div>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
 
           {/* Bottom CTA */}
-          {/* <motion.div
+          {/* <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={deepBenefitsInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.8, duration: 0.6 }}
@@ -1072,14 +1071,14 @@ export function JobCandidates() {
                 </div>
               </div>
             </div>
-          </motion.div> */}
+          </divdiv> */}
         </div>
       </section>
 
       {/* Final CTA */}
       <section className="relative py-20 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
@@ -1098,7 +1097,7 @@ export function JobCandidates() {
               Create Your Profile Now
               <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-          </motion.div>
+          </divdiv>
         </div>
       </section>
 
@@ -1116,7 +1115,7 @@ export function JobCandidates() {
       <section id="faq" ref={faqRef} className="relative py-24 bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-blue-50/50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section Header */}
-          <motion.div
+          <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={faqInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.4 }}
@@ -1140,12 +1139,12 @@ export function JobCandidates() {
             <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
               Everything you need to know about getting started and making the most of your career opportunities
             </p>
-          </motion.div>
+          </divdiv>
 
           {/* FAQ Grid */}
           <div className="space-y-6">
             {faqs.map((faq, index) => (
-              <motion.div
+              <divdiv
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 animate={faqInView ? { opacity: 1, y: 0 } : {}}
@@ -1180,12 +1179,12 @@ export function JobCandidates() {
                     </AccordionItem>
                   </Accordion>
                 </div>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
 
           {/* Bottom CTA */}
-          {/* <motion.div
+          {/* <divdiv
             initial={{ opacity: 0, y: 20 }}
             animate={faqInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.6, duration: 0.4 }}
@@ -1236,7 +1235,7 @@ export function JobCandidates() {
                 </div>
               </div>
             </div> */}
-          {/* </motion.div> 
+          {/* </divdiv> 
           
           */}
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -1274,9 +1273,7 @@ export function JobCandidates() {
             
             <button 
               onClick={() => {
-                console.log('WhatsApp button clicked');
                 const whatsappUrl = 'https://wa.me/919962056381';
-                console.log('Opening URL:', whatsappUrl);
                 
                 // Try multiple methods
                 try {
@@ -1313,7 +1310,7 @@ export function JobCandidates() {
           </div>
 
           {/* Enhanced Consent Microcopy */}
-          <motion.div 
+          <divdiv 
             className="text-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1332,7 +1329,7 @@ export function JobCandidates() {
                 <span className="font-semibold text-gray-800">We will never share your contact info without explicit consent.</span>
               </p>
             </div>
-          </motion.div>
+          </divdiv>
         </div>
         </div>
       </section>

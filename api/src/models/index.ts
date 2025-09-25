@@ -15,6 +15,7 @@ export { File, FileDocument } from './File';
 export { AuditLog, AuditLogDocument } from './AuditLog';
 export { CandidateAssignment, CandidateAssignmentDocument } from './CandidateAssignment';
 export { AgentAssignment, AgentAssignmentDocument } from './AgentAssignment';
+export { Notification, NotificationDocument } from './Notification';
 
 /**
  * Initialize all models
@@ -34,6 +35,7 @@ export const initializeModels = () => {
   require('./AuditLog');
   require('./CandidateAssignment');
   require('./AgentAssignment');
+  require('./Notification');
   
   console.log('✅ All models initialized');
 };
@@ -53,6 +55,7 @@ export const MODEL_NAMES = {
   AUDIT_LOG: 'AuditLog',
   CANDIDATE_ASSIGNMENT: 'CandidateAssignment',
   AGENT_ASSIGNMENT: 'AgentAssignment',
+  NOTIFICATION: 'Notification',
 } as const;
 
 /**

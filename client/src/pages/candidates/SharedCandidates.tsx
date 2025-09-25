@@ -1,27 +1,7 @@
-// TODO: Completed tasks:
-// 1. Add shared candidates route access for admin and agent roles
-// 2. Update sidebar navigation to show shared candidates for admin and agent roles
-// 3. Modify SharedCandidates component to use agent-specific API for agents
-// 4. Update UI to handle agent-specific view
-// 5. Test the changes
-// 6. Fix data structure handling for agent view
-// 7. Fix assigned by and job information for agent view
-// 8. Fix data structure handling for agent view to handle both profile and direct properties
-// 9. Fix data structure handling to use correct nested paths for agent view
-// 10. Update API call to only fetch candidates assigned by the agent
-// 11. Fix data structure handling to properly handle null/undefined values
-// 12. Fix job position display in agent view
-// 13. Add update and delete functionalities for agent view
-// 14. Add delete confirmation dialog for agent assignments
-// 15. Add update assignment functionality for agent view
-// 16. Add notes section to candidate cards
-// 17. Remove redundant status update options from HR dropdown
-// 18. Add feedback functionality for HR users
-// 19. Remove duplicate view details and view resume options for HR
-// 20. Remove mark as complete and reject buttons from view details for HR
+
 
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,14 +34,16 @@ import {
   ExternalLink,
   MapPin,
   Phone,
-  Star,
-  MoreHorizontal
+  MoreHorizontal,
+  Building2
 } from 'lucide-react';
 import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats, useCandidateAssignments } from '@/hooks/useApi';
+import { apiClient } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/lib/utils';
+import { DashboardBanner } from '@/components/dashboard/Banner';
 
 interface CandidateAssignment {
   _id: string;
@@ -71,6 +53,7 @@ interface CandidateAssignment {
       firstName: string;
       lastName: string;
       email: string;
+      customId: string;
     };
     profile: {
       skills: string[];
@@ -88,13 +71,13 @@ interface CandidateAssignment {
         currency: string;
       };
     };
-    rating?: number;
     resumeFileId?: string;
   };
   assignedBy: {
     firstName: string;
     lastName: string;
     email: string;
+    customId: string;
   };
   jobId?: {
     title: string;
@@ -119,9 +102,11 @@ interface CandidateAssignment {
 }
 
 const SharedCandidates: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('active');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState(searchParams.get('candidateStatus') || 'all');
+  const [jobFilter, setJobFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -151,8 +136,6 @@ const SharedCandidates: React.FC = () => {
     ? useCandidateAssignments({
         page: currentPage,
         limit: 20,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        priority: priorityFilter === 'all' ? undefined : priorityFilter,
         sortBy: 'assignedAt',
         sortOrder: 'desc'
       })
@@ -160,8 +143,6 @@ const SharedCandidates: React.FC = () => {
         page: currentPage,
         limit: 20,
         assignedTo: user?.id,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        priority: priorityFilter === 'all' ? undefined : priorityFilter,
         sortBy: 'assignedAt',
         sortOrder: 'desc'
       });
@@ -174,18 +155,6 @@ const SharedCandidates: React.FC = () => {
   const meta = Array.isArray(assignmentsData) ? {} : (assignmentsData as any)?.meta || {};
   const stats = (statsData as any)?.data || {};
 
-  // Debug logging
-  console.log('📊 SharedCandidates Debug:', {
-    loading,
-    assignmentsData,
-    assignmentsDataType: typeof assignmentsData,
-    assignmentsDataKeys: assignmentsData ? Object.keys(assignmentsData) : null,
-    assignments,
-    meta,
-    statusFilter,
-    priorityFilter
-  });
-
   // Filter assignments based on search term and filters
   const filteredAssignments = useMemo(() => {
     let filtered = assignments;
@@ -193,9 +162,14 @@ const SharedCandidates: React.FC = () => {
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter((assignment: CandidateAssignment) => {
-        const firstName = assignment.candidateId.userId.firstName || '';
-        const lastName = assignment.candidateId.userId.lastName || '';
-        const email = assignment.candidateId.userId.email || '';
+        // Safety check for malformed assignment data
+        if (!assignment || !assignment.candidateId) {
+          return false;
+        }
+
+        const firstName = assignment.candidateId?.userId?.firstName || '';
+        const lastName = assignment.candidateId?.userId?.lastName || '';
+        const email = assignment.candidateId?.userId?.email || '';
         const jobTitle = assignment.jobId?.title || '';
         const companyName = assignment.jobId?.companyId?.name || '';
         const notes = assignment.notes || '';
@@ -212,12 +186,26 @@ const SharedCandidates: React.FC = () => {
     // Apply company filter
     if (companyFilter !== 'all') {
       filtered = filtered.filter((assignment: CandidateAssignment) => 
-        assignment.jobId?.companyId?.name === companyFilter
+        assignment && assignment.jobId?.companyId?.name === companyFilter
+      );
+    }
+    
+    // Apply job filter
+    if (jobFilter !== 'all') {
+      filtered = filtered.filter((assignment: CandidateAssignment) => 
+        assignment && assignment.jobId?.title === jobFilter
+      );
+    }
+    
+    // Apply candidate status filter
+    if (candidateStatusFilter !== 'all') {
+      filtered = filtered.filter((assignment: CandidateAssignment) => 
+        assignment && (assignment.candidateStatus || 'new') === candidateStatusFilter
       );
     }
     
     return filtered;
-  }, [assignments, searchTerm, companyFilter]);
+  }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -241,15 +229,15 @@ const SharedCandidates: React.FC = () => {
 
   const getCandidateStatusColor = (status?: string) => {
     switch (status) {
-      case 'new': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'reviewed': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'shortlisted': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'interview_scheduled': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'interviewed': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'offer_sent': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'hired': return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'new': return 'bg-gray-600 text-white border-gray-600';
+      case 'reviewed': return 'bg-blue-600 text-white border-blue-600';
+      case 'shortlisted': return 'bg-purple-600 text-white border-purple-600';
+      case 'interview_scheduled': return 'bg-orange-600 text-white border-orange-600';
+      case 'interviewed': return 'bg-yellow-600 text-white border-yellow-600';
+      case 'offer_sent': return 'bg-indigo-600 text-white border-indigo-600';
+      case 'hired': return 'bg-green-600 text-white border-green-600';
+      case 'rejected': return 'bg-red-600 text-white border-red-600';
+      default: return 'bg-gray-600 text-white border-gray-600';
     }
   };
 
@@ -287,20 +275,33 @@ const SharedCandidates: React.FC = () => {
 
   const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
     try {
-      await updateAssignment.mutate({
-        id: assignment._id,
-        data: {
-          status: newStatus,
-          feedback: feedbackText || undefined
-        }
-      });
-      refetch();
-      setSelectedAssignment(null);
-      setFeedbackText('');
-      toast({
-        title: "Success",
-        description: `Status updated to ${newStatus}`
-      });
+      if (newStatus === 'withdrawn' && (user?.role === 'agent' || user?.role === 'admin')) {
+        // For agents and admins, when withdrawing, delete the assignment completely
+        await apiClient.deleteCandidateAssignment(assignment._id);
+        refetch();
+        setSelectedAssignment(null);
+        setFeedbackText('');
+        toast({
+          title: "Success",
+          description: "Assignment deleted successfully"
+        });
+      } else {
+        // For other status updates or non-agent users
+        await updateAssignment.mutate({
+          id: assignment._id,
+          data: {
+            status: newStatus,
+            feedback: feedbackText || undefined
+          }
+        });
+        refetch();
+        setSelectedAssignment(null);
+        setFeedbackText('');
+        toast({
+          title: "Success",
+          description: `Status updated to ${newStatus}`
+        });
+      }
     } catch (error: any) {
       console.error('Failed to update status:', error);
       toast({
@@ -393,6 +394,12 @@ const SharedCandidates: React.FC = () => {
   };
 
   const renderAssignmentCard = (assignment: any) => {
+    // Safety check for malformed assignment data
+    if (!assignment || !assignment.candidateId) {
+      console.warn('Invalid assignment data:', assignment);
+      return null;
+    }
+
     // Handle both agent candidates and candidate assignments data structures
     const isAgentView = user?.role === 'agent';
     
@@ -406,9 +413,9 @@ const SharedCandidates: React.FC = () => {
     } else {
       // HR view structure
       candidate = assignment.candidateId;
-      firstName = candidate.userId.firstName || '';
-      lastName = candidate.userId.lastName || '';
-      email = candidate.userId.email || 'No email provided';
+      firstName = candidate?.userId?.firstName || '';
+      lastName = candidate?.userId?.lastName || '';
+      email = candidate?.userId?.email || 'No email provided';
     }
     
     const fullName = firstName && lastName ? `${firstName} ${lastName}` : 
@@ -438,7 +445,7 @@ const SharedCandidates: React.FC = () => {
                       View Details
                     </DropdownMenuItem>
                     {candidate?.resumeFileId && (
-                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                      <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}>
                         <ExternalLink className="mr-2 h-4 w-4" />
                         View Resume
                       </DropdownMenuItem>
@@ -455,10 +462,20 @@ const SharedCandidates: React.FC = () => {
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Update Assignment
                     </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={() => {
+                        setAssignmentToDelete(assignment);
+                        setDeleteConfirmOpen(true);
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Delete Assignment
+                    </DropdownMenuItem>
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate._id}`)}>
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}>
                       <User className="mr-2 h-4 w-4" />
                       View Profile
                     </DropdownMenuItem>
@@ -479,7 +496,7 @@ const SharedCandidates: React.FC = () => {
                           const url = window.URL.createObjectURL(blob);
                           const a = document.createElement('a');
                           a.href = url;
-                          a.download = `${candidate.userId.firstName}_${candidate.userId.lastName}_resume.pdf`;
+                          a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
                           document.body.appendChild(a);
                           a.click();
                           window.URL.revokeObjectURL(url);
@@ -510,6 +527,18 @@ const SharedCandidates: React.FC = () => {
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Add Feedback
                     </DropdownMenuItem>
+                    {user?.role === 'admin' && (
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setAssignmentToDelete(assignment);
+                          setDeleteConfirmOpen(true);
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Delete Assignment
+                      </DropdownMenuItem>
+                    )}
                   </>
                 )}
               </DropdownMenuContent>
@@ -520,63 +549,51 @@ const SharedCandidates: React.FC = () => {
             {/* Column 1: Candidate Info */}
             <div className="flex items-start space-x-3">
               <Avatar className="h-12 w-12 flex-shrink-0">
-                <AvatarFallback className="text-sm">
+                <AvatarFallback className={`text-sm text-white font-semibold ${getCandidateStatusColor(assignment.candidateStatus)}`}>
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-gray-900 truncate">{fullName}</div>
-                <div className="text-sm text-gray-500 truncate">{email}</div>
-                <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                <div className="font-semibold text-lg text-gray-900 truncate">{fullName}</div>
+                <div className="text-base text-gray-500 truncate">{email}</div>
+                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                   {isAgentView ? (
                     <>
                       {candidate?.profile?.phoneNumber && (
                         <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          <span className="truncate">{candidate.profile.phoneNumber}</span>
+                          <Phone className="w-3 h-3 text-blue-600" />
+                          <span className="truncate">{candidate?.profile?.phoneNumber}</span>
                         </div>
                       )}
                       {candidate?.profile?.location ? (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          <span className="truncate">{candidate.profile.location}</span>
+                          <MapPin className="w-3 h-3 text-emerald-600" />
+                          <span className="truncate">{candidate?.profile?.location}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-3 h-3 text-gray-400" />
                           <span className="truncate text-gray-400">Location not specified</span>
-                        </div>
-                      )}
-                      {candidate?.profile?.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                          <span>{candidate.profile.rating}/5</span>
                         </div>
                       )}
                     </>
                   ) : (
                     <>
-                      {candidate.profile.phoneNumber && (
+                      {candidate?.profile?.phoneNumber && (
                         <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          <span className="truncate">{candidate.profile.phoneNumber}</span>
+                          <Phone className="w-3 h-3 text-blue-600" />
+                          <span className="truncate">{candidate?.profile?.phoneNumber}</span>
                         </div>
                       )}
-                      {candidate.profile.location ? (
+                      {candidate?.profile?.location ? (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          <span className="truncate">{candidate.profile.location}</span>
+                          <MapPin className="w-3 h-3 text-emerald-600" />
+                          <span className="truncate">{candidate?.profile?.location}</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
+                          <MapPin className="w-3 h-3 text-gray-400" />
                           <span className="truncate text-gray-400">Location not specified</span>
-                        </div>
-                      )}
-                      {candidate.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                          <span>{candidate.rating}/5</span>
                         </div>
                       )}
                     </>
@@ -587,20 +604,17 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 2: Job */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Job Position</div>
+              <div className="text-sm font-medium text-gray-500 mb-1">Job Position</div>
               {isAgentView ? (
                 <>
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-base font-medium text-gray-900">
                     {assignment.jobId ? assignment.jobId.title : 'General'}
                   </div>
                   {assignment.jobId?.companyId && (
                     <div className="flex items-center gap-2 mt-1">
-                      <Briefcase className="w-3 h-3 text-gray-400" />
+                      <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
-                        <span className="font-medium">{assignment.jobId.companyId.name}</span>
-                        {assignment.jobId.companyId.industry && (
-                          <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
-                        )}
+                        <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
                         {assignment.jobId.location && (
                           <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
                         )}
@@ -610,17 +624,14 @@ const SharedCandidates: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-base font-medium text-gray-900">
                     {assignment.jobId ? assignment.jobId.title : 'General'}
                   </div>
                   {assignment.jobId?.companyId && (
                     <div className="flex items-center gap-2 mt-1">
-                      <Briefcase className="w-3 h-3 text-gray-400" />
+                      <Briefcase className="w-3 h-3 text-purple-600" />
                       <div className="text-xs text-gray-600">
-                        <span className="font-medium">{assignment.jobId.companyId.name}</span>
-                        {assignment.jobId.companyId.industry && (
-                          <span className="text-gray-400 ml-2">• {assignment.jobId.companyId.industry}</span>
-                        )}
+                        <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
                         {assignment.jobId.location && (
                           <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
                         )}
@@ -633,9 +644,9 @@ const SharedCandidates: React.FC = () => {
 
             {/* Column 3: Candidate Status */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Candidate Status</div>
+              <div className="text-sm font-medium text-gray-500 mb-1">Candidate Status</div>
               {isAgentView ? (
-                <Badge variant="outline" className="capitalize">
+                <Badge variant="outline" className={`capitalize ${getCandidateStatusColor(assignment.candidateStatus)}`}>
                   {assignment.candidateStatus || 'new'}
                 </Badge>
               ) : (
@@ -643,18 +654,34 @@ const SharedCandidates: React.FC = () => {
                   value={assignment.candidateStatus || 'new'}
                   onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
                 >
-                  <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectTrigger className={`w-48 h-10 text-sm ${getCandidateStatusColor(assignment.candidateStatus || 'new')}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
-                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                    <SelectItem value="interviewed">Interviewed</SelectItem>
-                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
-                    <SelectItem value="hired">Hired</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="new" className="text-gray-700 hover:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:text-gray-800">
+                      New
+                    </SelectItem>
+                    <SelectItem value="reviewed" className="text-blue-700 hover:bg-blue-50 data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-800">
+                      Reviewed
+                    </SelectItem>
+                    <SelectItem value="shortlisted" className="text-purple-700 hover:bg-purple-50 data-[state=checked]:bg-purple-100 data-[state=checked]:text-purple-800">
+                      Shortlisted
+                    </SelectItem>
+                    <SelectItem value="interview_scheduled" className="text-orange-700 hover:bg-orange-50 data-[state=checked]:bg-orange-100 data-[state=checked]:text-orange-800">
+                      Interview Scheduled
+                    </SelectItem>
+                    <SelectItem value="interviewed" className="text-yellow-700 hover:bg-yellow-50 data-[state=checked]:bg-yellow-100 data-[state=checked]:text-yellow-800">
+                      Interviewed
+                    </SelectItem>
+                    <SelectItem value="offer_sent" className="text-indigo-700 hover:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-800">
+                      Offer Sent
+                    </SelectItem>
+                    <SelectItem value="hired" className="text-green-700 hover:bg-green-50 data-[state=checked]:bg-green-100 data-[state=checked]:text-green-800">
+                      Hired
+                    </SelectItem>
+                    <SelectItem value="rejected" className="text-red-700 hover:bg-red-50 data-[state=checked]:bg-red-100 data-[state=checked]:text-red-800">
+                      Rejected
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -663,68 +690,47 @@ const SharedCandidates: React.FC = () => {
 
           {/* Row 2: Assigned By, Experience, Resume */}
           <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Column 1: Assigned By/HR */}
-            <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">
-                {isAgentView ? "Assigned HR" : "Assigned by"}
-              </div>
-              <div className="text-sm text-gray-900">
-                {isAgentView ? (
-                  assignment.assignedTo ? (
-                    `${assignment.assignedTo.firstName} ${assignment.assignedTo.lastName}`
-                  ) : (
-                    "Not assigned"
-                  )
-                ) : (
-                  `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`
-                )}
-              </div>
-              <div className="text-xs text-gray-500">
-                {isAgentView ? (
-                  assignment.assignedAt ? formatDistanceToNow(new Date(assignment.assignedAt)) + " ago" : "Not assigned"
-                ) : (
-                  formatDistanceToNow(new Date(assignment.assignedAt)) + " ago"
-                )}
+            {/* Column 1: View Profile Button */}
+            <div className="flex items-start space-x-3">
+              <div className="h-12 w-12 flex-shrink-0"></div>
+              <div className="flex-1 min-w-0">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 mt-2"
+                  onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  View Profile
+                </Button>
               </div>
             </div>
 
             {/* Column 2: Experience */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Experience</div>
+              <div className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
+                <Briefcase className="w-4 h-4 text-emerald-600" />
+                Experience
+              </div>
               {isAgentView ? (
-                <div className="text-sm font-medium text-gray-900">
+                <div className="text-base font-medium text-gray-900">
                   {formatExperience(candidate?.profile?.experience || [])}
                 </div>
               ) : (
-                <div className="text-sm font-medium text-gray-900">
-                  {formatExperience(candidate.profile.experience || [])}
+                <div className="text-base font-medium text-gray-900">
+                  {formatExperience(candidate?.profile?.experience || [])}
                 </div>
               )}
             </div>
 
             {/* Column 3: Resume */}
             <div>
-              <div className="text-xs font-medium text-gray-500 mb-1">Resume</div>
               {isAgentView ? (
                 candidate?.resumeFileId ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="text-xs h-8"
-                    onClick={() => navigate(`/dashboard/candidate-profile/${candidate.customId}`)}
-                  >
-                    <ExternalLink className="w-3 h-3 mr-1" />
-                    View Resume
-                  </Button>
-                ) : (
-                  <span className="text-xs text-gray-500">No resume</span>
-                )
-              ) : (
-                candidate.resumeFileId ? (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-xs h-8"
+                    className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
                     onClick={async () => {
                       try {
                         const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
@@ -741,7 +747,55 @@ const SharedCandidates: React.FC = () => {
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `${candidate.userId.firstName}_${candidate.userId.lastName}_resume.pdf`;
+                        a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+
+                        toast({
+                          title: 'Success',
+                          description: 'Resume downloaded successfully',
+                        });
+                      } catch (error) {
+                        console.error('Download error:', error);
+                        toast({
+                          title: 'Error',
+                          description: 'Failed to download resume',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" />
+                    View Resume
+                  </Button>
+                ) : (
+                  <span className="text-xs text-gray-500">No resume</span>
+                )
+              ) : (
+                candidate.resumeFileId ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                          },
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+                        }
+
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(url);
@@ -774,10 +828,11 @@ const SharedCandidates: React.FC = () => {
           {/* Row 3: Notes */}
           {assignment.notes && (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-medium text-gray-500 mb-2">
+              <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-4 h-4 text-amber-600" />
                 {isAgentView ? "My Notes" : "Agent Notes"}
               </div>
-              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+              <div className="text-base text-gray-600 bg-amber-50 p-3 rounded-md border border-amber-200">
                 {assignment.notes}
               </div>
             </div>
@@ -786,10 +841,11 @@ const SharedCandidates: React.FC = () => {
           {/* Row 4: Feedback */}
           {assignment.feedback && (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-medium text-gray-500 mb-2">
+              <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-1">
+                <MessageSquare className="w-4 h-4 text-blue-600" />
                 {isAgentView ? "HR's Feedback" : "My Feedback"}
               </div>
-              <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-md">
+              <div className="text-base text-gray-600 bg-blue-50 p-3 rounded-md border border-blue-200">
                 {assignment.feedback}
               </div>
             </div>
@@ -803,6 +859,8 @@ const SharedCandidates: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="hr" />
 
 
 
@@ -810,28 +868,51 @@ const SharedCandidates: React.FC = () => {
       {/* Stats Cards */}
       {user?.role !== 'agent' ? (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {stats.byStatus && stats.byStatus.map((stat: any) => (
-            <Card key={stat._id}>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${getStatusColor(stat._id).replace('border-', 'bg-').split(' ')[0]}`}></div>
-                  <div>
-                    <p className="text-sm font-medium capitalize">{stat._id}</p>
-                    <p className="text-2xl font-bold">{stat.count}</p>
+          {stats.byStatus && stats.byStatus.map((stat: any, index: number) => {
+            const gradients = [
+              "from-blue-500 to-blue-600",
+              "from-emerald-500 to-emerald-600", 
+              "from-amber-500 to-amber-600",
+              "from-purple-500 to-purple-600"
+            ];
+            const iconColors = [
+              "text-blue-100",
+              "text-emerald-100",
+              "text-amber-100", 
+              "text-purple-100"
+            ];
+            const gradient = gradients[index % gradients.length];
+            const iconColor = iconColors[index % iconColors.length];
+            
+            return (
+              <Card key={stat._id} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+                <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`}></div>
+                <CardContent className="relative p-4">
+                  <div className="flex items-center space-x-2">
+                    <div className={`${iconColor} bg-white/20 p-2 rounded-lg backdrop-blur-sm`}>
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white/90 capitalize">{stat._id}</p>
+                      <p className="text-2xl font-bold text-white">{stat.count}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
           
           {stats.overdue > 0 && (
-            <Card>
-              <CardContent className="p-4">
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-600 opacity-90"></div>
+              <CardContent className="relative p-4">
                 <div className="flex items-center space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  <div className="text-red-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium text-red-600">Overdue</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.overdue}</p>
+                    <p className="text-sm font-medium text-white/90">Overdue</p>
+                    <p className="text-2xl font-bold text-white">{stats.overdue}</p>
                   </div>
                 </div>
               </CardContent>
@@ -840,37 +921,46 @@ const SharedCandidates: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4">
+          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90"></div>
+            <CardContent className="relative p-4">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div className="text-blue-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <User className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Total Assigned Candidates</p>
-                  <p className="text-2xl font-bold">{assignments.length}</p>
+                  <p className="text-sm font-medium text-white/90">Total Assigned Candidates</p>
+                  <p className="text-2xl font-bold text-white">{assignments.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90"></div>
+            <CardContent className="relative p-4">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="text-emerald-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <Briefcase className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Active HRs</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm font-medium text-white/90">Active HRs</p>
+                  <p className="text-2xl font-bold text-white">
                     {Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length}
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="p-4">
+          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90"></div>
+            <CardContent className="relative p-4">
               <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <div className="text-purple-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                  <Building2 className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Companies</p>
-                  <p className="text-2xl font-bold">
+                  <p className="text-sm font-medium text-white/90">Companies</p>
+                  <p className="text-2xl font-bold text-white">
                     {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
                   </p>
                 </div>
@@ -883,50 +973,61 @@ const SharedCandidates: React.FC = () => {
 
 
       {/* Filters */}
-      <Card>
+      <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-200">
         <CardContent className="p-4">
           <div className="flex space-x-4">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-600 w-4 h-4" />
                 <Input
                   placeholder="Search candidates..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
                 />
               </div>
             </div>
             {user?.role !== 'agent' && (
               <>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Status" />
+                <Select value={candidateStatusFilter} onValueChange={setCandidateStatusFilter}>
+                  <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <User className="w-4 h-4 mr-2 text-blue-600" />
+                    <SelectValue placeholder="Candidate Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                    <SelectItem value="interviewed">Interviewed</SelectItem>
+                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
+                    <SelectItem value="hired">Hired</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="withdrawn">Withdrawn</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Priority" />
+                <Select value={jobFilter} onValueChange={setJobFilter}>
+                  <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                    <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
+                    <SelectValue placeholder="Job" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="all">All Jobs</SelectItem>
+                    {Array.from(new Set(assignments
+                      .filter((a: CandidateAssignment) => a.jobId?.title)
+                      .map((a: CandidateAssignment) => a.jobId!.title)
+                    )).map((jobTitle: string) => (
+                      <SelectItem key={jobTitle} value={jobTitle}>
+                        {jobTitle}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </>
             )}
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-40 border-amber-200 focus:border-amber-400 focus:ring-amber-400">
+                <Building2 className="w-4 h-4 mr-2 text-amber-600" />
                 <SelectValue placeholder="Company" />
               </SelectTrigger>
               <SelectContent>
@@ -963,7 +1064,7 @@ const SharedCandidates: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {filteredAssignments.map(renderAssignmentCard)}
+          {filteredAssignments.map(renderAssignmentCard).filter(Boolean)}
         </div>
       )}
 
@@ -1141,8 +1242,8 @@ const SharedCandidates: React.FC = () => {
             <DialogHeader>
               <DialogTitle>
                 {(() => {
-                  const firstName = selectedAssignment.candidateId.userId.firstName || '';
-                  const lastName = selectedAssignment.candidateId.userId.lastName || '';
+                  const firstName = selectedAssignment.candidateId?.userId?.firstName || '';
+                  const lastName = selectedAssignment.candidateId?.userId?.lastName || '';
                   return firstName && lastName ? `${firstName} ${lastName}` : 
                          firstName ? firstName : 
                          lastName ? lastName : 'Unnamed Candidate';
@@ -1159,24 +1260,19 @@ const SharedCandidates: React.FC = () => {
                 <h4 className="font-semibold mb-2">Contact Information</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Email:</span> {selectedAssignment.candidateId.userId.email || 'No email provided'}
+                    <span className="font-medium">Email:</span> {selectedAssignment.candidateId?.userId?.email || 'No email provided'}
                   </div>
                   <div>
-                    <span className="font-medium">Phone:</span> {selectedAssignment.candidateId.profile.phoneNumber || 'Not provided'}
+                    <span className="font-medium">Phone:</span> {selectedAssignment.candidateId?.profile?.phoneNumber || 'Not provided'}
                   </div>
                   <div>
-                    <span className="font-medium">Location:</span> {selectedAssignment.candidateId.profile.location || 'Not specified'}
+                    <span className="font-medium">Location:</span> {selectedAssignment.candidateId?.profile?.location || 'Not specified'}
                   </div>
-                  {selectedAssignment.candidateId.rating && (
-                    <div>
-                      <span className="font-medium">Rating:</span> {selectedAssignment.candidateId.rating}/5
-                    </div>
-                  )}
                 </div>
               </div>
 
               {/* Salary Expectation */}
-              {selectedAssignment.candidateId.profile.preferredSalaryRange && selectedAssignment.candidateId.profile.preferredSalaryRange.min && selectedAssignment.candidateId.profile.preferredSalaryRange.max && (
+              {selectedAssignment.candidateId?.profile?.preferredSalaryRange && selectedAssignment.candidateId.profile.preferredSalaryRange.min && selectedAssignment.candidateId.profile.preferredSalaryRange.max && (
                 <div>
                   <h4 className="font-semibold mb-2">Salary Expectation</h4>
                   <p className="text-sm">
@@ -1186,7 +1282,7 @@ const SharedCandidates: React.FC = () => {
               )}
 
               {/* Full Skills List */}
-              {selectedAssignment.candidateId.profile.skills && selectedAssignment.candidateId.profile.skills.length > 0 && (
+              {selectedAssignment.candidateId?.profile?.skills && selectedAssignment.candidateId.profile.skills.length > 0 && (
                 <div>
                   <h4 className="font-semibold mb-2">Skills</h4>
                   <div className="flex flex-wrap gap-1">
@@ -1200,7 +1296,7 @@ const SharedCandidates: React.FC = () => {
               )}
 
               {/* Full Summary */}
-              {selectedAssignment.candidateId.profile.summary && (
+              {selectedAssignment.candidateId?.profile?.summary && (
                 <div>
                   <h4 className="font-semibold mb-2">Professional Summary</h4>
                   <p className="text-sm text-gray-600 whitespace-pre-line">
@@ -1227,7 +1323,7 @@ const SharedCandidates: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span>Assigned by:</span>
-                    <span>{selectedAssignment.assignedBy.firstName} {selectedAssignment.assignedBy.lastName}</span>
+                    <span>{selectedAssignment.assignedBy ? `${selectedAssignment.assignedBy.firstName} ${selectedAssignment.assignedBy.lastName}` : 'Unknown'}</span>
                   </div>
                   {selectedAssignment.jobId && (
                     <div className="flex justify-between">

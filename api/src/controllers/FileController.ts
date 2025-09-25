@@ -227,9 +227,9 @@ export class FileController {
       userIdsMatch: candidate.userId.toString() === userId.toString()
     });
 
-    // Check if user can access this file (own resume or HR/Admin)
+    // Check if user can access this file (own resume, HR/Admin, or Agent)
     const userRole = req.user!.role;
-    const hasAccess = userRole === 'hr' || userRole === 'admin' || candidate.userId.toString() === userId.toString();
+    const hasAccess = userRole === 'hr' || userRole === 'admin' || userRole === 'agent' || candidate.userId.toString() === userId.toString();
     
     console.log('Access check:', {
       userRole,

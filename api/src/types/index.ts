@@ -106,6 +106,7 @@ export interface User {
   lastLoginAt?: Date;
   emailVerified: boolean;
   phoneNumber?: string;
+  source?: string; // Make optional for existing users
   createdAt: Date;
   updatedAt: Date;
 }
@@ -248,6 +249,7 @@ export interface CandidateProfile {
 export interface Candidate {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
+  assignedAgentId?: Types.ObjectId;
   profile: CandidateProfile;
   resumeFileId?: Types.ObjectId;
   status: CandidateStatus;
@@ -295,6 +297,15 @@ export enum JobUrgency {
 }
 
 /**
+ * Work type for jobs
+ */
+export enum WorkType {
+  REMOTE = 'remote',
+  WFO = 'wfo',
+  WFH = 'wfh',
+}
+
+/**
  * Job requirements
  */
 export interface JobRequirements {
@@ -314,8 +325,15 @@ export interface Job {
   description: string;
   requirements: JobRequirements;
   location: string;
+  address: {
+    street: string;
+    city: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
   type: JobType;
-  salaryRange?: {
+  salaryRange: {
     min: number;
     max: number;
     currency: string;
@@ -323,6 +341,9 @@ export interface Job {
   companyId: Types.ObjectId;
   status: JobStatus;
   urgency: JobUrgency;
+  workType: WorkType;
+  duration?: string;
+  numberOfOpenings: number;
   assignedAgentId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   applications?: number;
@@ -453,15 +474,6 @@ export enum CompanyStatus {
   SUSPENDED = 'suspended',
 }
 
-/**
- * Partnership level
- */
-export enum PartnershipLevel {
-  BASIC = 'basic',
-  STANDARD = 'standard',
-  PREMIUM = 'premium',
-  ENTERPRISE = 'enterprise',
-}
 
 /**
  * Company contact information
@@ -480,15 +492,22 @@ export interface Company {
   _id: Types.ObjectId;
   name: string;
   description: string;
-  industry: string;
   size: string;
-  location: string;
+  address: {
+    street: string;
+    city: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  location: string; // Populated from address for backward compatibility
   website?: string;
   logoUrl?: string;
+  foundedYear: number;
   contacts: CompanyContact[];
-  partnership: PartnershipLevel;
   status: CompanyStatus;
   rating?: number;
+  numberOfOpenings?: number;
   totalJobs: number;
   totalHires: number;
   createdBy: Types.ObjectId;

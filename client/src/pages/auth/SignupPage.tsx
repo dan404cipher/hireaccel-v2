@@ -10,7 +10,8 @@ import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { apiClient } from '@/services/api';
-import logo from '@/assets/logo.png';
+import logoColor from '@/assets/logo-color.png';
+import heroBackground from '@/assets/Hero-background.jpeg';
 
 interface FormData {
   firstName: string;
@@ -22,13 +23,14 @@ interface FormData {
   department?: string;
   currentLocation?: string;
   yearsOfExperience?: string;
+  source: string;
 }
 
 interface SignupPageProps {
   onSwitchToSignin: () => void;
 }
 
-export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
+export function SignupPage({ onSwitchToSignin }: SignupPageProps): React.JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -53,7 +55,8 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     confirmPassword: '',
     department: '',
     currentLocation: '',
-    yearsOfExperience: ''
+    yearsOfExperience: '',
+    source: ''
   });
   
   // Update user type when route changes
@@ -76,6 +79,17 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
     e.preventDefault();
     setLoading(true);
 
+    // Validate required fields
+    if (!formData.source) {
+      toast({
+        title: "Validation Error",
+        description: "Please select how you heard about us.",
+        variant: "destructive"
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
       // Prepare signup data
       const signupData = {
@@ -85,6 +99,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         phone: formData.phone,
         password: formData.password,
         role: userType,
+        source: formData.source,
         ...(userType === 'hr' && { department: formData.department }),
         ...(userType === 'candidate' && { 
           currentLocation: formData.currentLocation,
@@ -129,9 +144,6 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         navigate('/dashboard');
       }
     } catch (error: any) {
-      console.log('Signup error:', error);
-      console.log('Error type:', typeof error);
-      console.log('Error keys:', Object.keys(error || {}));
       
       // Extract error message from different possible structures
       let errorMessage = "Something went wrong. Please try again.";
@@ -152,18 +164,11 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
         errorMessage = "Please try again later";
       }
       
-      console.log('Final error message:', errorMessage);
       
       toast({
         title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed",
         description: errorMessage,
         variant: "destructive"
-      });
-      
-      console.log('Toast called with:', { 
-        title: error?.type === 'network_error' ? "Server Under Maintenance" : "Signup Failed", 
-        description: errorMessage, 
-        variant: "destructive" 
       });
     } finally {
       setLoading(false);
@@ -187,71 +192,54 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
   const isFormValid = isPasswordValid && isPasswordMatch;
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="h-screen bg-background flex overflow-hidden">
       {/* Left Side - Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 right-20 w-40 h-40 bg-gradient-to-br from-blue-200/30 to-blue-300/30 rounded-full blur-xl"></div>
-          <div className="absolute bottom-32 right-16 w-32 h-32 bg-gradient-to-br from-purple-200/40 to-purple-300/40 rounded-full blur-lg"></div>
-          <div className="absolute top-1/3 right-1/4 w-24 h-24 bg-gradient-to-br from-indigo-200/20 to-indigo-300/20 rounded-full blur-lg"></div>
-          <div className="absolute bottom-1/4 left-20 w-28 h-28 bg-gradient-to-br from-pink-200/30 to-pink-300/30 rounded-full blur-xl"></div>
-        </div>
+      <div 
+        className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${heroBackground})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        {/* Enhanced gradient overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/70 to-black/40"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-transparent to-transparent"></div>
 
         {/* Content container with proper spacing */}
         <div className="relative z-10 flex flex-col h-full">
-          {/* Header with logo and title on same line */}
-          <div className="flex-shrink-0 p-8">
-            <div className="flex items-center justify-between">
-              <img src={logo} alt="HireAccel" className="w-30 h-10" onClick={()=>navigate('/')}/>
-              <div className="text-right">
-                <h2 className="text-xl font-bold text-gray-800 leading-tight">
-                  Revolutionizing<br />
-                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Recruitment</span>
-                </h2>
+          {/* Header with logo and text */}
+          <div className="flex-shrink-0 p-8 cursor-pointer" onClick={()=>navigate('/')} style={{ cursor: 'pointer' }}>
+            <div className="flex items-center gap-3">
+              <img 
+                src={logoColor} 
+                alt="HireAccel Logo" 
+                className="w-12 h-12"
+              />
+              <div>
+                <h1 className="font-bold text-white text-xl">Hire Accel</h1>
+                <p className="text-xs text-white/80 font-medium">powered by v-accel</p>
               </div>
             </div>
           </div>
 
-          {/* Body content */}
-          <div className="flex-shrink-0 px-8 pb-8">
-            <p className="text-gray-600 leading-relaxed">
-              Join the next generation of hiring technology. Connect talent with opportunity through our innovative platform designed for modern recruitment needs.
-            </p>
-          </div>
-
-          {/* Central illustration */}
-          <div className="flex-1 flex items-center justify-center px-8">
-            <div className="relative">
-              <div className="w-64 h-64 mx-auto bg-gradient-to-br from-blue-100/80 to-purple-100/80 rounded-full flex items-center justify-center relative backdrop-blur-sm border border-white/30 shadow-2xl">
-                <div className="absolute inset-6 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center shadow-inner">
-                  <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center shadow-lg">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                      <span className="text-white font-bold text-3xl">H</span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Floating feature icons */}
-                <div className="absolute -top-2 right-8 w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg animate-bounce">
-                  <Users className="w-7 h-7 text-white" />
-                </div>
-                <div className="absolute bottom-2 -left-2 w-14 h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg animate-bounce delay-500">
-                  <Briefcase className="w-7 h-7 text-white" />
-                </div>
-                <div className="absolute top-20 -left-6 w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg animate-bounce delay-1000">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-                <div className="absolute bottom-20 -right-6 w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg animate-bounce delay-1500">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-              </div>
+          {/* Central content section */}
+          <div className="flex-1 flex flex-col justify-center px-8">
+            <div className="mb-8">
+              <h1 className="max-w-xl text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+                Join the <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Future</span> of Recruitment
+              </h1>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-white/80">
+                Connect talent with opportunity through our innovative platform designed for modern recruitment needs. Join hundreds of HR professionals transforming their hiring process.
+              </p>
             </div>
           </div>
 
           {/* Floating glassmorphism stats card */}
-          <div className="flex-shrink-0 p-8">
-            <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl">
+          <div className="flex-shrink-0 px-8 pb-8 w-full">
+            <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl w-full">
               <div className="grid grid-cols-2 gap-6">
                 <div className="text-center p-4 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20">
                   <div className="text-3xl font-bold text-blue-600 mb-2">5000+</div>
@@ -276,16 +264,14 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
       </div>
 
       {/* Right Side - Signup Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex flex-col overflow-y-auto">
+        <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-1 mb-4">
               <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
               <span className="text-sm text-blue-500">Create Account</span>
             </div>
-            <h1 className="text-2xl font-semibold text-gray-900 mb-2">
-              Create Your Account
-            </h1>
             <p className="text-gray-600">
               Join our platform and start your journey
             </p>
@@ -448,6 +434,31 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
                     )}
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="source">How did you hear about us?*</Label>
+                    <Select
+                      value={formData.source}
+                      onValueChange={(value) => handleInputChange('source', value)}
+                    >
+                      <SelectTrigger className="border border-gray-300 focus:border-blue-500">
+                        <SelectValue placeholder="Select how you heard about us" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Email">Email</SelectItem>
+                        <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                        <SelectItem value="Telegram">Telegram</SelectItem>
+                        <SelectItem value="Instagram">Instagram</SelectItem>
+                        <SelectItem value="Facebook">Facebook</SelectItem>
+                        <SelectItem value="Journals">Journals</SelectItem>
+                        <SelectItem value="Posters">Posters</SelectItem>
+                        <SelectItem value="Brochures">Brochures</SelectItem>
+                        <SelectItem value="Forums">Forums</SelectItem>
+                        <SelectItem value="Google">Google</SelectItem>
+                        <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   {/* HR Specific Fields */}
                   <TabsContent value="hr" className="mt-4">
                     <div className="min-h-[120px] flex flex-col justify-start">
@@ -524,7 +535,10 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps) {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
     </div>
   );
 }
+
+export default SignupPage;

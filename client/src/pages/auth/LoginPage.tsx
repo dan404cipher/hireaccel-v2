@@ -8,8 +8,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CheckCircle, Users, Clock, TrendingUp, Eye, EyeOff } from 'lucide-react';
-import logo from '@/assets/logo.png';
-import image from '@/assets/login.png';
+import logoColor from '@/assets/logo-color.png';
+import heroBackground from '@/assets/Hero-background.jpeg';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -99,9 +99,19 @@ export default function LoginPage() {
 
         {/* Content container with proper spacing */}
         <div className="relative z-10 flex flex-col h-full">
-          {/* Header with logo only */}
+          {/* Header with logo and text */}
           <div className="flex-shrink-0 p-8 cursor-pointer" onClick={()=>navigate('/')} style={{ cursor: 'pointer' }}>
-           <img src={logo} className='w-30 h-10' />
+            <div className="flex items-center gap-3">
+              <img 
+                src={logoColor} 
+                alt="HireAccel Logo" 
+                className="w-12 h-12"
+              />
+              <div>
+                <h1 className="font-bold text-slate-900 text-xl">Hire Accel</h1>
+                <p className="text-xs text-slate-600 font-medium">powered by v-accel</p>
+              </div>
+            </div>
           </div>
 
           {/* Central content section */}
@@ -109,9 +119,12 @@ export default function LoginPage() {
             {/* Left copy */}
             <div className="mb-8">
               <div className="relative mb-8 hidden h-[30vh] w-full rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 sm:block overflow-hidden">
-                <span className="absolute left-6 -top-1 h-2.5 w-16 rounded-full bg-[#00C950]" />
-                <img src={image} className='bg-violet-200 w-full h-full'/>
-                <span className="absolute right-6 -bottom-1 h-2.5 w-12 rounded-full bg-[#00C950]" />
+                <div 
+                  className="w-full h-full bg-cover bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage: `url(${heroBackground})`,
+                  }}
+                />
               </div>
 
               <h1 className="max-w-xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">

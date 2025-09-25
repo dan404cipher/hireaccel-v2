@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import { useInterviews, useCreateInterview, useUpdateInterview, useDeleteInterview, useInterviewStats, useCandidateAssignments } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
+import { DashboardBanner } from "@/components/dashboard/Banner";
 
 import { 
   Select,
@@ -46,7 +48,14 @@ import {
   XCircle,
   AlertCircle,
   Calendar as CalendarIcon,
-  Table as TableIcon
+  Table as TableIcon,
+  User,
+  Building2,
+  Briefcase,
+  Timer,
+  MessageSquare,
+  Edit,
+  Trash2
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -59,10 +68,11 @@ import {
 // Removed mock data - will use real API data
 
 export default function InterviewManagement() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState(searchParams.get('date') || "all");
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [page, setPage] = useState(1);
@@ -94,6 +104,17 @@ export default function InterviewManagement() {
     status: '',
   });
 
+  // Check for URL action parameter to auto-open dialogs
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'schedule') {
+      setIsScheduleDialogOpen(true);
+      // Remove the action parameter from URL to prevent re-opening
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Debounce search term to prevent excessive API calls
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -118,6 +139,7 @@ export default function InterviewManagement() {
   const { data: interviewsResponse, loading: interviewsLoading, error: interviewsError, refetch: refetchInterviews } = useInterviews(interviewsParams);
   const { data: statsResponse } = useInterviewStats();
   const { mutate: createInterview, loading: createLoading } = useCreateInterview({
+    showToast: false, // Let component handle error display
     onSuccess: () => {
       setIsScheduleDialogOpen(false);
       resetScheduleForm();
@@ -125,6 +147,7 @@ export default function InterviewManagement() {
     }
   });
   const { mutate: updateInterview, loading: updateLoading } = useUpdateInterview({
+    showToast: false, // Let component handle error display
     onSuccess: () => {
       setIsEditDialogOpen(false);
       resetEditForm();
@@ -155,8 +178,8 @@ export default function InterviewManagement() {
       : "Unknown Candidate",
     jobTitle: interview.applicationId?.jobId?.title || "Unknown Job",
     company: interview.applicationId?.jobId?.companyId?.name || "Unknown Company",
-    agent: interview.interviewers?.[0]?.firstName && interview.interviewers?.[0]?.lastName
-      ? `${interview.interviewers[0].firstName} ${interview.interviewers[0].lastName}`
+    agent: interview.applicationId?.candidateId?.assignedAgentId?.firstName && interview.applicationId?.candidateId?.assignedAgentId?.lastName
+      ? `${interview.applicationId.candidateId.assignedAgentId.firstName} ${interview.applicationId.candidateId.assignedAgentId.lastName}`
       : "Unassigned",
     date: new Date(interview.scheduledAt).toISOString().split('T')[0],
     time: new Date(interview.scheduledAt).toLocaleTimeString('en-US', { 
@@ -198,12 +221,12 @@ export default function InterviewManagement() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "scheduled": return "bg-info text-info-foreground";
-      case "confirmed": return "bg-success text-success-foreground";
-      case "completed": return "bg-primary text-primary-foreground";
-      case "pending": return "bg-warning text-warning-foreground";
-      case "cancelled": return "bg-destructive text-destructive-foreground";
-      default: return "bg-muted text-muted-foreground";
+      case "scheduled": return "bg-blue-600 text-white border-blue-600";
+      case "confirmed": return "bg-emerald-600 text-white border-emerald-600";
+      case "completed": return "bg-purple-600 text-white border-purple-600";
+      case "pending": return "bg-amber-600 text-white border-amber-600";
+      case "cancelled": return "bg-red-600 text-white border-red-600";
+      default: return "bg-gray-600 text-white border-gray-600";
     }
   };
 
@@ -220,19 +243,21 @@ export default function InterviewManagement() {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case "video": return <Video className="w-4 h-4" />;
-      case "phone": return <Phone className="w-4 h-4" />;
-      case "in-person": return <MapPin className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case "video": return <Video className="w-4 h-4 text-blue-600" />;
+      case "phone": return <Phone className="w-4 h-4 text-emerald-600" />;
+      case "in-person": return <MapPin className="w-4 h-4 text-purple-600" />;
+      default: return <Clock className="w-4 h-4 text-gray-600" />;
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "completed": return <CheckCircle className="w-4 h-4 text-success" />;
-      case "cancelled": return <XCircle className="w-4 h-4 text-destructive" />;
-      case "pending": return <AlertCircle className="w-4 h-4 text-warning" />;
-      default: return <Clock className="w-4 h-4 text-info" />;
+      case "completed": return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "cancelled": return <XCircle className="w-4 h-4 text-red-600" />;
+      case "pending": return <AlertCircle className="w-4 h-4 text-amber-600" />;
+      case "scheduled": return <Clock className="w-4 h-4 text-blue-600" />;
+      case "confirmed": return <CheckCircle className="w-4 h-4 text-emerald-600" />;
+      default: return <Clock className="w-4 h-4 text-gray-600" />;
     }
   };
 
@@ -277,11 +302,42 @@ export default function InterviewManagement() {
         description: "Interview scheduled successfully",
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.detail || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          "Failed to schedule interview";
+      
+      let errorMessage = "Failed to schedule interview";
+      
+      // Check if error has the expected structure
+      if (error && typeof error === 'object') {
+        // Handle validation errors with detailed messages
+        if (error.issues && Array.isArray(error.issues) && error.issues.length > 0) {
+          const validationErrors = error.issues.map((issue: any) => {
+            // Convert field names to user-friendly labels
+            const fieldLabels: { [key: string]: string } = {
+              scheduledAt: "Scheduled Date & Time",
+              type: "Interview Type",
+              round: "Interview Round",
+              duration: "Duration",
+              location: "Location",
+              status: "Status",
+              interviewers: "Interviewers",
+              candidateId: "Candidate"
+            };
+            
+            const fieldName = fieldLabels[issue.field] || issue.field;
+            return `${fieldName}: ${issue.message}`;
+          });
+          
+          errorMessage = validationErrors.join(". ");
+        } else if (error.detail) {
+          // Use the detail message from the API
+          errorMessage = error.detail;
+        } else if (error.message) {
+          // Use the error message
+          errorMessage = error.message;
+        } else if (error.title) {
+          // Use the title as fallback
+          errorMessage = error.title;
+        }
+      }
       
       toast({
         title: "Error",
@@ -317,6 +373,17 @@ export default function InterviewManagement() {
     }
     
     const scheduledDate = new Date(interview.scheduledAt);
+    
+    // Check if the date is valid
+    if (isNaN(scheduledDate.getTime())) {
+      toast({
+        title: "Error",
+        description: "Invalid date format. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const formattedDate = scheduledDate.toISOString().split('T')[0];
     const formattedTime = scheduledDate.toTimeString().slice(0, 5);
     
@@ -351,18 +418,48 @@ export default function InterviewManagement() {
         status: editFormData.status,
       };
 
-      await updateInterview({ id: editingInterview.id, data: updateData });
+      await updateInterview({ id: editingInterview._id || editingInterview.id, data: updateData });
       
       toast({
         title: "Success",
         description: "Interview updated successfully",
       });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.error || 
-                          error.response?.data?.detail || 
-                          error.response?.data?.message || 
-                          error.message || 
-                          "Failed to update interview";
+      
+      let errorMessage = "Failed to update interview";
+      
+      // Check if error has the expected structure
+      if (error && typeof error === 'object') {
+        // Handle validation errors with detailed messages
+        if (error.issues && Array.isArray(error.issues) && error.issues.length > 0) {
+          const validationErrors = error.issues.map((issue: any) => {
+            // Convert field names to user-friendly labels
+            const fieldLabels: { [key: string]: string } = {
+              scheduledAt: "Scheduled Date & Time",
+              type: "Interview Type",
+              round: "Interview Round",
+              duration: "Duration",
+              location: "Location",
+              status: "Status",
+              interviewers: "Interviewers"
+            };
+            
+            const fieldName = fieldLabels[issue.field] || issue.field;
+            return `${fieldName}: ${issue.message}`;
+          });
+          
+          errorMessage = validationErrors.join(". ");
+        } else if (error.detail) {
+          // Use the detail message from the API
+          errorMessage = error.detail;
+        } else if (error.message) {
+          // Use the error message
+          errorMessage = error.message;
+        } else if (error.title) {
+          // Use the title as fallback
+          errorMessage = error.title;
+        }
+      }
       
       toast({
         title: "Error",
@@ -398,6 +495,9 @@ export default function InterviewManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="hr" />
+      
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
@@ -436,7 +536,7 @@ export default function InterviewManagement() {
           <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
           <DialogTrigger asChild>
             <Button 
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg"
               onClick={() => {
                 resetScheduleForm();
                 setIsScheduleDialogOpen(true);
@@ -495,8 +595,7 @@ export default function InterviewManagement() {
                     <SelectContent>
                       <SelectItem value="video">Video Call</SelectItem>
                       <SelectItem value="phone">Phone Call</SelectItem>
-                      <SelectItem value="in-person">In-Person</SelectItem>
-                      <SelectItem value="technical">Technical Interview</SelectItem>
+                      <SelectItem value="in-person">Walk In</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -513,8 +612,6 @@ export default function InterviewManagement() {
                       <SelectItem value="screening">HR Screening</SelectItem>
                       <SelectItem value="technical">Technical</SelectItem>
                       <SelectItem value="behavioral">Behavioral</SelectItem>
-                      <SelectItem value="final">Final</SelectItem>
-                      <SelectItem value="cultural">Cultural Fit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -628,7 +725,7 @@ export default function InterviewManagement() {
                   <SelectContent>
                     <SelectItem value="video">Video Call</SelectItem>
                     <SelectItem value="phone">Phone Call</SelectItem>
-                    <SelectItem value="in-person">In Person</SelectItem>
+                    <SelectItem value="in-person">Walk In</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -647,7 +744,6 @@ export default function InterviewManagement() {
                     <SelectItem value="screening">Screening</SelectItem>
                     <SelectItem value="technical">Technical</SelectItem>
                     <SelectItem value="behavioral">Behavioral</SelectItem>
-                    <SelectItem value="final">Final</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -756,53 +852,61 @@ export default function InterviewManagement() {
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Today's Interviews</p>
-                <p className="text-2xl font-bold text-primary">{stats.todayCount || todayInterviews.length}</p>
+                <p className="text-sm text-blue-100">Today's Interviews</p>
+                <p className="text-2xl font-bold text-white">{stats.todayCount || todayInterviews.length}</p>
               </div>
-              <Clock className="w-8 h-8 text-primary" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Clock className="w-6 h-6 text-blue-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Scheduled</p>
-                <p className="text-2xl font-bold text-info">
+                <p className="text-sm text-emerald-100">Scheduled</p>
+                <p className="text-2xl font-bold text-white">
                   {stats.byStatus?.find((s: any) => s._id === 'scheduled')?.count || 0}
                 </p>
               </div>
-              <CalendarPlus className="w-8 h-8 text-info" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <CalendarPlus className="w-6 h-6 text-emerald-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-2xl font-bold text-success">
+                <p className="text-sm text-purple-100">Completed</p>
+                <p className="text-2xl font-bold text-white">
                   {stats.byStatus?.find((s: any) => s._id === 'completed')?.count || 0}
                 </p>
               </div>
-              <CheckCircle className="w-8 h-8 text-success" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <CheckCircle className="w-6 h-6 text-purple-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Confirmed</p>
-                <p className="text-2xl font-bold text-warning">
+                <p className="text-sm text-amber-100">Confirmed</p>
+                <p className="text-2xl font-bold text-white">
                   {stats.byStatus?.find((s: any) => s._id === 'confirmed')?.count || 0}
                 </p>
               </div>
-              <AlertCircle className="w-8 h-8 text-warning" />
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <AlertCircle className="w-6 h-6 text-amber-100" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -812,22 +916,25 @@ export default function InterviewManagement() {
       {viewMode === "table" ? (
         /* Table View */
         <div className="w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle>Interview Schedule</CardTitle>
+          <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+            <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+              <CardTitle className="text-slate-700 flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5 text-blue-600" />
+                Interview Schedule
+              </CardTitle>
               <div className="flex gap-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-600" />
                   <Input
                     placeholder="Search interviews..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-32">
-                    <Filter className="w-4 h-4 mr-2" />
+                  <SelectTrigger className="w-32 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <Filter className="w-4 h-4 mr-2 text-blue-600" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -840,7 +947,8 @@ export default function InterviewManagement() {
                   </SelectContent>
                 </Select>
                 <Select value={dateFilter} onValueChange={setDateFilter}>
-                  <SelectTrigger className="w-32">
+                  <SelectTrigger className="w-32 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                    <CalendarIcon className="w-4 h-4 mr-2 text-purple-600" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -882,39 +990,58 @@ export default function InterviewManagement() {
                     <TableHead>Candidate & Job</TableHead>
                     <TableHead>Date & Time</TableHead>
                     <TableHead>Type & Location</TableHead>
-                    <TableHead>Agent</TableHead>
                     <TableHead>Status</TableHead>
                     {user?.role !== 'candidate' && <TableHead></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                     {filteredInterviews.length > 0 ? filteredInterviews.map((interview) => (
-                    <>
-                    <TableRow key={interview.id}>
+                    <React.Fragment key={interview.id}>
+                    <TableRow>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{interview.candidateName}</div>
-                          <div className="text-sm text-muted-foreground">{interview.jobTitle}</div>
-                          <div className="text-xs text-muted-foreground">{interview.company}</div>
+                          <div className="font-medium text-base flex items-center gap-2">
+                            <User className="w-4 h-4 text-blue-600" />
+                            {interview.candidateName}
+                          </div>
+                          <div className="text-base text-muted-foreground flex items-center gap-2">
+                            <Briefcase className="w-4 h-4 text-purple-600" />
+                            {interview.jobTitle}
+                          </div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-emerald-600" />
+                            {interview.company}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{new Date(interview.date).toLocaleDateString()}</div>
-                          <div className="text-sm text-muted-foreground">{interview.time}</div>
-                          <div className="text-xs text-muted-foreground">{interview.duration}</div>
+                          <div className="font-medium text-base flex items-center gap-2">
+                            <CalendarIcon className="w-4 h-4 text-blue-600" />
+                            {new Date(interview.date).toLocaleDateString()}
+                          </div>
+                          <div className="text-base text-muted-foreground flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-emerald-600" />
+                            {interview.time}
+                          </div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
+                            <Timer className="w-4 h-4 text-amber-600" />
+                            {interview.duration}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getTypeIcon(interview.type)}
                           <div>
-                            <div className="text-sm font-medium capitalize">{interview.type}</div>
-                            <div className="text-xs text-muted-foreground">{interview.location}</div>
+                            <div className="text-base font-medium capitalize">{interview.type}</div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-gray-500" />
+                              {interview.location}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{interview.agent}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
@@ -923,7 +1050,8 @@ export default function InterviewManagement() {
                               {interview.status}
                             </Badge>
                           </div>
-                          <div className="text-xs text-muted-foreground capitalize">
+                          <div className="text-sm text-muted-foreground capitalize flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3 text-gray-500" />
                             {interview.round} Round
                           </div>
                         </div>
@@ -937,8 +1065,12 @@ export default function InterviewManagement() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEditDialog(interview.originalData)}>Edit Interview</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEditDialog(interview.originalData)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit Interview
+                              </DropdownMenuItem>
                               <DropdownMenuItem className="text-destructive">
+                                <Trash2 className="w-4 h-4 mr-2" />
                                 Cancel Interview
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -959,7 +1091,7 @@ export default function InterviewManagement() {
                         </TableCell>
                       </TableRow>
                     )}
-                    </>
+                    </React.Fragment>
                     )) : (
                       <TableRow>
                         <TableCell colSpan={user?.role === 'candidate' ? 5 : 6} className="text-center py-8">

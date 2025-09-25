@@ -4,8 +4,10 @@ import { AgentAssignment } from '@/models/AgentAssignment';
 import { Job } from '@/models/Job';
 import { Candidate } from '@/models/Candidate';
 import { CandidateAssignment } from '@/models/CandidateAssignment';
+import { Interview } from '@/models/Interview';
+import { Application } from '@/models/Application';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, UserRole, JobStatus, AuditAction } from '@/types';
+import { AuthenticatedRequest, UserRole, JobStatus, AuditAction, InterviewStatus } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError, createForbiddenError } from '@/middleware/errorHandler';
 import mongoose from 'mongoose';
 
@@ -30,6 +32,15 @@ const querySchema = z.object({
   urgency: z.string().optional(),
   sortBy: z.enum(['createdAt', 'title', 'urgency', 'postedAt', 'assignedAt', 'priority', 'status']).default('postedAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
+});
+
+const interviewQuerySchema = z.object({
+  page: z.string().transform(Number).default('1'),
+  limit: z.string().transform(Number).default('20'),
+  search: z.string().optional(),
+  status: z.string().optional(),
+  sortBy: z.enum(['createdAt', 'scheduledAt', 'status']).default('scheduledAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('asc'),
 });
 
 export class AgentController {
@@ -96,6 +107,17 @@ export class AgentController {
 
     const total = await Job.countDocuments(filter);
 
+    // Calculate actual applications count for each job based on candidate assignments
+    const jobsWithApplicationsCount = await Promise.all(
+      jobs.map(async (job) => {
+        const applicationsCount = await Job.calculateApplicationsCount(job._id);
+        return {
+          ...job.toObject(),
+          applications: applicationsCount
+        };
+      })
+    );
+
     // Log audit trail
     await AuditLog.createLog({
       actor: req.user!._id,
@@ -115,7 +137,7 @@ export class AgentController {
     });
 
     res.json({
-      data: jobs,
+      data: jobsWithApplicationsCount,
       meta: {
         page,
         limit,
@@ -142,6 +164,13 @@ export class AgentController {
     // Get candidates assigned to this agent
     const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
     
+    console.log('🔍 Agent getMyCandidates debug:', {
+      agentId: req.user!._id,
+      agentEmail: req.user!.email,
+      assignedCandidateIds: assignedCandidateIds,
+      candidateCount: assignedCandidateIds.length
+    });
+    
     if (assignedCandidateIds.length === 0) {
       return res.json({
         data: [],
@@ -155,8 +184,10 @@ export class AgentController {
     }
 
     // Build filter for assigned candidates
+    // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
     const filter: any = {
-      userId: { $in: assignedCandidateIds },
+      _id: { $in: assignedCandidateIds },
+      userId: { $exists: true, $ne: null } // Only include candidates that have a valid userId
     };
 
     if (search) {
@@ -172,13 +203,36 @@ export class AgentController {
     const sort: any = {};
     sort[sortBy === 'createdAt' ? 'createdAt' : 'updatedAt'] = sortOrder === 'asc' ? 1 : -1;
 
-    const candidates = await Candidate.find(filter)
-      .populate('userId', 'firstName lastName email')
+    console.log('[AgentController] Finding candidates with filter:', {
+      filter,
+      assignedCandidateIds: assignedCandidateIds.map(id => id.toString())
+    });
+
+    // First get all candidates that match the filter
+    const allCandidates = await Candidate.find(filter)
+      .populate('userId', 'firstName lastName email customId') // Add customId to the populated fields
       .sort(sort)
       .skip(skip)
       .limit(limit);
 
-    const total = await Candidate.countDocuments(filter);
+    // Filter out candidates where userId didn't populate or customId is missing
+    const candidates = allCandidates.filter(candidate => 
+      candidate.userId && 
+      (candidate.userId as any).firstName && 
+      (candidate.userId as any).lastName &&
+      (candidate.userId as any).customId // Ensure customId exists
+    );
+
+    console.log('[AgentController] Found candidates:', {
+      count: candidates.length,
+      candidates: candidates.map(c => ({
+        id: c._id.toString(),
+        userId: c.userId ? (c.userId as any)._id.toString() : null,
+        name: c.userId ? `${(c.userId as any).firstName} ${(c.userId as any).lastName}` : 'No User'
+      }))
+    });
+
+    const total = candidates.length; // Use the filtered count instead of querying again
 
     // Log audit trail
     await AuditLog.createLog({
@@ -322,10 +376,19 @@ export class AgentController {
     const validatedData = assignCandidateSchema.parse(req.body);
 
     // Verify agent has access to this candidate
+    console.log(`[AgentController] Verifying agent ${req.user!._id} access to candidate ${validatedData.candidateId}`);
     const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
     const candidateObjectId = new mongoose.Types.ObjectId(validatedData.candidateId);
     
-    if (!assignedCandidateIds.some(id => id.equals(candidateObjectId))) {
+    const hasAccess = assignedCandidateIds.some(id => id.equals(candidateObjectId));
+    console.log(`[AgentController] Agent access check:`, {
+      agentId: req.user!._id,
+      candidateId: validatedData.candidateId,
+      hasAccess,
+      totalAssignedCandidates: assignedCandidateIds.length
+    });
+    
+    if (!hasAccess) {
       throw createForbiddenError('You do not have access to this candidate');
     }
 
@@ -359,6 +422,14 @@ export class AgentController {
     }
 
     // Create candidate assignment
+    console.log(`[AgentController] Creating candidate assignment:`, {
+      candidateId: validatedData.candidateId,
+      jobId: validatedData.jobId,
+      assignedBy: req.user!._id,
+      assignedTo: job.createdBy,
+      priority: validatedData.priority
+    });
+    
     const assignment = await CandidateAssignment.create({
       candidateId: validatedData.candidateId,
       assignedTo: job.createdBy, // HR user who posted the job
@@ -368,6 +439,8 @@ export class AgentController {
       notes: validatedData.notes,
       dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
     });
+    
+    console.log(`[AgentController] Created candidate assignment: ${assignment._id}`);
 
     // Populate the created assignment
     const populatedAssignment = await CandidateAssignment.findById(assignment._id)
@@ -584,5 +657,370 @@ export class AgentController {
     });
 
     res.json({ data: summary });
+  });
+
+  /**
+   * Get interviews for candidates assigned to the current agent
+   * @route GET /agents/me/interviews
+   */
+  static getMyInterviews = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only agents can access this endpoint
+    if (req.user!.role !== UserRole.AGENT) {
+      throw createForbiddenError('Only agents can access this endpoint');
+    }
+
+    const query = interviewQuerySchema.parse(req.query);
+    const { page, limit, search, status, sortBy, sortOrder } = query;
+
+    // Get candidates assigned to this agent
+    const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
+    
+    if (assignedCandidateIds.length === 0) {
+      return res.json({
+        data: [],
+        meta: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+      });
+    }
+
+    // Find applications for assigned candidates
+    const applications = await Application.find({ 
+      candidateId: { $in: assignedCandidateIds } 
+    }).distinct('_id');
+
+    if (applications.length === 0) {
+      return res.json({
+        data: [],
+        meta: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+      });
+    }
+
+    // Build filter for interviews
+    const filter: any = {
+      applicationId: { $in: applications },
+    };
+
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    const skip = (page - 1) * limit;
+    const sort: any = {};
+    sort[sortBy === 'createdAt' ? 'scheduledAt' : 'scheduledAt'] = sortOrder === 'asc' ? 1 : -1;
+
+    // Execute query with population
+    const interviews = await Interview.find(filter)
+      .populate({
+        path: 'applicationId',
+        populate: [
+          { 
+            path: 'candidateId', 
+            populate: { 
+              path: 'userId', 
+              select: 'firstName lastName email' 
+            }
+          },
+          { path: 'jobId', select: 'title companyId', populate: { path: 'companyId', select: 'name' } }
+        ]
+      })
+      .populate('interviewers', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    // Apply search filter on populated data if needed
+    let filteredInterviews = interviews;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredInterviews = interviews.filter(interview => {
+        const application = interview.applicationId as any;
+        const candidate = application?.candidateId;
+        const job = application?.jobId;
+        const company = job?.companyId;
+        
+        return (
+          candidate?.firstName?.toLowerCase().includes(searchLower) ||
+          candidate?.lastName?.toLowerCase().includes(searchLower) ||
+          job?.title?.toLowerCase().includes(searchLower) ||
+          company?.name?.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    // Count total documents with the same filter applied
+    const total = await Interview.countDocuments(filter);
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.READ,
+      entityType: 'Interview',
+      entityId: new mongoose.Types.ObjectId(),
+      metadata: { 
+        queryType: 'agent_interviews', 
+        resultCount: filteredInterviews.length,
+        assignedCandidateCount: assignedCandidateIds.length,
+        filter 
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: `Agent retrieved ${filteredInterviews.length} interviews for assigned candidates`,
+    });
+
+    res.json({
+      data: filteredInterviews,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        assignedCandidatesCount: assignedCandidateIds.length,
+      },
+    });
+  });
+
+  /**
+   * Get interview statistics for agent's assigned candidates
+   * @route GET /agents/me/interviews/stats
+   */
+  static getMyInterviewStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only agents can access this endpoint
+    if (req.user!.role !== UserRole.AGENT) {
+      throw createForbiddenError('Only agents can access this endpoint');
+    }
+
+    // Get candidates assigned to this agent
+    const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
+    
+    if (assignedCandidateIds.length === 0) {
+      return res.json({
+        data: {
+          byStatus: [],
+          todayCount: 0,
+          upcomingCount: 0,
+        },
+      });
+    }
+
+    // Find applications for assigned candidates
+    const applications = await Application.find({ 
+      candidateId: { $in: assignedCandidateIds } 
+    }).distinct('_id');
+
+    if (applications.length === 0) {
+      return res.json({
+        data: {
+          byStatus: [],
+          todayCount: 0,
+          upcomingCount: 0,
+        },
+      });
+    }
+
+    const baseFilter = { applicationId: { $in: applications } };
+
+    const stats = await Interview.aggregate([
+      { $match: baseFilter },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayCount = await Interview.countDocuments({
+      ...baseFilter,
+      scheduledAt: { $gte: today, $lt: tomorrow },
+      status: { $nin: [InterviewStatus.CANCELLED] }
+    });
+
+    const upcomingCount = await Interview.countDocuments({
+      ...baseFilter,
+      scheduledAt: { $gte: new Date() },
+      status: { $in: [InterviewStatus.SCHEDULED, InterviewStatus.CONFIRMED] }
+    });
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.READ,
+      entityType: 'Interview',
+      entityId: new mongoose.Types.ObjectId(),
+      metadata: { 
+        queryType: 'agent_interview_stats', 
+        statsData: { byStatus: stats, todayCount, upcomingCount },
+        assignedCandidateCount: assignedCandidateIds.length
+      },
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: `Agent retrieved interview statistics for assigned candidates`,
+    });
+
+    res.json({
+      data: {
+        byStatus: stats,
+        todayCount,
+        upcomingCount,
+        assignedCandidatesCount: assignedCandidateIds.length,
+      }
+    });
+  });
+
+  /**
+   * Get single interview by ID (for agent's assigned candidates)
+   * @route GET /agents/me/interviews/:id
+   */
+  static getMyInterview = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only agents can access this endpoint
+    if (req.user!.role !== UserRole.AGENT) {
+      throw createForbiddenError('Only agents can access this endpoint');
+    }
+
+    const { id } = req.params;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw createNotFoundError('Interview not found');
+    }
+
+    // Get candidates assigned to this agent
+    const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
+    
+    if (assignedCandidateIds.length === 0) {
+      throw createForbiddenError('No candidates assigned to you');
+    }
+
+    // Find applications for assigned candidates
+    const applications = await Application.find({ 
+      candidateId: { $in: assignedCandidateIds } 
+    }).distinct('_id');
+
+    const interview = await Interview.findOne({
+      _id: id,
+      applicationId: { $in: applications }
+    })
+      .populate({
+        path: 'applicationId',
+        populate: [
+          { path: 'candidateId', select: 'firstName lastName email phone' },
+          { path: 'jobId', select: 'title description companyId', populate: { path: 'companyId', select: 'name' } }
+        ]
+      })
+      .populate('interviewers', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName');
+
+    if (!interview) {
+      throw createNotFoundError('Interview not found or you do not have access to it');
+    }
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.READ,
+      entityType: 'Interview',
+      entityId: interview._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: `Agent viewed interview details`,
+    });
+
+    res.json({ data: interview });
+  });
+
+  /**
+   * Clean up broken candidate references in agent assignments
+   * @route POST /agents/cleanup-assignments
+   */
+  static cleanupBrokenReferences = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only admins can trigger cleanup
+    if (req.user!.role !== UserRole.ADMIN) {
+      throw createForbiddenError('Only admins can trigger assignment cleanup');
+    }
+
+    await AgentAssignment.cleanupBrokenCandidateReferences();
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.UPDATE,
+      entityType: 'AgentAssignment',
+      entityId: new mongoose.Types.ObjectId(),
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: 'Admin triggered cleanup of broken candidate references in agent assignments',
+    });
+
+    res.json({ 
+      message: 'Successfully cleaned up broken candidate references in agent assignments'
+    });
+  });
+
+  /**
+   * Get single candidate by ID (for agent's assigned candidates)
+   * @route GET /agents/me/candidates/:id
+   */
+  static getMyCandidate = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only agents can access this endpoint
+    if (req.user!.role !== UserRole.AGENT) {
+      throw createForbiddenError('Only agents can access this endpoint');
+    }
+
+    const { id } = req.params;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw createNotFoundError('Candidate not found');
+    }
+
+    // Get candidates assigned to this agent
+    const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
+    const candidateObjectId = new mongoose.Types.ObjectId(id);
+    
+    // Check if the candidate is assigned to this agent
+    const hasAccess = assignedCandidateIds.some(candidateId => candidateId.equals(candidateObjectId));
+    if (!hasAccess) {
+      throw createForbiddenError('You do not have access to this candidate');
+    }
+
+    // Get candidate details with populated user info
+    const candidate = await Candidate.findById(id)
+      .populate('userId', 'firstName lastName email customId')
+      .populate('resumeFileId');
+
+    if (!candidate) {
+      throw createNotFoundError('Candidate not found');
+    }
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.READ,
+      entityType: 'Candidate',
+      entityId: candidate._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: `Agent viewed candidate details`,
+    });
+
+    res.json({ data: candidate });
   });
 }

@@ -248,6 +248,25 @@ export const requireCandidateAccess = async (
     
     // Admin and HR have access to all candidates
     if ([UserRole.ADMIN, UserRole.HR].includes(user.role!)) {
+      // Convert customId to MongoDB _id for all users
+      const { User } = await import('@/models/User');
+      const { Candidate } = await import('@/models/Candidate');
+
+      // First find the user by customId
+      const targetUser = await User.findOne({ customId: candidateId });
+      if (!targetUser) {
+        throw createBadRequestError('Invalid candidate ID');
+      }
+
+      // Then find the candidate by userId
+      const candidate = await Candidate.findOne({ userId: targetUser._id });
+      if (!candidate) {
+        throw createBadRequestError('Candidate profile not found');
+      }
+
+      // Attach the candidate ID to the request for the controller
+      req.params['id'] = candidate._id.toString();
+      
       next();
       return;
     }
@@ -283,8 +302,26 @@ export const requireCandidateAccess = async (
     
     // Agents can access their assigned candidates
     if (user.role === UserRole.AGENT) {
-      // TODO: Implement logic to check if agent is assigned to this candidate
-      // This would require checking job assignments and application assignments
+      // For now, allow agents to access all candidates
+      // TODO: Implement proper assignment checking
+      const { User } = await import('@/models/User');
+      const { Candidate } = await import('@/models/Candidate');
+
+      // First find the user by customId
+      const targetUser = await User.findOne({ customId: candidateId });
+      if (!targetUser) {
+        throw createBadRequestError('Invalid candidate ID');
+      }
+
+      // Then find the candidate by userId
+      const candidate = await Candidate.findOne({ userId: targetUser._id });
+      if (!candidate) {
+        throw createBadRequestError('Candidate profile not found');
+      }
+
+      // Attach the candidate ID to the request for the controller
+      req.params['id'] = candidate._id.toString();
+      
       next();
       return;
     }

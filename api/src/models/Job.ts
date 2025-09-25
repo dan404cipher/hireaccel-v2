@@ -4,6 +4,7 @@ import {
   JobStatus, 
   JobType, 
   JobUrgency,
+  WorkType,
   ExperienceLevel,
   JobRequirements 
 } from '@/types';
@@ -57,6 +58,7 @@ export interface JobModel extends mongoose.Model<JobDocument> {
   getJobsByAgent(agentId: mongoose.Types.ObjectId, options?: any): Promise<JobDocument[]>;
   getJobsApproachingDeadline(days?: number): Promise<JobDocument[]>;
   generateJobId(): Promise<string>;
+  calculateApplicationsCount(jobId: mongoose.Types.ObjectId): Promise<number>;
 }
 
 /**
@@ -136,6 +138,36 @@ const jobSchema = new Schema<JobDocument>({
     index: true,
   },
   
+  address: {
+    street: {
+      type: String,
+      required: false, // Make optional for backward compatibility
+      trim: true,
+      maxlength: [200, 'Street address cannot exceed 200 characters'],
+    },
+    city: {
+      type: String,
+      required: false, // Make optional for backward compatibility
+      trim: true,
+      maxlength: [100, 'City cannot exceed 100 characters'],
+    },
+    state: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'State cannot exceed 100 characters'],
+    },
+    zipCode: {
+      type: String,
+      trim: true,
+      maxlength: [20, 'ZIP code cannot exceed 20 characters'],
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Country cannot exceed 100 characters'],
+    },
+  },
+  
   type: {
     type: String,
     enum: {
@@ -193,6 +225,29 @@ const jobSchema = new Schema<JobDocument>({
     },
     default: JobUrgency.MEDIUM,
     index: true,
+  },
+  
+  workType: {
+    type: String,
+    enum: {
+      values: Object.values(WorkType),
+      message: 'Work type must be one of: {VALUES}'
+    },
+    default: WorkType.WFO,
+    index: true,
+  },
+  
+  duration: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Duration cannot exceed 100 characters'],
+  },
+  
+  numberOfOpenings: {
+    type: Number,
+    required: [true, 'Number of openings is required'],
+    min: [1, 'Number of openings must be at least 1'],
+    default: 1,
   },
   
   assignedAgentId: {
@@ -630,6 +685,20 @@ jobSchema.statics['generateJobId'] = async function() {
   }
   
   return `JOB${nextNumber.toString().padStart(5, '0')}`;
+};
+
+/**
+ * Calculate applications count based on candidate assignments for this job
+ */
+jobSchema.statics['calculateApplicationsCount'] = async function(jobId: mongoose.Types.ObjectId) {
+  const { CandidateAssignment } = await import('./CandidateAssignment');
+  
+  const count = await CandidateAssignment.countDocuments({
+    jobId: jobId,
+    status: { $in: ['active', 'completed'] } // Only count active and completed assignments
+  });
+  
+  return count;
 };
 
 // ============================================================================

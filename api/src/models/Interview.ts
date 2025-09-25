@@ -155,9 +155,14 @@ const interviewSchema = new Schema<InterviewDocument>({
         if (this.status === InterviewStatus.COMPLETED || this.status === InterviewStatus.CANCELLED) {
           return true;
         }
+        // For updates, be more permissive - allow past dates if status is not scheduled/confirmed
+        if (!this.isNew && this.status !== InterviewStatus.SCHEDULED && this.status !== InterviewStatus.CONFIRMED) {
+          return true;
+        }
+        // Only enforce future dates for new interviews or when status is scheduled/confirmed
         return value > new Date();
       },
-      message: 'Interview must be scheduled in the future',
+      message: 'Interview must be scheduled for a future date and time',
     },
   },
   
@@ -691,9 +696,11 @@ interviewSchema.virtual('recommendationSummary').get(function(this: InterviewDoc
  * Pre-save middleware
  */
 interviewSchema.pre('save', function(this: InterviewDocument, next) {
-  // Validate that interviewers are provided
-  if (this.isModified('interviewers') && this.interviewers.length === 0) {
-    return next(new Error('At least one interviewer must be assigned'));
+  // Validate that interviewers are provided (only for new documents or when explicitly modified)
+  if (this.isNew || this.isModified('interviewers')) {
+    if (this.interviewers.length === 0) {
+      return next(new Error('At least one interviewer must be assigned'));
+    }
   }
   
   // Set meeting link requirement for virtual interviews

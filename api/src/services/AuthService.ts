@@ -3,6 +3,7 @@ import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
 import { OTPService } from './OTPService';
 import { EmailService } from './EmailService';
+import { GoogleSheetsService } from './GoogleSheetsService';
 import { generateCustomUserId } from '@/utils/customId';
 import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types';
 import { 
@@ -41,6 +42,7 @@ export class AuthService {
     firstName: string;
     lastName: string;
     role: UserRole;
+    source?: string; // Make optional for backward compatibility
     phone?: string | undefined;
     department?: string | undefined;
     currentLocation?: string | undefined;
@@ -63,6 +65,7 @@ export class AuthService {
         firstName: userData.firstName,
         lastName: userData.lastName,
         role: userData.role,
+        ...(userData.source && { source: userData.source }),
         ...(userData.phone && { phone: userData.phone }),
         ...(userData.department && { department: userData.department }),
         ...(userData.currentLocation && { currentLocation: userData.currentLocation }),
@@ -143,6 +146,7 @@ export class AuthService {
         status: UserStatus.ACTIVE, // User is verified via OTP
         emailVerified: true, // Email is verified via OTP
         phoneNumber: userData.phone, // Save phone number
+        ...(userData.source && { source: userData.source }), // Save source if provided
       });
       
       await user.save();
@@ -202,6 +206,34 @@ export class AuthService {
       } catch (error) {
         logger.warn('Failed to send welcome email', { error });
       }
+
+      // Submit registration data to Google Sheets
+      try {
+        const formData: {
+          email: string;
+          firstName: string;
+          lastName: string;
+          role: UserRole;
+          phone?: string;
+          department?: string;
+          currentLocation?: string;
+          yearsOfExperience?: string;
+        } = {
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+        };
+        
+        if (userData.phone) formData.phone = userData.phone;
+        if (userData.department) formData.department = userData.department;
+        if (userData.currentLocation) formData.currentLocation = userData.currentLocation;
+        if (userData.yearsOfExperience) formData.yearsOfExperience = userData.yearsOfExperience;
+        
+        await GoogleSheetsService.submitRegistrationData(formData);
+      } catch (error) {
+        logger.warn('Failed to submit registration data to Google Sheets', { error });
+      }
       
       // Log registration
       await AuditLog.createLog({
@@ -244,6 +276,7 @@ export class AuthService {
     firstName: string;
     lastName: string;
     role: UserRole;
+    source?: string; // Make optional for backward compatibility
     phone?: string | undefined;
     department?: string | undefined;
     currentLocation?: string | undefined;

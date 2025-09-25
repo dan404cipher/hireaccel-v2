@@ -69,6 +69,7 @@ export interface User {
   role: 'candidate' | 'agent' | 'hr' | 'partner' | 'admin';
   status: 'active' | 'inactive' | 'suspended' | 'pending';
   emailVerified: boolean;
+  phoneNumber?: string;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -94,6 +95,58 @@ export interface Company {
     phone: string;
     position: string;
   }>;
+}
+
+export interface Interview {
+  _id: string;
+  applicationId: {
+    _id: string;
+    candidateId: {
+      _id: string;
+      userId: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+      };
+    };
+    jobId: {
+      _id: string;
+      title: string;
+      companyId: {
+        _id: string;
+        name: string;
+      };
+    };
+  };
+  type: 'video' | 'phone' | 'in-person';
+  round: 'initial' | 'technical' | 'behavioral' | 'final' | 'cultural';
+  scheduledAt: string;
+  duration: number;
+  location?: string;
+  interviewers: Array<{
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  }>;
+  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'rescheduled';
+  feedback?: string;
+  rating?: number;
+  notes: Array<{
+    content: string;
+    createdBy: string;
+    createdAt: string;
+    isPrivate: boolean;
+  }>;
+  meetingLink?: string;
+  createdBy: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Application {
@@ -131,7 +184,7 @@ class ApiClient {
 
   private async refreshAccessToken(): Promise<string> {
     try {
-      console.log('Refreshing access token...');
+      // Refreshing access token
       const response = await fetch(`${this.baseURL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
@@ -143,13 +196,13 @@ class ApiClient {
       const data = await response.json();
       
       if (!response.ok) {
-        console.log('Token refresh failed:', data);
+        // Token refresh failed
         this.clearToken();
         console.error('Token refresh failed:', response.status);
         throw new Error('Token refresh failed');
       }
       
-      console.log('Token refresh response:', data);
+      // Token refresh successful
       
       if (!data.data?.accessToken) {
         console.error('No access token in response');
@@ -180,6 +233,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -188,6 +242,7 @@ class ApiClient {
       });
 
       const data = await response.json();
+
 
       // Handle 401 errors - but only for authenticated requests, not for login
       if (response.status === 401 && endpoint !== '/auth/login') {
@@ -229,8 +284,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        console.log('API Error Response:', data);
-        console.log('Response Status:', response.status);
+        // API Error Response
         throw data as ApiError;
       }
 
@@ -285,16 +339,13 @@ class ApiClient {
   }
 
   async login(data: { email: string; password: string }) {
-    console.log('API Client login called with:', data);
     try {
       const result = await this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      console.log('API Client login success:', result);
       return result;
     } catch (error) {
-      console.log('API Client login error:', error);
       throw error;
     }
   }
@@ -309,17 +360,15 @@ class ApiClient {
     department?: string;
     currentLocation?: string;
     yearsOfExperience?: string;
+    source?: string; // Make optional for backward compatibility
   }) {
-    console.log('API Client signup called with:', data);
     try {
       const result = await this.request<{ requiresOTP?: boolean; email: string; message: string }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
       });
-      console.log('API Client signup success:', result);
       return result;
     } catch (error) {
-      console.log('API Client signup error:', error);
       throw error;
     }
   }
@@ -416,6 +465,7 @@ class ApiClient {
       }
     });
 
+
     return this.request<Company[]>(`/api/v1/companies?${queryParams.toString()}`);
   }
 
@@ -465,6 +515,10 @@ class ApiClient {
 
   async getUser(id: string) {
     return this.request<User>(`/api/v1/users/${id}`);
+  }
+
+  async getUserByCustomId(customId: string) {
+    return this.request<User>(`/api/v1/users/custom/${customId}`);
   }
 
   async createUser(userData: Partial<User> & { password?: string }) {
@@ -519,15 +573,15 @@ class ApiClient {
 
   async updateCandidateProfile(profileData: any) {
     try {
-      console.log('Raw profile data received:', profileData);
+      // Profile data received
       
       // Send the data as-is since it's already wrapped in a profile object
-      console.log('Sending profile update request with data:', profileData);
+      // Sending profile update
       const response = await this.request('/api/v1/candidates/profile', {
         method: 'PUT',
         body: JSON.stringify(profileData),
       });
-      console.log('Profile update response:', response);
+      // Profile update successful
       return response;
     } catch (error) {
       console.error('Profile update error:', error);
@@ -779,6 +833,58 @@ class ApiClient {
     return this.request('/api/v1/candidate-assignments/stats');
   }
 
+  // Banner methods
+  async uploadBanner(file: File, category: 'hr' | 'candidate') {
+    const formData = new FormData();
+    formData.append('media', file);
+    formData.append('category', category);
+
+    // Use fetch directly for file uploads to avoid Content-Type header issues
+    const url = `${this.baseURL}/api/v1/banners`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw data;
+    }
+
+    return data;
+  }
+
+  async getBanners(category?: 'hr' | 'candidate') {
+    const params = category ? `?category=${category}` : '';
+    return this.request(`/api/v1/banners${params}`);
+  }
+
+  async getActiveBanner(category: 'hr' | 'candidate') {
+    return this.request(`/api/v1/banners/active?category=${category}`);
+  }
+
+  async updateBannerStatus(bannerId: string, isActive: boolean) {
+    return this.request(`/api/v1/banners/${bannerId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive }),
+    });
+  }
+
+  async deleteBanner(bannerId: string) {
+    return this.request(`/api/v1/banners/${bannerId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Health check
   async healthCheck() {
     return this.request('/health');
@@ -916,10 +1022,55 @@ class ApiClient {
     return this.request('/api/v1/users/agent-assignments/me');
   }
 
+  async removeFromAgentAssignment(agentId: string, data: {
+    hrIds?: string[];
+    candidateIds?: string[];
+  }) {
+    return this.request(`/api/v1/users/agent-assignments/${agentId}/remove`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteAgentAssignment(agentId: string) {
     return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
       method: 'DELETE',
     });
+  }
+
+  // Agent Interview Management
+  async getMyAgentInterviews(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    const url = `/api/v1/interviews${queryString ? `?${queryString}` : ''}`;
+    return this.request<Interview[]>(url);
+  }
+
+  async getMyAgentInterview(id: string) {
+    return this.request<Interview>(`/api/v1/interviews/${id}`);
+  }
+
+  async getMyAgentInterviewStats() {
+    return this.request<{
+      byStatus: Array<{ _id: string; count: number }>;
+      todayCount: number;
+      upcomingCount: number;
+      assignedCandidatesCount: number;
+    }>('/api/v1/interviews/stats');
   }
 
   // Authentication methods

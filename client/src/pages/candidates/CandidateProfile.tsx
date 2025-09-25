@@ -255,7 +255,6 @@ const CandidateProfile: React.FC = () => {
   
   const uploadResume = useUploadResume({
     onSuccess: async (data) => {
-      console.log('Upload successful:', data);
       toast({
         title: 'Resume Uploaded',
         description: 'Your resume has been uploaded successfully.',
@@ -295,24 +294,16 @@ const CandidateProfile: React.FC = () => {
   // Debug logging for API response (can be removed in production)
   useEffect(() => {
     if (profileData) {
-      console.log('Profile data loaded successfully');
     }
   }, [profileData, loading]);
 
   // Debug resume info
   useEffect(() => {
-    console.log('Resume info state:', resumeInfo);
-    console.log('Resume info JSON:', JSON.stringify(resumeInfo, null, 2));
     if (resumeInfo?.data) {
-      console.log('Resume data:', resumeInfo.data);
-      console.log('Resume data JSON:', JSON.stringify(resumeInfo.data, null, 2));
-      console.log('Has resume:', resumeInfo.data.hasResume);
       if (resumeInfo.data.file) {
-        console.log('File info:', resumeInfo.data.file);
       }
     }
     if (resumeInfo?.error) {
-      console.log('Resume error:', resumeInfo.error);
     }
   }, [resumeInfo]);
   const updateProfile = useUpdateCandidateProfile<ProfileData>({
@@ -360,10 +351,7 @@ const CandidateProfile: React.FC = () => {
 
   // Load profile data from API
   useEffect(() => {
-    console.log('Raw profile data received:', profileData);
     if (profileData?.profile) {
-      console.log('Loading profile data:', profileData.profile);
-      console.log('Current skills:', profileData.profile.skills);
       const apiProfile = profileData.profile;
       const newProfile = {
         skills: apiProfile.skills || [],
@@ -636,7 +624,6 @@ const CandidateProfile: React.FC = () => {
         });
       }
       
-      console.log('Saving profile with data:', profileToSave);
       await updateProfile.mutate(profileToSave);
       
       // Close the edit section after successful save

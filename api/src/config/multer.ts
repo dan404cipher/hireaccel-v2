@@ -56,6 +56,16 @@ export const ALLOWED_FILE_TYPES = {
     extensions: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt'],
     maxSize: env.MAX_FILE_SIZE_MB * 1024 * 1024,
   },
+  banner: {
+    mimeTypes: [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'video/mp4',
+    ],
+    extensions: ['.jpg', '.jpeg', '.png', '.gif', '.mp4'],
+    maxSize: env.MAX_BANNER_SIZE_MB * 1024 * 1024, // Configurable max size for banners
+  },
 };
 
 /**
@@ -203,6 +213,75 @@ export const uploadDocument = multer({
  * General upload middleware with dynamic validation
  */
 export const uploadGeneral = multer(createMulterConfig());
+
+// Custom storage for banners
+const bannerStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    try {
+      const bannerPath = path.join(env.UPLOADS_PATH, 'banners');
+      ensureDirectoryExists(bannerPath);
+      cb(null, bannerPath);
+    } catch (error) {
+      logger.error('Error creating banner upload directory', { error });
+      cb(error as Error, '');
+    }
+  },
+  filename: (_req, file, cb) => {
+    try {
+      const timestamp = Date.now();
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const extension = path.extname(file.originalname);
+      const baseName = path.basename(file.originalname, extension)
+        .replace(/[^a-zA-Z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 50);
+      
+      const sanitizedFilename = `${baseName}-${timestamp}-${randomSuffix}${extension}`;
+      cb(null, sanitizedFilename);
+    } catch (error) {
+      logger.error('Error generating banner filename', { error });
+      cb(error as Error, '');
+    }
+  },
+});
+
+// Custom file filter for banners
+const bannerFileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  try {
+    const allowedConfig = ALLOWED_FILE_TYPES.banner;
+    
+    // Check MIME type
+    if (!allowedConfig.mimeTypes.includes(file.mimetype)) {
+      return cb(new Error(`Invalid file type. Allowed types: ${allowedConfig.mimeTypes.join(', ')}`));
+    }
+    
+    // Check file extension
+    const extension = path.extname(file.originalname).toLowerCase();
+    if (!allowedConfig.extensions.includes(extension)) {
+      return cb(new Error(`Invalid file extension. Allowed extensions: ${allowedConfig.extensions.join(', ')}`));
+    }
+    
+    logger.info('Banner file validation passed', {
+      filename: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+    });
+    
+    cb(null, true);
+  } catch (error) {
+    logger.error('Banner file filter error', { error });
+    cb(error as Error);
+  }
+};
+
+export const uploadBanner = multer({
+  storage: bannerStorage,
+  fileFilter: bannerFileFilter,
+  limits: {
+    fileSize: ALLOWED_FILE_TYPES.banner.maxSize,
+    files: 1, // Only one banner at a time
+  },
+});
 
 /**
  * Error handler for multer errors

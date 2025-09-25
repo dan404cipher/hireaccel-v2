@@ -47,6 +47,7 @@ import {
   MoreHorizontal,
   Users,
   Eye,
+  EyeOff,
   Edit,
   Trash2,
   UserCheck,
@@ -69,6 +70,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiErrorAlert } from "@/components/ui/error-boundary";
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface User {
   _id: string;
@@ -81,20 +83,36 @@ interface User {
   lastLoginAt?: string;
   emailVerified?: boolean;
   phoneNumber?: string;
+  source?: string;
   createdAt: string;
 }
 
 const roleColors = {
-  admin: 'bg-red-100 text-red-800',
-  hr: 'bg-blue-100 text-blue-800',
-  agent: 'bg-green-100 text-green-800',
-  candidate: 'bg-purple-100 text-purple-800',
+  admin: 'bg-red-600 text-white border-red-600',
+  hr: 'bg-blue-600 text-white border-blue-600',
+  agent: 'bg-emerald-600 text-white border-emerald-600',
+  candidate: 'bg-purple-600 text-white border-purple-600',
+};
+
+const sourceColors = {
+  'Email': 'bg-blue-100 text-blue-800 border-blue-200',
+  'WhatsApp': 'bg-green-100 text-green-800 border-green-200',
+  'Telegram': 'bg-sky-100 text-sky-800 border-sky-200',
+  'Instagram': 'bg-pink-100 text-pink-800 border-pink-200',
+  'Facebook': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  'Journals': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Posters': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Brochures': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  'Forums': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Google': 'bg-red-100 text-red-800 border-red-200',
+  'Conversational AI (GPT, Gemini etc)': 'bg-violet-100 text-violet-800 border-violet-200',
+  'Not specified': 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
 const statusColors = {
-  active: 'bg-green-100 text-green-800',
-  inactive: 'bg-gray-100 text-gray-800',
-  suspended: 'bg-red-100 text-red-800',
+  active: 'bg-emerald-600 text-white border-emerald-600',
+  inactive: 'bg-gray-600 text-white border-gray-600',
+  suspended: 'bg-amber-600 text-white border-amber-600',
 };
 
 const roleLabels = {
@@ -105,6 +123,7 @@ const roleLabels = {
 };
 
 export default function UserManagement() {
+  const { user: currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -122,7 +141,24 @@ export default function UserManagement() {
     phoneNumber: '',
     role: 'candidate' as const,
     password: '',
+    source: '',
   });
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Password validation
+  const passwordValidation = {
+    hasMinLength: formData.password.length >= 8,
+    hasUppercase: /[A-Z]/.test(formData.password),
+    hasLowercase: /[a-z]/.test(formData.password),
+    hasNumber: /\d/.test(formData.password),
+    hasSpecialChar: /[^a-zA-Z0-9]/.test(formData.password),
+    hasNoSpaces: !/\s/.test(formData.password),
+    hasNoRepeated: !/(.)\1{3,}/.test(formData.password),
+    hasNoCommon: !/^(password|password123|123456|123456789|qwerty|abc123|password1|admin|letmein|welcome|12345678|monkey|1234567890|dragon|master|baseball|football|basketball|superman|batman|trustno1|hello|welcome123|admin123|root|test|guest|user|demo|temp|temporary)$/i.test(formData.password)
+  };
+
+  const isPasswordValid = formData.password === '' || Object.values(passwordValidation).every(Boolean);
 
   // API hooks
   const { 
@@ -143,7 +179,16 @@ export default function UserManagement() {
   const { mutate: deleteUser, loading: deleteLoading } = useDeleteUser();
 
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
-  const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
+  const allUsers = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
+  
+  // Filter out current admin user to prevent self-deactivation
+  const users = useMemo(() => {
+    if (!allUsers || !Array.isArray(allUsers)) return [];
+    if (!currentUser?.id) return allUsers;
+    
+    return allUsers.filter(user => !(user.role === 'admin' && user._id === currentUser.id));
+  }, [allUsers, currentUser?.id]);
+  
   const meta = Array.isArray(usersResponse) ? null : usersResponse?.meta;
   const totalPages = meta?.page?.total || 1;
 
@@ -156,7 +201,39 @@ export default function UserManagement() {
   useEffect(() => {
     setSelectedUsers(new Set());
     setSelectAll(false);
-  }, [users]);
+  }, [users.length]);
+
+  // Cleanup to ensure navigation works properly
+  useEffect(() => {
+    const handleNavigationClick = (event: Event) => {
+      const target = event.target as Element;
+      if (target.closest('a[href*="/dashboard"]') || 
+          target.closest('[data-sidebar]') || 
+          target.closest('nav')) {
+        // Close all dialogs when navigation is attempted
+        setIsCreateDialogOpen(false);
+        setIsEditDialogOpen(false);
+        setEditingUser(null);
+        setViewingUser(null);
+        
+        // Remove modal overlays that might block navigation
+        const overlays = document.querySelectorAll('[data-radix-dialog-overlay], [data-radix-alert-dialog-overlay]');
+        overlays.forEach(overlay => overlay.parentNode?.removeChild(overlay));
+      }
+    };
+
+    document.addEventListener('click', handleNavigationClick, true);
+
+    return () => {
+      document.removeEventListener('click', handleNavigationClick, true);
+      
+      // Cleanup on unmount
+      setIsCreateDialogOpen(false);
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      setViewingUser(null);
+    };
+  }, []);
 
   // Handle individual user selection
   const handleUserSelect = (userId: string) => {
@@ -189,10 +266,32 @@ export default function UserManagement() {
       phoneNumber: '',
       role: 'candidate',
       password: '',
+      source: '',
     });
+    setShowPassword(false);
   };
 
   const handleCreateUser = async () => {
+    // Validate required fields
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password if provided
+    if (formData.password && !isPasswordValid) {
+      toast({
+        title: "Password Validation Error",
+        description: "Please ensure the password meets all requirements",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await createUser(formData);
       toast({
@@ -350,9 +449,9 @@ export default function UserManagement() {
   const handleExport = () => {
     const selectedUserData = users.filter(user => selectedUsers.has(user._id));
     const csvContent = [
-      ['customId', 'firstName', 'lastName', 'email', 'phoneNumber', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
+      ['source', 'firstName', 'lastName', 'email', 'phoneNumber', 'role', 'status', 'lastLoginAt', 'createdAt', 'emailVerified'].join(','),
       ...selectedUserData.map(user => [
-        user.customId,
+        user.source || 'Not specified',
         user.firstName,
         user.lastName,
         user.email,
@@ -416,10 +515,16 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">User Management</h1>
-          <p className="text-muted-foreground">Manage users, roles, and permissions</p>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Users className="h-8 w-8 text-blue-600" />
+            User Management
+          </h1>
+          <p className="text-muted-foreground">Manage users, roles, and permissions across the platform</p>
         </div>
-        <Button onClick={openCreateDialog}>
+        <Button 
+          onClick={openCreateDialog}
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -430,23 +535,26 @@ export default function UserManagement() {
 
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-blue-600" />
+            Filters
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
               <Input
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
               />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="border-purple-200 focus:border-purple-400 focus:ring-purple-400">
                 <SelectValue placeholder="Filter by role" />
               </SelectTrigger>
               <SelectContent>
@@ -458,7 +566,7 @@ export default function UserManagement() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -475,6 +583,7 @@ export default function UserManagement() {
                 setRoleFilter('all');
                 setStatusFilter('all');
               }}
+              className="text-gray-600 hover:bg-gray-100"
             >
               Clear Filters
             </Button>
@@ -483,18 +592,21 @@ export default function UserManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Users ({users.length})</CardTitle>
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+        <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            Users ({users.length})
+          </CardTitle>
         </CardHeader>
         
         {/* Bulk Actions Toolbar - Inside Users Card */}
         {selectedUsers.size > 0 && (
-          <div className="border-b border-primary/20 bg-primary/5">
+          <div className="border-b border-blue-200 bg-blue-50">
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-2">
-                <CheckSquare className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">
+                <CheckSquare className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
                   {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected
                 </span>
               </div>
@@ -503,7 +615,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={handleExport}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
                 >
                   <Download className="h-4 w-4" />
                   Export
@@ -512,7 +624,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleBulkStatusChange('active')}
-                  className="flex items-center gap-1 text-green-600 hover:text-green-700"
+                  className="flex items-center gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300"
                 >
                   <UserCheck className="h-4 w-4" />
                   Activate
@@ -521,7 +633,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleBulkStatusChange('inactive')}
-                  className="flex items-center gap-1 text-gray-600 hover:text-gray-700"
+                  className="flex items-center gap-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
                 >
                   <UserX className="h-4 w-4" />
                   Deactivate
@@ -530,7 +642,7 @@ export default function UserManagement() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => handleBulkStatusChange('suspended')}
-                  className="flex items-center gap-1 text-orange-600 hover:text-orange-700"
+                  className="flex items-center gap-1 border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300"
                 >
                   <UserX className="h-4 w-4" />
                   Suspend
@@ -540,7 +652,7 @@ export default function UserManagement() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                      className="flex items-center gap-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                     >
                       <Trash2 className="h-4 w-4" />
                       Delete
@@ -573,6 +685,7 @@ export default function UserManagement() {
                     setSelectedUsers(new Set());
                     setSelectAll(false);
                   }}
+                  className="text-blue-600 hover:bg-blue-100"
                 >
                   Clear Selection
                 </Button>
@@ -598,14 +711,12 @@ export default function UserManagement() {
                         aria-label="Select all users"
                       />
                     </TableHead>
-                    <TableHead>User ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Lead Source</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead className="w-[50px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -619,21 +730,18 @@ export default function UserManagement() {
                           aria-label={`Select ${user.firstName} ${user.lastName}`}
                         />
                       </TableCell>
-                      <TableCell className="font-mono text-sm font-medium text-blue-600">
-                        {user.customId}
-                      </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium text-base">
                         {user.firstName} {user.lastName}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-base">
+                          <Mail className="h-4 w-4 text-blue-600" />
                           {user.email}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex items-center gap-2 text-base">
+                          <Phone className="h-4 w-4 text-emerald-600" />
                           {user.phoneNumber || '-'}
                         </div>
                       </TableCell>
@@ -643,17 +751,15 @@ export default function UserManagement() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        <Badge className={sourceColors[user.source || 'Not specified']}>
+                          {user.source || 'Not specified'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         <Badge className={statusColors[user.status]}>
                           {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          {formatLastLogin(user.lastLoginAt)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -663,27 +769,27 @@ export default function UserManagement() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setViewingUser(user)}>
-                              <Eye className="mr-2 h-4 w-4" />
+                              <Eye className="mr-2 h-4 w-4 text-blue-600" />
                               View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                              <Edit className="mr-2 h-4 w-4" />
+                              <Edit className="mr-2 h-4 w-4 text-emerald-600" />
                               Edit User
                             </DropdownMenuItem>
                             {user.status === 'active' ? (
                               <>
                                 <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
-                                  <UserX className="mr-2 h-4 w-4" />
+                                  <UserX className="mr-2 h-4 w-4 text-gray-600" />
                                   Deactivate
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'suspended')}>
-                                  <UserX className="mr-2 h-4 w-4" />
+                                  <UserX className="mr-2 h-4 w-4 text-amber-600" />
                                   Suspend
                                 </DropdownMenuItem>
                               </>
                             ) : (
                               <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
-                                <UserCheck className="mr-2 h-4 w-4" />
+                                <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
                                 Activate
                               </DropdownMenuItem>
                             )}
@@ -764,29 +870,32 @@ export default function UserManagement() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">First Name *</Label>
                 <Input
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                  required
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">Last Name *</Label>
                 <Input
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                  required
                 />
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                required
               />
             </div>
             <div className="grid gap-2">
@@ -795,12 +904,18 @@ export default function UserManagement() {
                 id="phoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                onChange={(e) => {
+                  // Only allow numbers, +, -, (, ), and spaces
+                  const value = e.target.value.replace(/[^0-9+\-() ]/g, '');
+                  setFormData(prev => ({ ...prev, phoneNumber: value }));
+                }}
                 placeholder="e.g. +1234567890"
+                pattern="[0-9+\-() ]*"
+                inputMode="tel"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">Role *</Label>
               <Select value={formData.role} onValueChange={(value: any) => setFormData(prev => ({ ...prev, role: value }))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -814,21 +929,94 @@ export default function UserManagement() {
               </Select>
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="source">Source</Label>
+              <Select value={formData.source} onValueChange={(value: any) => setFormData(prev => ({ ...prev, source: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Email">Email</SelectItem>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                  <SelectItem value="Telegram">Telegram</SelectItem>
+                  <SelectItem value="Instagram">Instagram</SelectItem>
+                  <SelectItem value="Facebook">Facebook</SelectItem>
+                  <SelectItem value="Journals">Journals</SelectItem>
+                  <SelectItem value="Posters">Posters</SelectItem>
+                  <SelectItem value="Brochures">Brochures</SelectItem>
+                  <SelectItem value="Forums">Forums</SelectItem>
+                  <SelectItem value="Google">Google</SelectItem>
+                  <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                placeholder="Leave empty to auto-generate"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Leave empty to auto-generate"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {formData.password && (
+                <div className="text-xs text-gray-600 mt-2">
+                  {isPasswordValid ? (
+                    <div className="text-green-600">
+                      ✓ Password meets all requirements
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-red-500 mb-1">Password requirements:</div>
+                      <div className="mt-1 space-y-1">
+                        {!passwordValidation.hasMinLength && (
+                          <div className="text-red-500">• At least 8 characters</div>
+                        )}
+                        {!passwordValidation.hasUppercase && (
+                          <div className="text-red-500">• Uppercase letter</div>
+                        )}
+                        {!passwordValidation.hasLowercase && (
+                          <div className="text-red-500">• Lowercase letter</div>
+                        )}
+                        {!passwordValidation.hasNumber && (
+                          <div className="text-red-500">• Number</div>
+                        )}
+                        {!passwordValidation.hasSpecialChar && (
+                          <div className="text-red-500">• Special character (!@#$%^&*)</div>
+                        )}
+                        {!passwordValidation.hasNoSpaces && (
+                          <div className="text-red-500">• No spaces</div>
+                        )}
+                        {!passwordValidation.hasNoRepeated && (
+                          <div className="text-red-500">• No repeated characters (aaaa)</div>
+                        )}
+                        {!passwordValidation.hasNoCommon && (
+                          <div className="text-red-500">• Not a common password</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateUser} disabled={createLoading}>
+            <Button 
+              onClick={handleCreateUser} 
+              disabled={createLoading || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || (formData.password && !isPasswordValid)}
+            >
               {createLoading ? <LoadingSpinner /> : 'Create User'}
             </Button>
           </DialogFooter>
@@ -880,8 +1068,14 @@ export default function UserManagement() {
                 id="editPhoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                onChange={(e) => {
+                  // Only allow numbers, +, -, (, ), and spaces
+                  const value = e.target.value.replace(/[^0-9+\-() ]/g, '');
+                  setFormData(prev => ({ ...prev, phoneNumber: value }));
+                }}
                 placeholder="e.g. +1234567890"
+                pattern="[0-9+\-() ]*"
+                inputMode="tel"
               />
             </div>
             <div className="grid gap-2">
@@ -920,8 +1114,12 @@ export default function UserManagement() {
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">User ID</Label>
-                  <p className="mt-1 font-mono text-blue-600 font-medium">{viewingUser.customId}</p>
+                  <Label className="text-sm font-medium">Lead Source</Label>
+                  <div className="mt-1">
+                    <Badge className={sourceColors[viewingUser.source || 'Not specified']}>
+                      {viewingUser.source || 'Not specified'}
+                    </Badge>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Name</Label>

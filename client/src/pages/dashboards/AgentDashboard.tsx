@@ -19,7 +19,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAgentDashboard, useMyAgentAssignment, useMyAgentAssignments } from "@/hooks/useApi";
+import { useAgentDashboard, useMyAgentAssignment, useMyAgentAssignments, useMyAgentInterviewStats } from "@/hooks/useApi";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from 'date-fns';
 
@@ -35,13 +35,14 @@ export default function AgentDashboard() {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
+  const { data: interviewStats, loading: interviewStatsLoading, error: interviewStatsError } = useMyAgentInterviewStats();
 
-  if (dashboardError || assignmentError || assignmentsError) {
+  if (dashboardError || assignmentError || assignmentsError || interviewStatsError) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold">Agent Dashboard</h1>
         <ApiErrorAlert 
-          error={dashboardError || assignmentError || assignmentsError}
+          error={dashboardError || assignmentError || assignmentsError || interviewStatsError}
           onRetry={() => window.location.reload()}
         />
       </div>
@@ -96,11 +97,11 @@ export default function AgentDashboard() {
           <p className="text-muted-foreground">Manage your candidate assignments and track your performance</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => navigate('/assignment-management')}>
+          <Button onClick={() => navigate('/dashboard/assignment-management')}>
             <UserCheck className="h-4 w-4 mr-2" />
             Manage Assignments
           </Button>
-          <Button onClick={() => navigate('/assignment-tracking')} variant="outline">
+          <Button onClick={() => navigate('/dashboard/shared-candidates')} variant="outline">
             <TrendingUp className="h-4 w-4 mr-2" />
             Track Progress
           </Button>
@@ -260,7 +261,7 @@ export default function AgentDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button 
-              onClick={() => navigate('/assignment-management')} 
+              onClick={() => navigate('/dashboard/assignment-management')} 
               variant="outline" 
               className="h-20 flex-col gap-2"
             >
@@ -268,7 +269,7 @@ export default function AgentDashboard() {
               <span>Manage Assignments</span>
             </Button>
             <Button 
-              onClick={() => navigate('/assignment-tracking')} 
+              onClick={() => navigate('/dashboard/shared-candidates')} 
               variant="outline" 
               className="h-20 flex-col gap-2"
             >
@@ -276,7 +277,7 @@ export default function AgentDashboard() {
               <span>Track Progress</span>
             </Button>
             <Button 
-              onClick={() => navigate('/assignment-management')} 
+              onClick={() => navigate('/dashboard/assignment-management')} 
               variant="outline" 
               className="h-20 flex-col gap-2"
             >

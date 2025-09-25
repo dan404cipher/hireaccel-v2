@@ -11,9 +11,10 @@ import {
 /**
  * Candidate model interface extending Mongoose Document
  */
-export interface CandidateDocument extends Omit<ICandidate, '_id' | 'userId' | 'resumeFileId' | 'notes'>, Document {
+export interface CandidateDocument extends Omit<ICandidate, '_id' | 'userId' | 'resumeFileId' | 'notes' | 'assignedAgentId'>, Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
+  assignedAgentId?: mongoose.Types.ObjectId;
   resumeFileId?: mongoose.Types.ObjectId;
   
   // Override notes to match schema structure
@@ -329,6 +330,12 @@ const candidateSchema = new Schema<CandidateDocument>({
     required: [true, 'User reference is required'],
     index: true,
   },
+
+  assignedAgentId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    index: true,
+  },
   
   profile: {
     type: candidateProfileSchema,
@@ -442,7 +449,7 @@ candidateSchema.index({
  * Total years of experience
  */
 candidateSchema.virtual('totalExperience').get(function(this: CandidateDocument) {
-  if (!this.profile.experience || this.profile.experience.length === 0) {
+  if (!this.profile || !this.profile.experience || this.profile.experience.length === 0) {
     return 0;
   }
   
@@ -489,10 +496,14 @@ candidateSchema.virtual('profileCompletion').get(function(this: CandidateDocumen
   let completed = 0;
   const total = 10;
   
+  if (!this.profile) {
+    return 0; // Return 0% if profile doesn't exist
+  }
+  
   if (this.profile.summary) completed++;
-  if (this.profile.skills.length > 0) completed++;
-  if (this.profile.experience.length > 0) completed++;
-  if (this.profile.education.length > 0) completed++;
+  if (this.profile.skills && this.profile.skills.length > 0) completed++;
+  if (this.profile.experience && this.profile.experience.length > 0) completed++;
+  if (this.profile.education && this.profile.education.length > 0) completed++;
   if (this.profile.phoneNumber) completed++;
   if (this.profile.location) completed++;
   if (this.profile.linkedinUrl) completed++;

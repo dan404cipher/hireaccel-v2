@@ -38,13 +38,19 @@ export function useApi<T>(
     
     try {
       const response = await apiCall();
-      setState(prev => ({ ...prev, data: response.data!, loading: false }));
+      
+      // The API client returns the full response object, so we need to access response.data
+      const actualData = response.data || response;
+      
+      setState(prev => {
+        return { ...prev, data: actualData, loading: false };
+      });
       
       if (onSuccess) {
-        onSuccess(response.data);
+        onSuccess(actualData);
       }
       
-      return response.data;
+      return actualData;
     } catch (error) {
       const apiError = error as ApiError;
       setState(prev => ({ ...prev, error: apiError, loading: false }));
@@ -74,7 +80,10 @@ export function useApi<T>(
 
   useEffect(() => {
     if (immediate) {
-      execute();
+      execute().catch(error => {
+        // Error is already handled in execute function
+        console.error('Unhandled promise rejection in useApi:', error);
+      });
     }
   }, [immediate, execute]);
 
@@ -189,8 +198,14 @@ export function useJobStats() {
 
 // Companies
 export function useCompanies(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getCompanies(params), [JSON.stringify(params)]);
-  return useApi(memoizedCall, { immediate: true });
+  // Create a stable key for the params to prevent multiple instances
+  const paramsKey = JSON.stringify(params);
+  const memoizedCall = useCallback(() => {
+    return apiClient.getCompanies(params);
+  }, [paramsKey]);
+  
+  const result = useApi(memoizedCall, { immediate: true });
+  return result;
 }
 
 export function useCompany(id: string) {
@@ -223,7 +238,13 @@ export function useUsers(params = {}) {
 }
 
 export function useUser(id: string) {
-  return useApi(() => apiClient.getUser(id), { immediate: !!id });
+  const memoizedCall = useCallback(() => apiClient.getUser(id), [id]);
+  return useApi(memoizedCall, { immediate: !!id });
+}
+
+export function useUserByCustomId(customId: string) {
+  const memoizedCall = useCallback(() => apiClient.getUserByCustomId(customId), [customId]);
+  return useApi(memoizedCall, { immediate: !!customId });
 }
 
 export function useCreateUser() {
@@ -328,6 +349,12 @@ export function useMyAgentAssignments(params = {}) {
     [page, limit, sortBy, sortOrder]
   );
   return useApi(memoizedCall, { immediate: true });
+}
+
+export function useRemoveFromAgentAssignment() {
+  return useMutation(({ agentId, data }: { agentId: string; data: { hrIds?: string[]; candidateIds?: string[] } }) => 
+    apiClient.removeFromAgentAssignment(agentId, data)
+  );
 }
 
 export function useDeleteAgentAssignment() {
@@ -479,4 +506,25 @@ export function useAvailableInterviewers() {
   }, []);
   
   return useApi(memoizedCall, { immediate: true });
+}
+
+// Agent Interview Management
+export function useMyAgentInterviews(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentInterviews(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
+}
+
+export function useMyAgentInterview(id: string) {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentInterview(id), [id]);
+  return useApi(memoizedCall, { 
+    immediate: !!id 
+  });
+}
+
+export function useMyAgentInterviewStats() {
+  const memoizedCall = useCallback(() => apiClient.getMyAgentInterviewStats(), []);
+  return useApi(memoizedCall, { 
+    immediate: true,
+    showToast: false  // Don't show error toasts for stats to prevent spam
+  });
 }

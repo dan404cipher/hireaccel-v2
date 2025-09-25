@@ -5,7 +5,7 @@ import { Candidate } from '@/models/Candidate';
 import { User } from '@/models/User';
 import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
-import { AuthenticatedRequest, UserRole, AuditAction } from '@/types';
+import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import mongoose from 'mongoose';
 
@@ -81,16 +81,17 @@ export class CandidateAssignmentController {
     const sort: any = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    const assignments = await CandidateAssignment.find(filter)
+    // First get all assignments
+    const allAssignments = await CandidateAssignment.find(filter)
       .populate({
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -103,7 +104,25 @@ export class CandidateAssignmentController {
       .skip(skip)
       .limit(limit);
 
-    const total = await CandidateAssignment.countDocuments(filter);
+    // Filter out assignments with broken candidate references
+    const assignments = allAssignments.filter(assignment => {
+      // Check if candidateId exists and is populated (not just an ObjectId)
+      if (!assignment.candidateId || typeof assignment.candidateId !== 'object') {
+        return false;
+      }
+      
+      const candidate = assignment.candidateId as any;
+      return (
+        candidate.userId && 
+        typeof candidate.userId === 'object' &&
+        candidate.userId.firstName &&
+        candidate.userId.lastName &&
+        candidate.userId.customId
+      );
+    });
+
+    // Use the filtered count instead of querying again
+    const total = assignments.length;
 
     // Log audit trail
     await AuditLog.createLog({
@@ -148,8 +167,8 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title description companyId',
@@ -221,7 +240,10 @@ export class CandidateAssignmentController {
       hrUser = await User.findOne({
         _id: finalAssignedTo,
         role: UserRole.HR,
-        status: 'active',
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       if (!hrUser) {
         throw createNotFoundError('HR user who posted this job not found');
@@ -243,7 +265,10 @@ export class CandidateAssignmentController {
       hrUser = await User.findOne({
         _id: validatedData.assignedTo,
         role: UserRole.HR,
-        status: 'active',
+        $or: [
+          { status: UserStatus.ACTIVE },
+          { status: 'active' } // Fallback for any case sensitivity issues
+        ]
       });
       if (!hrUser) {
         throw createNotFoundError('HR user not found');
@@ -287,11 +312,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -377,11 +402,11 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email'
+          select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId')
+      .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
         select: 'title companyId location',
@@ -511,11 +536,11 @@ export class CandidateAssignmentController {
           path: 'candidateId',
           populate: {
             path: 'userId',
-            select: 'firstName lastName email'
+            select: 'firstName lastName email customId'
           }
         })
-        .populate('assignedBy', 'firstName lastName email')
-        .populate('assignedTo', 'firstName lastName email')
+        .populate('assignedBy', 'firstName lastName email customId')
+        .populate('assignedTo', 'firstName lastName email customId')
         .populate({
           path: 'jobId',
           select: 'title companyId location',

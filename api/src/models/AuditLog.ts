@@ -477,7 +477,19 @@ auditLogSchema.statics['createLog'] = function(logData: {
   
   auditLog.setRetention(retentionDays[logData.riskLevel as keyof typeof retentionDays] || 365);
   
-  return auditLog.save();
+  return auditLog.save().then(async (savedLog) => {
+    // Trigger notification handler for relevant events
+    try {
+      const { AuditNotificationHandler } = await import('@/services/AuditNotificationHandler');
+      const notificationHandler = AuditNotificationHandler.getInstance();
+      await notificationHandler.handleAuditLog(savedLog);
+    } catch (error) {
+      // Log error but don't fail the audit log creation
+      console.error('Failed to handle audit log for notifications:', error);
+    }
+    
+    return savedLog;
+  });
 };
 
 /**

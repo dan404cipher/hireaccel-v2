@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, X, Crown, IndianRupee, Users, Zap, Shield, Star, TrendingUp, Award, Building2, Newspaper, Search, Rocket } from "lucide-react";
-import { motion } from "framer-motion";
+// Removed framer-motion for better performance
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,59 +23,68 @@ const featureComparison = [
   {
     feature: "Job Postings",
     hireAccel: "Unlimited Free",
-    competitor1: "20-50 per month",
-    competitor2: "10-25 per month",
-    competitor3: "5-15 per month"
+    competitor1: "25 per month",
+    competitor2: "25 per month",
+    competitor3: "25 per month"
   },
   {
     feature: "AI-Powered Matching",
-    hireAccel: "Advanced AI",
-    competitor1: "Basic search filters",
-    competitor2: "Smart search",
-    competitor3: "Keyword matching"
+    hireAccel: "Advanced AI + Human verification",
+    competitor1: "Smart search filters",
+    competitor2: "Basic matching algorithm",
+    competitor3: "Keyword-based search"
   },
   {
-    feature: "Real-time Tracking",
-    hireAccel: "Full tracking",
-    competitor1: "Basic analytics",
-    competitor2: "Limited tracking",
-    competitor3: "Manual tracking"
+    feature: "Application Management",
+    hireAccel: "Full ATS Integration",
+    competitor1: "Advanced ATS feature",
+    competitor2: "Basic tracking",
+    competitor3: "Manual management"
   },
   {
-    feature: "Specialist Agents",
-    hireAccel: "Dedicated agents",
-    competitor1: "Account manager",
-    competitor2: "Email support",
-    competitor3: "Self-service"
+    feature: "Dedicated Support",
+    hireAccel: "Personal recruitment agents",
+    competitor1: "Account manager (₹3L+ plans)",
+    competitor2: "Email/phone support",
+    competitor3: "Help desk only"
   },
   {
-    feature: "Hire & Train Model",
-    hireAccel: "Complete program",
-    competitor1: "Not available",
-    competitor2: "Not available",
+    feature: "Employer Branding",
+    hireAccel: "Included",
+    competitor1: "Additional ₹50K/year",
+    competitor2: "Additional ₹30K/year",
     competitor3: "Not available"
   },
   {
-    feature: "Candidate Database",
-    hireAccel: "300+ ready candidates",
-    competitor1: "Resume database",
-    competitor2: "Limited database",
-    competitor3: "Basic search"
+    feature: "Interview Scheduling",
+    hireAccel: "Built-in scheduler",
+    competitor1: "Video interviewing extra",
+    competitor2: "Basic calender sync",
+    competitor3: "Manual coordination"
   },
   {
-    feature: "Support",
-    hireAccel: "24/7 Free support",
-    competitor1: "Business hours",
-    competitor2: "Email support",
-    competitor3: "Help center only"
+    feature: "CV Database Access",
+    hireAccel: "300+ pre-verified profiles",
+    competitor1: "5 Lakh+ database access",
+    competitor2: "3 Lakh+  profiles",
+    competitor3: "1.5 Lakh+  profiles"
   },
   {
-    feature: "Setup Fee",
-    hireAccel: "Free",
-    competitor1: "₹50,000",
-    competitor2: "₹30,000",
-    competitor3: "₹25,000"
-  }
+    feature: "Analytics & Reports",
+    hireAccel: "Real-time dashboards",
+    competitor1: "Advanced analytics",
+    competitor2: "Standard reports",
+    competitor3: "Basic metrics"
+  },
+  {
+    feature: "Training & Onboarding",
+    hireAccel: "Free dedicated training",
+    competitor1: "Self-service onboarding",
+    competitor2: "Basic training materials",
+    competitor3: "Help documentation only"
+  },
+
+
 ];
 
 // Competitor pricing data
@@ -87,13 +96,13 @@ const competitors = [
     subtitle: "Forever",
     features: [
       "Unlimited job postings",
-      "AI-powered matching",
-      "Real-time tracking",
-      "Specialist agents",
-      "Hire & Train model",
-      "24/7 support",
-      "300+ ready candidates",
-      "No setup fees"
+      "AI + human agent matching",
+      "300+ pre-verified candidates",
+      "Personal recruitment agents",
+      "Real-time ATS Integration",
+      "Interview scheduling",
+      "Analytics dashboard",
+      "Free onboarding & training"
     ],
     isOurs: true,
     popular: true
@@ -101,17 +110,17 @@ const competitors = [
   {
     name: "Naukri Recruiter",
     logo: Building2,
-    pricing: "₹29,999",
-    subtitle: "per month",
+    pricing: "₹37,500",
+    subtitle: "per month (approx)",
     features: [
-      "20-50 job postings",
-      "Basic search filters",
-      "Limited analytics",
-      "Account manager",
-      "No training program",
-      "₹50,000 setup fee",
-      "Resume database access",
-      "Annual contract"
+      "25 job postings/month",
+      "5L+ CV database access",
+      "Smart search filters",
+      "Account manager (premium only)",
+      "Basic ATS features",
+      "Standard reporting",
+      "Email/phone support",
+      "Self-service onboarding"
     ],
     isOurs: false,
     popular: false
@@ -119,17 +128,17 @@ const competitors = [
   {
     name: "TimesJobs Recruiter",
     logo: Newspaper,
-    pricing: "₹18,999",
-    subtitle: "per month",
+    pricing: "₹37,500",
+    subtitle: "per month (approx)",
     features: [
-      "10-25 job postings",
-      "Smart search tools",
-      "Basic tracking",
-      "Email support",
-      "No training model",
-      "₹30,000 setup fee",
-      "Limited database",
-      "6-month contract"
+      "25 job postings/month",
+      "3L+ CV database access",
+      "Basic matching algorithm",
+      "Standard reports",
+      "Email Support only",
+      "Basic training materials",
+      "Manual application tracking",
+      "Limited customization",
     ],
     isOurs: false,
     popular: false
@@ -137,16 +146,16 @@ const competitors = [
   {
     name: "Monster India",
     logo: Search,
-    pricing: "₹15,999",
-    subtitle: "per month",
+    pricing: "₹22,500",
+    subtitle: "per month (approx)",
     features: [
-      "5-15 job postings",
-      "Keyword matching",
-      "Manual tracking",
-      "Help center only",
-      "No training",
-      "₹25,000 setup fee",
-      "Basic search only",
+      "25 job postings/month",
+      "1.5+CV database access",
+      "Keyword-based search",
+      "Basic metrics only",
+      "Help desk support",
+      "Help documentation only",
+      "No dedicated support",
       "Self-service model"
     ],
     isOurs: false,
@@ -167,7 +176,7 @@ export function CompetitorComparison() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <motion.div 
+        <divdiv 
           className="text-center mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -187,10 +196,10 @@ export function CompetitorComparison() {
             While leading Indian recruitment platforms charge lakhs annually for basic features, HireAccel delivers enterprise-grade recruitment solutions completely free. 
             See the difference and discover why smart HR teams across India are making the switch.
           </p>
-        </motion.div>
+        </divdiv>
 
         {/* Hero Comparison Image */}
-        <motion.div 
+        <divdiv 
           className="mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -217,10 +226,10 @@ export function CompetitorComparison() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Pricing Comparison Cards */}
-        <motion.div 
+        <divdiv 
           className="mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -238,7 +247,7 @@ export function CompetitorComparison() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {competitors.map((competitor, index) => (
-              <motion.div
+              <divdiv
                 key={competitor.name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -283,7 +292,7 @@ export function CompetitorComparison() {
                     {competitor.isOurs && (
                       <div className="flex items-center justify-center space-x-2 text-sm text-green-600 bg-green-50 rounded-full px-3 py-1">
                         <Check className="w-4 h-4" />
-                        <span>You save ₹4,09,988/year</span>
+                        <span>You save ₹3,63,000/year</span>
                       </div>
                     )}
                   </div>
@@ -296,7 +305,15 @@ export function CompetitorComparison() {
                         ) : (
                           <div className="w-4 h-4 bg-gray-300 rounded-full mt-0.5 flex-shrink-0" />
                         )}
-                        <span className="text-sm text-gray-700">{feature}</span>
+                        <span 
+                          className={`text-sm text-gray-700 ${featureIndex === 0 ? 'font-bold !font-bold' : ''}`}
+                          style={{ 
+                            fontWeight: featureIndex === 0 ? '700' : '400',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                          {feature}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -317,13 +334,13 @@ export function CompetitorComparison() {
                     )}
                   </div>
                 </Card>
-              </motion.div>
+              </divdiv>
             ))}
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Detailed Feature Comparison Table */}
-        <motion.div 
+        <divdiv 
           className="mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -358,7 +375,7 @@ export function CompetitorComparison() {
                 </thead>
                 <tbody>
                   {featureComparison.map((row, index) => (
-                    <motion.tr
+                    <divtr
                       key={index}
                       className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}
                       initial={{ opacity: 0, x: -10 }}
@@ -366,26 +383,26 @@ export function CompetitorComparison() {
                       viewport={{ once: true }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                     >
-                      <td className="p-4 font-medium text-gray-900">{row.feature}</td>
-                      <td className="p-4 text-center">
+                      <td className={`p-4 font-medium text-gray-900 ${index === 0 ? 'font-bold' : ''}`}>{row.feature}</td>
+                      <td className={`p-4 text-center ${index === 0 ? 'font-bold' : ''}`}>
                         <div className="flex items-center justify-center space-x-2">
                           <Check className="w-4 h-4 text-green-600" />
-                          <span className="text-green-700 font-medium">{row.hireAccel}</span>
+                          <span className={`text-green-700 font-medium ${index === 0 ? 'font-bold' : ''}`}>{row.hireAccel}</span>
                         </div>
                       </td>
-                      <td className="p-4 text-center text-gray-600">{row.competitor1}</td>
-                      <td className="p-4 text-center text-gray-600">{row.competitor2}</td>
-                      <td className="p-4 text-center text-gray-600">{row.competitor3}</td>
-                    </motion.tr>
+                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor1}</td>
+                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor2}</td>
+                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor3}</td>
+                    </divtr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Cost Savings Calculator */}
-        <motion.div 
+        <divdiv 
           className="mb-16"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -398,18 +415,18 @@ export function CompetitorComparison() {
                 Annual Cost Comparison
               </h3>
               <p className="text-lg text-gray-600">
-                See exactly how much you save by choosing HireAccel
+                See approximately how much you save by choosing HireAccel
               </p>
             </div>
 
             <div className="grid md:grid-cols-4 gap-6 mb-8">
               {[
-                { name: "HireAccel", cost: 0, color: "from-emerald-500 to-teal-600", savings: "₹4,09,988" },
-                { name: "Naukri Recruiter", cost: 359988, color: "from-blue-600 to-indigo-700", setup: "₹50,000" },
-                { name: "TimesJobs", cost: 227988, color: "from-orange-500 to-red-600", setup: "₹30,000" },
-                { name: "Monster India", cost: 191988, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
+                { name: "HireAccel", cost: 0, color: "from-emerald-500 to-teal-600", savings: "₹3,63,000+" },
+                { name: "Naukri Recruiter", cost: 450000, color: "from-blue-600 to-indigo-700", setup: "₹50,000" },
+                { name: "TimesJobs", cost: 450000, color: "from-orange-500 to-red-600", setup: "₹30,000" },
+                { name: "Monster India", cost: 270000, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
               ].map((platform, index) => (
-                <motion.div
+                <divdiv
                   key={platform.name}
                   className={`bg-gradient-to-br ${platform.color} rounded-xl p-6 text-white relative overflow-hidden`}
                   initial={{ opacity: 0, y: 20 }}
@@ -423,13 +440,9 @@ export function CompetitorComparison() {
                       {platform.cost === 0 ? "FREE" : `₹${platform.cost.toLocaleString()}`}
                     </div>
                     <div className="text-sm opacity-90">
-                      {platform.cost === 0 ? "Forever" : "per year"}
+                      {platform.cost === 0 ? "Forever" : "per year (approx)"}
                     </div>
-                    {platform.setup && (
-                      <div className="text-xs mt-2 opacity-80">
-                        + {platform.setup} setup
-                      </div>
-                    )}
+                  
                     {platform.savings && (
                       <div className="absolute -top-2 -right-2 bg-white text-green-600 px-2 py-1 rounded-full text-xs font-bold">
                         Save {platform.savings}
@@ -437,21 +450,21 @@ export function CompetitorComparison() {
                     )}
                   </div>
                   <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-white/20 rounded-full" />
-                </motion.div>
+                </divdiv>
               ))}
             </div>
 
             <div className="text-center">
               <div className="inline-flex items-center justify-center space-x-2 bg-green-50 text-green-700 px-6 py-3 rounded-full mb-4">
                 <Award className="w-5 h-5" />
-                <span className="font-medium">Average savings: ₹2,59,988 per year</span>
+                <span className="font-medium">Average savings: ₹3,63,000+ per year</span>
               </div>
             </div>
           </div>
-        </motion.div>
+        </divdiv>
 
         {/* Cost Savings Highlight */}
-        <motion.div 
+        <divdiv 
           className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-8 md:p-12 border border-green-200/50"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -464,7 +477,7 @@ export function CompetitorComparison() {
             </div>
             
             <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Save Over <span className="text-green-600">₹3,50,000</span> Per Year
+              Save Over <span className="text-green-600">₹3,60,000</span> Per Year
             </h3>
             
             <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
@@ -478,7 +491,7 @@ export function CompetitorComparison() {
                 { icon: Users, title: "No User Limits", desc: "Add unlimited team members at no extra cost" },
                 { icon: Zap, title: "Full Features", desc: "Access to all premium features included" }
               ].map((benefit, index) => (
-                <motion.div
+                <divdiv
                   key={index}
                   className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-white/20"
                   initial={{ opacity: 0, y: 10 }}
@@ -489,7 +502,7 @@ export function CompetitorComparison() {
                   <benefit.icon className="w-8 h-8 text-blue-600 mb-3 mx-auto" />
                   <h4 className="font-bold text-gray-900 mb-2">{benefit.title}</h4>
                   <p className="text-sm text-gray-600">{benefit.desc}</p>
-                </motion.div>
+                </divdiv>
               ))}
             </div>
 
@@ -501,7 +514,7 @@ export function CompetitorComparison() {
               Start Saving Today - It's Free!
             </Button>
           </div>
-        </motion.div>
+        </divdiv>
       </div>
     </section>
   );
