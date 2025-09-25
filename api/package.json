@@ -4,6 +4,7 @@
   "description": "Hiring Platform API - Production-ready backend with Express, TypeScript, and MongoDB",
   "main": "dist/server.js",
   "scripts": {
+    "predev": "kill -9 $(lsof -t -i:3002) 2> /dev/null || true",
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "NODE_ENV=development nodemon --exec 'node -r @swc-node/register -r tsconfig-paths/register' src/server.ts",

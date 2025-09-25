@@ -235,6 +235,8 @@ const CandidateProfile: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedProfile, setParsedProfile] = useState<Partial<CandidateProfile> | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'parsing'>('idle');
+  const [showPostUpload, setShowPostUpload] = useState(false);
   
   // API hooks
   const { data: profileData, loading, refetch } = useCandidateProfile<ProfileData>(customId || candidateId);
@@ -282,20 +284,12 @@ const CandidateProfile: React.FC = () => {
 
   const uploadResume = useUploadResume({
     onSuccess: async (data) => {
-      if (data.data.parsedProfile) {
-        setParsedProfile(data.data.parsedProfile);
-        setShowPreviewModal(true);
-        toast({
-          title: 'Resume Parsed',
-          description: 'Please review the extracted information before updating your profile.',
-        });
-      } else {
-        toast({
-          title: 'Resume Uploaded',
-          description: 'Your resume has been uploaded successfully, but no information could be extracted.',
-        });
-      }
-      setSelectedFile(null);
+      toast({
+        title: 'Resume Uploaded',
+        description: 'Your resume has been uploaded successfully.',
+      });
+      setUploadState('idle');
+      setShowPostUpload(true);
       await refetchResumeInfo();
     },
     onError: (error: any) => {
@@ -306,6 +300,8 @@ const CandidateProfile: React.FC = () => {
         description: errorMessage,
         variant: 'destructive',
       });
+      setUploadState('idle');
+      setSelectedFile(null);
     }
   });
 
@@ -467,7 +463,21 @@ const CandidateProfile: React.FC = () => {
 
   const handleUploadResume = async () => {
     if (selectedFile) {
-      await uploadResume.mutate(selectedFile);
+      try {
+        setUploadState('uploading');
+        await uploadResume.mutate(selectedFile);
+      } catch (error) {
+        setUploadState('idle');
+      }
+    }
+  };
+
+  const handleConfirmUpdate = async () => {
+    if (parsedProfile) {
+      setUploadState('parsing');
+      await updateProfile.mutate({ profile: parsedProfile });
+      setUploadState('idle');
+      setShowConfirmationDialog(false);
     }
   };
 
@@ -1013,30 +1023,6 @@ const CandidateProfile: React.FC = () => {
                     )}
 
                     
-                    {/* File selection display */}
-                    {selectedFile && (
-                      <div className="flex items-center gap-2 w-full mt-2 p-3 bg-gray-50 rounded-lg">
-                        <FileText className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-700 flex-1">{selectedFile.name}</span>
-                        <span className="text-xs text-gray-500">
-                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                        </span>
-                        <Button 
-                          size="sm" 
-                          onClick={handleUploadResume}
-                          disabled={uploadResume.loading}
-                        >
-                          {uploadResume.loading ? 'Uploading...' : 'Upload'}
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setSelectedFile(null)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -2386,13 +2372,69 @@ const CandidateProfile: React.FC = () => {
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setSelectedFile(null)}>
-                Cancel
-              </Button>
-              <Button onClick={handleUploadResume}>
-                Upload Resume
-              </Button>
+            <DialogFooter className="flex flex-col gap-4 sm:flex-row">
+              {!showPostUpload ? (
+                // Initial upload buttons
+                <>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedFile(null);
+                    setShowPostUpload(false);
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleUploadResume}
+                    disabled={uploadState !== 'idle'}
+                  >
+                    {uploadState === 'uploading' ? 'Uploading...' : 'Upload Resume'}
+                  </Button>
+                </>
+              ) : (
+                // Post-upload options
+                <>
+                  <div className="text-sm text-muted-foreground mb-2">
+                    Would you like to update your profile with information from your resume?
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedFile(null);
+                      setShowPostUpload(false);
+                    }}>
+                      No, Just Save
+                    </Button>
+                    <Button 
+                      onClick={async () => {
+                        setUploadState('parsing');
+                        try {
+                          const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/files/resume/parse`, {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                            }
+                          });
+                          const data = await response.json();
+                          if (data.data.parsedProfile) {
+                            setParsedProfile(data.data.parsedProfile);
+                            setShowPreviewModal(true);
+                            setSelectedFile(null);
+                            setShowPostUpload(false);
+                          }
+                        } catch (error) {
+                          toast({
+                            title: 'Parsing Failed',
+                            description: 'Failed to parse resume. Please try again.',
+                            variant: 'destructive',
+                          });
+                        }
+                        setUploadState('idle');
+                      }}
+                      disabled={uploadState !== 'idle'}
+                    >
+                      {uploadState === 'parsing' ? 'Parsing...' : 'Yes, Update Profile'}
+                    </Button>
+                  </div>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2404,18 +2446,12 @@ const CandidateProfile: React.FC = () => {
             onClose={() => {
               setShowPreviewModal(false);
               setParsedProfile(null);
+              setUploadState('idle');
             }}
             parsedProfile={parsedProfile}
             currentProfile={profileData.profile}
-            onApplyChanges={() => {
-              // Update the profile with the parsed data
-              updateProfile.mutate({
-                profile: {
-                  ...profileData.profile,
-                  ...parsedProfile,
-                },
-              });
-            }}
+            onApplyChanges={handleConfirmUpdate}
+            isLoading={uploadState === 'parsing'}
           />
         )}
       </div>

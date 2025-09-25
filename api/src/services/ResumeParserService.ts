@@ -164,6 +164,19 @@ ${resumeText}`;
         };
       };
 
+      // Helper function to format certification entries
+      const formatCertification = (cert: any) => {
+        if (!cert.name || !cert.issuer) return null;
+        return {
+          name: cert.name,
+          issuer: cert.issuer,
+          issueDate: parseDate(cert.issueDate),
+          expiryDate: parseDate(cert.expiryDate),
+          credentialId: cert.credentialId,
+          credentialUrl: cert.credentialUrl
+        };
+      };
+
       // Helper function to format project entries
       const formatProject = (proj: any) => {
         if (!proj.name) return null;
@@ -193,7 +206,10 @@ ${resumeText}`;
           .map(formatEducation)
           .filter((edu: ReturnType<typeof formatEducation>): edu is NonNullable<typeof edu> => edu !== null)
           .slice(0, 10),
-        certifications: validateArray(parsedData.certifications || [], 'certifications', 20),
+        certifications: (parsedData.certifications || [])
+          .map(formatCertification)
+          .filter((cert: ReturnType<typeof formatCertification>): cert is NonNullable<typeof cert> => cert !== null)
+          .slice(0, 20),
         projects: (parsedData.projects || [])
           .map(formatProject)
           .filter((proj: ReturnType<typeof formatProject>): proj is NonNullable<typeof proj> => proj !== null)
