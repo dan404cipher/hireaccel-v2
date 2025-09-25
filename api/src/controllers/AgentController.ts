@@ -187,6 +187,7 @@ export class AgentController {
     // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
     const filter: any = {
       _id: { $in: assignedCandidateIds },
+      userId: { $exists: true, $ne: null } // Only include candidates that have a valid userId
     };
 
     if (search) {
@@ -202,13 +203,36 @@ export class AgentController {
     const sort: any = {};
     sort[sortBy === 'createdAt' ? 'createdAt' : 'updatedAt'] = sortOrder === 'asc' ? 1 : -1;
 
-    const candidates = await Candidate.find(filter)
-      .populate('userId', 'firstName lastName email')
+    console.log('[AgentController] Finding candidates with filter:', {
+      filter,
+      assignedCandidateIds: assignedCandidateIds.map(id => id.toString())
+    });
+
+    // First get all candidates that match the filter
+    const allCandidates = await Candidate.find(filter)
+      .populate('userId', 'firstName lastName email customId') // Add customId to the populated fields
       .sort(sort)
       .skip(skip)
       .limit(limit);
 
-    const total = await Candidate.countDocuments(filter);
+    // Filter out candidates where userId didn't populate or customId is missing
+    const candidates = allCandidates.filter(candidate => 
+      candidate.userId && 
+      (candidate.userId as any).firstName && 
+      (candidate.userId as any).lastName &&
+      (candidate.userId as any).customId // Ensure customId exists
+    );
+
+    console.log('[AgentController] Found candidates:', {
+      count: candidates.length,
+      candidates: candidates.map(c => ({
+        id: c._id.toString(),
+        userId: c.userId ? (c.userId as any)._id.toString() : null,
+        name: c.userId ? `${(c.userId as any).firstName} ${(c.userId as any).lastName}` : 'No User'
+      }))
+    });
+
+    const total = candidates.length; // Use the filtered count instead of querying again
 
     // Log audit trail
     await AuditLog.createLog({
@@ -919,5 +943,84 @@ export class AgentController {
     });
 
     res.json({ data: interview });
+  });
+
+  /**
+   * Clean up broken candidate references in agent assignments
+   * @route POST /agents/cleanup-assignments
+   */
+  static cleanupBrokenReferences = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only admins can trigger cleanup
+    if (req.user!.role !== UserRole.ADMIN) {
+      throw createForbiddenError('Only admins can trigger assignment cleanup');
+    }
+
+    await AgentAssignment.cleanupBrokenCandidateReferences();
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.UPDATE,
+      entityType: 'AgentAssignment',
+      entityId: new mongoose.Types.ObjectId(),
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: 'Admin triggered cleanup of broken candidate references in agent assignments',
+    });
+
+    res.json({ 
+      message: 'Successfully cleaned up broken candidate references in agent assignments'
+    });
+  });
+
+  /**
+   * Get single candidate by ID (for agent's assigned candidates)
+   * @route GET /agents/me/candidates/:id
+   */
+  static getMyCandidate = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only agents can access this endpoint
+    if (req.user!.role !== UserRole.AGENT) {
+      throw createForbiddenError('Only agents can access this endpoint');
+    }
+
+    const { id } = req.params;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      throw createNotFoundError('Candidate not found');
+    }
+
+    // Get candidates assigned to this agent
+    const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id);
+    const candidateObjectId = new mongoose.Types.ObjectId(id);
+    
+    // Check if the candidate is assigned to this agent
+    const hasAccess = assignedCandidateIds.some(candidateId => candidateId.equals(candidateObjectId));
+    if (!hasAccess) {
+      throw createForbiddenError('You do not have access to this candidate');
+    }
+
+    // Get candidate details with populated user info
+    const candidate = await Candidate.findById(id)
+      .populate('userId', 'firstName lastName email customId')
+      .populate('resumeFileId');
+
+    if (!candidate) {
+      throw createNotFoundError('Candidate not found');
+    }
+
+    // Log audit trail
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.READ,
+      entityType: 'Candidate',
+      entityId: candidate._id,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      businessProcess: 'agent_management',
+      description: `Agent viewed candidate details`,
+    });
+
+    res.json({ data: candidate });
   });
 }

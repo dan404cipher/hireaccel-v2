@@ -40,6 +40,7 @@ export interface AgentAssignmentModel extends mongoose.Model<AgentAssignmentDocu
   getAgentsWithAssignments(): Promise<AgentAssignmentDocument[]>;
   getHRsForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>;
   getCandidatesForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>;
+  cleanupBrokenCandidateReferences(): Promise<void>;
 }
 
 /**
@@ -195,6 +196,36 @@ agentAssignmentSchema.methods['activate'] = function(this: AgentAssignmentDocume
 // ============================================================================
 
 /**
+ * Clean up broken candidate references
+ * This method removes references to candidates that no longer exist
+ */
+agentAssignmentSchema.statics['cleanupBrokenCandidateReferences'] = async function() {
+  const Candidate = mongoose.model('Candidate');
+  
+  // Get all agent assignments
+  const assignments = await this.find({ status: 'active' });
+  
+  for (const assignment of assignments) {
+    if (!assignment.assignedCandidates.length) continue;
+    
+    // Check each candidate reference
+    const validCandidates = await Candidate.find({
+      _id: { $in: assignment.assignedCandidates },
+      userId: { $exists: true }
+    });
+    
+    const validCandidateIds = validCandidates.map(c => c._id);
+    
+    // Update assignment if there are broken references
+    if (validCandidateIds.length !== assignment.assignedCandidates.length) {
+      assignment.assignedCandidates = validCandidateIds;
+      await assignment.save();
+      console.log(`[AgentAssignment] Cleaned up broken candidate references for assignment ${assignment._id}`);
+    }
+  }
+};
+
+/**
  * Get assignment record for specific agent
  */
 agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
@@ -204,6 +235,7 @@ agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId:
     .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
     .populate({
       path: 'assignedCandidates',
+      match: { userId: { $exists: true } }, // Only include candidates that have a valid userId
       populate: {
         path: 'userId',
         select: 'firstName lastName email customId'
