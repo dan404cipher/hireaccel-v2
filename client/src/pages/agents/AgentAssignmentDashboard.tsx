@@ -598,7 +598,16 @@ export default function AgentAssignmentDashboard() {
                                 Assign to Job
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => {
-                                navigate(`/dashboard/candidates/${candidate.customId}`);
+                                // Make sure we have a valid userId and customId before navigating
+                                if (candidate.userId?.customId) {
+                                  navigate(`/dashboard/candidates/${candidate.userId.customId}`);
+                                } else {
+                                  toast({
+                                    title: "Error",
+                                    description: "Cannot view profile: Invalid candidate data",
+                                    variant: "destructive"
+                                  });
+                                }
                               }}>
                                 View Profile
                               </DropdownMenuItem>
