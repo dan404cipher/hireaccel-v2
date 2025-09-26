@@ -40,7 +40,7 @@ class ResumeParserService {
   "certifications": [{
     "name": "Required: Certification name",
     "issuer": "Required: Issuing organization",
-    "issueDate": "Required: YYYY-MM",
+    "issueDate": "Required: YYYY-MM format (e.g., 2023-09). If no date is available, omit this certification entirely",
     "expiryDate": "YYYY-MM if applicable"
   }],
   "projects": [{
@@ -68,7 +68,7 @@ ${resumeText}`;
         messages: [
           {
             role: 'system',
-            content: 'You are a precise resume parser that extracts structured information. Only include fields that are explicitly present in the resume. Use brief descriptions. Format dates as YYYY-MM.',
+            content: 'You are a precise resume parser that extracts structured information. Only include fields that are explicitly present in the resume. Use brief descriptions. Format dates as YYYY-MM. IMPORTANT: Only include certifications if you can extract a valid issue date (YYYY-MM format). If a certification has no clear issue date, omit it entirely.',
           },
           {
             role: 'user',
@@ -102,26 +102,6 @@ ${resumeText}`;
         throw new Error('Invalid response format from OpenAI');
       }
 
-      // Validate arrays and their contents
-      const validateArray = (arr: any[], field: string, maxLength: number) => {
-        if (!Array.isArray(arr)) return [];
-        return arr.filter(item => {
-          if (typeof item !== 'object') return false;
-          // Validate required fields based on the schema
-          switch (field) {
-            case 'experience':
-              return item.company && item.title && item.startDate;
-            case 'education':
-              return item.institution && item.degree && item.field;
-            case 'certifications':
-              return item.name && item.issuer;
-            case 'projects':
-              return item.name && item.description;
-            default:
-              return true;
-          }
-        }).slice(0, maxLength);
-      };
 
       // Helper function to parse date strings
       const parseDate = (dateStr: string | undefined): Date | undefined => {
@@ -130,9 +110,13 @@ ${resumeText}`;
         try {
           // Handle YYYY-MM format
           if (/^\d{4}-\d{2}$/.test(dateStr)) {
-            return new Date(dateStr + '-01'); // Add day for valid date
+            const date = new Date(dateStr + '-01');
+            if (isNaN(date.getTime())) return undefined;
+            return date;
           }
-          return new Date(dateStr);
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return undefined;
+          return date;
         } catch {
           return undefined;
         }
@@ -167,10 +151,15 @@ ${resumeText}`;
       // Helper function to format certification entries
       const formatCertification = (cert: any) => {
         if (!cert.name || !cert.issuer) return null;
+        
+        // Only include certifications with valid issue dates
+        const issueDate = parseDate(cert.issueDate);
+        if (!issueDate) return null;
+        
         return {
           name: cert.name,
           issuer: cert.issuer,
-          issueDate: parseDate(cert.issueDate),
+          issueDate: issueDate,
           expiryDate: parseDate(cert.expiryDate),
           credentialId: cert.credentialId,
           credentialUrl: cert.credentialUrl
