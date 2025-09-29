@@ -139,7 +139,7 @@ export default function UserManagement() {
     lastName: '',
     email: '',
     phoneNumber: '',
-    role: 'candidate' as const,
+    role: 'candidate' as 'admin' | 'hr' | 'agent' | 'candidate',
     password: '',
     source: '',
   });
@@ -168,7 +168,7 @@ export default function UserManagement() {
     refetch: refetchUsers 
   } = useUsers({
     page,
-    limit: 20,
+    limit: 50,
     search: searchTerm || undefined,
     role: roleFilter === 'all' ? undefined : roleFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -179,7 +179,7 @@ export default function UserManagement() {
   const { mutate: deleteUser, loading: deleteLoading } = useDeleteUser();
 
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
-  const allUsers = Array.isArray(usersResponse) ? usersResponse : (usersResponse?.data || []);
+  const allUsers = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data || []);
   
   // Filter out current admin user to prevent self-deactivation
   const users = useMemo(() => {
@@ -189,8 +189,9 @@ export default function UserManagement() {
     return allUsers.filter(user => !(user.role === 'admin' && user._id === currentUser.id));
   }, [allUsers, currentUser?.id]);
   
-  const meta = Array.isArray(usersResponse) ? null : usersResponse?.meta;
+  const meta = Array.isArray(usersResponse) ? null : (usersResponse as any)?.meta;
   const totalPages = meta?.page?.total || 1;
+  const totalUsers = meta?.total || users.length;
 
   // Reset page when filters change
   useEffect(() => {
@@ -382,6 +383,7 @@ export default function UserManagement() {
       phoneNumber: user.phoneNumber || '',
       role: user.role,
       password: '',
+      source: user.source || '',
     });
     setIsEditDialogOpen(true);
   };
@@ -596,7 +598,7 @@ export default function UserManagement() {
         <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
-            Users ({users.length})
+            Users ({users.length}{totalUsers > users.length ? ` of ${totalUsers}` : ''})
           </CardTitle>
         </CardHeader>
         
@@ -842,7 +844,7 @@ export default function UserManagement() {
                     Previous
                   </Button>
                   <span className="flex items-center px-4">
-                    Page {page} of {totalPages}
+                    Page {page} of {totalPages} • Showing {users.length} of {totalUsers} users
                   </span>
                   <Button
                     variant="outline"
