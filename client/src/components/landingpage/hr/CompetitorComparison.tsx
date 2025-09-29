@@ -2,9 +2,12 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, X, Crown, IndianRupee, Users, Zap, Shield, Star, TrendingUp, Award, Building2, Newspaper, Search, Rocket } from "lucide-react";
-// Removed framer-motion for better performance
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import comparebg from "@/assets/section1.jpg";
+import pricecomparebg from "@/assets/bg.png";
+import featurecomparebg from "@/assets/bg.webp";
+import annualcostcomparebg from "@/assets/btbg2.jpg";
+
 
 // Simplified static decorative elements
 function StaticDecorations() {
@@ -166,99 +169,90 @@ const competitors = [
 export function CompetitorComparison() {
   const navigate=useNavigate();
   return (
-    <section className="relative py-20 lg:py-32 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
-      <StaticDecorations />
-      
-      {/* Simplified background gradient orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-r from-blue-400/6 to-cyan-400/6 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-purple-400/6 to-pink-400/6 rounded-full blur-3xl"></div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+    <>
+      <section className="relative min-h-screen flex flex-col justify-center items-center py-10 bg-gray-50/50 mx-auto" 
+        style={{
+          backgroundImage: `url(${comparebg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
         {/* Section Header */}
-        <divdiv 
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+      
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full">
+        <div
           className="text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-        >
-          <div className="inline-flex items-center px-4 py-2 mb-6 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
-            <TrendingUp className="w-4 h-4 text-blue-600 mr-2" />
-            <span className="text-sm font-medium text-blue-700">Why Choose HireAccel</span>
-          </div>
-          
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-6">
+        > 
+          <h2 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white bg-clip-text text-transparent mb-6">
             See How We Compare
           </h2>
-          
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl text-white max-w-3xl mx-auto leading-relaxed">
             While leading Indian recruitment platforms charge lakhs annually for basic features, HireAccel delivers enterprise-grade recruitment solutions completely free. 
             See the difference and discover why smart HR teams across India are making the switch.
           </p>
-        </divdiv>
+        </div>
 
         {/* Hero Comparison Image */}
-        <divdiv 
-          className="mb-20"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.1 }}
+        <div
+          className="mb-10"
         >
           <div className="relative max-w-4xl mx-auto">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 to-purple-500/10 rounded-2xl blur-3xl"></div>
-            
+
             <div className="relative bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
               <img
                 src="https://images.unsplash.com/photo-1676276376140-a4030cc596a1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMGNvbXBldGl0aW9uJTIwY29tcGFyaXNvbiUyMGNoYXJ0JTIwYW5hbHlzaXN8ZW58MXx8fHwxNzU2OTYxNTQyfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
                 alt="Business competition comparison analysis"
                 className="w-full h-auto rounded-xl"
               />
-              
               {/* Static comparison badges */}
               <div className="absolute -top-4 -left-4 bg-green-500 text-white px-4 py-2 rounded-full font-medium shadow-lg">
                 100% Free
               </div>
-              
+
               <div className="absolute -bottom-4 -right-4 bg-blue-600 text-white px-4 py-2 rounded-full font-medium shadow-lg">
                 Save ₹3,50,000+/year
               </div>
             </div>
           </div>
-        </divdiv>
-
+        </div>
+        </div>
+      </section>
+      <section className="relative min-h-screen flex flex-col justify-center items-center py-10 bg-gray-50/50 mx-auto" 
+        style={{
+          backgroundImage: `url(${pricecomparebg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-transparent to-transparent"></div>
+      
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full">
         {/* Pricing Comparison Cards */}
-        <divdiv 
+        <div
           className="mb-20"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.2 }}
         >
           <div className="text-center mb-12">
-            <h3 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
+            <h3 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white bg-clip-text text-transparent mb-4">
               Pricing Comparison
             </h3>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-white">
               See how much you can save compared to leading Indian recruitment platforms
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {competitors.map((competitor, index) => (
-              <divdiv
+              <div
                 key={competitor.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
                 className="relative"
               >
                 <Card className={`p-6 h-full relative overflow-visible ${
                   competitor.isOurs 
                     ? 'bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 shadow-xl' 
-                    : 'bg-white/70 backdrop-blur-sm border border-gray-200'
+                    : 'bg-white/90 backdrop-blur-sm border border-gray-200'
                 }`}>
                   
                   {competitor.popular && (
@@ -323,98 +317,122 @@ export function CompetitorComparison() {
                       <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300" onClick={()=>navigate('/signup/hr')}> 
                         Get Started Free
                       </Button>
-                    ) : (
-                      <Button 
-                        variant="outline" 
-                        className="w-full border-gray-300 text-gray-600 hover:bg-gray-50"
-                        disabled
-                      >
-                        View Details
-                      </Button>
+                    ) : (""
                     )}
                   </div>
                 </Card>
-              </divdiv>
+              </div>
             ))}
           </div>
-        </divdiv>
-
+        </div>
+        </div>
+      </section>
+      <section className="relative min-h-screen flex flex-col justify-center items-center py-10 bg-gray-50/50" 
+        style={{
+          backgroundImage: `url(${featurecomparebg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-transparent to-transparent"></div>
+      
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full">
         {/* Detailed Feature Comparison Table */}
-        <divdiv 
+        <div
           className="mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.3 }}
         >
-          <div className="text-center mb-12">
-            <h3 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
+          <div className="text-center mb-10">
+            <h3 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white bg-clip-text text-transparent mb-4">
               Feature-by-Feature Comparison
             </h3>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-white">
               Detailed breakdown of features and capabilities
             </p>
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                    <th className="text-left p-4 font-medium min-w-[150px]">Features</th>
-                    <th className="text-center p-4 font-medium min-w-[120px]">
-                      <div className="flex items-center justify-center space-x-2">
-                        <span>HireAccel</span>
-                        <Crown className="w-4 h-4" />
-                      </div>
-                    </th>
-                    <th className="text-center p-4 font-medium min-w-[120px]">Naukri Recruiter</th>
-                    <th className="text-center p-4 font-medium min-w-[120px]">TimesJobs</th>
-                    <th className="text-center p-4 font-medium min-w-[120px]">Monster India</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {featureComparison.map((row, index) => (
-                    <divtr
-                      key={index}
-                      className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}
-                      initial={{ opacity: 0, x: -10 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                    >
-                      <td className={`p-4 font-medium text-gray-900 ${index === 0 ? 'font-bold' : ''}`}>{row.feature}</td>
-                      <td className={`p-4 text-center ${index === 0 ? 'font-bold' : ''}`}>
-                        <div className="flex items-center justify-center space-x-2">
-                          <Check className="w-4 h-4 text-green-600" />
-                          <span className={`text-green-700 font-medium ${index === 0 ? 'font-bold' : ''}`}>{row.hireAccel}</span>
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+              <div className="min-w-[280px] md:min-w-[600px]">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-gray-600 to-gray-900 text-white">
+                      <th className="text-left p-3 md:p-4 font-medium w-[30%] md:w-[25%]">
+                        <span className="text-sm md:text-base">Features</span>
+                      </th>
+                      <th className="text-center p-3 md:p-4 font-medium w-[17.5%] md:w-[18.75%]">
+                        <div className="flex items-center justify-center space-x-1 md:space-x-2">
+                          <span className="text-sm md:text-base whitespace-nowrap">HireAccel</span>
+                          <Crown className="w-3 h-3 md:w-4 md:h-4" />
                         </div>
-                      </td>
-                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor1}</td>
-                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor2}</td>
-                      <td className={`p-4 text-center text-gray-600 ${index === 0 ? 'font-bold' : ''}`}>{row.competitor3}</td>
-                    </divtr>
-                  ))}
-                </tbody>
-              </table>
+                      </th>
+                      <th className="text-center p-3 md:p-4 font-medium w-[17.5%] md:w-[18.75%]">
+                        <span className="text-sm md:text-base whitespace-nowrap">Naukri</span>
+                      </th>
+                      <th className="text-center p-3 md:p-4 font-medium w-[17.5%] md:w-[18.75%]">
+                        <span className="text-sm md:text-base whitespace-nowrap">TimesJobs</span>
+                      </th>
+                      <th className="text-center p-3 md:p-4 font-medium w-[17.5%] md:w-[18.75%]">
+                        <span className="text-sm md:text-base whitespace-nowrap">Monster</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {featureComparison.map((row, index) => (
+                      <tr
+                        key={index}
+                        className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800'} transition-colors duration-150 hover:bg-gray-700`}
+                      >
+                        <td className={`p-3 md:p-4 font-medium text-white text-sm md:text-base ${index === 0 ? 'font-bold' : ''}`}>
+                          {row.feature}
+                        </td>
+                        <td className={`p-3 md:p-4 text-center ${index === 0 ? 'font-bold' : ''}`}>
+                          <div className="flex items-center justify-center space-x-1 md:space-x-2">
+                            <Check className="w-3 h-3 md:w-4 md:h-4 text-green-500 flex-shrink-0" />
+                            <span className={`text-green-400 shadow shadow-green-md font-medium text-sm md:text-base ${index === 0 ? 'font-bold' : ''}`}>
+                              {row.hireAccel}
+                            </span>
+                          </div>
+                        </td>
+                        <td className={`p-3 md:p-4 text-center text-white text-sm md:text-base ${index === 0 ? 'font-bold' : ''}`}>
+                          {row.competitor1}
+                        </td>
+                        <td className={`p-3 md:p-4 text-center text-white text-sm md:text-base ${index === 0 ? 'font-bold' : ''}`}>
+                          {row.competitor2}
+                        </td>
+                        <td className={`p-3 md:p-4 text-center text-white text-sm md:text-base ${index === 0 ? 'font-bold' : ''}`}>
+                          {row.competitor3}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </divdiv>
-
+        </div>
+        </div>
+      </section>
+      <section className="relative min-h-screen flex flex-col justify-center items-center py-10 bg-gray-50/50" 
+        style={{
+          backgroundImage: `url(${annualcostcomparebg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+      
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full">
         {/* Cost Savings Calculator */}
-        <divdiv 
-          className="mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.4 }}
+        <div
+          className="mb-10"
         >
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 md:p-12">
+          <div className="bg-gray-900 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 p-8 md:p-12">
             <div className="text-center mb-8">
-              <h3 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent mb-4">
+              <h3 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white bg-clip-text text-transparent mb-4">
                 Annual Cost Comparison
               </h3>
-              <p className="text-lg text-gray-600">
+              <p className="text-lg text-white">
                 See approximately how much you save by choosing HireAccel
               </p>
             </div>
@@ -426,13 +444,9 @@ export function CompetitorComparison() {
                 { name: "TimesJobs", cost: 450000, color: "from-orange-500 to-red-600", setup: "₹30,000" },
                 { name: "Monster India", cost: 270000, color: "from-purple-500 to-violet-600", setup: "₹25,000" }
               ].map((platform, index) => (
-                <divdiv
+                <div
                   key={platform.name}
                   className={`bg-gradient-to-br ${platform.color} rounded-xl p-6 text-white relative overflow-hidden`}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.3, delay: 0.4 + index * 0.1 }}
                 >
                   <div className="relative z-10">
                     <h4 className="font-bold text-lg mb-2">{platform.name}</h4>
@@ -450,7 +464,7 @@ export function CompetitorComparison() {
                     )}
                   </div>
                   <div className="absolute -bottom-10 -right-10 w-20 h-20 bg-white/20 rounded-full" />
-                </divdiv>
+                </div>
               ))}
             </div>
 
@@ -461,48 +475,51 @@ export function CompetitorComparison() {
               </div>
             </div>
           </div>
-        </divdiv>
-
+        </div>
+        </div>
+      </section>
+      <section className="relative min-h-screen flex flex-col justify-center items-center py-10 bg-gray-50/50 mx-auto" 
+        style={{
+          backgroundImage: `url(${pricecomparebg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+      
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full">
         {/* Cost Savings Highlight */}
-        <divdiv 
-          className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-8 md:p-12 border border-green-200/50"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4, delay: 0.5 }}
+        <div
+          className="bg-gray-900 rounded-2xl p-8 md:p-12 border border-green-200/50"
         >
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full mb-6">
               <IndianRupee className="w-8 h-8 text-white" />
             </div>
             
-            <h3 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h3 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4">
               Save Over <span className="text-green-600">₹3,60,000</span> Per Year
             </h3>
             
-            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-white mb-8 max-w-2xl mx-auto">
               While major Indian recruitment platforms charge premium prices for basic features, HireAccel provides everything you need completely free. 
               That's real money back in your budget for what matters most - growing your team and business.
             </p>
 
             <div className="grid md:grid-cols-3 gap-6 mb-8">
               {[
-                { icon: Shield, title: "No Hidden Costs", desc: "What you see is what you get - forever free" },
-                { icon: Users, title: "No User Limits", desc: "Add unlimited team members at no extra cost" },
-                { icon: Zap, title: "Full Features", desc: "Access to all premium features included" }
+                { icon: Shield, title: "No Hidden Costs", desc: "What you see is what you get - forever free", color:"green" },
+                { icon: Users, title: "No User Limits", desc: "Add unlimited team members at no extra cost", color:"blue"  },
+                { icon: Zap, title: "Full Features", desc: "Access to all premium features included", color:"yellow"  }
               ].map((benefit, index) => (
-                <divdiv
+                <div
                   key={index}
-                  className="bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-white/20"
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.3, delay: 0.5 + index * 0.1 }}
+                  className="bg-gray-900 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-white/20"
                 >
-                  <benefit.icon className="w-8 h-8 text-blue-600 mb-3 mx-auto" />
-                  <h4 className="font-bold text-gray-900 mb-2">{benefit.title}</h4>
-                  <p className="text-sm text-gray-600">{benefit.desc}</p>
-                </divdiv>
+                  <benefit.icon className={`w-8 h-8 text-${benefit.color}-600 mb-3 mx-auto`}/>
+                  <h4 className="font-bold text-white mb-2">{benefit.title}</h4>
+                  <p className="text-sm text-white">{benefit.desc}</p>
+                </div>
               ))}
             </div>
 
@@ -514,8 +531,9 @@ export function CompetitorComparison() {
               Start Saving Today - It's Free!
             </Button>
           </div>
-        </divdiv>
-      </div>
-    </section>
+        </div>
+        </div>
+      </section>
+    </>
   );
 }

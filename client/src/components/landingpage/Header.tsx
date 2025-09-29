@@ -58,14 +58,15 @@ export function Header({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-transparent">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-transparent" style={{ background: "#80808052" }}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 cursor-pointer" 
+            onClick={() => navigate('/')}>
             <img src={logoColor} alt="HireAccel Logo" className="h-10 w-10" />
             <div>
-              <h1 className="font-bold text-lg font-inter text-white">Hire Accel</h1>
+              <h1 className="font-bold text-sm md:text-lg font-inter text-white">Hire Accel</h1>
               <p className="text-xs font-medium font-inter text-white/80">powered by v-accel</p>
             </div>
           </div>

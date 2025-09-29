@@ -26,8 +26,8 @@ export function ReadyToStart() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-left bg-transparent rounded-2xl p-12 text-white animate-scale-in">
-          <h3 className="text-7xl font-bold mb-4">Ready to Get Started?</h3>
-          <p className="text-xl mb-8 opacity-90">
+          <h3 className="text-2xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl 2xl:text-7xl font-bold mb-4">Ready to Get Started?</h3>
+          <p className="text-xs sm:text-md md:text-lg lg:text-xl xl-text-xl 2xl:text-xl mb-8 opacity-90">
             Join thousands of companies and candidates already using our platform
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-start">

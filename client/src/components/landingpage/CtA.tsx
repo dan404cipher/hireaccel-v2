@@ -1,19 +1,26 @@
 import { Button } from "./ui/button";
 import { ArrowRight, CheckCircle, Sparkles, Users, Target } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import ctaBackground from "@/assets/cta-backgroung.jpg";
 const benefits = [
-  { text: "Forever free platform", icon: Sparkles, color: "text-yellow-400" },
-  { text: "No hidden costs ever", icon: Target, color: "text-green-400" },
-  { text: "Unlimited job postings", icon: Users, color: "text-blue-400" },
-  { text: "Full AI-powered features", icon: CheckCircle, color: "text-purple-400" }
+  { text: "Forever free platform", icon: Sparkles, color: "bg-yellow-400" },
+  { text: "No hidden costs ever", icon: Target, color: "bg-green-400" },
+  { text: "Unlimited job postings", icon: Users, color: "bg-blue-400" },
+  { text: "Full AI-powered features", icon: CheckCircle, color: "bg-purple-400" }
 ];
 
 export function CTA() {
   const navigate = useNavigate();
   
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-black relative overflow-hidden">
+    <section className="py-20 relative"
+      style={{
+        backgroundImage: `url(${ctaBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        
+      }}>
       {/* Simple background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-1/4 left-1/6 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
@@ -37,8 +44,8 @@ export function CTA() {
               key={index}
               className="flex flex-col items-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-colors duration-200"
             >
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-3">
-                <benefit.icon className={`h-6 w-6 ${benefit.color}`} />
+              <div className={`w-12 h-12 ${benefit.color} rounded-full flex items-center justify-center mb-3`}>
+                <benefit.icon className={`h-6 w-6 text-white`} />
               </div>
               <span className="text-white text-sm font-medium text-center leading-tight">
                 {benefit.text}

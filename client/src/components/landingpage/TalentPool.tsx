@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { generateSrcSet, getOptimizedBackgroundStyle, getWebPUrl } from "@/utils/imageOptimization";
+import talentPoolBackground from "@/assets/section1.jpg";
 
 const domains = [
   {
@@ -60,27 +61,37 @@ const talentStats = [
 
 export function TalentPool() {
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-black">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      style={{
+        backgroundImage: `url(${talentPoolBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-transparent to-transparent"></div>
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-20 relative z-10 h-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-4xl mx-auto mb-16">
-          <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white">
+        <div className="text-center max-w-4xl mx-auto mb-5">
+          <h2 className="text-2xl sm:text-2xl md:text-4xl lg:text-6xl xl:text-7xl 2xl:text-7xl font-bold text-white">
             Our Growing Talent Pool
           </h2>
-          <p className="mt-4 text-xl text-gray-300">
+          <p className="mt-4 text-xs sm:text-md md:text-lg lg:text-xl xl-text-xl 2xl:text-xl text-gray-300">
             We connect you with over 300 ready-to-join candidates
           </p>
         </div>
 
         {/* Domains Covered */}
         <div className="mb-16">
-          <h3 className="text-2xl font-semibold text-center mb-12 text-white">
+          <h3 className="text-md sm:text-lg md:text-xl lg:text-2xl xl-text-2xl 2xl:text-2xl font-semibold text-center mb-5 text-white">
             Domains Covered
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {domains.map((domain, index) => (
               <div 
                 key={index} 
-                className="group relative overflow-hidden rounded-2xl min-h-[450px] shadow-lg hover:shadow-xl transition-all duration-300"
+                className="group relative overflow-hidden rounded-2xl min-h-[250px] shadow-lg hover:shadow-xl transition-all duration-300"
                 style={getOptimizedBackgroundStyle(getWebPUrl(domain.image))}
               >
                 {/* Transparent Header Section */}
@@ -122,6 +133,7 @@ export function TalentPool() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </section>
   );

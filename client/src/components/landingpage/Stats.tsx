@@ -1,4 +1,5 @@
 import { Users, Building2, Briefcase, TrendingUp } from "lucide-react";
+import statsBackground from "@/assets/stats-background.webp";
 
 const stats = [
   {
@@ -33,8 +34,17 @@ const stats = [
 
 export function Stats() {
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-black">
-      <div className="container mx-auto px-4">
+    <section className="py-20 relative"
+      style={{
+        backgroundImage: `url(${statsBackground})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-800/20 via-transparent to-transparent"></div>
+      <div className="container mx-auto px-5 md:px-4 py-8 md:py-20 relative z-10 h-full">
         <div className="text-center mb-12 animate-fade-in">
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
             Trusted by Thousands

@@ -45,18 +45,18 @@ const socialLinks = [
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
-              <span className="text-xl font-semibold">HireAccel</span>
+              <span className="text-lg font-semibold">HireAccel</span>
             </div>
-            <p className="text-gray-300 mb-6 leading-relaxed">
+            <p className="text-xs text-gray-300 mb-6 leading-relaxed">
               Accelerating the connection between top talent and leading companies through intelligent hiring solutions.
             </p>
             
-            <div className="space-y-3 text-sm text-gray-300">
+            <div className="space-y-3 text-xs text-gray-300">
               <div className="flex items-center">
                 <Mail className="h-4 w-4 mr-3" />
                 <span>support@hireaccel.in</span>
               </div>
-              <div className="flex items-center">
+              <div className="flex text-xs items-center">
                 <Phone className="h-4 w-4 mr-3" />
                 <a 
                   href="tel:+919962056381" 
@@ -65,7 +65,7 @@ const socialLinks = [
                   +91 99620 56381
                 </a>
               </div>
-              <div className="flex items-center">
+              <div className="flex text-xs items-center">
                 <MapPin className="h-4 w-4 mr-3" />
                 <span>Perungudi, Chennai, India</span>
               </div>
@@ -88,10 +88,10 @@ const socialLinks = [
 
           <div className="space-y-5">
             <h3 className="font-semibold mb-4">Company</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-xs">
               {footerLinks.company.map((link, index) => (
                 <li key={index}>
-                  <Link to={link.href} target="blank" className="text-gray-300 hover:text-white transition-colors text-sm">
+                  <Link to={link.href} target="blank" className="text-gray-300 hover:text-white transition-colors text-xs">
                     {link.name}
                   </Link>
                 </li>
@@ -101,10 +101,10 @@ const socialLinks = [
 
           <div className="space-y-2">
             <h3 className="font-semibold mb-4">Support</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-xs">
               {footerLinks.support.map((link, index) => (
                 <li key={index}>
-                  <a href={link.href} className="text-gray-300 hover:text-white transition-colors text-sm">
+                  <a href={link.href} className="text-gray-300 hover:text-white transition-colors text-xs">
                     {link.name}
                   </a>
                 </li>
@@ -114,10 +114,10 @@ const socialLinks = [
 
           <div className="space-y-2">
             <h3 className="font-semibold mb-4">Legal</h3>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-xs">
               {footerLinks.legal.map((link, index) => (
                 <li key={index}>
-                  <a href={link.href} className="text-gray-300 hover:text-white transition-colors text-sm">
+                  <a href={link.href} className="text-gray-300 hover:text-white transition-colors text-xs">
                     {link.name}
                   </a>
                 </li>
@@ -128,7 +128,7 @@ const socialLinks = [
 
         {/* Bottom Section */}
         <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-400 text-xs">
             © 2025 HireAccel. All rights reserved.
           </p>
           
