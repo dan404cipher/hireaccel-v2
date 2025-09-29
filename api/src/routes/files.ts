@@ -70,4 +70,14 @@ router.delete('/resume',
   FileController.deleteResume
 );
 
+/**
+ * @route   POST /files/resume/parse
+ * @desc    Parse current candidate's resume and extract information
+ * @access  Private (Candidate only)
+ */
+router.post('/resume/parse',
+  requireRole(UserRole.CANDIDATE),
+  FileController.parseResume
+);
+
 export default router;

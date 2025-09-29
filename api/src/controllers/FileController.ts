@@ -2,12 +2,14 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '@/types';
 import { File } from '@/models/File';
 import { Candidate } from '@/models/Candidate';
-import { FileCategory } from '@/types';
+import { FileCategory, CandidateProfile } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import { logger } from '@/config/logger';
 import path from 'path';
 import fs from 'fs';
 import { env } from '@/config/env';
+import { TextExtractor } from '@/utils/textExtractor';
+import { resumeParserService } from '@/services/ResumeParserService';
 
 /**
  * File Controller
@@ -95,6 +97,18 @@ export class FileController {
       // Update candidate with new resume file ID
       candidate.resumeFileId = fileRecord._id;
       candidate.updatedAt = new Date();
+      // Validate file size (moved from client-side)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (req.file.size > maxSize) {
+        throw createBadRequestError('File size exceeds 5MB limit');
+      }
+
+      // Validate file type (moved from client-side)
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        throw createBadRequestError('Invalid file type. Please upload a PDF or Word document (.pdf, .doc, .docx)');
+      }
+
       await candidate.save();
 
       logger.info('Resume uploaded successfully', {
@@ -103,7 +117,7 @@ export class FileController {
         fileId: fileRecord._id,
         filename: req.file.originalname,
         filepath: relativePath,
-        businessProcess: 'file_management',
+        businessProcess: 'file_management'
       });
 
       res.status(201).json({
@@ -117,7 +131,7 @@ export class FileController {
             size: fileRecord.size,
             mimetype: fileRecord.mimetype,
             uploadedAt: fileRecord.createdAt,
-          },
+          }
         },
       });
     } catch (error) {
@@ -348,5 +362,83 @@ export class FileController {
       success: true,
       message: 'Resume deleted successfully',
     });
+  });
+
+  /**
+   * Parse resume and extract information
+   * POST /files/resume/parse
+   */
+  static parseResume = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!._id;
+    
+    // Find candidate and their resume
+    const candidate = await Candidate.findOne({ userId }).populate('resumeFileId');
+    if (!candidate || !candidate.resumeFileId) {
+      throw createNotFoundError('No resume found to parse');
+    }
+
+    const file = candidate.resumeFileId as any;
+    const filePath = path.join(env.UPLOADS_PATH, file.path);
+    
+    if (!fs.existsSync(filePath)) {
+      throw createNotFoundError('Resume file not found on disk');
+    }
+
+    try {
+      // Extract text from the resume
+      const resumeText = await TextExtractor.extractText(filePath, file.mimetype);
+      
+      // Basic validation of extracted text
+      if (!resumeText || resumeText.trim().length < 50) {
+        throw createBadRequestError('Could not extract sufficient text from the resume. Please ensure the file is not corrupted or empty.');
+      }
+
+      // Parse the resume using OpenAI
+      const parsedProfile = await resumeParserService.parseResume(resumeText);
+      
+      // Validate parsed profile
+      if (!parsedProfile || Object.keys(parsedProfile).length === 0) {
+        throw createBadRequestError('Failed to parse resume content. Please ensure the resume contains relevant information.');
+      }
+
+      // Helper function to check if a field has content
+      const hasContent = (key: keyof Partial<CandidateProfile>) => {
+        const value = parsedProfile[key];
+        if (!value) return false;
+        if (Array.isArray(value)) return value.length > 0;
+        return true;
+      };
+
+      // Get fields that have content
+      const extractedFields = Object.keys(parsedProfile)
+        .filter(key => hasContent(key as keyof Partial<CandidateProfile>));
+
+      logger.info('Resume parsed successfully', {
+        userId,
+        candidateId: candidate._id,
+        fileId: file._id,
+        filename: file.originalName,
+        businessProcess: 'resume_parsing',
+        fieldsExtracted: extractedFields
+      });
+
+      res.json({
+        success: true,
+        message: 'Resume parsed successfully',
+        data: {
+          parsedProfile,
+          parsedFields: extractedFields,
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to parse resume', {
+        userId,
+        candidateId: candidate._id,
+        fileId: file._id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        businessProcess: 'resume_parsing',
+      });
+      throw error;
+    }
   });
 }
