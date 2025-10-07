@@ -285,252 +285,442 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps): React.JSX.Ele
                   <TabsTrigger value="candidate">Candidate</TabsTrigger>
                 </TabsList>
 
-                                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-                  {/* Common Fields */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name*</Label>
-                      <Input
-                        id="firstName"
-                        placeholder="Enter your first name"
-                        value={formData.firstName}
-                        onChange={(e) => handleInputChange('firstName', e.target.value)}
-                        required
-                        className="border border-gray-300 focus:border-blue-500"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name*</Label>
-                      <Input
-                        id="lastName"
-                        placeholder="Enter your last name"
-                        value={formData.lastName}
-                        onChange={(e) => handleInputChange('lastName', e.target.value)}
-                        required
-                        className="border border-gray-300 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email*</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      required
-                      className="border border-gray-300 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone*</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="e.g., +91 98765 43210"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange('phone', e.target.value)}
-                      required
-                      className="border border-gray-300 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password*</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Create a strong password"
-                        value={formData.password}
-                        onChange={(e) => handleInputChange('password', e.target.value)}
-                        required
-                        className="border border-gray-300 focus:border-blue-500 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {formData.password && (
-                      <div className="text-xs text-gray-600 mt-2">
-                        {isPasswordValid ? (
-                          <div className="text-green-600">
-                            ✓ Password meets all security requirements
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="text-red-500 mb-1">Password requirements:</div>
-                            <div className="mt-1 space-y-1">
-                              {!passwordValidation.hasMinLength && (
-                                <div className="text-red-500">• At least 8 characters</div>
-                              )}
-                              {!passwordValidation.hasUppercase && (
-                                <div className="text-red-500">• Uppercase letter</div>
-                              )}
-                              {!passwordValidation.hasLowercase && (
-                                <div className="text-red-500">• Lowercase letter</div>
-                              )}
-                              {!passwordValidation.hasNumber && (
-                                <div className="text-red-500">• Number</div>
-                              )}
-                              {!passwordValidation.hasSpecialChar && (
-                                <div className="text-red-500">• Special character (!@#$%^&*)</div>
-                              )}
-                              {!passwordValidation.hasNoSpaces && (
-                                <div className="text-red-500">• No spaces</div>
-                              )}
-                              {!passwordValidation.hasNoRepeated && (
-                                <div className="text-red-500">• No repeated characters (aaaa)</div>
-                              )}
-                              {!passwordValidation.hasNoCommon && (
-                                <div className="text-red-500">• Not a common password</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password*</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Confirm your password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                        required
-                        className="border border-gray-300 focus:border-blue-500 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {formData.confirmPassword && (
-                      <div className="text-xs mt-2">
-                        {isPasswordMatch ? (
-                          <div className="text-green-600">
-                            ✓ Passwords match
-                          </div>
-                        ) : (
-                          <div className="text-red-500">
-                            • Passwords do not match
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="source">How did you hear about us?*</Label>
-                    <Select
-                      value={formData.source}
-                      onValueChange={(value) => handleInputChange('source', value)}
-                    >
-                      <SelectTrigger className="border border-gray-300 focus:border-blue-500">
-                        <SelectValue placeholder="Select how you heard about us" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Email">Email</SelectItem>
-                        <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                        <SelectItem value="Telegram">Telegram</SelectItem>
-                        <SelectItem value="Instagram">Instagram</SelectItem>
-                        <SelectItem value="Facebook">Facebook</SelectItem>
-                        <SelectItem value="Journals">Journals</SelectItem>
-                        <SelectItem value="Posters">Posters</SelectItem>
-                        <SelectItem value="Brochures">Brochures</SelectItem>
-                        <SelectItem value="Forums">Forums</SelectItem>
-                        <SelectItem value="Google">Google</SelectItem>
-                        <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* HR Specific Fields */}
-                  <TabsContent value="hr" className="mt-4">
-                    <div className="min-h-[120px] flex flex-col justify-start">
+                {/* HR Professional Tab */}
+                <TabsContent value="hr" className="mt-0">
+                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                    {/* Common Fields */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="department">Designation</Label>
+                        <Label htmlFor="firstName">First Name*</Label>
                         <Input
-                          id="department"
-                          placeholder="e.g., Engineering, Sales"
-                          value={formData.department}
-                          onChange={(e) => handleInputChange('department', e.target.value)}
+                          id="firstName"
+                          placeholder="Enter your first name"
+                          value={formData.firstName}
+                          onChange={(e) => handleInputChange('firstName', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name*</Label>
+                        <Input
+                          id="lastName"
+                          placeholder="Enter your last name"
+                          value={formData.lastName}
+                          onChange={(e) => handleInputChange('lastName', e.target.value)}
+                          required
                           className="border border-gray-300 focus:border-blue-500"
                         />
                       </div>
                     </div>
-                  </TabsContent>
 
-                  {/* Candidate Specific Fields */}
-                  <TabsContent value="candidate" className="mt-4">
-                    <div className="min-h-[120px] space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="currentLocation">Current Location</Label>
-                          <Input
-                            id="currentLocation"
-                            placeholder="e.g., New York, NY"
-                            value={formData.currentLocation}
-                            onChange={(e) => handleInputChange('currentLocation', e.target.value)}
-                            className="border border-gray-300 focus:border-blue-500"
-                          />
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email*</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@company.com"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        required
+                        className="border border-gray-300 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone*</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="e.g., +91 98765 43210"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        required
+                        className="border border-gray-300 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="department">Designation</Label>
+                      <Input
+                        id="department"
+                        placeholder="e.g., HR Manager, Talent Acquisition"
+                        value={formData.department}
+                        onChange={(e) => handleInputChange('department', e.target.value)}
+                        className="border border-gray-300 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password*</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a strong password"
+                          value={formData.password}
+                          onChange={(e) => handleInputChange('password', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {formData.password && (
+                        <div className="text-xs text-gray-600 mt-2">
+                          {isPasswordValid ? (
+                            <div className="text-green-600">
+                              ✓ Password meets all security requirements
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="text-red-500 mb-1">Password requirements:</div>
+                              <div className="mt-1 space-y-1">
+                                {!passwordValidation.hasMinLength && (
+                                  <div className="text-red-500">• At least 8 characters</div>
+                                )}
+                                {!passwordValidation.hasUppercase && (
+                                  <div className="text-red-500">• Uppercase letter</div>
+                                )}
+                                {!passwordValidation.hasLowercase && (
+                                  <div className="text-red-500">• Lowercase letter</div>
+                                )}
+                                {!passwordValidation.hasNumber && (
+                                  <div className="text-red-500">• Number</div>
+                                )}
+                                {!passwordValidation.hasSpecialChar && (
+                                  <div className="text-red-500">• Special character (!@#$%^&*)</div>
+                                )}
+                                {!passwordValidation.hasNoSpaces && (
+                                  <div className="text-red-500">• No spaces</div>
+                                )}
+                                {!passwordValidation.hasNoRepeated && (
+                                  <div className="text-red-500">• No repeated characters (aaaa)</div>
+                                )}
+                                {!passwordValidation.hasNoCommon && (
+                                  <div className="text-red-500">• Not a common password</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="yearsOfExperience">Years of Experience</Label>
-                          <Select
-                            value={formData.yearsOfExperience}
-                            onValueChange={(value) => handleInputChange('yearsOfExperience', value)}
-                          >
-                            <SelectTrigger className="border border-gray-300 focus:border-blue-500">
-                              <SelectValue placeholder="Select experience level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0-1">0-1 years</SelectItem>
-                              <SelectItem value="2-3">2-3 years</SelectItem>
-                              <SelectItem value="4-5">4-5 years</SelectItem>
-                              <SelectItem value="6-8">6-8 years</SelectItem>
-                              <SelectItem value="9-12">9-12 years</SelectItem>
-                              <SelectItem value="13+">13+ years</SelectItem>
-                            </SelectContent>
-                          </Select>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password*</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Confirm your password"
+                          value={formData.confirmPassword}
+                          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {formData.confirmPassword && (
+                        <div className="text-xs mt-2">
+                          {isPasswordMatch ? (
+                            <div className="text-green-600">
+                              ✓ Passwords match
+                            </div>
+                          ) : (
+                            <div className="text-red-500">
+                              • Passwords do not match
+                            </div>
+                          )}
                         </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="source">How did you hear about us?*</Label>
+                      <Select
+                        value={formData.source}
+                        onValueChange={(value) => handleInputChange('source', value)}
+                      >
+                        <SelectTrigger className="border border-gray-300 focus:border-blue-500">
+                          <SelectValue placeholder="Select how you heard about us" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Email">Email</SelectItem>
+                          <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                          <SelectItem value="Telegram">Telegram</SelectItem>
+                          <SelectItem value="Instagram">Instagram</SelectItem>
+                          <SelectItem value="Facebook">Facebook</SelectItem>
+                          <SelectItem value="Journals">Journals</SelectItem>
+                          <SelectItem value="Posters">Posters</SelectItem>
+                          <SelectItem value="Brochures">Brochures</SelectItem>
+                          <SelectItem value="Forums">Forums</SelectItem>
+                          <SelectItem value="Google">Google</SelectItem>
+                          <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-6"
+                      disabled={!isFormValid || loading}
+                    >
+                      {loading ? 'Creating Account...' : 'Create Account →'}
+                    </Button>
+
+                    <div className="text-center text-sm text-gray-600 mt-4">
+                      Already have an account?{' '}
+                      <button 
+                        type="button" 
+                        onClick={() => navigate('/login')}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Sign in here
+                      </button>
+                    </div>
+                  </form>
+                </TabsContent>
+
+                {/* Candidate Tab */}
+                <TabsContent value="candidate" className="mt-0">
+                  <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                    {/* Common Fields */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name*</Label>
+                        <Input
+                          id="firstName"
+                          placeholder="Enter your first name"
+                          value={formData.firstName}
+                          onChange={(e) => handleInputChange('firstName', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name*</Label>
+                        <Input
+                          id="lastName"
+                          placeholder="Enter your last name"
+                          value={formData.lastName}
+                          onChange={(e) => handleInputChange('lastName', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500"
+                        />
                       </div>
                     </div>
-                  </TabsContent>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-6"
-                    disabled={!isFormValid || loading}
-                  >
-                    {loading ? 'Creating Account...' : 'Create Account →'}
-                  </Button>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email*</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="you@email.com"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        required
+                        className="border border-gray-300 focus:border-blue-500"
+                      />
+                    </div>
 
-                  <div className="text-center text-sm text-gray-600 mt-4">
-                    Already have an account?{' '}
-                    <button 
-                      type="button" 
-                      onClick={() => navigate('/login')}
-                      className="text-blue-600 hover:underline"
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone*</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="e.g., +91 98765 43210"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        required
+                        className="border border-gray-300 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentLocation">Current Location</Label>
+                        <Input
+                          id="currentLocation"
+                          placeholder="e.g., New York, NY"
+                          value={formData.currentLocation}
+                          onChange={(e) => handleInputChange('currentLocation', e.target.value)}
+                          className="border border-gray-300 focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="yearsOfExperience">Years of Experience</Label>
+                        <Select
+                          value={formData.yearsOfExperience}
+                          onValueChange={(value) => handleInputChange('yearsOfExperience', value)}
+                        >
+                          <SelectTrigger className="border border-gray-300 focus:border-blue-500">
+                            <SelectValue placeholder="Select experience level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0-1">0-1 years</SelectItem>
+                            <SelectItem value="2-3">2-3 years</SelectItem>
+                            <SelectItem value="4-5">4-5 years</SelectItem>
+                            <SelectItem value="6-8">6-8 years</SelectItem>
+                            <SelectItem value="9-12">9-12 years</SelectItem>
+                            <SelectItem value="13+">13+ years</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password*</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Create a strong password"
+                          value={formData.password}
+                          onChange={(e) => handleInputChange('password', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {formData.password && (
+                        <div className="text-xs text-gray-600 mt-2">
+                          {isPasswordValid ? (
+                            <div className="text-green-600">
+                              ✓ Password meets all security requirements
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="text-red-500 mb-1">Password requirements:</div>
+                              <div className="mt-1 space-y-1">
+                                {!passwordValidation.hasMinLength && (
+                                  <div className="text-red-500">• At least 8 characters</div>
+                                )}
+                                {!passwordValidation.hasUppercase && (
+                                  <div className="text-red-500">• Uppercase letter</div>
+                                )}
+                                {!passwordValidation.hasLowercase && (
+                                  <div className="text-red-500">• Lowercase letter</div>
+                                )}
+                                {!passwordValidation.hasNumber && (
+                                  <div className="text-red-500">• Number</div>
+                                )}
+                                {!passwordValidation.hasSpecialChar && (
+                                  <div className="text-red-500">• Special character (!@#$%^&*)</div>
+                                )}
+                                {!passwordValidation.hasNoSpaces && (
+                                  <div className="text-red-500">• No spaces</div>
+                                )}
+                                {!passwordValidation.hasNoRepeated && (
+                                  <div className="text-red-500">• No repeated characters (aaaa)</div>
+                                )}
+                                {!passwordValidation.hasNoCommon && (
+                                  <div className="text-red-500">• Not a common password</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm Password*</Label>
+                      <div className="relative">
+                        <Input
+                          id="confirmPassword"
+                          type={showConfirmPassword ? "text" : "password"}
+                          placeholder="Confirm your password"
+                          value={formData.confirmPassword}
+                          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                          required
+                          className="border border-gray-300 focus:border-blue-500 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                      {formData.confirmPassword && (
+                        <div className="text-xs mt-2">
+                          {isPasswordMatch ? (
+                            <div className="text-green-600">
+                              ✓ Passwords match
+                            </div>
+                          ) : (
+                            <div className="text-red-500">
+                              • Passwords do not match
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="source">How did you hear about us?*</Label>
+                      <Select
+                        value={formData.source}
+                        onValueChange={(value) => handleInputChange('source', value)}
+                      >
+                        <SelectTrigger className="border border-gray-300 focus:border-blue-500">
+                          <SelectValue placeholder="Select how you heard about us" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Email">Email</SelectItem>
+                          <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                          <SelectItem value="Telegram">Telegram</SelectItem>
+                          <SelectItem value="Instagram">Instagram</SelectItem>
+                          <SelectItem value="Facebook">Facebook</SelectItem>
+                          <SelectItem value="Journals">Journals</SelectItem>
+                          <SelectItem value="Posters">Posters</SelectItem>
+                          <SelectItem value="Brochures">Brochures</SelectItem>
+                          <SelectItem value="Forums">Forums</SelectItem>
+                          <SelectItem value="Google">Google</SelectItem>
+                          <SelectItem value="Conversational AI (GPT, Gemini etc)">Conversational AI (GPT, Gemini etc)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-6"
+                      disabled={!isFormValid || loading}
                     >
-                      Sign in here
-                    </button>
-                  </div>
-                </form>
+                      {loading ? 'Creating Account...' : 'Create Account →'}
+                    </Button>
+
+                    <div className="text-center text-sm text-gray-600 mt-4">
+                      Already have an account?{' '}
+                      <button 
+                        type="button" 
+                        onClick={() => navigate('/login')}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Sign in here
+                      </button>
+                    </div>
+                  </form>
+                </TabsContent>
               </Tabs>
             </CardContent>
           </Card>

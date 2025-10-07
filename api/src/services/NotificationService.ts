@@ -124,7 +124,7 @@ export class NotificationService {
       }
 
       return {
-        notifications: notifications as NotificationDocument[],
+        notifications: notifications as unknown as NotificationDocument[],
         hasMore,
         total
       };
