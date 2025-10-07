@@ -1,6 +1,12 @@
+// Load environment variables FIRST, before any other imports
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Configure dotenv to look for .env in the correct location
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 // Initialize module aliases first (for production builds)
 const moduleAlias = require('module-alias');
-const path = require('path');
 
 // Set up aliases for production
 const isDist = __dirname.includes('dist');
