@@ -1,120 +1,126 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose'
 
 /**
  * Agent Assignment interface
  * Tracks when admin assigns HR users and candidates to agents
  */
 export interface IAgentAssignment {
-  _id: mongoose.Types.ObjectId;
-  agentId: mongoose.Types.ObjectId;
-  assignedHRs: mongoose.Types.ObjectId[];
-  assignedCandidates: mongoose.Types.ObjectId[];
-  assignedBy: mongoose.Types.ObjectId; // Admin user who made the assignment
-  status: 'active' | 'inactive';
-  notes?: string;
-  assignedAt: Date;
-  updatedAt: Date;
-  createdAt: Date;
+    _id: mongoose.Types.ObjectId
+    agentId: mongoose.Types.ObjectId
+    assignedHRs: mongoose.Types.ObjectId[]
+    assignedCandidates: mongoose.Types.ObjectId[]
+    assignedBy: mongoose.Types.ObjectId // Admin user who made the assignment
+    status: 'active' | 'inactive'
+    notes?: string
+    assignedAt: Date
+    updatedAt: Date
+    createdAt: Date
 }
 
 /**
  * Agent Assignment model interface extending Mongoose Document
  */
 export interface AgentAssignmentDocument extends Omit<IAgentAssignment, '_id'>, Document {
-  _id: mongoose.Types.ObjectId;
-  
-  // Instance methods
-  addHR(hrId: mongoose.Types.ObjectId): void;
-  removeHR(hrId: mongoose.Types.ObjectId): void;
-  addCandidate(candidateId: mongoose.Types.ObjectId): void;
-  removeCandidate(candidateId: mongoose.Types.ObjectId): void;
-  deactivate(): void;
-  activate(): void;
+    _id: mongoose.Types.ObjectId
+
+    // Instance methods
+    addHR(hrId: mongoose.Types.ObjectId): void
+    removeHR(hrId: mongoose.Types.ObjectId): void
+    addCandidate(candidateId: mongoose.Types.ObjectId): void
+    removeCandidate(candidateId: mongoose.Types.ObjectId): void
+    deactivate(): void
+    activate(): void
 }
 
 /**
  * Agent Assignment model interface for static methods
  */
 export interface AgentAssignmentModel extends mongoose.Model<AgentAssignmentDocument> {
-  getAssignmentForAgent(agentId: mongoose.Types.ObjectId): Promise<AgentAssignmentDocument | null>;
-  getAgentsWithAssignments(): Promise<AgentAssignmentDocument[]>;
-  getHRsForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>;
-  getCandidatesForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>;
-  cleanupBrokenCandidateReferences(): Promise<void>;
+    getAssignmentForAgent(agentId: mongoose.Types.ObjectId): Promise<AgentAssignmentDocument | null>
+    getAgentsWithAssignments(): Promise<AgentAssignmentDocument[]>
+    getHRsForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>
+    getCandidatesForAgent(agentId: mongoose.Types.ObjectId): Promise<mongoose.Types.ObjectId[]>
+    // cleanupBrokenCandidateReferences(): Promise<{ assignmentsProcessed: number; referencesRemoved: number; }>;
 }
 
 /**
  * Main agent assignment schema
  */
-const agentAssignmentSchema = new Schema<AgentAssignmentDocument>({
-  agentId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Agent reference is required'],
-    unique: true, // Each agent can have only one assignment record
-    index: true,
-  },
-  
-  assignedHRs: [{
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    index: true,
-  }],
-  
-  assignedCandidates: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Candidate',
-    index: true,
-  }],
-  
-  assignedBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Admin user reference is required'],
-    index: true,
-  },
-  
-  status: {
-    type: String,
-    enum: ['active', 'inactive'],
-    default: 'active',
-    index: true,
-  },
-  
-  notes: {
-    type: String,
-    maxlength: [1000, 'Notes cannot exceed 1000 characters'],
-  },
-  
-  assignedAt: {
-    type: Date,
-    default: Date.now,
-    index: true,
-  },
-  
-}, {
-  timestamps: true,
-  toJSON: {
-    virtuals: true,
-    transform: function(_doc, ret: any) {
-      delete ret.__v;
-      return ret;
+const agentAssignmentSchema = new Schema<AgentAssignmentDocument>(
+    {
+        agentId: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: [true, 'Agent reference is required'],
+            unique: true, // Each agent can have only one assignment record
+            index: true,
+        },
+
+        assignedHRs: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: 'User',
+                index: true,
+            },
+        ],
+
+        assignedCandidates: [
+            {
+                type: Schema.Types.ObjectId,
+                ref: 'Candidate',
+                index: true,
+            },
+        ],
+
+        assignedBy: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            required: [true, 'Admin user reference is required'],
+            index: true,
+        },
+
+        status: {
+            type: String,
+            enum: ['active', 'inactive'],
+            default: 'active',
+            index: true,
+        },
+
+        notes: {
+            type: String,
+            maxlength: [1000, 'Notes cannot exceed 1000 characters'],
+        },
+
+        assignedAt: {
+            type: Date,
+            default: Date.now,
+            index: true,
+        },
     },
-  },
-  toObject: {
-    virtuals: true,
-  },
-});
+    {
+        timestamps: true,
+        toJSON: {
+            virtuals: true,
+            transform: function (_doc, ret: any) {
+                delete ret.__v
+                return ret
+            },
+        },
+        toObject: {
+            virtuals: true,
+        },
+    },
+)
 
 // ============================================================================
 // Indexes
 // ============================================================================
 
 // Compound indexes for common queries
-agentAssignmentSchema.index({ agentId: 1, status: 1 });
-agentAssignmentSchema.index({ assignedBy: 1, status: 1, assignedAt: -1 });
-agentAssignmentSchema.index({ 'assignedHRs': 1, status: 1 });
-agentAssignmentSchema.index({ 'assignedCandidates': 1, status: 1 });
+agentAssignmentSchema.index({ agentId: 1, status: 1 })
+agentAssignmentSchema.index({ assignedBy: 1, status: 1, assignedAt: -1 })
+agentAssignmentSchema.index({ assignedHRs: 1, status: 1 })
+agentAssignmentSchema.index({ assignedCandidates: 1, status: 1 })
 
 // ============================================================================
 // Virtual Properties
@@ -123,23 +129,23 @@ agentAssignmentSchema.index({ 'assignedCandidates': 1, status: 1 });
 /**
  * Count of assigned HRs
  */
-agentAssignmentSchema.virtual('hrCount').get(function(this: AgentAssignmentDocument) {
-  return this.assignedHRs.length;
-});
+agentAssignmentSchema.virtual('hrCount').get(function (this: AgentAssignmentDocument) {
+    return this.assignedHRs.length
+})
 
 /**
  * Count of assigned candidates
  */
-agentAssignmentSchema.virtual('candidateCount').get(function(this: AgentAssignmentDocument) {
-  return this.assignedCandidates.length;
-});
+agentAssignmentSchema.virtual('candidateCount').get(function (this: AgentAssignmentDocument) {
+    return this.assignedCandidates.length
+})
 
 /**
  * Check if assignment is active
  */
-agentAssignmentSchema.virtual('isActive').get(function(this: AgentAssignmentDocument) {
-  return this.status === 'active';
-});
+agentAssignmentSchema.virtual('isActive').get(function (this: AgentAssignmentDocument) {
+    return this.status === 'active'
+})
 
 // ============================================================================
 // Instance Methods
@@ -148,48 +154,54 @@ agentAssignmentSchema.virtual('isActive').get(function(this: AgentAssignmentDocu
 /**
  * Add HR to agent's assignment
  */
-agentAssignmentSchema.methods['addHR'] = function(this: AgentAssignmentDocument, hrId: mongoose.Types.ObjectId) {
-  if (!this.assignedHRs.includes(hrId)) {
-    this.assignedHRs.push(hrId);
-  }
-};
+agentAssignmentSchema.methods['addHR'] = function (this: AgentAssignmentDocument, hrId: mongoose.Types.ObjectId) {
+    if (!this.assignedHRs.includes(hrId)) {
+        this.assignedHRs.push(hrId)
+    }
+}
 
 /**
  * Remove HR from agent's assignment
  */
-agentAssignmentSchema.methods['removeHR'] = function(this: AgentAssignmentDocument, hrId: mongoose.Types.ObjectId) {
-  this.assignedHRs = this.assignedHRs.filter(id => !id.equals(hrId));
-};
+agentAssignmentSchema.methods['removeHR'] = function (this: AgentAssignmentDocument, hrId: mongoose.Types.ObjectId) {
+    this.assignedHRs = this.assignedHRs.filter((id) => !id.equals(hrId))
+}
 
 /**
  * Add candidate to agent's assignment
  */
-agentAssignmentSchema.methods['addCandidate'] = function(this: AgentAssignmentDocument, candidateId: mongoose.Types.ObjectId) {
-  if (!this.assignedCandidates.includes(candidateId)) {
-    this.assignedCandidates.push(candidateId);
-  }
-};
+agentAssignmentSchema.methods['addCandidate'] = function (
+    this: AgentAssignmentDocument,
+    candidateId: mongoose.Types.ObjectId,
+) {
+    if (!this.assignedCandidates.includes(candidateId)) {
+        this.assignedCandidates.push(candidateId)
+    }
+}
 
 /**
  * Remove candidate from agent's assignment
  */
-agentAssignmentSchema.methods['removeCandidate'] = function(this: AgentAssignmentDocument, candidateId: mongoose.Types.ObjectId) {
-  this.assignedCandidates = this.assignedCandidates.filter(id => !id.equals(candidateId));
-};
+agentAssignmentSchema.methods['removeCandidate'] = function (
+    this: AgentAssignmentDocument,
+    candidateId: mongoose.Types.ObjectId,
+) {
+    this.assignedCandidates = this.assignedCandidates.filter((id) => !id.equals(candidateId))
+}
 
 /**
  * Deactivate assignment
  */
-agentAssignmentSchema.methods['deactivate'] = function(this: AgentAssignmentDocument) {
-  this.status = 'inactive';
-};
+agentAssignmentSchema.methods['deactivate'] = function (this: AgentAssignmentDocument) {
+    this.status = 'inactive'
+}
 
 /**
  * Activate assignment
  */
-agentAssignmentSchema.methods['activate'] = function(this: AgentAssignmentDocument) {
-  this.status = 'active';
-};
+agentAssignmentSchema.methods['activate'] = function (this: AgentAssignmentDocument) {
+    this.status = 'active'
+}
 
 // ============================================================================
 // Static Methods
@@ -198,97 +210,112 @@ agentAssignmentSchema.methods['activate'] = function(this: AgentAssignmentDocume
 /**
  * Clean up broken candidate references
  * This method removes references to candidates that no longer exist
+ * SECURITY: Only removes references, never deletes actual candidates or users
  */
-agentAssignmentSchema.statics['cleanupBrokenCandidateReferences'] = async function() {
-  const Candidate = mongoose.model('Candidate');
-  
-  // Get all agent assignments
-  const assignments = await this.find({ status: 'active' });
-  
-  for (const assignment of assignments) {
-    if (!assignment.assignedCandidates.length) continue;
-    
-    // Check each candidate reference
-    const validCandidates = await Candidate.find({
-      _id: { $in: assignment.assignedCandidates },
-      userId: { $exists: true }
-    });
-    
-    const validCandidateIds = validCandidates.map(c => c._id);
-    
-    // Update assignment if there are broken references
-    if (validCandidateIds.length !== assignment.assignedCandidates.length) {
-      assignment.assignedCandidates = validCandidateIds;
-      await assignment.save();
-      console.log(`[AgentAssignment] Cleaned up broken candidate references for assignment ${assignment._id}`);
-    }
-  }
-};
+
+// agentAssignmentSchema.statics['cleanupBrokenCandidateReferences'] = async function() {
+//   const Candidate = mongoose.model('Candidate');
+
+//   // Get all agent assignments
+//   const assignments = await this.find({ status: 'active' });
+//   let totalCleaned = 0;
+
+//   for (const assignment of assignments) {
+//     if (!assignment.assignedCandidates.length) continue;
+
+//     // Check each candidate reference - ONLY check if candidate document exists
+//     const validCandidates = await Candidate.find({
+//       _id: { $in: assignment.assignedCandidates }
+//       // REMOVED: userId: { $exists: true } - this was causing deletions
+//     });
+
+//     const validCandidateIds = validCandidates.map(c => c._id);
+
+//     // Update assignment if there are broken references
+//     if (validCandidateIds.length !== assignment.assignedCandidates.length) {
+//       const removedCount = assignment.assignedCandidates.length - validCandidateIds.length;
+//       assignment.assignedCandidates = validCandidateIds;
+//       await assignment.save();
+//       totalCleaned += removedCount;
+
+//       console.log(`[AgentAssignment] Cleaned up ${removedCount} broken candidate references for assignment ${assignment._id}`);
+//     }
+//   }
+
+//   return { assignmentsProcessed: assignments.length, referencesRemoved: totalCleaned };
+// };
 
 /**
  * Get assignment record for specific agent
  */
-agentAssignmentSchema.statics['getAssignmentForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
-  console.log(`[AgentAssignment] Getting assignment details for agent: ${agentId}`);
-  const assignment = await this.findOne({ agentId, status: 'active' })
-    .populate('agentId', 'firstName lastName email customId')
-    .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
-    .populate({
-      path: 'assignedCandidates',
-      match: { userId: { $exists: true } }, // Only include candidates that have a valid userId
-      populate: {
-        path: 'userId',
-        select: 'firstName lastName email customId'
-      }
+agentAssignmentSchema.statics['getAssignmentForAgent'] = async function (agentId: mongoose.Types.ObjectId) {
+    console.log(`[AgentAssignment] Getting assignment details for agent: ${agentId}`)
+    const assignment = await this.findOne({ agentId, status: 'active' })
+        .populate('agentId', 'firstName lastName email customId')
+        .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
+        .populate({
+            path: 'assignedCandidates',
+            // REMOVED: match filter that was excluding candidates
+            populate: {
+                path: 'userId',
+                select: 'firstName lastName email customId',
+            },
+        })
+        .populate('assignedBy', 'firstName lastName email customId')
+    console.log(`[AgentAssignment] Assignment details:`, {
+        id: assignment?._id,
+        hrCount: assignment?.assignedHRs?.length || 0,
+        candidateCount: assignment?.assignedCandidates?.length || 0,
+        status: assignment?.status,
     })
-    .populate('assignedBy', 'firstName lastName email customId');
-  console.log(`[AgentAssignment] Assignment details:`, {
-    id: assignment?._id,
-    hrCount: assignment?.assignedHRs?.length || 0,
-    candidateCount: assignment?.assignedCandidates?.length || 0,
-    status: assignment?.status
-  });
-  return assignment;
-};
+    return assignment
+}
 
 /**
  * Get all agents with their assignments
  */
-agentAssignmentSchema.statics['getAgentsWithAssignments'] = function() {
-  return this.find({ status: 'active' })
-    .populate('agentId', 'firstName lastName email customId')
-    .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
-    .populate({
-      path: 'assignedCandidates',
-      populate: {
-        path: 'userId',
-        select: 'firstName lastName email customId'
-      }
-    })
-    .populate('assignedBy', 'firstName lastName email customId')
-    .sort({ assignedAt: -1 });
-};
+agentAssignmentSchema.statics['getAgentsWithAssignments'] = function () {
+    return this.find({ status: 'active' })
+        .populate('agentId', 'firstName lastName email customId')
+        .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
+        .populate({
+            path: 'assignedCandidates',
+            populate: {
+                path: 'userId',
+                select: 'firstName lastName email customId',
+            },
+        })
+        .populate('assignedBy', 'firstName lastName email customId')
+        .sort({ assignedAt: -1 })
+}
 
 /**
  * Get HR users assigned to specific agent
  */
-agentAssignmentSchema.statics['getHRsForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
-  const assignment = await this.findOne({ agentId, status: 'active' }).select('assignedHRs');
-  return assignment ? assignment.assignedHRs : [];
-};
+agentAssignmentSchema.statics['getHRsForAgent'] = async function (agentId: mongoose.Types.ObjectId) {
+    const assignment = await this.findOne({ agentId, status: 'active' }).select('assignedHRs')
+    return assignment ? assignment.assignedHRs : []
+}
 
 /**
  * Get candidates assigned to specific agent
  */
-agentAssignmentSchema.statics['getCandidatesForAgent'] = async function(agentId: mongoose.Types.ObjectId) {
-  console.log(`[AgentAssignment] Getting candidates for agent: ${agentId}`);
-  const assignment = await this.findOne({ agentId, status: 'active' }).select('assignedCandidates');
-  console.log(`[AgentAssignment] Found assignment: ${assignment?._id}, Candidate count: ${assignment?.assignedCandidates?.length || 0}`);
-  return assignment ? assignment.assignedCandidates : [];
-};
+agentAssignmentSchema.statics['getCandidatesForAgent'] = async function (agentId: mongoose.Types.ObjectId) {
+    console.log(`[AgentAssignment] Getting candidates for agent: ${agentId}`)
+    const assignment = await this.findOne({ agentId, status: 'active' }).select('assignedCandidates')
+    console.log(
+        `[AgentAssignment] Found assignment: ${assignment?._id}, Candidate count: ${
+            assignment?.assignedCandidates?.length || 0
+        }`,
+    )
+    return assignment ? assignment.assignedCandidates : []
+}
 
 // ============================================================================
 // Model Export
 // ============================================================================
 
-export const AgentAssignment = mongoose.model<AgentAssignmentDocument, AgentAssignmentModel>('AgentAssignment', agentAssignmentSchema);
+export const AgentAssignment = mongoose.model<AgentAssignmentDocument, AgentAssignmentModel>(
+    'AgentAssignment',
+    agentAssignmentSchema,
+)
