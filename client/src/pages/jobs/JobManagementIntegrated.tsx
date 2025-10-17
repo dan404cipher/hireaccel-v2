@@ -67,7 +67,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   // Initialize filters from URL parameters
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || "all");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedJobForEdit, setSelectedJobForEdit] = useState<any>(null);
@@ -137,10 +137,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     page, 
     limit: 20, 
     search: debouncedSearchTerm || undefined,
-    status: statusFilter !== "all" ? statusFilter : undefined,
     // HR users can only see jobs they posted
     ...(user?.role === 'hr' && { createdBy: user.id })
-  }), [page, debouncedSearchTerm, statusFilter, user?.role, user?.id]);
+  }), [page, debouncedSearchTerm, user?.role, user?.id]);
   
   // API hooks
   const { 
@@ -172,6 +171,40 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     
     fetchCompanies();
   }, []);
+
+  // Fetch hired candidates count
+  const [hiredCandidatesCount, setHiredCandidatesCount] = useState(0);
+  const [hiredCandidatesLoading, setHiredCandidatesLoading] = useState(true);
+  
+  const fetchHiredCandidates = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setHiredCandidatesLoading(true);
+      // Fetch candidate assignments with candidateStatus 'hired' assigned to current HR
+      const response = await apiClient.getCandidateAssignments({
+        assignedTo: user.id,
+        limit: 1000 // Get all to count them
+      });
+      
+      const assignments = Array.isArray(response) ? response : (response?.data || []);
+      // Count only assignments with candidateStatus = 'hired'
+      const hiredCount = assignments.filter((assignment: any) => 
+        assignment.candidateStatus === 'hired'
+      ).length;
+      
+      setHiredCandidatesCount(hiredCount);
+    } catch (error) {
+      console.error('Failed to fetch hired candidates:', error);
+      setHiredCandidatesCount(0);
+    } finally {
+      setHiredCandidatesLoading(false);
+    }
+  }, [user?.id]);
+  
+  useEffect(() => {
+    fetchHiredCandidates();
+  }, [fetchHiredCandidates]);
   
   // Check if HR has any companies
   const hasCompanies = companies.length > 0;
@@ -199,10 +232,15 @@ export default function JobManagementIntegrated(): React.JSX.Element {
 
   // Filter jobs (additional client-side filtering)
   const filteredJobs = jobs.filter(job => {
-    if (!searchTerm) return true;
-    const matchesSearch = job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = !searchTerm || 
+                         job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.companyId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    
+    const matchesCompany = companyFilter === "all" || 
+                          (job.companyId?._id === companyFilter) ||
+                          (job.companyId?.id === companyFilter);
+    
+    return matchesSearch && matchesCompany;
   });
 
   // Auto-open edit dialog when editId is present
@@ -1239,6 +1277,70 @@ export default function JobManagementIntegrated(): React.JSX.Element {
         </Dialog>
       </div>
 
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-100">Total Jobs</p>
+                <p className="text-2xl font-bold text-white">
+                  {jobsLoading ? "..." : jobs.length}
+                </p>
+              </div>
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Briefcase className="w-6 h-6 text-blue-100" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-emerald-100">Open Jobs</p>
+                <p className="text-2xl font-bold text-white">
+                  {jobsLoading ? "..." : jobs.filter(j => j.status === 'open').length}
+                </p>
+              </div>
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Briefcase className="w-6 h-6 text-emerald-100" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-purple-100">Total Applications</p>
+                <p className="text-2xl font-bold text-white">
+                  {jobsLoading ? "..." : jobs.reduce((sum, job) => sum + (job.applications || 0), 0)}
+                </p>
+              </div>
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Users className="w-6 h-6 text-purple-100" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-amber-100">Hired Candidates</p>
+                <p className="text-2xl font-bold text-white">
+                  {hiredCandidatesLoading ? "..." : hiredCandidatesCount}
+                </p>
+              </div>
+              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <UserCheck className="w-6 h-6 text-amber-100" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Search and Filter */}
       <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
         <CardContent className="p-4">
@@ -1253,17 +1355,18 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               />
             </div>
             <div className="flex gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+              <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                <SelectTrigger className="w-[200px] border-purple-200 focus:border-purple-400 focus:ring-purple-400">
                   <Filter className="w-4 h-4 mr-2 text-purple-600" />
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectValue placeholder="Filter by company" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="assigned">Assigned</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {companies.map((company: any) => (
+                    <SelectItem key={company._id} value={company._id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

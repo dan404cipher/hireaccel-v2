@@ -15,6 +15,15 @@ export default defineConfig({
       filename: 'dist/stats.html',
     }),
   ],
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      '@tanstack/react-query',
+    ],
+    force: false,
+  },
   build: {
     target: 'esnext',
     minify: 'terser',

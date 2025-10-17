@@ -519,6 +519,10 @@ const SharedCandidates: React.FC = () => {
                         Download Resume
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onClick={() => navigate(`/dashboard/interviews?action=schedule&candidateId=${candidate._id}&candidateName=${encodeURIComponent(`${candidate.userId.firstName} ${candidate.userId.lastName}`)}`)}>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Schedule Interview
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => {
                       setAssignmentForFeedback(assignment);
                       setFeedbackText(assignment.feedback || '');

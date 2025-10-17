@@ -107,10 +107,23 @@ export default function InterviewManagement() {
   // Check for URL action parameter to auto-open dialogs
   useEffect(() => {
     const action = searchParams.get('action');
+    const candidateId = searchParams.get('candidateId');
+    
     if (action === 'schedule') {
+      // Pre-select the candidate if provided in URL
+      if (candidateId) {
+        setScheduleFormData(prev => ({
+          ...prev,
+          candidateId: candidateId
+        }));
+      }
+      
       setIsScheduleDialogOpen(true);
-      // Remove the action parameter from URL to prevent re-opening
+      
+      // Remove the action parameters from URL to prevent re-opening
       searchParams.delete('action');
+      searchParams.delete('candidateId');
+      searchParams.delete('candidateName');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);

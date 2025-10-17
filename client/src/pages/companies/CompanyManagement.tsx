@@ -576,7 +576,7 @@ export default function CompanyManagement() {
                 Add a new partner company to your recruitment network.
               </DialogDescription>
             </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-2">
+            <div className="flex-1 overflow-y-auto px-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400">
               <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -799,66 +799,13 @@ export default function CompanyManagement() {
               </Button>
               <Button 
                 onClick={handleCreateCompany} 
-                disabled={createLoading || !createFormData.name || !createFormData.size || !createFormData.address?.street || !createFormData.address?.city || !createFormData.address?.zipCode || !createFormData.foundedYear || !createFormData.description}
+                disabled={createLoading}
               >
                 {createLoading ? "Creating..." : "Add Company"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-100">Total Companies</p>
-                <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : companies.length}
-                </p>
-              </div>
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Building2 className="w-6 h-6 text-blue-100" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-emerald-100">Active Partners</p>
-                <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : companies.filter(c => c.status === 'active').length}
-                </p>
-              </div>
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Star className="w-6 h-6 text-emerald-100" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-purple-100">Total</p>
-                <p className="text-2xl font-bold text-white">
-                  {companiesLoading ? "..." : companies.length}
-                </p>
-              </div>
-              <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <BarChart3 className="w-6 h-6 text-purple-100" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white">
-          <CardContent className="p-4">
-          </CardContent>
-        </Card>
       </div>
 
         {/* Companies Table */}
@@ -1120,7 +1067,7 @@ export default function CompanyManagement() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-1 overflow-y-auto px-2">
+          <div className="flex-1 overflow-y-auto px-2 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400">
             <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
