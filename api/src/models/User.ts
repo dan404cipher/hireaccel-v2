@@ -218,7 +218,6 @@ userSchema.index({
     lastName: 'text',
     email: 'text',
 })
-
 // NOTE: TTL indexes on subdocument arrays don't work properly in MongoDB
 // They can cause the entire parent document to be deleted instead of just the subdocument
 // Token cleanup is handled manually in the addRefreshToken method (keeps only last 5 tokens)
