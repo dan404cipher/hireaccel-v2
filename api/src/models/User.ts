@@ -172,7 +172,9 @@ const userSchema = new Schema<UserDocument>(
                 createdAt: {
                     type: Date,
                     default: Date.now,
-                    expires: 604800, // 7 days in seconds
+                    // IMPORTANT: Do NOT use 'expires' here as it creates a TTL index
+                    // that deletes the ENTIRE user document, not just the token!
+                    // Token cleanup is handled manually in addRefreshToken method
                 },
                 userAgent: String,
                 ipAddress: String,
@@ -217,8 +219,10 @@ userSchema.index({
     email: 'text',
 })
 
-// TTL index for expired tokens
-userSchema.index({ 'refreshTokens.createdAt': 1 }, { expireAfterSeconds: 604800 })
+// NOTE: TTL indexes on subdocument arrays don't work properly in MongoDB
+// They can cause the entire parent document to be deleted instead of just the subdocument
+// Token cleanup is handled manually in the addRefreshToken method (keeps only last 5 tokens)
+// userSchema.index({ 'refreshTokens.createdAt': 1 }, { expireAfterSeconds: 604800 })
 
 // ============================================================================
 // Virtual Properties
