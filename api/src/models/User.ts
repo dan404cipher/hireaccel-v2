@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import { hashToken } from '@/utils/jwt'
 import { User as IUser, UserRole, UserStatus } from '@/types'
 
 /**
@@ -282,7 +283,8 @@ userSchema.methods['addRefreshToken'] = function (
     }
 
     const newToken: any = {
-        token,
+        // Store hashed token for security at rest
+        token: hashToken(token),
         createdAt: new Date(),
     }
 
@@ -296,7 +298,9 @@ userSchema.methods['addRefreshToken'] = function (
  * Remove refresh token
  */
 userSchema.methods['removeRefreshToken'] = function (this: UserDocument, token: string): void {
-    this.refreshTokens = this.refreshTokens.filter((rt) => rt.token !== token)
+    const hashed = hashToken(token)
+    // Support legacy plain tokens and new hashed tokens
+    this.refreshTokens = this.refreshTokens.filter((rt) => rt.token !== hashed && rt.token !== token)
 }
 
 /**
