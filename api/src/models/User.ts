@@ -216,7 +216,7 @@ userSchema.index({ createdAt: -1 })
 userSchema.index({
     firstName: 'text',
     lastName: 'text',
-    email: 'text',
+    email: 'text'
 })
 // NOTE: TTL indexes on subdocument arrays don't work properly in MongoDB
 // They can cause the entire parent document to be deleted instead of just the subdocument

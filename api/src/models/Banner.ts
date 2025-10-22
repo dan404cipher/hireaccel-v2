@@ -1,25 +1,46 @@
 import { Schema, model } from 'mongoose';
 
 export interface IBanner {
-  mediaUrl: string;
-  mediaType: 'image' | 'gif' | 'video';
+  mediaUrl?: string;
+  mediaType?: 'image' | 'gif' | 'video';
   category: 'hr' | 'candidate';
   isActive: boolean;
   createdBy: Schema.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+  // Text-based ad fields
+  adType: 'media' | 'text';
+  title?: string;
+  subtitle?: string;
+  content?: string;
+  backgroundMediaUrl?: string;
+  backgroundMediaType?: 'image' | 'gif' | 'video';
+  textColor?: string;
+  backgroundColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  // Text sizing options
+  titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  subtitleSize?: 'small' | 'medium' | 'large';
+  contentSize?: 'small' | 'medium' | 'large';
+  // Text alignment
+  textAlignment?: 'left' | 'center' | 'right';
 }
 
 const bannerSchema = new Schema<IBanner>(
   {
     mediaUrl: {
       type: String,
-      required: true,
+      required: function() {
+        return this.adType === 'media';
+      },
     },
     mediaType: {
       type: String,
       enum: ['image', 'gif', 'video'],
-      required: true,
+      required: function() {
+        return this.adType === 'media';
+      },
     },
     category: {
       type: String,
@@ -34,6 +55,70 @@ const bannerSchema = new Schema<IBanner>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    // Text-based ad fields
+    adType: {
+      type: String,
+      enum: ['media', 'text'],
+      required: true,
+      default: 'media',
+    },
+    title: {
+      type: String,
+      required: function() {
+        return this.adType === 'text';
+      },
+    },
+    subtitle: {
+      type: String,
+    },
+    content: {
+      type: String,
+    },
+    backgroundMediaUrl: {
+      type: String,
+    },
+    backgroundMediaType: {
+      type: String,
+      enum: ['image', 'gif', 'video'],
+    },
+    textColor: {
+      type: String,
+      default: '#000000',
+    },
+    backgroundColor: {
+      type: String,
+      default: '#ffffff',
+    },
+    titleColor: {
+      type: String,
+      default: '#000000',
+    },
+    subtitleColor: {
+      type: String,
+      default: '#666666',
+    },
+    // Text sizing options
+    titleSize: {
+      type: String,
+      enum: ['small', 'medium', 'large', 'xlarge'],
+      default: 'large',
+    },
+    subtitleSize: {
+      type: String,
+      enum: ['small', 'medium', 'large'],
+      default: 'medium',
+    },
+    contentSize: {
+      type: String,
+      enum: ['small', 'medium', 'large'],
+      default: 'small',
+    },
+    // Text alignment
+    textAlignment: {
+      type: String,
+      enum: ['left', 'center', 'right'],
+      default: 'center',
     },
   },
   {

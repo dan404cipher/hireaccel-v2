@@ -136,6 +136,138 @@ export class BannerController {
     res.json(banner);
   });
 
+  // Create text-based ad
+  static createTextAd = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    console.log('=== TEXT AD CREATION START ===');
+    console.log('Request body:', req.body);
+    console.log('User:', req.user ? { id: req.user._id, email: req.user.email } : 'No user');
+
+    const { 
+      category, 
+      title, 
+      subtitle, 
+      content, 
+      textColor, 
+      backgroundColor, 
+      titleColor, 
+      subtitleColor,
+      titleSize,
+      subtitleSize,
+      contentSize,
+      textAlignment
+    } = req.body;
+
+    if (!category || !['hr', 'candidate'].includes(category)) {
+      throw createBadRequestError('Invalid or missing category. Must be "hr" or "candidate"');
+    }
+
+    if (!title || title.trim().length === 0) {
+      throw createBadRequestError('Title is required for text-based ads');
+    }
+
+    // Handle background media if provided
+    let backgroundMediaUrl;
+    let backgroundMediaType;
+    
+    if (req.file) {
+      backgroundMediaUrl = `/uploads/banners/${req.file.filename}`;
+      
+      // Determine media type from mimetype
+      if (req.file.mimetype.startsWith('video/')) {
+        backgroundMediaType = 'video';
+      } else if (req.file.mimetype === 'image/gif') {
+        backgroundMediaType = 'gif';
+      } else {
+        backgroundMediaType = 'image';
+      }
+    }
+
+    try {
+      const banner = await Banner.create({
+        adType: 'text',
+        category,
+        title: title.trim(),
+        subtitle: subtitle?.trim(),
+        content: content?.trim(),
+        backgroundMediaUrl,
+        backgroundMediaType,
+        textColor: textColor || '#000000',
+        backgroundColor: backgroundColor || '#ffffff',
+        titleColor: titleColor || '#000000',
+        subtitleColor: subtitleColor || '#666666',
+        titleSize: titleSize || 'large',
+        subtitleSize: subtitleSize || 'medium',
+        contentSize: contentSize || 'small',
+        textAlignment: textAlignment || 'center',
+        createdBy: req.user!._id,
+      });
+
+      console.log('Text ad created successfully:', banner);
+      console.log('=== TEXT AD CREATION SUCCESS ===');
+      res.status(201).json(banner);
+    } catch (error) {
+      console.log('ERROR creating text ad:', error);
+      throw error;
+    }
+  });
+
+  // Update text-based ad
+  static updateTextAd = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { bannerId } = req.params;
+    const { 
+      title, 
+      subtitle, 
+      content, 
+      textColor, 
+      backgroundColor, 
+      titleColor, 
+      subtitleColor,
+      titleSize,
+      subtitleSize,
+      contentSize,
+      textAlignment
+    } = req.body;
+
+    const banner = await Banner.findById(bannerId);
+    if (!banner) {
+      throw createNotFoundError('Banner', bannerId);
+    }
+
+    if (banner.adType !== 'text') {
+      throw createBadRequestError('This banner is not a text-based ad');
+    }
+
+    // Handle background media update if provided
+    if (req.file) {
+      banner.backgroundMediaUrl = `/uploads/banners/${req.file.filename}`;
+      
+      // Determine media type from mimetype
+      if (req.file.mimetype.startsWith('video/')) {
+        banner.backgroundMediaType = 'video';
+      } else if (req.file.mimetype === 'image/gif') {
+        banner.backgroundMediaType = 'gif';
+      } else {
+        banner.backgroundMediaType = 'image';
+      }
+    }
+
+    // Update text fields
+    if (title !== undefined) banner.title = title.trim();
+    if (subtitle !== undefined) banner.subtitle = subtitle?.trim();
+    if (content !== undefined) banner.content = content?.trim();
+    if (textColor !== undefined) banner.textColor = textColor;
+    if (backgroundColor !== undefined) banner.backgroundColor = backgroundColor;
+    if (titleColor !== undefined) banner.titleColor = titleColor;
+    if (subtitleColor !== undefined) banner.subtitleColor = subtitleColor;
+    if (titleSize !== undefined) banner.titleSize = titleSize;
+    if (subtitleSize !== undefined) banner.subtitleSize = subtitleSize;
+    if (contentSize !== undefined) banner.contentSize = contentSize;
+    if (textAlignment !== undefined) banner.textAlignment = textAlignment;
+
+    await banner.save();
+    res.json(banner);
+  });
+
   // Delete banner
   static deleteBanner = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { bannerId } = req.params;
