@@ -509,7 +509,7 @@ export default function InterviewManagement() {
   return (
     <div className="space-y-6">
       {/* Banner */}
-      <DashboardBanner category="hr" />
+      <DashboardBanner category={user?.role === 'candidate' ? 'candidate' : 'hr'} />
       
       <div className="flex justify-between items-center">
         <div>
