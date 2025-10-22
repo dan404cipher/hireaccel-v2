@@ -29,6 +29,7 @@ import { useMyCandidateAssignments } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
+import { DashboardBanner } from '@/components/dashboard/Banner';
 
 interface CandidateAssignment {
   _id: string;
@@ -298,6 +299,9 @@ const CandidateApplications: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Banner */}
+      <DashboardBanner category="candidate" />
+      
       {/* Page Header */}
       <div className="flex justify-between items-center">
         <div>

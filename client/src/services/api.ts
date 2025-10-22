@@ -885,6 +885,113 @@ class ApiClient {
     });
   }
 
+  // Text-based ad methods
+  async createTextAd(data: {
+    category: 'hr' | 'candidate';
+    title: string;
+    subtitle?: string;
+    content?: string;
+    textColor?: string;
+    backgroundColor?: string;
+    titleColor?: string;
+    subtitleColor?: string;
+    titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+    subtitleSize?: 'small' | 'medium' | 'large';
+    contentSize?: 'small' | 'medium' | 'large';
+    textAlignment?: 'left' | 'center' | 'right';
+    backgroundMedia?: File;
+  }) {
+    const formData = new FormData();
+    formData.append('category', data.category);
+    formData.append('title', data.title);
+    if (data.subtitle) formData.append('subtitle', data.subtitle);
+    if (data.content) formData.append('content', data.content);
+    if (data.textColor) formData.append('textColor', data.textColor);
+    if (data.backgroundColor) formData.append('backgroundColor', data.backgroundColor);
+    if (data.titleColor) formData.append('titleColor', data.titleColor);
+    if (data.subtitleColor) formData.append('subtitleColor', data.subtitleColor);
+    if (data.titleSize) formData.append('titleSize', data.titleSize);
+    if (data.subtitleSize) formData.append('subtitleSize', data.subtitleSize);
+    if (data.contentSize) formData.append('contentSize', data.contentSize);
+    if (data.textAlignment) formData.append('textAlignment', data.textAlignment);
+    if (data.backgroundMedia) formData.append('backgroundMedia', data.backgroundMedia);
+
+    // Use fetch directly for file uploads to avoid Content-Type header issues
+    const url = `${this.baseURL}/api/v1/banners/text`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw responseData;
+    }
+
+    return responseData;
+  }
+
+  async updateTextAd(bannerId: string, data: {
+    title?: string;
+    subtitle?: string;
+    content?: string;
+    textColor?: string;
+    backgroundColor?: string;
+    titleColor?: string;
+    subtitleColor?: string;
+    titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+    subtitleSize?: 'small' | 'medium' | 'large';
+    contentSize?: 'small' | 'medium' | 'large';
+    textAlignment?: 'left' | 'center' | 'right';
+    backgroundMedia?: File;
+  }) {
+    const formData = new FormData();
+    if (data.title !== undefined) formData.append('title', data.title);
+    if (data.subtitle !== undefined) formData.append('subtitle', data.subtitle || '');
+    if (data.content !== undefined) formData.append('content', data.content || '');
+    if (data.textColor !== undefined) formData.append('textColor', data.textColor);
+    if (data.backgroundColor !== undefined) formData.append('backgroundColor', data.backgroundColor);
+    if (data.titleColor !== undefined) formData.append('titleColor', data.titleColor);
+    if (data.subtitleColor !== undefined) formData.append('subtitleColor', data.subtitleColor);
+    if (data.titleSize !== undefined) formData.append('titleSize', data.titleSize);
+    if (data.subtitleSize !== undefined) formData.append('subtitleSize', data.subtitleSize);
+    if (data.contentSize !== undefined) formData.append('contentSize', data.contentSize);
+    if (data.textAlignment !== undefined) formData.append('textAlignment', data.textAlignment);
+    if (data.backgroundMedia) formData.append('backgroundMedia', data.backgroundMedia);
+
+    // Use fetch directly for file uploads to avoid Content-Type header issues
+    const url = `${this.baseURL}/api/v1/banners/text/${bannerId}`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'PUT',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      throw responseData;
+    }
+
+    return responseData;
+  }
+
   // Health check
   async healthCheck() {
     return this.request('/health');

@@ -2,17 +2,35 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/api';
+import { BannerDisplay } from '@/components/BannerDisplay';
 
 interface Banner {
   _id: string;
-  mediaUrl: string;
-  mediaType: 'image' | 'gif' | 'video';
+  mediaUrl?: string;
+  mediaType?: 'image' | 'gif' | 'video';
   category: 'hr' | 'candidate';
   isActive: boolean;
   createdBy: {
     firstName: string;
     lastName: string;
   };
+  // Text-based ad fields
+  adType: 'media' | 'text';
+  title?: string;
+  subtitle?: string;
+  content?: string;
+  backgroundMediaUrl?: string;
+  backgroundMediaType?: 'image' | 'gif' | 'video';
+  textColor?: string;
+  backgroundColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  // Text sizing options
+  titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  subtitleSize?: 'small' | 'medium' | 'large';
+  contentSize?: 'small' | 'medium' | 'large';
+  // Text alignment
+  textAlignment?: 'left' | 'center' | 'right';
 }
 
 interface DashboardBannerProps {
@@ -44,25 +62,10 @@ export function DashboardBanner({ category }: DashboardBannerProps) {
 
   return (
     <Card className="overflow-hidden mb-6">
-      {banner.mediaType === 'video' ? (
-        <video
-          className="w-full h-[120px] object-cover"
-          autoPlay
-          loop
-          muted
-          playsInline
-          controls={false}
-        >
-          <source src={banner.mediaUrl} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      ) : (
-        <img
-          src={banner.mediaUrl}
-          alt="Dashboard Banner"
-          className="w-full h-[120px] object-cover"
-        />
-      )}
+      <BannerDisplay 
+        banner={banner} 
+        className="h-[120px]" 
+      />
     </Card>
   );
 }

@@ -25,6 +25,38 @@ router.post(
 // Get active banner (public)
 router.get('/active', BannerController.getActiveBanner as any);
 
+// Create text-based ad (admin only)
+router.post(
+  '/text',
+  authenticate,
+  requireRole(UserRole.ADMIN),
+  (req: any, _res: any, next: any) => {
+    // Set file type for multer validation (optional background media)
+    req.body.fileType = 'banner';
+    req.body.entity = 'banners';
+    next();
+  },
+  uploadBanner.single('backgroundMedia'),
+  handleMulterError,
+  BannerController.createTextAd as any
+);
+
+// Update text-based ad (admin only)
+router.put(
+  '/text/:bannerId',
+  authenticate,
+  requireRole(UserRole.ADMIN),
+  (req: any, _res: any, next: any) => {
+    // Set file type for multer validation (optional background media)
+    req.body.fileType = 'banner';
+    req.body.entity = 'banners';
+    next();
+  },
+  uploadBanner.single('backgroundMedia'),
+  handleMulterError,
+  BannerController.updateTextAd as any
+);
+
 // Get all banners (admin only)
 router.get('/', 
   authenticate,
