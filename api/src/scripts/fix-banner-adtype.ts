@@ -1,12 +1,12 @@
 import mongoose from 'mongoose';
 import { Banner } from '../models/Banner';
-import { config } from '../config/env';
+import { env } from '../config/env';
 import { logger } from '../config/logger';
 
 async function fixBannerAdType() {
   try {
     logger.info('Connecting to database...');
-    await mongoose.connect(config.mongodb.uri);
+    await mongoose.connect(env.MONGO_URI);
     logger.info('Connected to database');
 
     // Find all banners without adType field
