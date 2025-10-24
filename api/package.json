@@ -13,7 +13,8 @@
         "test:coverage": "jest --coverage",
         "lint": "eslint src/**/*.ts",
         "lint:fix": "eslint src/**/*.ts --fix",
-        "fix:ttl-index": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/fix-user-ttl-index.ts"
+        "fix:ttl-index": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/fix-user-ttl-index.ts",
+        "create-admin": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/create-admin-user.ts"
     },
     "keywords": [
         "recruitment",
