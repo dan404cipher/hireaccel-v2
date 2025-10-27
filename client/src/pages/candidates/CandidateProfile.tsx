@@ -136,7 +136,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateProfile, useUpdateCandidateProfile, useResumeInfo, useUploadResume, useDeleteResume } from '@/hooks/useApi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import PDFViewer from '@/components/ui/pdf-viewer';
 import { ResumePreviewModal } from '@/components/candidates/ResumePreviewModal';
@@ -231,6 +231,7 @@ const CandidateProfile: React.FC = () => {
   const navigate = useNavigate();
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
   const [newSkill, setNewSkill] = useState('');
+  const [newTechnology, setNewTechnology] = useState<{[key: number]: string}>({});
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedProfile, setParsedProfile] = useState<Partial<CandidateProfile> | null>(null);
@@ -607,24 +608,44 @@ const CandidateProfile: React.FC = () => {
           }),
           certifications: profile.certifications.map(cert => {
             const certData: any = {
-              ...cert,
+              name: cert.name,
+              issuer: cert.issuer,
               issueDate: cert.issueDate.toISOString() // Full ISO datetime
             };
             // Only include expiryDate if it exists
             if (cert.expiryDate) {
               certData.expiryDate = cert.expiryDate.toISOString();
             }
+            // Only include optional fields if they have valid values
+            if (cert.credentialId && cert.credentialId.trim()) {
+              certData.credentialId = cert.credentialId;
+            }
+            if (cert.credentialUrl && cert.credentialUrl.trim()) {
+              certData.credentialUrl = cert.credentialUrl;
+            }
             return certData;
           }),
           projects: profile.projects.map(project => {
             const projectData: any = {
-              ...project,
+              title: project.title,
+              description: project.description,
+              technologies: project.technologies,
               startDate: project.startDate.toISOString(), // Full ISO datetime
               current: project.current
             };
             // Only include endDate if it exists and current is false
             if (!project.current && project.endDate) {
               projectData.endDate = project.endDate.toISOString();
+            }
+            // Only include optional URL fields if they have valid values
+            if (project.role && project.role.trim()) {
+              projectData.role = project.role;
+            }
+            if (project.projectUrl && project.projectUrl.trim()) {
+              projectData.projectUrl = project.projectUrl;
+            }
+            if (project.githubUrl && project.githubUrl.trim()) {
+              projectData.githubUrl = project.githubUrl;
             }
             return projectData;
           })
@@ -635,6 +656,14 @@ const CandidateProfile: React.FC = () => {
             ...profile.availability,
             startDate: profile.availability.startDate instanceof Date ? profile.availability.startDate.toISOString() : profile.availability.startDate // Full ISO datetime
           };
+        }
+
+        // Clean up empty optional URL fields
+        if (!updatedProfile.linkedinUrl || !updatedProfile.linkedinUrl.trim()) {
+          delete updatedProfile.linkedinUrl;
+        }
+        if (!updatedProfile.portfolioUrl || !updatedProfile.portfolioUrl.trim()) {
+          delete updatedProfile.portfolioUrl;
         }
 
         profileToSave = {
@@ -828,9 +857,41 @@ const CandidateProfile: React.FC = () => {
     }));
   };
 
+  const addTechnology = (projectIndex: number) => {
+    const tech = newTechnology[projectIndex]?.trim();
+    if (tech && !profile.projects[projectIndex].technologies.includes(tech)) {
+      setProfile(prev => ({
+        ...prev,
+        projects: prev.projects.map((project, i) => 
+          i === projectIndex 
+            ? { ...project, technologies: [...project.technologies, tech] }
+            : project
+        )
+      }));
+      setNewTechnology(prev => ({ ...prev, [projectIndex]: '' }));
+    }
+  };
+
+  const removeTechnology = (projectIndex: number, techToRemove: string) => {
+    setProfile(prev => ({
+      ...prev,
+      projects: prev.projects.map((project, i) => 
+        i === projectIndex 
+          ? { ...project, technologies: project.technologies.filter(tech => tech !== techToRemove) }
+          : project
+      )
+    }));
+  };
+
+  const safeFormatDate = (date: Date | undefined | null, formatStr: string, fallback: string = ''): string => {
+    if (!date) return fallback;
+    const dateObj = date instanceof Date ? date : new Date(date);
+    return isValid(dateObj) ? format(dateObj, formatStr) : fallback;
+  };
+
   const formatDuration = (startDate: Date, endDate?: Date) => {
-    const start = format(startDate, 'MMMM yyyy');
-    const end = endDate ? format(endDate, 'MMMM yyyy') : 'Present';
+    const start = safeFormatDate(startDate, 'MMMM yyyy', 'N/A');
+    const end = endDate ? safeFormatDate(endDate, 'MMMM yyyy', 'Present') : 'Present';
     return `${start} - ${end}`;
   };
 
@@ -1428,7 +1489,7 @@ const CandidateProfile: React.FC = () => {
                           >
                             <CalendarIcon className="mr-2 h-4 w-4" />
                             {profile.availability.startDate ? (
-                              format(profile.availability.startDate, "PPP")
+                              safeFormatDate(profile.availability.startDate, "PPP", "Pick a date")
                             ) : (
                               <span>Pick a date</span>
                             )}
@@ -1510,7 +1571,7 @@ const CandidateProfile: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Available From</span>
                       <span className="text-sm text-gray-600">
-                        {format(profile.availability.startDate, 'MMM dd, yyyy')}
+                        {safeFormatDate(profile.availability.startDate, 'MMM dd, yyyy', 'N/A')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -1646,7 +1707,7 @@ const CandidateProfile: React.FC = () => {
                                     )}
                                   >
                                     <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {exp.startDate ? format(exp.startDate, 'MMMM yyyy') : <span>Pick a date</span>}
+                                    {exp.startDate ? safeFormatDate(exp.startDate, 'MMMM yyyy', 'Pick a date') : <span>Pick a date</span>}
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
@@ -1677,7 +1738,7 @@ const CandidateProfile: React.FC = () => {
                                       )}
                                     >
                                       <CalendarIcon className="mr-2 h-4 w-4" />
-                                      {exp.endDate ? format(exp.endDate, 'MMMM yyyy') : <span>Pick a date</span>}
+                                      {exp.endDate ? safeFormatDate(exp.endDate, 'MMMM yyyy', 'Pick a date') : <span>Pick a date</span>}
                                     </Button>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-auto p-0" align="start">
@@ -2011,19 +2072,51 @@ const CandidateProfile: React.FC = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <Label>Issue Date</Label>
-                              <Input
-                                type="month"
-                                value={format(cert.issueDate, 'yyyy-MM')}
-                                onChange={(e) => updateCertification(index, 'issueDate', new Date(e.target.value))}
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !cert.issueDate && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {cert.issueDate ? safeFormatDate(cert.issueDate, 'MMMM yyyy', 'Pick a date') : <span>Pick a date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <MonthYearPicker
+                                    value={cert.issueDate || new Date()}
+                                    onChange={(date) => updateCertification(index, 'issueDate', date)}
+                                    maxDate={new Date()}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </div>
                             <div>
                               <Label>Expiry Date (Optional)</Label>
-                              <Input
-                                type="month"
-                                value={cert.expiryDate ? format(cert.expiryDate, 'yyyy-MM') : ''}
-                                onChange={(e) => updateCertification(index, 'expiryDate', e.target.value ? new Date(e.target.value) : undefined)}
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !cert.expiryDate && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {cert.expiryDate ? safeFormatDate(cert.expiryDate, 'MMMM yyyy', 'Pick a date') : <span>Pick a date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <MonthYearPicker
+                                    value={cert.expiryDate || new Date()}
+                                    onChange={(date) => updateCertification(index, 'expiryDate', date)}
+                                    minDate={cert.issueDate}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </div>
                           </div>
                           
@@ -2055,11 +2148,11 @@ const CandidateProfile: React.FC = () => {
                             {cert.issuer || 'Issuing Organization'}
                           </p>
                           <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
-                            <span>Issued {format(cert.issueDate, 'MMM yyyy')}</span>
+                            <span>Issued {safeFormatDate(cert.issueDate, 'MMM yyyy', 'N/A')}</span>
                             {cert.expiryDate && (
                               <>
                                 <span>•</span>
-                                <span>Expires {format(cert.expiryDate, 'MMM yyyy')}</span>
+                                <span>Expires {safeFormatDate(cert.expiryDate, 'MMM yyyy', 'N/A')}</span>
                               </>
                             )}
                             {cert.credentialId && (
@@ -2202,36 +2295,106 @@ const CandidateProfile: React.FC = () => {
                           
                           <div>
                             <Label>Technologies</Label>
-                            <Input
-                              value={project.technologies.join(', ')}
-                              onChange={(e) => updateProject(index, 'technologies', e.target.value.split(',').map(tech => tech.trim()).filter(tech => tech))}
-                              placeholder="React, Node.js, MongoDB, AWS"
-                            />
+                            {project.technologies.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {project.technologies.map((tech, techIndex) => (
+                                  <Badge key={techIndex} variant="secondary" className="text-sm">
+                                    {tech}
+                                    <button
+                                      onClick={() => removeTechnology(index, tech)}
+                                      className="ml-2 hover:text-red-500"
+                                      type="button"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <Input
+                                value={newTechnology[index] || ''}
+                                onChange={(e) => setNewTechnology(prev => ({ ...prev, [index]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    addTechnology(index);
+                                  }
+                                }}
+                                placeholder="e.g., React, Node.js, Python"
+                              />
+                              <Button 
+                                type="button"
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => addTechnology(index)}
+                              >
+                                <Plus className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                               <Label>Start Date</Label>
-                              <Input
-                                type="month"
-                                value={format(project.startDate, 'yyyy-MM')}
-                                onChange={(e) => updateProject(index, 'startDate', new Date(e.target.value))}
-                              />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !project.startDate && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {project.startDate ? safeFormatDate(project.startDate, 'MMMM yyyy', 'Pick a date') : <span>Pick a date</span>}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <MonthYearPicker
+                                    value={project.startDate || new Date()}
+                                    onChange={(date) => updateProject(index, 'startDate', date)}
+                                    maxDate={new Date()}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                             </div>
                             {!project.current && (
                               <div>
                                 <Label>End Date</Label>
-                                <Input
-                                  type="month"
-                                  value={project.endDate ? format(project.endDate, 'yyyy-MM') : ''}
-                                  onChange={(e) => updateProject(index, 'endDate', e.target.value ? new Date(e.target.value) : undefined)}
-                                />
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !project.endDate && "text-muted-foreground"
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {project.endDate ? safeFormatDate(project.endDate, 'MMMM yyyy', 'Pick a date') : <span>Pick a date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <MonthYearPicker
+                                      value={project.endDate || new Date()}
+                                      onChange={(date) => updateProject(index, 'endDate', date)}
+                                      minDate={project.startDate}
+                                      maxDate={new Date()}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                             )}
                             <div className="flex items-center space-x-2">
                               <Switch
                                 checked={project.current}
-                                onCheckedChange={(checked) => updateProject(index, 'current', checked)}
+                                onCheckedChange={(checked) => {
+                                  updateProject(index, 'current', checked);
+                                  if (checked) {
+                                    updateProject(index, 'endDate', undefined);
+                                  }
+                                }}
                               />
                               <Label>Ongoing Project</Label>
                             </div>
