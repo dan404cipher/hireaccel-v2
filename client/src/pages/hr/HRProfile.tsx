@@ -15,12 +15,26 @@ import {
   MapPin,
   Save,
   Edit,
-  Clock
+  Clock,
+  Briefcase,
+  Building2,
+  MapPinIcon,
+  DollarSign,
+  Calendar,
+  Eye
 } from "lucide-react";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
-import { useUserByCustomId } from "@/hooks/useApi";
+import { useUserByCustomId, useJobs, useCompanies } from "@/hooks/useApi";
 
 export default function HRProfile() {
   const { user, updateAuth } = useAuth();
@@ -41,6 +55,31 @@ export default function HRProfile() {
   const isViewingOtherProfile = useMemo(() => {
     return customId && targetUser && targetUser.id !== user?.id;
   }, [customId, targetUser, user?.id]);
+  
+  // Fetch jobs posted by this HR user
+  const { data: jobsResponse, loading: jobsLoading } = useJobs({
+    createdBy: displayUser?.id,
+    limit: 100
+  });
+  
+  // Fetch companies created/managed by this HR user
+  const { data: companiesResponse, loading: companiesLoading } = useCompanies({
+    limit: 100
+  });
+  
+  // Process data
+  const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse as any)?.data || [];
+  const allCompanies = Array.isArray(companiesResponse) ? companiesResponse : (companiesResponse as any)?.data || [];
+  
+  // Filter companies to show only those created by this specific HR user
+  const companies = useMemo(() => {
+    if (!displayUser?.id) return [];
+    return allCompanies.filter((company: any) => {
+      // Check if company was created by this HR user
+      const companyCreatedBy = company.createdBy?._id || company.createdBy;
+      return companyCreatedBy === displayUser.id;
+    });
+  }, [allCompanies, displayUser?.id]);
   
   // Auto-navigate to include customId in URL for HR users
   useEffect(() => {
@@ -348,6 +387,180 @@ export default function HRProfile() {
                   )}
                 </Button>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Jobs Posted Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5" />
+              Jobs Posted ({jobs.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {jobsLoading ? (
+              <div className="flex justify-center py-8">
+                <Clock className="w-8 h-8 animate-spin text-gray-400" />
+              </div>
+            ) : jobs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No jobs posted yet</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job Title</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Posted</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jobs.map((job: any) => (
+                    <TableRow key={job._id}>
+                      <TableCell className="font-medium">{job.title}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-blue-600" />
+                          {job.companyId?.name || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPinIcon className="w-4 h-4 text-gray-500" />
+                          {job.location || 'Remote'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{job.type || 'Full-time'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          className={
+                            job.status === 'open' 
+                              ? 'bg-green-100 text-green-800 border-green-200' 
+                              : job.status === 'closed'
+                              ? 'bg-red-100 text-red-800 border-red-200'
+                              : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                          }
+                        >
+                          {job.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Calendar className="w-4 h-4" />
+                          {new Date(job.createdAt).toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/dashboard/jobs`)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Companies Created Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Companies Created ({companies.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {companiesLoading ? (
+              <div className="flex justify-center py-8">
+                <Clock className="w-8 h-8 animate-spin text-gray-400" />
+              </div>
+            ) : companies.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No companies created yet</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company Name</TableHead>
+                    <TableHead>Industry</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Total Jobs</TableHead>
+                    <TableHead>Total Hires</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {companies.map((company: any) => (
+                    <TableRow key={company._id}>
+                      <TableCell className="font-medium">{company.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{company.industry || 'N/A'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPinIcon className="w-4 h-4 text-gray-500" />
+                          {company.location || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          className={
+                            company.status === 'active' 
+                              ? 'bg-green-100 text-green-800 border-green-200' 
+                              : company.status === 'suspended'
+                              ? 'bg-red-100 text-red-800 border-red-200'
+                              : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                          }
+                        >
+                          {company.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Briefcase className="w-4 h-4 text-blue-600" />
+                          {company.totalJobs || 0}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="w-4 h-4 text-green-600" />
+                          {company.totalHires || 0}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate(`/dashboard/companies`)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

@@ -172,6 +172,16 @@ export class UserController {
   static createUser = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const validatedData = createUserSchema.parse(req.body);
     
+    // Prevent creating admin users through user management
+    if (validatedData.role === UserRole.ADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Admin users cannot be created through user management. Use the create-admin script instead.',
+      });
+    }
+    
     // Check if user already exists
     const existingUser = await User.findByEmail(validatedData.email);
     if (existingUser) {
@@ -276,9 +286,29 @@ export class UserController {
     const { id } = req.params;
     const updates = updateUserSchema.parse(req.body);
     
+    // Prevent changing role to admin through user management
+    if (updates.role && updates.role === UserRole.ADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Cannot change user role to admin through user management.',
+      });
+    }
+    
     const user = await User.findById(id);
     if (!user) {
       throw createNotFoundError('User', id);
+    }
+    
+    // Prevent editing existing admin users through user management
+    if (user.role === UserRole.ADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Admin users cannot be edited through user management.',
+      });
     }
     
     const beforeState = user.toObject();
@@ -319,17 +349,14 @@ export class UserController {
       throw createNotFoundError('User', id);
     }
     
-    // Prevent deleting the last admin
+    // Prevent deleting admin users through user management
     if (user.role === UserRole.ADMIN) {
-      const adminCount = await User.countDocuments({ role: UserRole.ADMIN, status: UserStatus.ACTIVE });
-      if (adminCount <= 1) {
-        return res.status(400).json({
-          type: 'https://httpstatuses.com/400',
-          title: 'Bad Request',
-          status: 400,
-          detail: 'Cannot delete the last admin user',
-        });
-      }
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Admin users cannot be deleted through user management.',
+      });
     }
     
     const beforeState = user.toObject();

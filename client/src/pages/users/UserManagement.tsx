@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,7 @@ const roleLabels = {
 
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -168,7 +170,7 @@ export default function UserManagement() {
     refetch: refetchUsers 
   } = useUsers({
     page,
-    limit: 50,
+    limit: 200, // Increased to show all users without pagination
     search: searchTerm || undefined,
     role: roleFilter === 'all' ? undefined : roleFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -181,13 +183,12 @@ export default function UserManagement() {
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const allUsers = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data || []);
   
-  // Filter out current admin user to prevent self-deactivation
+  // Don't filter admins - just show all users
+  // Edit/Delete actions are already disabled for admin users in the UI
   const users = useMemo(() => {
     if (!allUsers || !Array.isArray(allUsers)) return [];
-    if (!currentUser?.id) return allUsers;
-    
-    return allUsers.filter(user => !(user.role === 'admin' && user._id === currentUser.id));
-  }, [allUsers, currentUser?.id]);
+    return allUsers;
+  }, [allUsers]);
   
   const meta = Array.isArray(usersResponse) ? null : (usersResponse as any)?.meta;
   const totalPages = meta?.page?.total || 1;
@@ -561,10 +562,10 @@ export default function UserManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="hr">HR Manager</SelectItem>
-                <SelectItem value="agent">Agent</SelectItem>
                 <SelectItem value="candidate">Candidate</SelectItem>
+                <SelectItem value="agent">Agent</SelectItem>
+                <SelectItem value="hr">HR Manager</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -774,37 +775,51 @@ export default function UserManagement() {
                               <Eye className="mr-2 h-4 w-4 text-blue-600" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                              <Edit className="mr-2 h-4 w-4 text-emerald-600" />
-                              Edit User
-                            </DropdownMenuItem>
-                            {user.status === 'active' ? (
-                              <>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
-                                  <UserX className="mr-2 h-4 w-4 text-gray-600" />
-                                  Deactivate
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'suspended')}>
-                                  <UserX className="mr-2 h-4 w-4 text-amber-600" />
-                                  Suspend
-                                </DropdownMenuItem>
-                              </>
-                            ) : (
-                              <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
-                                <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
-                                Activate
+                            {(user.role === 'hr' || user.role === 'candidate') && (
+                              <DropdownMenuItem onClick={() => {
+                                if (user.role === 'candidate') {
+                                  navigate(`/dashboard/candidates/${user.customId || user._id}`);
+                                } else if (user.role === 'hr') {
+                                  navigate(`/dashboard/hr-profile/${user.customId || user._id}`);
+                                }
+                              }}>
+                                <Eye className="mr-2 h-4 w-4 text-purple-600" />
+                                View Profile
                               </DropdownMenuItem>
                             )}
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem 
-                                  className="text-red-600"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete User
+                            {user.role !== 'admin' && (
+                              <>
+                                <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                  <Edit className="mr-2 h-4 w-4 text-emerald-600" />
+                                  Edit User
                                 </DropdownMenuItem>
-                              </AlertDialogTrigger>
+                                {user.status === 'active' ? (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
+                                      <UserX className="mr-2 h-4 w-4 text-gray-600" />
+                                      Deactivate
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'suspended')}>
+                                      <UserX className="mr-2 h-4 w-4 text-amber-600" />
+                                      Suspend
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : (
+                                  <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
+                                    <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
+                                    Activate
+                                  </DropdownMenuItem>
+                                )}
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem 
+                                      className="text-red-600"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete User
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete User</AlertDialogTitle>
@@ -825,6 +840,8 @@ export default function UserManagement() {
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -926,7 +943,6 @@ export default function UserManagement() {
                   <SelectItem value="candidate">Candidate</SelectItem>
                   <SelectItem value="agent">Agent</SelectItem>
                   <SelectItem value="hr">HR Manager</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1090,7 +1106,6 @@ export default function UserManagement() {
                   <SelectItem value="candidate">Candidate</SelectItem>
                   <SelectItem value="agent">Agent</SelectItem>
                   <SelectItem value="hr">HR Manager</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
