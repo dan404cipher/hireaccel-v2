@@ -44,7 +44,9 @@ import {
   Users,
   Briefcase,
   UserCheck,
-  DollarSign
+  DollarSign,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -154,10 +156,16 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
+      setPage(1); // Reset to first page when search changes
     }, 500);
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+  
+  // Reset to first page when company filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [companyFilter]);
   
   // Memoize the API parameters to prevent unnecessary re-renders
   const jobsParams = useMemo(() => ({
@@ -203,6 +211,48 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const [hiredCandidatesCount, setHiredCandidatesCount] = useState(0);
   const [hiredCandidatesLoading, setHiredCandidatesLoading] = useState(true);
   
+  // Fetch all jobs stats (not paginated)
+  const [allJobsStats, setAllJobsStats] = useState({
+    totalJobs: 0,
+    openJobs: 0,
+    totalApplications: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+  
+  const fetchAllJobsStats = useCallback(async () => {
+    try {
+      setStatsLoading(true);
+      // Fetch all jobs without pagination for stats
+      const params: any = {
+        limit: 1000 // Get all jobs for accurate stats
+      };
+      
+      // HR users can only see jobs they posted
+      if (user?.role === 'hr' && user?.id) {
+        params.createdBy = user.id;
+      }
+      
+      const response = await apiClient.getJobs(params);
+      const allJobs = Array.isArray(response) ? response : (response?.data || []);
+      
+      // Calculate total applications
+      let totalApps = 0;
+      for (const job of allJobs) {
+        totalApps += (job as any).applications || 0;
+      }
+      
+      setAllJobsStats({
+        totalJobs: allJobs.length,
+        openJobs: allJobs.filter((j: any) => j.status === 'open').length,
+        totalApplications: totalApps
+      });
+    } catch (error) {
+      console.error('Failed to fetch job stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [user?.role, user?.id]);
+  
   const fetchHiredCandidates = useCallback(async () => {
     if (!user?.id) return;
     
@@ -230,8 +280,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   }, [user?.id]);
   
   useEffect(() => {
+    fetchAllJobsStats();
     fetchHiredCandidates();
-  }, [fetchHiredCandidates]);
+  }, [fetchAllJobsStats, fetchHiredCandidates]);
   
   // Check if HR has any companies
   const hasCompanies = companies.length > 0;
@@ -378,6 +429,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       setIsCreateDialogOpen(false);
       resetCreateForm();
       refetchJobs();
+      fetchAllJobsStats(); // Refresh stats
       toast({
         title: "Success",
         description: 'Job created successfully'
@@ -584,6 +636,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       try {
         await deleteJob(id);
         refetchJobs();
+        fetchAllJobsStats(); // Refresh stats
         toast({
           title: "Success", 
           description: "Job deleted successfully"
@@ -722,6 +775,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       setIsEditDialogOpen(false);
       setSelectedJobForEdit(null);
       refetchJobs();
+      fetchAllJobsStats(); // Refresh stats
     } catch (e) {
       console.error('Update job error:', e);
     }
@@ -1452,7 +1506,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               <div>
                 <p className="text-sm text-blue-100">Total Jobs</p>
                 <p className="text-2xl font-bold text-white">
-                  {jobsLoading ? "..." : jobs.length}
+                  {statsLoading ? "..." : allJobsStats.totalJobs}
                 </p>
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
@@ -1467,7 +1521,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               <div>
                 <p className="text-sm text-emerald-100">Open Jobs</p>
                 <p className="text-2xl font-bold text-white">
-                  {jobsLoading ? "..." : jobs.filter(j => j.status === 'open').length}
+                  {statsLoading ? "..." : allJobsStats.openJobs}
                 </p>
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
@@ -1482,7 +1536,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
               <div>
                 <p className="text-sm text-purple-100">Total Applications</p>
                 <p className="text-2xl font-bold text-white">
-                  {jobsLoading ? "..." : jobs.reduce((sum, job) => sum + (job.applications || 0), 0)}
+                  {statsLoading ? "..." : allJobsStats.totalApplications}
                 </p>
               </div>
               <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
@@ -1661,6 +1715,92 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                 ))}
               </TableBody>
             </Table>
+          )}
+          
+          {/* Pagination Controls */}
+          {!jobsLoading && !jobsError && jobs.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                {meta ? (
+                  <>
+                    Showing <span className="font-medium">{((page - 1) * 20) + 1}</span> to{' '}
+                    <span className="font-medium">{Math.min(page * 20, meta.total)}</span> of{' '}
+                    <span className="font-medium">{meta.total}</span> jobs
+                  </>
+                ) : (
+                  <>
+                    Showing <span className="font-medium">{((page - 1) * 20) + 1}</span> to{' '}
+                    <span className="font-medium">{((page - 1) * 20) + jobs.length}</span>
+                    {allJobsStats.totalJobs > 0 && (
+                      <>
+                        {' '}of <span className="font-medium">{allJobsStats.totalJobs}</span>
+                      </>
+                    )} jobs
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {meta && meta.totalPages ? (
+                    <>
+                      {Array.from({ length: Math.min(5, meta.totalPages) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={page === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(pageNum)}
+                            className="w-9"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                      {meta.totalPages > 5 && (
+                        <>
+                          <span className="px-2">...</span>
+                          <Button
+                            variant={page === meta.totalPages ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(meta.totalPages)}
+                            className="w-9"
+                          >
+                            {meta.totalPages}
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <Button
+                      variant={page === 1 ? "default" : "outline"}
+                      size="sm"
+                      className="w-9"
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={jobs.length < 20}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
