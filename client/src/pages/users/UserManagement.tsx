@@ -514,7 +514,7 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-hidden">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -595,7 +595,7 @@ export default function UserManagement() {
       </Card>
 
       {/* Users Table */}
-      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
+      <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
           <CardTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-blue-600" />
@@ -704,7 +704,8 @@ export default function UserManagement() {
             </div>
           ) : (
             <>
-              <Table>
+              <div className="relative overflow-x-auto">
+                <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">
@@ -714,6 +715,7 @@ export default function UserManagement() {
                         aria-label="Select all users"
                       />
                     </TableHead>
+                    <TableHead>ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
@@ -732,6 +734,11 @@ export default function UserManagement() {
                           onCheckedChange={() => handleUserSelect(user._id)}
                           aria-label={`Select ${user.firstName} ${user.lastName}`}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {user.customId}
+                        </Badge>
                       </TableCell>
                       <TableCell className="font-medium text-base">
                         {user.firstName} {user.lastName}
@@ -794,52 +801,16 @@ export default function UserManagement() {
                                   Edit User
                                 </DropdownMenuItem>
                                 {user.status === 'active' ? (
-                                  <>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
-                                      <UserX className="mr-2 h-4 w-4 text-gray-600" />
-                                      Deactivate
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'suspended')}>
-                                      <UserX className="mr-2 h-4 w-4 text-amber-600" />
-                                      Suspend
-                                    </DropdownMenuItem>
-                                  </>
+                                  <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
+                                    <UserX className="mr-2 h-4 w-4 text-gray-600" />
+                                    Deactivate
+                                  </DropdownMenuItem>
                                 ) : (
                                   <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
                                     <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
                                     Activate
                                   </DropdownMenuItem>
                                 )}
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem 
-                                      className="text-red-600"
-                                      onSelect={(e) => e.preventDefault()}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Delete User
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete {user.firstName} {user.lastName}? 
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteUser(user._id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                    disabled={deleteLoading}
-                                  >
-                                    {deleteLoading ? <LoadingSpinner /> : 'Delete'}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
                               </>
                             )}
                           </DropdownMenuContent>
@@ -849,6 +820,7 @@ export default function UserManagement() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
