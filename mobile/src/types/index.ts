@@ -55,6 +55,16 @@ export interface ApiError {
 export type JobType = 'full-time' | 'part-time' | 'contract' | 'internship' | 'remote';
 export type JobStatus = 'open' | 'assigned' | 'interview' | 'closed' | 'cancelled';
 export type JobUrgency = 'low' | 'medium' | 'high' | 'urgent';
+export type WorkType = 'remote' | 'wfo' | 'wfh';
+
+export interface JobRequirements {
+  skills: string[];
+  experienceMin?: number;
+  experienceMax?: number;
+  education: string[];
+  languages?: string[];
+  certifications?: string[];
+}
 
 export interface Job {
   id: string;
@@ -64,6 +74,13 @@ export interface Job {
   company: string;
   companyId: string;
   location: string;
+  address?: {
+    street: string;
+    city: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
   type: JobType;
   salary: string;
   salaryRange?: {
@@ -73,17 +90,29 @@ export interface Job {
   };
   status: JobStatus;
   urgency: JobUrgency;
+  workType?: WorkType;
+  duration?: string;
+  numberOfOpenings?: number;
   applicants: number;
+  applications?: number;
   posted: string;
+  postedAt?: string;
+  closedAt?: string;
   agent?: string;
   assignedAgentId?: string;
-  requirements?: {
-    skills: string[];
-    experience: string;
-    education: string[];
-  };
+  createdBy?: string;
+  requirements?: JobRequirements;
   benefits?: string[];
   isRemote?: boolean;
+  applicationDeadline?: string;
+  interviewProcess?: {
+    rounds: number;
+    estimatedDuration?: string;
+  };
+  isPublic?: boolean;
+  sourcingChannels?: string[];
+  views?: number;
+  lastViewedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

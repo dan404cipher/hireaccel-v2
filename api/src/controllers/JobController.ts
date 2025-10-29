@@ -6,7 +6,7 @@ import { Company } from '@/models/Company';
 import { User } from '@/models/User';
 import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
-import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, WorkType, ExperienceLevel, UserRole, AuditAction } from '@/types';
+import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, WorkType, UserRole, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
 /**
@@ -20,10 +20,20 @@ const createJobSchema = z.object({
   description: z.string().min(1).max(5000),
   requirements: z.object({
     skills: z.array(z.string()).default([]),
-    experience: z.nativeEnum(ExperienceLevel),
+    experienceMin: z.number().min(0, 'Minimum experience cannot be negative').optional(),
+    experienceMax: z.number().min(0, 'Maximum experience cannot be negative').optional(),
     education: z.array(z.string()).default([]),
     languages: z.array(z.string()).default([]),
     certifications: z.array(z.string()).default([]),
+  }).refine(data => {
+    // If both are provided, max must be >= min
+    if (data.experienceMin !== undefined && data.experienceMax !== undefined) {
+      return data.experienceMax >= data.experienceMin;
+    }
+    return true;
+  }, {
+    message: 'Maximum experience must be greater than or equal to minimum experience',
+    path: ['experienceMax'],
   }),
   location: z.string().min(1).max(200),
   address: z.object({

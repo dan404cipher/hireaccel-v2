@@ -57,12 +57,6 @@ export default function JobsScreen() {
     queryFn: () => apiClient.getApplications({ limit: 1000 }),
   });
 
-  // Fetch hired candidates
-  const { data: candidateAssignmentsData } = useQuery({
-    queryKey: ['hired-candidates'],
-    queryFn: () => apiClient.getCandidateAssignments({ limit: 1000 }),
-  });
-
   const jobs = data?.data || [];
   const companies = companiesData?.data || [];
   const canPostJobs = user?.role === 'hr' || user?.role === 'admin';
@@ -72,50 +66,55 @@ export default function JobsScreen() {
   const totalJobs = allJobs.length;
   const openJobs = allJobs.filter((job: any) => job.status === 'open').length;
   const totalApplications = applicationsData?.data?.length || 0;
-  const hiredCandidates = candidateAssignmentsData?.data?.filter((assignment: any) => 
-    assignment.candidateStatus === 'hired'
+  const acceptedApplications = applicationsData?.data?.filter((app: any) => 
+    app.status === 'accepted'
   ).length || 0;
 
-  const renderJob = ({ item: job }: { item: Job }) => (
-    <Card style={styles.jobCard} onPress={() => router.push(`/jobs/${job.id}`)}>
-      <View style={styles.jobHeader}>
-        <View style={styles.jobTitleSection}>
-          <Text variant="titleMedium" style={styles.jobTitle}>
-            {job.title}
-          </Text>
-          <Badge label={job.urgency} type="urgency" />
+  const renderJob = ({ item: job }: { item: Job }) => {
+    // Handle both _id (MongoDB) and id formats
+    const jobId = (job as any)._id || job.id;
+    
+    return (
+      <Card style={styles.jobCard} onPress={() => router.push(`/jobs/${jobId}`)}>
+        <View style={styles.jobHeader}>
+          <View style={styles.jobTitleSection}>
+            <Text variant="titleMedium" style={styles.jobTitle}>
+              {job.title}
+            </Text>
+            <Badge label={job.urgency} type="urgency" />
+          </View>
+          <Badge label={job.status} type="status" />
         </View>
-        <Badge label={job.status} type="status" />
-      </View>
 
-      <Text variant="bodyMedium" style={styles.company}>
-        🏢 {job.company || (job.companyId as any)?.name || 'Company'}
-      </Text>
-      <Text variant="bodySmall" style={styles.location}>
-        📍 {job.location} {job.isRemote ? '• Remote' : ''}
-      </Text>
+        <Text variant="bodyMedium" style={styles.company}>
+          🏢 {job.company || (job.companyId as any)?.name || 'Company'}
+        </Text>
+        <Text variant="bodySmall" style={styles.location}>
+          📍 {job.location} {job.isRemote ? '• Remote' : ''}
+        </Text>
 
-      <Text variant="bodyMedium" style={styles.salary}>
-        💰 {job.salary || (job.salaryRange 
-          ? `${job.salaryRange.currency} ${job.salaryRange.min.toLocaleString()} - ${job.salaryRange.max.toLocaleString()}`
-          : 'Not specified')}
-      </Text>
+        <Text variant="bodyMedium" style={styles.salary}>
+          💰 {job.salary || (job.salaryRange 
+            ? `${job.salaryRange.currency} ${job.salaryRange.min.toLocaleString()} - ${job.salaryRange.max.toLocaleString()}`
+            : 'Not specified')}
+        </Text>
 
-      <View style={styles.jobFooter}>
-        <View style={styles.tags}>
-          <Badge label={job.type} />
+        <View style={styles.jobFooter}>
+          <View style={styles.tags}>
+            <Badge label={job.type} />
+          </View>
+          <View style={styles.meta}>
+            <Text variant="bodySmall" style={styles.metaText}>
+              {job.applicants || job.applications || 0} applicants
+            </Text>
+            <Text variant="bodySmall" style={styles.metaText}>
+              {formatRelativeTime(job.createdAt)}
+            </Text>
+          </View>
         </View>
-        <View style={styles.meta}>
-          <Text variant="bodySmall" style={styles.metaText}>
-            {job.applicants} applicants
-          </Text>
-          <Text variant="bodySmall" style={styles.metaText}>
-            {formatRelativeTime(job.createdAt)}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   if (isLoading) {
     return <LoadingSpinner message="Loading jobs..." />;
@@ -232,8 +231,8 @@ export default function JobsScreen() {
               <MaterialCommunityIcons name="account-check" size={20} color="white" />
             </View>
             <View style={styles.statContent}>
-              <Text style={styles.statValue}>{hiredCandidates}</Text>
-              <Text style={styles.statLabel}>Hired</Text>
+              <Text style={styles.statValue}>{acceptedApplications}</Text>
+              <Text style={styles.statLabel}>Accepted</Text>
             </View>
           </View>
         </View>
@@ -251,7 +250,7 @@ export default function JobsScreen() {
         <FlatList
           data={jobs}
           renderItem={renderJob}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => (item as any)._id || item.id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
         />

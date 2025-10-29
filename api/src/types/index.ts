@@ -310,7 +310,8 @@ export enum WorkType {
  */
 export interface JobRequirements {
   skills: string[];
-  experience: ExperienceLevel;
+  experienceMin?: number;
+  experienceMax?: number;
   education: string[];
   languages?: string[];
   certifications?: string[];

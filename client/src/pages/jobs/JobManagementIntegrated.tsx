@@ -88,7 +88,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     salaryMax: '',
     currency: 'INR',
     skills: '',
-    experience: 'mid' as const,
+    experienceMin: '',
+    experienceMax: '',
     benefits: '',
     applicationDeadline: '',
     interviewRounds: 2,
@@ -103,6 +104,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const [page, setPage] = useState(1);
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
   const [skillInputValue, setSkillInputValue] = useState('');
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [filteredCities, setFilteredCities] = useState<string[]>([]);
 
   // Skill suggestions data
   const skillSuggestions = [
@@ -115,6 +118,30 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     'Data Analysis', 'Business Intelligence', 'Tableau', 'Power BI', 'Excel',
     'Project Management', 'Scrum', 'Kanban', 'JIRA', 'Confluence', 'Slack',
     'Communication', 'Leadership', 'Problem Solving', 'Teamwork', 'Time Management'
+  ];
+
+  // Indian cities data
+  const indianCities = [
+    'Mumbai, Maharashtra', 'Delhi, Delhi', 'Bangalore, Karnataka', 'Hyderabad, Telangana',
+    'Chennai, Tamil Nadu', 'Kolkata, West Bengal', 'Pune, Maharashtra', 'Ahmedabad, Gujarat',
+    'Jaipur, Rajasthan', 'Surat, Gujarat', 'Lucknow, Uttar Pradesh', 'Kanpur, Uttar Pradesh',
+    'Nagpur, Maharashtra', 'Indore, Madhya Pradesh', 'Thane, Maharashtra', 'Bhopal, Madhya Pradesh',
+    'Visakhapatnam, Andhra Pradesh', 'Pimpri-Chinchwad, Maharashtra', 'Patna, Bihar', 'Vadodara, Gujarat',
+    'Ghaziabad, Uttar Pradesh', 'Ludhiana, Punjab', 'Agra, Uttar Pradesh', 'Nashik, Maharashtra',
+    'Faridabad, Haryana', 'Meerut, Uttar Pradesh', 'Rajkot, Gujarat', 'Kalyan-Dombivali, Maharashtra',
+    'Vasai-Virar, Maharashtra', 'Varanasi, Uttar Pradesh', 'Srinagar, Jammu and Kashmir', 'Aurangabad, Maharashtra',
+    'Dhanbad, Jharkhand', 'Amritsar, Punjab', 'Navi Mumbai, Maharashtra', 'Allahabad, Uttar Pradesh',
+    'Ranchi, Jharkhand', 'Howrah, West Bengal', 'Coimbatore, Tamil Nadu', 'Jabalpur, Madhya Pradesh',
+    'Gwalior, Madhya Pradesh', 'Vijayawada, Andhra Pradesh', 'Jodhpur, Rajasthan', 'Madurai, Tamil Nadu',
+    'Raipur, Chhattisgarh', 'Kota, Rajasthan', 'Chandigarh, Chandigarh', 'Guwahati, Assam',
+    'Solapur, Maharashtra', 'Hubli-Dharwad, Karnataka', 'Mysore, Karnataka', 'Tiruchirappalli, Tamil Nadu',
+    'Bareilly, Uttar Pradesh', 'Moradabad, Uttar Pradesh', 'Gurgaon, Haryana', 'Aligarh, Uttar Pradesh',
+    'Jalandhar, Punjab', 'Bhubaneswar, Odisha', 'Salem, Tamil Nadu', 'Warangal, Telangana',
+    'Guntur, Andhra Pradesh', 'Bhiwandi, Maharashtra', 'Saharanpur, Uttar Pradesh', 'Gorakhpur, Uttar Pradesh',
+    'Bikaner, Rajasthan', 'Amravati, Maharashtra', 'Noida, Uttar Pradesh', 'Jamshedpur, Jharkhand',
+    'Bhilai Nagar, Chhattisgarh', 'Cuttack, Odisha', 'Kochi, Kerala', 'Udaipur, Rajasthan',
+    'Bhavnagar, Gujarat', 'Dehradun, Uttarakhand', 'Asansol, West Bengal', 'Nellore, Andhra Pradesh',
+    'Ajmer, Rajasthan', 'Mangalore, Karnataka', 'Thiruvananthapuram, Kerala', 'Kolhapur, Maharashtra'
   ];
 
   // Filter suggestions based on input
@@ -297,16 +324,31 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       return;
     }
 
+    // Parse location to populate address fields
+    const location = createFormData.location.trim();
+    let city = '';
+    let state = '';
+    
+    // If location is in "City, State" format, parse it
+    if (location.includes(',')) {
+      const parts = location.split(',').map(p => p.trim());
+      city = parts[0] || location;
+      state = parts[1] || '';
+    } else {
+      // If no comma, use the whole string as city
+      city = location;
+    }
+
     const jobData = {
       title: createFormData.title.trim(),
       description: createFormData.description.trim(),
-      location: createFormData.location.trim(),
+      location: location,
       address: {
-        street: createFormData.address.street.trim(),
-        city: createFormData.address.city.trim(),
-        state: createFormData.address.state.trim(),
-        zipCode: createFormData.address.zipCode.trim(),
-        country: createFormData.address.country.trim()
+        street: createFormData.address.street.trim() || city, // Use city as fallback for street
+        city: city,
+        state: state,
+        zipCode: createFormData.address.zipCode.trim() || '',
+        country: createFormData.address.country.trim() || 'India'
       },
       type: createFormData.type,
       workType: createFormData.workType,
@@ -320,7 +362,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       },
       requirements: {
         skills: createFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
-        experience: createFormData.experience
+        experienceMin: parseInt(createFormData.experienceMin) || 0,
+        experienceMax: parseInt(createFormData.experienceMax) || 0
       },
       benefits: createFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
       applicationDeadline: createFormData.applicationDeadline ? new Date(createFormData.applicationDeadline).toISOString() : undefined,
@@ -432,6 +475,29 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       errors.skills = 'At least one skill is required';
     }
 
+    // Experience validation
+    if (!createFormData.experienceMin.trim()) {
+      errors.experienceMin = 'Minimum experience is required';
+    }
+    
+    if (!createFormData.experienceMax.trim()) {
+      errors.experienceMax = 'Maximum experience is required';
+    }
+    
+    if (createFormData.experienceMin && createFormData.experienceMax) {
+      const min = parseInt(createFormData.experienceMin);
+      const max = parseInt(createFormData.experienceMax);
+      if (min < 0) {
+        errors.experienceMin = 'Experience cannot be negative';
+      }
+      if (max < 0) {
+        errors.experienceMax = 'Experience cannot be negative';
+      }
+      if (min > max) {
+        errors.experienceMax = 'Maximum experience must be greater than or equal to minimum';
+      }
+    }
+
     // Duration validation for contract and internship positions
     if ((createFormData.type === 'contract' || createFormData.type === 'internship') && !createFormData.duration.trim()) {
       errors.duration = 'Duration is required for contract and internship positions';
@@ -487,13 +553,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       title: '',
       description: '',
       location: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: ''
+      },
       type: 'full-time',
       workType: 'wfo',
       salaryMin: '',
       salaryMax: '',
       currency: 'INR',
       skills: '',
-      experience: 'mid',
+      experienceMin: '',
+      experienceMax: '',
       benefits: '',
       applicationDeadline: '',
       interviewRounds: 2,
@@ -534,7 +608,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     const salaryMax = job.salaryRange?.max ? String(job.salaryRange.max) : '';
     const currency = job.salaryRange?.currency || 'INR';
     const skills = Array.isArray(job.requirements?.skills) ? job.requirements.skills.join(', ') : '';
-    const experience = job.requirements?.experience || 'mid';
+    const experienceMin = job.requirements?.experienceMin !== undefined ? String(job.requirements.experienceMin) : '';
+    const experienceMax = job.requirements?.experienceMax !== undefined ? String(job.requirements.experienceMax) : '';
     const benefits = Array.isArray(job.benefits) ? job.benefits.join(', ') : '';
     const interviewRounds = job.interviewProcess?.rounds || 2;
     const estimatedDuration = job.interviewProcess?.estimatedDuration || '2-3 weeks';
@@ -549,7 +624,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       salaryMax,
       currency,
       skills,
-      experience,
+      experienceMin,
+      experienceMax,
       benefits,
       applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
       interviewRounds,
@@ -572,7 +648,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     salaryMax: '',
     currency: 'INR',
     skills: '',
-    experience: 'mid' as const,
+    experienceMin: '',
+    experienceMax: '',
     benefits: '',
     applicationDeadline: '',
     interviewRounds: 2,
@@ -589,10 +666,33 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       toast({ title: 'Validation Error', description: 'Please fill all required fields', variant: 'destructive' });
       return;
     }
+    
+    // Parse location to populate address fields
+    const location = editFormData.location.trim();
+    let city = '';
+    let state = '';
+    
+    // If location is in "City, State" format, parse it
+    if (location.includes(',')) {
+      const parts = location.split(',').map(p => p.trim());
+      city = parts[0] || location;
+      state = parts[1] || '';
+    } else {
+      // If no comma, use the whole string as city
+      city = location;
+    }
+    
     const data = {
       title: editFormData.title.trim(),
       description: editFormData.description.trim(),
-      location: editFormData.location.trim(),
+      location: location,
+      address: {
+        street: city, // Use city as fallback for street
+        city: city,
+        state: state,
+        zipCode: '',
+        country: 'India'
+      },
       type: editFormData.type,
       workType: editFormData.workType,
       duration: (editFormData.type === 'contract' || editFormData.type === 'internship') ? editFormData.duration : undefined,
@@ -605,7 +705,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       },
       requirements: {
         skills: editFormData.skills.split(',').map(s => s.trim()).filter(Boolean),
-        experience: editFormData.experience,
+        experienceMin: parseInt(editFormData.experienceMin) || 0,
+        experienceMax: parseInt(editFormData.experienceMax) || 0,
       },
       benefits: editFormData.benefits.split(',').map(s => s.trim()).filter(Boolean),
       applicationDeadline: editFormData.applicationDeadline ? new Date(editFormData.applicationDeadline).toISOString() : undefined,
@@ -617,10 +718,10 @@ export default function JobManagementIntegrated(): React.JSX.Element {
 
     try {
       await updateJob({ id: selectedJobForEdit.id || selectedJobForEdit._id, data });
+      toast({ title: 'Success', description: 'Job updated successfully' });
       setIsEditDialogOpen(false);
       setSelectedJobForEdit(null);
       refetchJobs();
-      toast({ title: 'Success', description: 'Job updated successfully' });
     } catch (e) {
       console.error('Update job error:', e);
     }
@@ -673,63 +774,72 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       <p className="text-sm text-red-500">{formErrors.title}</p>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location (Auto-filled from company)</Label>
+                  <div className="space-y-2 relative">
+                    <Label htmlFor="location">Location <span className="text-red-500">*</span></Label>
                     <Input 
                       id="location" 
-                      placeholder="Select a company to auto-fill location"
+                      placeholder="Type to search cities in India..."
                       value={createFormData.location}
-                      readOnly
-                      className="bg-muted/50 cursor-not-allowed"
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setCreateFormData({...createFormData, location: value});
+                        
+                        // Filter cities based on input
+                        if (value.length > 0) {
+                          const filtered = indianCities.filter(city => 
+                            city.toLowerCase().includes(value.toLowerCase())
+                          ).slice(0, 8); // Show max 8 suggestions
+                          setFilteredCities(filtered);
+                          setShowCitySuggestions(filtered.length > 0);
+                        } else {
+                          setShowCitySuggestions(false);
+                          setFilteredCities([]);
+                        }
+                      }}
+                      onFocus={(e) => {
+                        if (e.target.value.length > 0) {
+                          const filtered = indianCities.filter(city => 
+                            city.toLowerCase().includes(e.target.value.toLowerCase())
+                          ).slice(0, 8);
+                          setFilteredCities(filtered);
+                          setShowCitySuggestions(filtered.length > 0);
+                        }
+                      }}
+                      onBlur={() => {
+                        // Delay to allow click on suggestion
+                        setTimeout(() => setShowCitySuggestions(false), 200);
+                      }}
+                      className={formErrors.location ? "border-red-500" : ""}
                     />
-                    <p className="text-xs text-muted-foreground">Location will be automatically filled when you select a company</p>
+                    {showCitySuggestions && filteredCities.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {filteredCities.map((city, index) => (
+                          <div
+                            key={index}
+                            className="px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center gap-2"
+                            onClick={() => {
+                              setCreateFormData({...createFormData, location: city});
+                              setShowCitySuggestions(false);
+                            }}
+                          >
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span>{city}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {formErrors.location && (
+                      <p className="text-sm text-red-500">{formErrors.location}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company">Company <span className="text-red-500">*</span></Label>
                     <Select 
                       value={createFormData.companyId} 
                       onValueChange={(value) => {
-                        const selectedCompany = companies.find((company: any) => company._id === value);
-                        let location = '';
-                        let address = {
-                          street: '',
-                          city: '',
-                          state: '',
-                          zipCode: '',
-                          country: ''
-                        };
-                        
-                        if (selectedCompany) {
-                          // Auto-fill address fields from company
-                          if (selectedCompany.address) {
-                            address = {
-                              street: selectedCompany.address.street || '',
-                              city: selectedCompany.address.city || '',
-                              state: selectedCompany.address.state || '',
-                              zipCode: selectedCompany.address.zipCode || '',
-                              country: selectedCompany.address.country || ''
-                            };
-                            
-                            // Also create location string for display
-                            const addressParts = [
-                              selectedCompany.address.street,
-                              selectedCompany.address.city,
-                              selectedCompany.address.state,
-                              selectedCompany.address.zipCode,
-                              selectedCompany.address.country
-                            ].filter(Boolean);
-                            location = addressParts.join(', ');
-                          } else if (selectedCompany.location) {
-                            // Fallback to old location format
-                            location = selectedCompany.location;
-                          }
-                        }
-                        
                         setCreateFormData({
                           ...createFormData, 
-                          companyId: value,
-                          location: location,
-                          address: address
+                          companyId: value
                         });
                       }}
                     >
@@ -777,21 +887,37 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="experience">Experience Level</Label>
-                    <Select value={createFormData.experience} onValueChange={(value) => setCreateFormData({...createFormData, experience: value as any})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select experience" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entry">0-2 years (Entry Level)</SelectItem>
-                        <SelectItem value="junior">2-5 years (Junior)</SelectItem>
-                        <SelectItem value="mid">5-10 years (Mid Level)</SelectItem>
-                        <SelectItem value="senior">10-15 years (Senior)</SelectItem>
-                        <SelectItem value="lead">15+ years (Lead/Principal)</SelectItem>
-                        <SelectItem value="executive">20+ years (Executive)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="experienceMin">Min Experience (years) <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="experienceMin" 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 2"
+                      value={createFormData.experienceMin}
+                      onChange={(e) => setCreateFormData({...createFormData, experienceMin: e.target.value})}
+                      className={formErrors.experienceMin ? "border-red-500" : ""}
+                    />
+                    {formErrors.experienceMin && (
+                      <p className="text-sm text-red-500">{formErrors.experienceMin}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="experienceMax">Max Experience (years) <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="experienceMax" 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 5"
+                      value={createFormData.experienceMax}
+                      onChange={(e) => setCreateFormData({...createFormData, experienceMax: e.target.value})}
+                      className={formErrors.experienceMax ? "border-red-500" : ""}
+                    />
+                    {formErrors.experienceMax && (
+                      <p className="text-sm text-red-500">{formErrors.experienceMax}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1104,30 +1230,63 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     <Label htmlFor="edit-title">Job Title <span className="text-red-500">*</span></Label>
                     <Input id="edit-title" value={editFormData.title} onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-location">Location (Auto-filled from company)</Label>
-                    <Input id="edit-location" value={editFormData.location} readOnly className="bg-muted/50 cursor-not-allowed" />
+                  <div className="space-y-2 relative">
+                    <Label htmlFor="edit-location">Location <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="edit-location" 
+                      placeholder="Type to search cities in India..."
+                      value={editFormData.location}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setEditFormData({...editFormData, location: value});
+                        
+                        // Filter cities based on input
+                        if (value.length > 0) {
+                          const filtered = indianCities.filter(city => 
+                            city.toLowerCase().includes(value.toLowerCase())
+                          ).slice(0, 8);
+                          setFilteredCities(filtered);
+                          setShowCitySuggestions(filtered.length > 0);
+                        } else {
+                          setShowCitySuggestions(false);
+                          setFilteredCities([]);
+                        }
+                      }}
+                      onFocus={(e) => {
+                        if (e.target.value.length > 0) {
+                          const filtered = indianCities.filter(city => 
+                            city.toLowerCase().includes(e.target.value.toLowerCase())
+                          ).slice(0, 8);
+                          setFilteredCities(filtered);
+                          setShowCitySuggestions(filtered.length > 0);
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setShowCitySuggestions(false), 200);
+                      }}
+                    />
+                    {showCitySuggestions && filteredCities.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {filteredCities.map((city, index) => (
+                          <div
+                            key={index}
+                            className="px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center gap-2"
+                            onClick={() => {
+                              setEditFormData({...editFormData, location: city});
+                              setShowCitySuggestions(false);
+                            }}
+                          >
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span>{city}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-company">Company <span className="text-red-500">*</span></Label>
                     <Select value={editFormData.companyId} onValueChange={(value) => {
-                      const selectedCompany = companies.find((company: any) => company._id === value);
-                      let location = '';
-                      if (selectedCompany) {
-                        if (selectedCompany.address) {
-                          const addressParts = [
-                            selectedCompany.address.street,
-                            selectedCompany.address.city,
-                            selectedCompany.address.state,
-                            selectedCompany.address.zipCode,
-                            selectedCompany.address.country
-                          ].filter(Boolean);
-                          location = addressParts.join(', ');
-                        } else if (selectedCompany.location) {
-                          location = selectedCompany.location;
-                        }
-                      }
-                      setEditFormData({ ...editFormData, companyId: value, location });
+                      setEditFormData({ ...editFormData, companyId: value });
                     }}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select company" />
@@ -1168,21 +1327,29 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-experience">Experience Level</Label>
-                    <Select value={editFormData.experience} onValueChange={(value) => setEditFormData({...editFormData, experience: value as any})}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select experience" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entry">0-2 years (Entry Level)</SelectItem>
-                        <SelectItem value="junior">2-5 years (Junior)</SelectItem>
-                        <SelectItem value="mid">5-10 years (Mid Level)</SelectItem>
-                        <SelectItem value="senior">10-15 years (Senior)</SelectItem>
-                        <SelectItem value="lead">15+ years (Lead/Principal)</SelectItem>
-                        <SelectItem value="executive">20+ years (Executive)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="edit-experienceMin">Min Experience (years) <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="edit-experienceMin" 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 2"
+                      value={editFormData.experienceMin}
+                      onChange={(e) => setEditFormData({...editFormData, experienceMin: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-experienceMax">Max Experience (years) <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="edit-experienceMax" 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 5"
+                      value={editFormData.experienceMax}
+                      onChange={(e) => setEditFormData({...editFormData, experienceMax: e.target.value})}
+                    />
                   </div>
                 </div>
               </div>

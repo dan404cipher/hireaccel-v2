@@ -31,13 +31,6 @@ export default function AdminLayout() {
         }} 
       />
       <Stack.Screen 
-        name="company-management" 
-        options={{ 
-          title: 'Company Management',
-          headerBackTitle: 'Back',
-        }} 
-      />
-      <Stack.Screen 
         name="user-management" 
         options={{ 
           title: 'User Management',

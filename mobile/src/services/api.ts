@@ -450,6 +450,45 @@ class ApiClient {
     const response = await this.client.get('/api/v1/agents/me/candidates', { params });
     return response.data;
   }
+
+  // Candidate Assignment methods
+  async getCandidateAssignments(params: {
+    page?: number;
+    limit?: number;
+    assignedBy?: string;
+    assignedTo?: string;
+    candidateStatus?: string;
+    status?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  } = {}): Promise<ApiResponse> {
+    const response = await this.client.get('/api/v1/candidate-assignments', { params });
+    return response.data;
+  }
+
+  async getCandidateAssignmentStats(): Promise<ApiResponse> {
+    const response = await this.client.get('/api/v1/candidate-assignments/stats');
+    return response.data;
+  }
+
+  async updateCandidateAssignment(
+    id: string,
+    data: {
+      priority?: string;
+      candidateStatus?: string;
+      notes?: string;
+      feedback?: string;
+      status?: string;
+    }
+  ): Promise<ApiResponse> {
+    const response = await this.client.put(`/api/v1/candidate-assignments/${id}`, data);
+    return response.data;
+  }
+
+  async deleteCandidateAssignment(id: string): Promise<ApiResponse> {
+    const response = await this.client.delete(`/api/v1/candidate-assignments/${id}`);
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

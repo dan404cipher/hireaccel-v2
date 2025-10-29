@@ -5,7 +5,6 @@ import {
   JobType, 
   JobUrgency,
   WorkType,
-  ExperienceLevel,
   JobRequirements 
 } from '@/types';
 
@@ -71,13 +70,21 @@ const jobRequirementsSchema = new Schema<JobRequirements>({
     maxlength: [50, 'Skill name cannot exceed 50 characters'],
   }],
   
-  experience: {
-    type: String,
-    enum: {
-      values: Object.values(ExperienceLevel),
-      message: 'Experience level must be one of: {VALUES}'
+  experienceMin: {
+    type: Number,
+    min: [0, 'Minimum experience cannot be negative'],
+    default: 0,
+  },
+  
+  experienceMax: {
+    type: Number,
+    min: [0, 'Maximum experience cannot be negative'],
+    validate: {
+      validator: function(this: any, value: number) {
+        return !this.experienceMin || value >= this.experienceMin;
+      },
+      message: 'Maximum experience must be greater than or equal to minimum experience',
     },
-    required: [true, 'Experience level is required'],
   },
   
   education: [{
@@ -592,9 +599,13 @@ jobSchema.statics['searchJobs'] = function(options: any = {}) {
     query.urgency = urgency;
   }
   
-  // Experience level filter
+  // Experience level filter (using range)
   if (experienceLevel) {
-    query['requirements.experience'] = experienceLevel;
+    // Support both old format (string) and new format (number range)
+    if (typeof experienceLevel === 'object' && experienceLevel.min !== undefined) {
+      query['requirements.experienceMin'] = { $lte: experienceLevel.max || 100 };
+      query['requirements.experienceMax'] = { $gte: experienceLevel.min || 0 };
+    }
   }
   
   // Assigned agent filter

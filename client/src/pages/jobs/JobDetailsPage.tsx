@@ -46,8 +46,34 @@ export default function JobDetailsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false);
+  const [filteredCities, setFilteredCities] = useState<string[]>([]);
 
-  const { data: jobResponse, loading, error } = useJob(jobId!);
+  // Indian cities data
+  const indianCities = [
+    'Mumbai, Maharashtra', 'Delhi, Delhi', 'Bangalore, Karnataka', 'Hyderabad, Telangana',
+    'Chennai, Tamil Nadu', 'Kolkata, West Bengal', 'Pune, Maharashtra', 'Ahmedabad, Gujarat',
+    'Jaipur, Rajasthan', 'Surat, Gujarat', 'Lucknow, Uttar Pradesh', 'Kanpur, Uttar Pradesh',
+    'Nagpur, Maharashtra', 'Indore, Madhya Pradesh', 'Thane, Maharashtra', 'Bhopal, Madhya Pradesh',
+    'Visakhapatnam, Andhra Pradesh', 'Pimpri-Chinchwad, Maharashtra', 'Patna, Bihar', 'Vadodara, Gujarat',
+    'Ghaziabad, Uttar Pradesh', 'Ludhiana, Punjab', 'Agra, Uttar Pradesh', 'Nashik, Maharashtra',
+    'Faridabad, Haryana', 'Meerut, Uttar Pradesh', 'Rajkot, Gujarat', 'Kalyan-Dombivali, Maharashtra',
+    'Vasai-Virar, Maharashtra', 'Varanasi, Uttar Pradesh', 'Srinagar, Jammu and Kashmir', 'Aurangabad, Maharashtra',
+    'Dhanbad, Jharkhand', 'Amritsar, Punjab', 'Navi Mumbai, Maharashtra', 'Allahabad, Uttar Pradesh',
+    'Ranchi, Jharkhand', 'Howrah, West Bengal', 'Coimbatore, Tamil Nadu', 'Jabalpur, Madhya Pradesh',
+    'Gwalior, Madhya Pradesh', 'Vijayawada, Andhra Pradesh', 'Jodhpur, Rajasthan', 'Madurai, Tamil Nadu',
+    'Raipur, Chhattisgarh', 'Kota, Rajasthan', 'Chandigarh, Chandigarh', 'Guwahati, Assam',
+    'Solapur, Maharashtra', 'Hubli-Dharwad, Karnataka', 'Mysore, Karnataka', 'Tiruchirappalli, Tamil Nadu',
+    'Bareilly, Uttar Pradesh', 'Moradabad, Uttar Pradesh', 'Gurgaon, Haryana', 'Aligarh, Uttar Pradesh',
+    'Jalandhar, Punjab', 'Bhubaneswar, Odisha', 'Salem, Tamil Nadu', 'Warangal, Telangana',
+    'Guntur, Andhra Pradesh', 'Bhiwandi, Maharashtra', 'Saharanpur, Uttar Pradesh', 'Gorakhpur, Uttar Pradesh',
+    'Bikaner, Rajasthan', 'Amravati, Maharashtra', 'Noida, Uttar Pradesh', 'Jamshedpur, Jharkhand',
+    'Bhilai Nagar, Chhattisgarh', 'Cuttack, Odisha', 'Kochi, Kerala', 'Udaipur, Rajasthan',
+    'Bhavnagar, Gujarat', 'Dehradun, Uttarakhand', 'Asansol, West Bengal', 'Nellore, Andhra Pradesh',
+    'Ajmer, Rajasthan', 'Mangalore, Karnataka', 'Thiruvananthapuram, Kerala', 'Kolhapur, Maharashtra'
+  ];
+
+  const { data: jobResponse, loading, error, refetch: refetchJob } = useJob(jobId!);
   const job = jobResponse?.data || jobResponse;
 
   const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob({
@@ -62,8 +88,15 @@ export default function JobDetailsPage() {
 
   const { mutate: updateJob, loading: updateLoading } = useUpdateJob({
     onSuccess: async () => {
+      console.log('Update job onSuccess called');
       toast({ title: "Success", description: "Job updated successfully" });
       setIsEditDialogOpen(false);
+      // Refetch job data to show updated information
+      refetchJob();
+    },
+    onError: (error) => {
+      console.error('Update job onError called:', error);
+      // Dialog stays open on error so user can fix issues
     }
   });
 
@@ -114,7 +147,8 @@ export default function JobDetailsPage() {
     const salaryMax = job.salaryRange?.max ? String(job.salaryRange.max) : '';
     const currency = job.salaryRange?.currency || 'INR';
     const skills = Array.isArray(job.requirements?.skills) ? job.requirements.skills.join(', ') : '';
-    const experience = job.requirements?.experience || 'mid';
+    const experienceMin = job.requirements?.experienceMin !== undefined ? String(job.requirements.experienceMin) : '';
+    const experienceMax = job.requirements?.experienceMax !== undefined ? String(job.requirements.experienceMax) : '';
     const benefits = Array.isArray(job.benefits) ? job.benefits.join(', ') : '';
     const interviewRounds = job.interviewProcess?.rounds || 2;
     const estimatedDuration = job.interviewProcess?.estimatedDuration || '2-3 weeks';
@@ -128,7 +162,8 @@ export default function JobDetailsPage() {
       salaryMax,
       currency,
       skills,
-      experience,
+      experienceMin,
+      experienceMax,
       benefits,
       applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
       interviewRounds,
@@ -141,15 +176,43 @@ export default function JobDetailsPage() {
   };
 
   const handleUpdate = async () => {
-    if (!job) return;
-    if (!editFormData.title?.trim() || !editFormData.description?.trim() || !editFormData.location?.trim() || !editFormData.companyId) {
-      toast({ title: 'Validation Error', description: 'Please fill all required fields', variant: 'destructive' });
+    console.log('handleUpdate called');
+    if (!job) {
+      console.log('No job found, returning');
       return;
     }
+    if (!editFormData.title?.trim() || !editFormData.description?.trim() || !editFormData.location?.trim() || !editFormData.companyId) {
+      toast({ title: 'Validation Error', description: 'Please fill all required fields', variant: 'destructive' });
+      console.log('Validation failed');
+      return;
+    }
+    
+    // Parse location to populate address fields
+    const location = editFormData.location.trim();
+    let city = '';
+    let state = '';
+    
+    // If location is in "City, State" format, parse it
+    if (location.includes(',')) {
+      const parts = location.split(',').map(p => p.trim());
+      city = parts[0] || location;
+      state = parts[1] || '';
+    } else {
+      // If no comma, use the whole string as city
+      city = location;
+    }
+    
     const data = {
       title: editFormData.title.trim(),
       description: editFormData.description.trim(),
-      location: editFormData.location.trim(),
+      location: location,
+      address: {
+        street: city, // Use city as fallback for street
+        city: city,
+        state: state,
+        zipCode: '',
+        country: 'India'
+      },
       type: editFormData.type,
       workType: editFormData.workType,
       duration: (editFormData.type === 'contract' || editFormData.type === 'internship') ? editFormData.duration : undefined,
@@ -162,7 +225,8 @@ export default function JobDetailsPage() {
       },
       requirements: {
         skills: editFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
-        experience: editFormData.experience,
+        experienceMin: parseInt(editFormData.experienceMin) || 0,
+        experienceMax: parseInt(editFormData.experienceMax) || 0,
       },
       benefits: editFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
       applicationDeadline: editFormData.applicationDeadline ? new Date(editFormData.applicationDeadline).toISOString() : undefined,
@@ -171,10 +235,19 @@ export default function JobDetailsPage() {
         estimatedDuration: editFormData.estimatedDuration
       } : undefined
     };
+    
+    console.log('Calling updateJob with data:', data);
     try {
-      await updateJob({ id: job._id || job.id, data });
+      const result = await updateJob({ id: job._id || job.id, data });
+      console.log('updateJob result:', result);
+      
+      // Manually handle success since mutation hook's onSuccess isn't firing
+      toast({ title: "Success", description: "Job updated successfully" });
+      setIsEditDialogOpen(false);
+      refetchJob();
     } catch (e) {
-      // toast handled by hook
+      console.error('Update job error in catch:', e);
+      // Error toast is handled by the mutation hook
     }
   };
 
@@ -417,8 +490,10 @@ export default function JobDetailsPage() {
                   {/* Experience Level */}
                   <div>
                     <h4 className="font-semibold mb-2 text-slate-700">Experience Level</h4>
-                    <Badge variant="secondary" className="capitalize bg-blue-100 text-blue-800 border-blue-200">
-                      {job.requirements?.experience || 'N/A'}
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                      {job.requirements?.experienceMin !== undefined && job.requirements?.experienceMax !== undefined
+                        ? `${job.requirements.experienceMin}-${job.requirements.experienceMax} years`
+                        : 'N/A'}
                     </Badge>
                   </div>
 
@@ -573,30 +648,64 @@ export default function JobDetailsPage() {
                   <Label htmlFor="edit-title">Job Title <span className="text-red-500">*</span></Label>
                   <Input id="edit-title" value={editFormData.title || ''} onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-location">Location (Auto-filled from company)</Label>
-                  <Input id="edit-location" value={editFormData.location || ''} readOnly className="bg-muted/50 cursor-not-allowed" />
+                <div className="space-y-2 relative">
+                  <Label htmlFor="edit-location">Location <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-location" 
+                    placeholder="Type to search cities in India..."
+                    value={editFormData.location || ''} 
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setEditFormData({...editFormData, location: value});
+                      
+                      // Filter cities based on input
+                      if (value.length > 0) {
+                        const filtered = indianCities.filter(city => 
+                          city.toLowerCase().includes(value.toLowerCase())
+                        ).slice(0, 8); // Show max 8 suggestions
+                        setFilteredCities(filtered);
+                        setShowCitySuggestions(filtered.length > 0);
+                      } else {
+                        setShowCitySuggestions(false);
+                        setFilteredCities([]);
+                      }
+                    }}
+                    onFocus={(e) => {
+                      if (e.target.value.length > 0) {
+                        const filtered = indianCities.filter(city => 
+                          city.toLowerCase().includes(e.target.value.toLowerCase())
+                        ).slice(0, 8);
+                        setFilteredCities(filtered);
+                        setShowCitySuggestions(filtered.length > 0);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay to allow click on suggestion
+                      setTimeout(() => setShowCitySuggestions(false), 200);
+                    }}
+                  />
+                  {showCitySuggestions && filteredCities.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                      {filteredCities.map((city, index) => (
+                        <div
+                          key={index}
+                          className="px-4 py-2 cursor-pointer hover:bg-gray-100 flex items-center gap-2"
+                          onClick={() => {
+                            setEditFormData({...editFormData, location: city});
+                            setShowCitySuggestions(false);
+                          }}
+                        >
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <span>{city}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-company">Company <span className="text-red-500">*</span></Label>
                   <Select value={editFormData.companyId || ''} onValueChange={(value) => {
-                    const selectedCompany = companies.find((company: any) => company._id === value);
-                    let location = '';
-                    if (selectedCompany) {
-                      if (selectedCompany.address) {
-                        const addressParts = [
-                          selectedCompany.address.street,
-                          selectedCompany.address.city,
-                          selectedCompany.address.state,
-                          selectedCompany.address.zipCode,
-                          selectedCompany.address.country
-                        ].filter(Boolean);
-                        location = addressParts.join(', ');
-                      } else if (selectedCompany.location) {
-                        location = selectedCompany.location;
-                      }
-                    }
-                    setEditFormData({ ...editFormData, companyId: value, location });
+                    setEditFormData({ ...editFormData, companyId: value });
                   }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select company" />
@@ -637,21 +746,29 @@ export default function JobDetailsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-experience">Experience Level</Label>
-                  <Select value={editFormData.experience || 'mid'} onValueChange={(value) => setEditFormData({...editFormData, experience: value as any})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select experience" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="entry">0-2 years (Entry Level)</SelectItem>
-                      <SelectItem value="junior">2-5 years (Junior)</SelectItem>
-                      <SelectItem value="mid">5-10 years (Mid Level)</SelectItem>
-                      <SelectItem value="senior">10-15 years (Senior)</SelectItem>
-                      <SelectItem value="lead">15+ years (Lead/Principal)</SelectItem>
-                      <SelectItem value="executive">20+ years (Executive)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="edit-experienceMin">Min Experience (years) <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-experienceMin" 
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 2"
+                    value={editFormData.experienceMin}
+                    onChange={(e) => setEditFormData({...editFormData, experienceMin: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-experienceMax">Max Experience (years) <span className="text-red-500">*</span></Label>
+                  <Input 
+                    id="edit-experienceMax" 
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 5"
+                    value={editFormData.experienceMax}
+                    onChange={(e) => setEditFormData({...editFormData, experienceMax: e.target.value})}
+                  />
                 </div>
               </div>
             </div>

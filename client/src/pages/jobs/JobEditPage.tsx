@@ -81,7 +81,8 @@ export default function JobEditPage() {
         salaryMax: job.salaryRange?.max || '',
         currency: job.salaryRange?.currency || 'USD',
         skills: job.requirements?.skills?.join(', ') || '',
-        experience: job.requirements?.experience || 'mid',
+        experienceMin: job.requirements?.experienceMin !== undefined ? String(job.requirements.experienceMin) : '',
+        experienceMax: job.requirements?.experienceMax !== undefined ? String(job.requirements.experienceMax) : '',
         education: job.requirements?.education?.join(', ') || '',
         languages: job.requirements?.languages?.join(', ') || 'English',
         isRemote: job.isRemote || false,
@@ -159,7 +160,8 @@ export default function JobEditPage() {
       },
       requirements: {
         skills: editFormData.skills.split(',').map((s: string) => s.trim()).filter(Boolean),
-        experience: editFormData.experience,
+        experienceMin: parseInt(editFormData.experienceMin) || 0,
+        experienceMax: parseInt(editFormData.experienceMax) || 0,
         education: editFormData.education.split(',').map((s: string) => s.trim()).filter(Boolean),
         languages: editFormData.languages.split(',').map((s: string) => s.trim()).filter(Boolean)
       },
@@ -389,24 +391,37 @@ export default function JobEditPage() {
                       <p className="text-sm text-red-500">{editFormErrors.skills}</p>
                     )}
                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-experience">Experience Level</Label>
-                    <Select 
-                      value={editFormData.experience || 'mid'} 
-                      onValueChange={(value) => setEditFormData({...editFormData, experience: value})}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select experience" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="entry">Entry Level</SelectItem>
-                        <SelectItem value="junior">Junior</SelectItem>
-                        <SelectItem value="mid">Mid Level</SelectItem>
-                        <SelectItem value="senior">Senior</SelectItem>
-                        <SelectItem value="lead">Lead</SelectItem>
-                        <SelectItem value="executive">Executive</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="edit-experienceMin">Min Experience (years) <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="edit-experienceMin" 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 2"
+                      value={editFormData.experienceMin || ''}
+                      onChange={(e) => setEditFormData({...editFormData, experienceMin: e.target.value})}
+                      className={editFormErrors.experienceMin ? "border-red-500" : ""}
+                    />
+                    {editFormErrors.experienceMin && (
+                      <p className="text-sm text-red-500">{editFormErrors.experienceMin}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-experienceMax">Max Experience (years) <span className="text-red-500">*</span></Label>
+                    <Input 
+                      id="edit-experienceMax" 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 5"
+                      value={editFormData.experienceMax || ''}
+                      onChange={(e) => setEditFormData({...editFormData, experienceMax: e.target.value})}
+                      className={editFormErrors.experienceMax ? "border-red-500" : ""}
+                    />
+                    {editFormErrors.experienceMax && (
+                      <p className="text-sm text-red-500">{editFormErrors.experienceMax}</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
