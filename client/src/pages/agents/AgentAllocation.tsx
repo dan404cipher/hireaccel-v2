@@ -81,6 +81,7 @@ export default function AgentAllocation(): React.JSX.Element {
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'hr' | 'candidate'>('all');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
   const [selectedResource, setSelectedResource] = useState<ExtendedUser | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
@@ -170,8 +171,12 @@ export default function AgentAllocation(): React.JSX.Element {
       resource.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Apply role filter
+    const roleFiltered = roleFilter === 'all' 
+      ? searchFiltered 
+      : searchFiltered.filter(resource => resource.role === roleFilter);
 
-    const filtered = searchFiltered.filter(resource => {
+    const filtered = roleFiltered.filter(resource => {
       const resourceType = resource.role === 'hr' ? 'hr' : 'candidate';
       const currentAgent = getCurrentAgent(resource._id, resourceType);
       const isAllocated = !!currentAgent;
@@ -517,15 +522,27 @@ export default function AgentAllocation(): React.JSX.Element {
                 </TabsTrigger>
               </TabsList>
               
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
                   <Input
-                  placeholder="Search HR users and candidates..."
+                    placeholder="Search HR users and candidates..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-80 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                    className="pl-10 w-80 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
                   />
                 </div>
+                <Select value={roleFilter} onValueChange={(value: 'all' | 'hr' | 'candidate') => setRoleFilter(value)}>
+                  <SelectTrigger className="w-[180px] border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="hr">HR Only</SelectItem>
+                    <SelectItem value="candidate">Candidates Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -595,6 +612,7 @@ export default function AgentAllocation(): React.JSX.Element {
                           aria-label="Select all resources"
                         />
                       </TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Last Login</TableHead>
@@ -611,6 +629,11 @@ export default function AgentAllocation(): React.JSX.Element {
                             aria-label={`Select ${resource.firstName} ${resource.lastName}`}
                           />
                         </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {resource.customId || 'N/A'}
+                        </Badge>
+                      </TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-3">
                             <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
@@ -723,6 +746,7 @@ export default function AgentAllocation(): React.JSX.Element {
                           aria-label="Select all resources"
                         />
                       </TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Last Login</TableHead>
@@ -744,6 +768,11 @@ export default function AgentAllocation(): React.JSX.Element {
                               onCheckedChange={() => handleResourceSelection(resource._id)}
                               aria-label={`Select ${resource.firstName} ${resource.lastName}`}
                             />
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {resource.customId || 'N/A'}
+                            </Badge>
                           </TableCell>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-3">

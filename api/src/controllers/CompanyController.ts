@@ -74,7 +74,7 @@ export class CompanyController {
     
     const [companies, total] = await Promise.all([
       Company.find(query)
-        .populate('createdBy', 'firstName lastName')
+        .populate('createdBy', 'firstName lastName customId')
         .sort({ rating: -1, totalHires: -1 })
         .skip(skip)
         .limit(Number(limit)),
@@ -89,7 +89,7 @@ export class CompanyController {
   });
 
   static getCompanyById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const company = await Company.findById(req.params['id']).populate('createdBy', 'firstName lastName');
+    const company = await Company.findById(req.params['id']).populate('createdBy', 'firstName lastName customId');
     if (!company) throw createNotFoundError('Company', req.params['id']);
     
     // HR-specific access control: Only allow access to companies they created or posted jobs for

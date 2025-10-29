@@ -64,6 +64,7 @@ export default function CompanyManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("name");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -133,12 +134,36 @@ export default function CompanyManagement() {
   const companies = Array.isArray(companiesResponse) ? companiesResponse : ((companiesResponse as any)?.data || []);
   const meta = Array.isArray(companiesResponse) ? null : (companiesResponse as any)?.meta;
 
-  // Additional client-side filtering
-  const filteredCompanies = companies.filter(company => {
-    if (!searchTerm) return true;
-    const matchesSearch = company.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // Additional client-side filtering and sorting
+  const filteredCompanies = useMemo(() => {
+    let filtered = companies.filter(company => {
+      if (!searchTerm) return true;
+      const matchesSearch = company.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesSearch;
+    });
+
+    // Sort companies
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return (a.name || "").localeCompare(b.name || "");
+        case "location":
+          return (a.location || "").localeCompare(b.location || "");
+        case "status":
+          return (a.status || "").localeCompare(b.status || "");
+        case "size":
+          return (a.size || "").localeCompare(b.size || "");
+        case "newest":
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case "oldest":
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [companies, searchTerm, sortBy]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -811,10 +836,6 @@ export default function CompanyManagement() {
         {/* Companies Table */}
           <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
             <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
-          <CardTitle className="text-slate-700 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-blue-600" />
-            Companies
-          </CardTitle>
               <div className="flex gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-600" />
@@ -837,6 +858,20 @@ export default function CompanyManagement() {
                 <SelectItem value="pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <BarChart3 className="w-4 h-4 mr-2 text-blue-600" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Sort by Name</SelectItem>
+                    <SelectItem value="location">Sort by Location</SelectItem>
+                    <SelectItem value="status">Sort by Status</SelectItem>
+                    <SelectItem value="size">Sort by Size</SelectItem>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent>
@@ -856,19 +891,27 @@ export default function CompanyManagement() {
               </p>
             </div>
           ) : (
-              <Table>
+              <div className="relative overflow-x-auto">
+              <Table className="min-w-full">
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Company ID</TableHead>
                     <TableHead>Company</TableHead>
                   <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
                   <TableHead>Size</TableHead>
+                    <TableHead>HR ID</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredCompanies.map((company) => (
                   <TableRow key={company.id}>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {company.companyId || company._id || 'N/A'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -890,14 +933,9 @@ export default function CompanyManagement() {
                       <TableCell>
                         <div className="flex items-center gap-2 text-base">
                         <MapPin className="w-4 h-4 text-emerald-600" />
-                        <div className="text-sm">
+                        <div className="text-sm text-muted-foreground">
                           {company.address ? (
-                            <>
-                              <div>{company.address.street}</div>
-                              <div className="text-muted-foreground">
-                                {[company.address.city, company.address.state].filter(Boolean).join(', ')}
-                              </div>
-                            </>
+                            [company.address.city, company.address.state].filter(Boolean).join(', ') || 'No location'
                           ) : (
                             company.location || 'No address provided'
                           )}
@@ -916,6 +954,11 @@ export default function CompanyManagement() {
                           {company.size}
                         </Badge>
                       </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {company.createdBy?.customId || 'N/A'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -947,6 +990,7 @@ export default function CompanyManagement() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
           )}
             </CardContent>
           </Card>

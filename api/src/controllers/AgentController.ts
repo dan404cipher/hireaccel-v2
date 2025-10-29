@@ -106,7 +106,7 @@ export class AgentController {
 
         const jobs = await Job.find(filter)
             .populate('companyId', 'name industry location')
-            .populate('createdBy', 'firstName lastName email')
+            .populate('createdBy', 'firstName lastName email customId')
             .populate('assignedAgentId', 'firstName lastName email')
             .sort(sort)
             .skip(skip)

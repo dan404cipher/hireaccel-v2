@@ -197,6 +197,7 @@ interface ProfileData {
     firstName: string;
     lastName: string;
     email: string;
+    customId: string;
   };
   resumeFileId?: string;
   profile: CandidateProfile;
@@ -973,13 +974,6 @@ const CandidateProfile: React.FC = () => {
                           ? (user ? `${user.firstName} ${user.lastName}` : 'Your Name')
                           : (profileData?.userId ? `${profileData.userId.firstName} ${profileData.userId.lastName}` : 'Loading...')}
                       </h1>
-                      {profileData?.customId && (
-                        <div className="flex items-center">
-                          <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                            ID: {profileData.customId}
-                          </span>
-                        </div>
-                      )}
                     </div>
                     <p className="text-lg text-gray-600 mb-3">
                       {profile.summary ? profile.summary.substring(0, 120) + (profile.summary.length > 120 ? '...' : '') : 'Professional Summary'}
@@ -997,6 +991,11 @@ const CandidateProfile: React.FC = () => {
                         <Phone className="w-4 h-4" />
                         <span>{profile.phoneNumber || 'Phone number'}</span>
                       </div>
+                      {(isSelfView ? user?.customId : profileData?.userId?.customId || profileData?.customId) && (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {isSelfView ? user?.customId : profileData?.userId?.customId || profileData?.customId}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>

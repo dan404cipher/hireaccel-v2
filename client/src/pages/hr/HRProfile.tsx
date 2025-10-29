@@ -464,7 +464,7 @@ export default function HRProfile() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/dashboard/jobs`)}
+                          onClick={() => navigate(`/dashboard/jobs/${job.customId || job._id}`)}
                         >
                           <Eye className="w-4 h-4 mr-1" />
                           View

@@ -356,6 +356,15 @@ export default function JobDetailsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {job.jobId && (
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-purple-600" />
+                        <span className="font-medium text-slate-700">Job ID:</span>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {job.jobId}
+                        </Badge>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-blue-600" />
                       <span className="font-medium text-slate-700">Company:</span>

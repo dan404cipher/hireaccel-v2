@@ -560,6 +560,7 @@ export default function AgentAssignmentDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
+                      <TableHead>ID</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Status</TableHead>
@@ -571,6 +572,11 @@ export default function AgentAssignmentDashboard() {
                       <TableRow key={candidate._id}>
                         <TableCell className="font-medium">
                           {candidate.userId?.firstName} {candidate.userId?.lastName}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {candidate.userId?.customId || 'N/A'}
+                          </Badge>
                         </TableCell>
                         <TableCell>{candidate.userId?.email}</TableCell>
                         <TableCell>

@@ -94,11 +94,17 @@ export class CandidateAssignmentController {
       .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location',
-        populate: {
-          path: 'companyId',
-          select: 'name industry location'
-        }
+        select: 'title companyId location createdBy',
+        populate: [
+          {
+            path: 'companyId',
+            select: 'name industry location'
+          },
+          {
+            path: 'createdBy',
+            select: 'firstName lastName customId'
+          }
+        ]
       })
       .sort(sort)
       .skip(skip)
@@ -171,11 +177,17 @@ export class CandidateAssignmentController {
       .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
-        select: 'title description companyId',
-        populate: {
-          path: 'companyId',
-          select: 'name industry location'
-        }
+        select: 'title description companyId createdBy',
+        populate: [
+          {
+            path: 'companyId',
+            select: 'name industry location'
+          },
+          {
+            path: 'createdBy',
+            select: 'firstName lastName customId'
+          }
+        ]
       });
 
     if (!assignment) {
@@ -319,11 +331,17 @@ export class CandidateAssignmentController {
       .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location',
-        populate: {
-          path: 'companyId',
-          select: 'name industry location'
-        }
+        select: 'title companyId location createdBy',
+        populate: [
+          {
+            path: 'companyId',
+            select: 'name industry location'
+          },
+          {
+            path: 'createdBy',
+            select: 'firstName lastName customId'
+          }
+        ]
       });
 
     // Log audit trail
@@ -409,11 +427,17 @@ export class CandidateAssignmentController {
       .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location',
-        populate: {
-          path: 'companyId',
-          select: 'name industry location'
-        }
+        select: 'title companyId location createdBy',
+        populate: [
+          {
+            path: 'companyId',
+            select: 'name industry location'
+          },
+          {
+            path: 'createdBy',
+            select: 'firstName lastName customId'
+          }
+        ]
       });
 
     // Log audit trail
@@ -543,11 +567,17 @@ export class CandidateAssignmentController {
         .populate('assignedTo', 'firstName lastName email customId')
         .populate({
           path: 'jobId',
-          select: 'title companyId location',
-          populate: {
-            path: 'companyId',
-            select: 'name industry location'
-          }
+          select: 'title companyId location createdBy',
+          populate: [
+            {
+              path: 'companyId',
+              select: 'name industry location'
+            },
+            {
+              path: 'createdBy',
+              select: 'firstName lastName customId'
+            }
+          ]
         })
         .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
         .skip((page - 1) * limit)

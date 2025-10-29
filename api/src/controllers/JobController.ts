@@ -182,7 +182,7 @@ export class JobController {
       Job.find(searchQuery)
         .populate('companyId', 'name industry location')
         .populate('assignedAgentId', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName')
+        .populate('createdBy', 'firstName lastName customId')
         .sort(sort)
         .skip(skip)
         .limit(limit),
@@ -230,7 +230,7 @@ export class JobController {
     }
 
     const allJobs = await Job.find({})
-      .populate('createdBy', 'firstName lastName email role')
+      .populate('createdBy', 'firstName lastName email role customId')
       .populate('companyId', 'name')
       .sort({ createdAt: -1 });
 
@@ -270,14 +270,14 @@ export class JobController {
     let job = await Job.findOne({ jobId: id })
       .populate('companyId')
       .populate('assignedAgentId', 'firstName lastName email')
-      .populate('createdBy', 'firstName lastName');
+      .populate('createdBy', 'firstName lastName customId');
     
     // If not found by jobId, try by MongoDB _id
     if (!job) {
       job = await Job.findById(id)
         .populate('companyId')
         .populate('assignedAgentId', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName');
+        .populate('createdBy', 'firstName lastName customId');
     }
     
     if (!job) {

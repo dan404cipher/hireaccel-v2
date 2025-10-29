@@ -46,7 +46,8 @@ import {
   UserCheck,
   DollarSign,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowUpDown
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -70,6 +71,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedJobForEdit, setSelectedJobForEdit] = useState<any>(null);
@@ -309,17 +311,41 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const meta = Array.isArray(jobsResponse) ? null : (jobsResponse as any)?.meta;
 
   // Filter jobs (additional client-side filtering)
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = !searchTerm || 
-                         job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.companyId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCompany = companyFilter === "all" || 
-                          (job.companyId?._id === companyFilter) ||
-                          (job.companyId?.id === companyFilter);
-    
-    return matchesSearch && matchesCompany;
-  });
+  const filteredJobs = useMemo(() => {
+    let filtered = jobs.filter(job => {
+      const matchesSearch = !searchTerm || 
+                           job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           job.companyId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesCompany = companyFilter === "all" || 
+                            (job.companyId?._id === companyFilter) ||
+                            (job.companyId?.id === companyFilter);
+      
+      return matchesSearch && matchesCompany;
+    });
+
+    // Apply sorting
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt || b.postedAt || 0).getTime() - new Date(a.createdAt || a.postedAt || 0).getTime();
+        case 'oldest':
+          return new Date(a.createdAt || a.postedAt || 0).getTime() - new Date(b.createdAt || b.postedAt || 0).getTime();
+        case 'title-asc':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'title-desc':
+          return (b.title || '').localeCompare(a.title || '');
+        case 'company':
+          return (a.companyId?.name || '').localeCompare(b.companyId?.name || '');
+        case 'applications':
+          return (b.applications || 0) - (a.applications || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [jobs, searchTerm, companyFilter, sortBy]);
 
   // Auto-open edit dialog when editId is present
   useEffect(() => {
@@ -1590,6 +1616,20 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[180px] border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
+                  <ArrowUpDown className="w-4 h-4 mr-2 text-emerald-600" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                  <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                  <SelectItem value="company">Company Name</SelectItem>
+                  <SelectItem value="applications">Most Applications</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -1626,7 +1666,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                   <TableHead>Company</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>HR ID</TableHead>
                   <TableHead>Applications</TableHead>
                   <TableHead>Openings</TableHead>
                   <TableHead>Posted</TableHead>
@@ -1664,8 +1704,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(job.status)}>
-                        {job.status}
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {job.createdBy?.customId || 'N/A'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">

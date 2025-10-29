@@ -88,6 +88,11 @@ interface CandidateAssignment {
       location?: string;
     };
     location?: string;
+    createdBy?: {
+      firstName: string;
+      lastName: string;
+      customId: string;
+    };
   };
   status: 'active' | 'completed' | 'rejected' | 'withdrawn';
   priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -694,14 +699,29 @@ const SharedCandidates: React.FC = () => {
 
           {/* Row 2: Assigned By, Experience, Resume */}
           <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Column 1: View Profile Button */}
+            {/* Column 1: HR ID and View Profile Button */}
             <div className="flex items-start space-x-3">
               <div className="h-12 w-12 flex-shrink-0"></div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 space-y-2">
+                {assignment.jobId?.createdBy && (
+                  <div className="flex items-center gap-2">
+                    <User className="w-3 h-3 text-blue-600" />
+                    <div className="text-xs text-gray-600">
+                      <span className="font-medium">HR: </span>
+                      <Badge 
+                        variant="outline" 
+                        className="font-mono text-xs ml-1 cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors"
+                        onClick={() => navigate(`/dashboard/hr-profile/${assignment.jobId.createdBy.customId}`)}
+                      >
+                        {assignment.jobId.createdBy.customId}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 mt-2"
+                  className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
                   onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
                 >
                   <Eye className="w-3 h-3 mr-1" />
