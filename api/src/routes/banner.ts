@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { BannerController } from '../controllers/BannerController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 import { uploadBanner, handleMulterError } from '../config/multer';
-import { UserRole } from '../types';
 
 const router = Router();
 
