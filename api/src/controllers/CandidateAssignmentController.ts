@@ -69,13 +69,13 @@ export class CandidateAssignmentController {
       // Agents can see assignments they created
       filter.assignedBy = req.user!._id;
     }
-    // Admins can see all assignments (no additional filter)
+    // Admins and superadmins can see all assignments (no additional filter)
 
     if (status) filter.status = status;
     if (priority) filter.priority = priority;
     if (jobId) filter.jobId = jobId;
-    if (assignedTo && req.user!.role === UserRole.ADMIN) filter.assignedTo = assignedTo;
-    if (assignedBy && req.user!.role === UserRole.ADMIN) filter.assignedBy = assignedBy;
+    if (assignedTo && (req.user!.role === UserRole.ADMIN || req.user!.role === UserRole.SUPERADMIN)) filter.assignedTo = assignedTo;
+    if (assignedBy && (req.user!.role === UserRole.ADMIN || req.user!.role === UserRole.SUPERADMIN)) filter.assignedBy = assignedBy;
 
     const skip = (page - 1) * limit;
     const sort: any = {};
@@ -222,8 +222,8 @@ export class CandidateAssignmentController {
    * @route POST /candidate-assignments
    */
   static createAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    // Only agents can create assignments
-    if (req.user!.role !== UserRole.AGENT && req.user!.role !== UserRole.ADMIN) {
+    // Only agents, admins, and superadmins can create assignments
+    if (req.user!.role !== UserRole.AGENT && req.user!.role !== UserRole.ADMIN && req.user!.role !== UserRole.SUPERADMIN) {
       throw createBadRequestError('Only agents can assign candidates to HR');
     }
 
@@ -386,6 +386,7 @@ export class CandidateAssignmentController {
     // Check permissions
     const canUpdate = 
       req.user!.role === UserRole.ADMIN ||
+      req.user!.role === UserRole.SUPERADMIN ||
       (req.user!.role === UserRole.HR && assignment.assignedTo.toString() === req.user!._id.toString()) ||
       (req.user!.role === UserRole.AGENT && assignment.assignedBy.toString() === req.user!._id.toString());
 
@@ -473,9 +474,10 @@ export class CandidateAssignmentController {
       throw createNotFoundError('Assignment not found');
     }
 
-    // Only admin or the agent who created the assignment can delete it
+    // Only admin, superadmin, or the agent who created the assignment can delete it
     const canDelete = 
       req.user!.role === UserRole.ADMIN ||
+      req.user!.role === UserRole.SUPERADMIN ||
       (req.user!.role === UserRole.AGENT && assignment.assignedBy.toString() === req.user!._id.toString());
 
     if (!canDelete) {

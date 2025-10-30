@@ -72,11 +72,11 @@ export default function AdminDashboard() {
         ]);
 
         const processedStats = {
-          users: userStats,
-          jobs: jobStats,
-          companies: companyStats,
-          interviews: interviewStats,
-          applications: applicationStats,
+          users: userStats?.data || userStats,
+          jobs: jobStats?.data || jobStats,
+          companies: companyStats?.data || companyStats,
+          interviews: interviewStats?.data || interviewStats,
+          applications: applicationStats?.data || applicationStats,
           agentsList: Array.isArray(agents) ? agents : (agents?.data || []),
           jobsList: Array.isArray(jobs) ? jobs : (jobs?.data || []),
           companiesList: Array.isArray(companies) ? companies : (companies?.data || []),
@@ -553,26 +553,28 @@ export default function AdminDashboard() {
           value={totalAgents}
           icon={<UserCheck className="h-4 w-4" />}
           color="indigo"
-          onClick={() => navigate('/dashboard/agent-allocation')}
+          onClick={() => navigate('/dashboard/agents')}
         />
         <SmallMetricCard
           title="Candidates"
           value={totalCandidates}
           icon={<Users className="h-4 w-4" />}
           color="pink"
-          onClick={() => navigate('/dashboard/shared-candidates')}
+          onClick={() => navigate('/dashboard/users?role=candidate')}
         />
         <SmallMetricCard
           title="HR Users"
           value={totalHRs}
           icon={<UserCheck className="h-4 w-4" />}
           color="teal"
+          onClick={() => navigate('/dashboard/users?role=hr')}
         />
         <SmallMetricCard
           title="Hired"
           value={hiredCount}
           icon={<CheckCircle2 className="h-4 w-4" />}
           color="green"
+          onClick={() => navigate('/dashboard/shared-candidates?candidateStatus=hired')}
         />
       </div>
 

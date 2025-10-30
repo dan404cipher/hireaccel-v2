@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,7 +79,7 @@ interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: 'admin' | 'hr' | 'agent' | 'candidate';
+  role: 'superadmin' | 'admin' | 'hr' | 'agent' | 'candidate';
   status: 'active' | 'inactive' | 'suspended';
   lastLoginAt?: string;
   emailVerified?: boolean;
@@ -89,6 +89,7 @@ interface User {
 }
 
 const roleColors = {
+  superadmin: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-600',
   admin: 'bg-red-600 text-white border-red-600',
   hr: 'bg-blue-600 text-white border-blue-600',
   agent: 'bg-emerald-600 text-white border-emerald-600',
@@ -117,6 +118,7 @@ const statusColors = {
 };
 
 const roleLabels = {
+  superadmin: 'Super Admin',
   admin: 'Admin',
   hr: 'HR Manager',
   agent: 'Agent',
@@ -126,8 +128,9 @@ const roleLabels = {
 export default function UserManagement() {
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [roleFilter, setRoleFilter] = useState(searchParams.get('role') || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -136,17 +139,27 @@ export default function UserManagement() {
   const [page, setPage] = useState(1);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phoneNumber: '',
-    role: 'candidate' as 'admin' | 'hr' | 'agent' | 'candidate',
+    role: 'candidate' as 'superadmin' | 'admin' | 'hr' | 'agent' | 'candidate',
     password: '',
     source: '',
   });
 
   const [showPassword, setShowPassword] = useState(false);
+
+  // Update role filter when URL changes
+  useEffect(() => {
+    const roleFromUrl = searchParams.get('role');
+    if (roleFromUrl && roleFromUrl !== roleFilter) {
+      setRoleFilter(roleFromUrl);
+    }
+  }, [searchParams]);
 
   // Password validation
   const passwordValidation = {
@@ -315,13 +328,28 @@ export default function UserManagement() {
   const handleEditUser = async () => {
     if (!editingUser) return;
     
+    // Validate password if provided
+    if (formData.password && !isPasswordValid) {
+      toast({
+        title: "Password Validation Error",
+        description: "Please ensure the password meets all requirements",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      const updateData = {
+      const updateData: any = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
         phoneNumber: formData.phoneNumber,
       };
+      
+      // Only include password if it was provided
+      if (formData.password) {
+        updateData.password = formData.password;
+      }
       
       await updateUser({ id: editingUser._id, data: updateData });
       toast({
@@ -341,23 +369,6 @@ export default function UserManagement() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await deleteUser(userId);
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
-      refetchUsers();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete user",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleStatusChange = async (userId: string, newStatus: string) => {
     try {
       await updateUser({ id: userId, data: { status: newStatus } });
@@ -370,6 +381,27 @@ export default function UserManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to update user status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
+    try {
+      await deleteUser(userToDelete._id);
+      refetchUsers();
+      toast({
+        title: "Success",
+        description: `User ${userToDelete.firstName} ${userToDelete.lastName} deleted permanently`,
+      });
+      setDeleteConfirmOpen(false);
+      setUserToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.detail || error.message || "Failed to delete user",
         variant: "destructive",
       });
     }
@@ -566,6 +598,9 @@ export default function UserManagement() {
                 <SelectItem value="agent">Agent</SelectItem>
                 <SelectItem value="hr">HR Manager</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
+                {currentUser?.role === 'superadmin' && (
+                  <SelectItem value="superadmin">Super Admin</SelectItem>
+                )}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -794,21 +829,40 @@ export default function UserManagement() {
                                 View Profile
                               </DropdownMenuItem>
                             )}
-                            {user.role !== 'admin' && (
+                            {/* Superadmin cannot be edited/deleted. Admin can only be deleted by superadmin */}
+                            {user.role !== 'superadmin' && (
                               <>
-                                <DropdownMenuItem onClick={() => openEditDialog(user)}>
-                                  <Edit className="mr-2 h-4 w-4 text-emerald-600" />
-                                  Edit User
-                                </DropdownMenuItem>
-                                {user.status === 'active' ? (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
-                                    <UserX className="mr-2 h-4 w-4 text-gray-600" />
-                                    Deactivate
-                                  </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
-                                    <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
-                                    Activate
+                                {/* Edit/Status change - not for admin users */}
+                                {user.role !== 'admin' && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => openEditDialog(user)}>
+                                      <Edit className="mr-2 h-4 w-4 text-emerald-600" />
+                                      Edit User
+                                    </DropdownMenuItem>
+                                    {user.status === 'active' ? (
+                                      <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'inactive')}>
+                                        <UserX className="mr-2 h-4 w-4 text-gray-600" />
+                                        Deactivate
+                                      </DropdownMenuItem>
+                                    ) : (
+                                      <DropdownMenuItem onClick={() => handleStatusChange(user._id, 'active')}>
+                                        <UserCheck className="mr-2 h-4 w-4 text-emerald-600" />
+                                        Activate
+                                      </DropdownMenuItem>
+                                    )}
+                                  </>
+                                )}
+                                {/* Delete - superadmin can delete anyone except other superadmins */}
+                                {currentUser?.role === 'superadmin' && (
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setUserToDelete(user);
+                                      setDeleteConfirmOpen(true);
+                                    }}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete User
                                   </DropdownMenuItem>
                                 )}
                               </>
@@ -915,6 +969,9 @@ export default function UserManagement() {
                   <SelectItem value="candidate">Candidate</SelectItem>
                   <SelectItem value="agent">Agent</SelectItem>
                   <SelectItem value="hr">HR Manager</SelectItem>
+                  {currentUser?.role === 'superadmin' && (
+                    <SelectItem value="admin">Admin</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1069,6 +1126,47 @@ export default function UserManagement() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="editPassword">New Password (Optional)</Label>
+              <div className="relative">
+                <Input
+                  id="editPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Leave empty to keep current password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {formData.password && (
+                <div className="text-xs">
+                  <div className="font-medium mb-1">Password Requirements:</div>
+                  <div className="space-y-1">
+                    <div className={passwordValidation.hasMinLength ? "text-green-600" : "text-red-500"}>
+                      • At least 8 characters
+                    </div>
+                    <div className={passwordValidation.hasUppercase ? "text-green-600" : "text-red-500"}>
+                      • Uppercase letter
+                    </div>
+                    <div className={passwordValidation.hasLowercase ? "text-green-600" : "text-red-500"}>
+                      • Lowercase letter
+                    </div>
+                    <div className={passwordValidation.hasNumber ? "text-green-600" : "text-red-500"}>
+                      • Number
+                    </div>
+                    <div className={passwordValidation.hasSpecialChar ? "text-green-600" : "text-red-500"}>
+                      • Special character (!@#$%^&*)
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="editRole">Role</Label>
               <Select value={formData.role} onValueChange={(value: any) => setFormData(prev => ({ ...prev, role: value }))}>
                 <SelectTrigger>
@@ -1078,6 +1176,9 @@ export default function UserManagement() {
                   <SelectItem value="candidate">Candidate</SelectItem>
                   <SelectItem value="agent">Agent</SelectItem>
                   <SelectItem value="hr">HR Manager</SelectItem>
+                  {currentUser?.role === 'superadmin' && (
+                    <SelectItem value="admin">Admin</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1086,7 +1187,10 @@ export default function UserManagement() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditUser} disabled={updateLoading}>
+            <Button 
+              onClick={handleEditUser} 
+              disabled={updateLoading || (formData.password && !isPasswordValid)}
+            >
               {updateLoading ? <LoadingSpinner /> : 'Update User'}
             </Button>
           </DialogFooter>
@@ -1158,6 +1262,29 @@ export default function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User Permanently</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete <strong>{userToDelete?.firstName} {userToDelete?.lastName}</strong>?
+              <br /><br />
+              <span className="text-red-600 font-semibold">⚠️ This action cannot be undone. The user and all associated data will be permanently removed from the database.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? <LoadingSpinner /> : 'Delete Permanently'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

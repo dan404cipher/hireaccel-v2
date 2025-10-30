@@ -150,10 +150,10 @@ export const requireRole = (...allowedRoles: UserRole[]) => {
 /**
  * Specific role middleware shortcuts
  */
-export const requireAdmin = requireRole(UserRole.ADMIN);
-export const requireHR = requireRole(UserRole.HR, UserRole.ADMIN);
-export const requireAgent = requireRole(UserRole.AGENT, UserRole.HR, UserRole.ADMIN);
-export const requirePartner = requireRole(UserRole.PARTNER, UserRole.ADMIN);
+export const requireAdmin = requireRole(UserRole.ADMIN, UserRole.SUPERADMIN);
+export const requireHR = requireRole(UserRole.HR, UserRole.ADMIN, UserRole.SUPERADMIN);
+export const requireAgent = requireRole(UserRole.AGENT, UserRole.HR, UserRole.ADMIN, UserRole.SUPERADMIN);
+export const requirePartner = requireRole(UserRole.PARTNER, UserRole.ADMIN, UserRole.SUPERADMIN);
 export const requireCandidate = requireRole(UserRole.CANDIDATE);
 
 /**
@@ -167,8 +167,8 @@ export const allowSelfOrAdmin = (req: Request, _res: Response, next: NextFunctio
       throw createUnauthorizedError('Authentication required');
     }
 
-    // Admin can update any user
-    if (user.role === UserRole.ADMIN) {
+    // Admin and SuperAdmin can update any user
+    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
       next();
       return;
     }
@@ -198,8 +198,8 @@ export const requireOwnership = (resourceUserIdField: string = 'userId') => {
         throw createUnauthorizedError('Authentication required');
       }
       
-      // Admin can access all resources
-      if (user.role === UserRole.ADMIN) {
+      // Admin and SuperAdmin can access all resources
+      if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN) {
         next();
         return;
       }
@@ -246,8 +246,8 @@ export const requireCandidateAccess = async (
       throw createForbiddenError('Candidate ID is required');
     }
     
-    // Admin and HR have access to all candidates
-    if ([UserRole.ADMIN, UserRole.HR].includes(user.role!)) {
+    // Admin, SuperAdmin and HR have access to all candidates
+    if ([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.HR].includes(user.role!)) {
       // Convert customId to MongoDB _id for all users
       const { User } = await import('@/models/User');
       const { Candidate } = await import('@/models/Candidate');
@@ -353,8 +353,8 @@ export const requireJobAccess = async (
       throw createForbiddenError('Job ID is required');
     }
     
-    // Admin and HR have access to all jobs
-    if ([UserRole.ADMIN, UserRole.HR].includes(user.role)) {
+    // Admin, SuperAdmin and HR have access to all jobs
+    if ([UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.HR].includes(user.role)) {
       next();
       return;
     }

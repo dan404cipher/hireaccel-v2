@@ -31,6 +31,11 @@ export interface JobDocument extends Omit<IJob, '_id' | 'companyId' | 'assignedA
   isPublic: boolean;
   sourcingChannels: string[];
   
+  // Soft delete fields
+  deleted: boolean;
+  deletedAt?: Date;
+  deletedBy?: mongoose.Types.ObjectId;
+  
   // Virtual properties
   isActive: boolean;
   isClosed: boolean;
@@ -344,6 +349,24 @@ const jobSchema = new Schema<JobDocument>({
   
   lastViewedAt: {
     type: Date,
+  },
+  
+  // Soft delete fields
+  deleted: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  
+  deletedAt: {
+    type: Date,
+    default: null,
+  },
+  
+  deletedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
   },
   
 }, {

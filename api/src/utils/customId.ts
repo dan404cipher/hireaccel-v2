@@ -14,6 +14,7 @@ const ROLE_PREFIXES = {
   [UserRole.HR]: 'HR',
   [UserRole.AGENT]: 'AG',
   [UserRole.ADMIN]: 'ADMIN',
+  [UserRole.SUPERADMIN]: 'SUPERADMIN',
   [UserRole.PARTNER]: 'PART',
 } as const;
 
@@ -27,25 +28,51 @@ export const generateCustomUserId = async (role: UserRole): Promise<string> => {
     throw new Error(`No prefix defined for role: ${role}`);
   }
   
-  // Find the highest existing ID for this role
+  // Find ALL existing IDs for this role and extract the highest number
   const regex = new RegExp(`^${prefix}\\d+$`);
   const existingUsers = await User.find({ 
     customId: { $regex: regex },
     role: role 
-  }).sort({ customId: -1 }).limit(1);
+  }).select('customId').lean();
   
   let nextNumber = 1;
   
-  if (existingUsers.length > 0 && existingUsers[0]?.customId) {
-    const lastCustomId = existingUsers[0].customId!;
-    const lastNumber = parseInt(lastCustomId.replace(prefix, ''), 10);
-    nextNumber = lastNumber + 1;
+  if (existingUsers.length > 0) {
+    // Extract all numbers and find the maximum
+    const numbers: number[] = [];
+    
+    for (const user of existingUsers) {
+      if (user.customId) {
+        const match = user.customId.match(new RegExp(`^${prefix}(\\d+)$`));
+        if (match && match[1]) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num)) {
+            numbers.push(num);
+          }
+        }
+      }
+    }
+    
+    if (numbers.length > 0) {
+      const maxNumber = Math.max(...numbers);
+      nextNumber = maxNumber + 1;
+    }
   }
   
   // Format with leading zeros (5 digits)
   const formattedNumber = nextNumber.toString().padStart(5, '0');
+  const newCustomId = `${prefix}${formattedNumber}`;
   
-  return `${prefix}${formattedNumber}`;
+  // Double-check that this ID doesn't exist (prevent race conditions)
+  const existingWithNewId = await User.findOne({ customId: newCustomId });
+  if (existingWithNewId) {
+    // Retry with incremented number
+    nextNumber++;
+    const retryFormattedNumber = nextNumber.toString().padStart(5, '0');
+    return `${prefix}${retryFormattedNumber}`;
+  }
+  
+  return newCustomId;
 };
 
 /**

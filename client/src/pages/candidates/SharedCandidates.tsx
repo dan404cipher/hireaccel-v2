@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -127,6 +127,14 @@ const SharedCandidates: React.FC = () => {
   const navigate = useNavigate();
 
   const { user } = useAuth();
+
+  // Update candidateStatus filter when URL changes
+  useEffect(() => {
+    const statusFromUrl = searchParams.get('candidateStatus');
+    if (statusFromUrl && statusFromUrl !== candidateStatusFilter) {
+      setCandidateStatusFilter(statusFromUrl);
+    }
+  }, [searchParams]);
   
   // API calls
   const { data: assignmentsData, loading, refetch } = user?.role === 'agent' 
@@ -137,7 +145,7 @@ const SharedCandidates: React.FC = () => {
         sortBy: 'assignedAt',
         sortOrder: 'desc'
       })
-    : user?.role === 'admin'
+    : (user?.role === 'admin' || user?.role === 'superadmin')
     ? useCandidateAssignments({
         page: currentPage,
         limit: 20,
@@ -280,8 +288,8 @@ const SharedCandidates: React.FC = () => {
 
   const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
     try {
-      if (newStatus === 'withdrawn' && (user?.role === 'agent' || user?.role === 'admin')) {
-        // For agents and admins, when withdrawing, delete the assignment completely
+      if (newStatus === 'withdrawn' && (user?.role === 'agent' || user?.role === 'admin' || user?.role === 'superadmin')) {
+        // For agents, admins, and superadmins, when withdrawing, delete the assignment completely
         await apiClient.deleteCandidateAssignment(assignment._id);
         refetch();
         setSelectedAssignment(null);
@@ -536,7 +544,7 @@ const SharedCandidates: React.FC = () => {
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Add Feedback
                     </DropdownMenuItem>
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
                       <DropdownMenuItem 
                         onClick={() => {
                           setAssignmentToDelete(assignment);

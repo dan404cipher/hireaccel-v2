@@ -97,7 +97,9 @@ export class JobController {
     const skip = (page - 1) * limit;
     
     // Build search query
-    const searchQuery: any = {};
+    const searchQuery: any = {
+      deleted: { $ne: true }, // Exclude deleted jobs by default
+    };
     
     // Role-based filtering
     if (req.user?.role === UserRole.PARTNER) {
@@ -415,7 +417,7 @@ export class JobController {
   });
 
   /**
-   * Delete job
+   * Delete job (Soft Delete)
    * DELETE /jobs/:id
    */
   static deleteJob = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -431,22 +433,24 @@ export class JobController {
       throw createNotFoundError('Job', id);
     }
     
-    // Check if job has applications
-    const { Application } = await import('@/models/Application');
-    const applicationCount = await Application.countDocuments({ jobId: id });
-    
-    if (applicationCount > 0) {
+    // Check if already deleted
+    if (job.deleted) {
       return res.status(400).json({
         type: 'https://httpstatuses.com/400',
         title: 'Bad Request',
         status: 400,
-        detail: 'Cannot delete job with existing applications. Close the job instead.',
+        detail: 'Job is already deleted',
       });
     }
     
     const beforeState = job.toObject();
     
-    await job.deleteOne();
+    // Soft delete: mark as deleted instead of removing from database
+    job.deleted = true;
+    job.deletedAt = new Date();
+    job.deletedBy = req.user!._id;
+    job.status = JobStatus.CLOSED; // Also close the job
+    await job.save({ validateBeforeSave: false }); // Skip validation for soft delete
     
     // Log job deletion
     await AuditLog.createLog({
@@ -455,6 +459,7 @@ export class JobController {
       entityType: 'Job',
       entityId: job._id,
       before: beforeState,
+      after: job.toObject(),
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
       businessProcess: 'job_management',
@@ -464,6 +469,93 @@ export class JobController {
     res.json({
       success: true,
       message: 'Job deleted successfully',
+    });
+  });
+  
+  /**
+   * Restore deleted job (Superadmin only)
+   * POST /jobs/:id/restore
+   */
+  static restoreJob = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    
+    // Only superadmin can restore
+    if (req.user!.role !== UserRole.SUPERADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Only superadmin can restore deleted jobs',
+      });
+    }
+    
+    // Try to find by custom jobId first, then by MongoDB _id
+    let job = await Job.findOne({ jobId: id, deleted: true });
+    if (!job) {
+      job = await Job.findOne({ _id: id, deleted: true });
+    }
+    
+    if (!job) {
+      throw createNotFoundError('Deleted Job', id);
+    }
+    
+    const beforeState = job.toObject();
+    
+    // Restore the job
+    job.deleted = false;
+    job.deletedAt = null as any;
+    job.deletedBy = null as any;
+    job.status = JobStatus.OPEN; // Reopen the job
+    await job.save({ validateBeforeSave: false }); // Skip validation for restore
+    
+    // Log job restoration
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.UPDATE,
+      entityType: 'Job',
+      entityId: job._id,
+      before: beforeState,
+      after: job.toObject(),
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      businessProcess: 'job_management',
+      description: 'Job restored from recycle bin',
+      riskLevel: 'low',
+    });
+    
+    res.json({
+      success: true,
+      message: 'Job restored successfully',
+      data: job,
+    });
+  });
+  
+  /**
+   * Get deleted jobs (Superadmin only)
+   * GET /jobs/deleted
+   */
+  static getDeletedJobs = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only superadmin can view deleted jobs
+    if (req.user!.role !== UserRole.SUPERADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Only superadmin can view deleted jobs',
+      });
+    }
+    
+    const jobs = await Job.find({ deleted: true })
+      .populate('companyId', 'name')
+      .populate('deletedBy', 'firstName lastName email')
+      .sort({ deletedAt: -1 });
+    
+    res.json({
+      success: true,
+      data: jobs,
+      meta: {
+        total: jobs.length,
+      },
     });
   });
 
