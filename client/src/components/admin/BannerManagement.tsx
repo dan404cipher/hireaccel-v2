@@ -670,8 +670,8 @@ export function BannerManagement() {
                         <strong>Display Size:</strong> Full width × 120px
                       </p>
                       <p className="text-sm text-green-600">
-                        Created by {activeBanner.createdBy.firstName} {activeBanner.createdBy.lastName}
-                      </p>
+                        Created by {typeof activeBanner.createdBy === 'object' && activeBanner.createdBy ? `${(activeBanner.createdBy as any).firstName} ${(activeBanner.createdBy as any).lastName}` : 'Unknown'}
+                       </p>
                       <p className="text-sm text-green-600">
                         {new Date(activeBanner.createdAt).toLocaleDateString()}
                       </p>
@@ -756,7 +756,7 @@ export function BannerManagement() {
                       </p>
                     )}
                     <p className="text-sm text-muted-foreground">
-                      Created by {banner.createdBy.firstName} {banner.createdBy.lastName}
+                      Created by {typeof banner.createdBy === 'object' && banner.createdBy ? `${(banner.createdBy as any).firstName} ${(banner.createdBy as any).lastName}` : 'Unknown'}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {new Date(banner.createdAt).toLocaleDateString()}

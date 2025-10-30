@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { BannerController } from '../controllers/BannerController';
-import { authenticate, requireRole } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 import { uploadBanner, handleMulterError } from '../config/multer';
 import { UserRole } from '../types';
 
@@ -10,7 +10,7 @@ const router = Router();
 router.post(
   '/',
   authenticate,
-  requireRole(UserRole.ADMIN),
+  requireAdmin,
   (req: any, _res: any, next: any) => {
     // Set file type for multer validation
     req.body.fileType = 'banner';
@@ -29,7 +29,7 @@ router.get('/active', BannerController.getActiveBanner as any);
 router.post(
   '/text',
   authenticate,
-  requireRole(UserRole.ADMIN),
+  requireAdmin,
   (req: any, _res: any, next: any) => {
     // Set file type for multer validation (optional background media)
     req.body.fileType = 'banner';
@@ -45,7 +45,7 @@ router.post(
 router.put(
   '/text/:bannerId',
   authenticate,
-  requireRole(UserRole.ADMIN),
+  requireAdmin,
   (req: any, _res: any, next: any) => {
     // Set file type for multer validation (optional background media)
     req.body.fileType = 'banner';
@@ -60,7 +60,7 @@ router.put(
 // Get all banners (admin only)
 router.get('/', 
   authenticate,
-  requireRole(UserRole.ADMIN), 
+  requireAdmin, 
   BannerController.getAllBanners as any
 );
 
@@ -68,7 +68,7 @@ router.get('/',
 router.patch(
   '/:bannerId/status',
   authenticate,
-  requireRole(UserRole.ADMIN),
+  requireAdmin,
   BannerController.updateBannerStatus as any
 );
 
@@ -76,7 +76,7 @@ router.patch(
 router.delete(
   '/:bannerId',
   authenticate,
-  requireRole(UserRole.ADMIN),
+  requireAdmin,
   BannerController.deleteBanner as any
 );
 
