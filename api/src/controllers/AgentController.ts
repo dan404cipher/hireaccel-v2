@@ -770,23 +770,8 @@ export class AgentController {
         // Count total documents with the same filter applied
         const total = await Interview.countDocuments(filter)
 
-        // Log audit trail
-        await AuditLog.createLog({
-            actor: req.user!._id,
-            action: AuditAction.READ,
-            entityType: 'Interview',
-            entityId: new mongoose.Types.ObjectId(),
-            metadata: {
-                queryType: 'agent_interviews',
-                resultCount: filteredInterviews.length,
-                assignedCandidateCount: assignedCandidateIds.length,
-                filter,
-            },
-            ipAddress: req.ip,
-            userAgent: req.get('User-Agent'),
-            businessProcess: 'agent_management',
-            description: `Agent retrieved ${filteredInterviews.length} interviews for assigned candidates`,
-        })
+        // Don't log audit trail for listing interviews - this prevents excessive audit logs
+        // Listing operations (READ) shouldn't create audit logs unless specifically required for compliance
 
         res.json({
             data: filteredInterviews,

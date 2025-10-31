@@ -543,6 +543,42 @@ class ApiClient {
     return this.request('/api/v1/users/stats');
   }
 
+  // Audit Log methods
+  async getAuditLogs(params: {
+    page?: number;
+    limit?: number;
+    entityType?: string;
+    action?: string;
+    entityId?: string;
+    actorId?: string;
+    startDate?: string;
+    endDate?: string;
+    riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request(`/api/v1/audit-logs?${queryParams.toString()}`);
+  }
+
+  async getAuditLogStats(params: {
+    startDate?: string;
+    endDate?: string;
+  } = {}) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, String(value));
+      }
+    });
+
+    return this.request(`/api/v1/audit-logs/stats?${queryParams.toString()}`);
+  }
+
   // Application methods
   async getApplications(params: {
     page?: number;

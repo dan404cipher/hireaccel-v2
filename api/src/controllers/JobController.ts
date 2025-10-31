@@ -359,10 +359,19 @@ export class JobController {
       entityType: 'Job',
       entityId: job._id,
       after: job.toObject(),
-      metadata: { companyId: company._id, urgency: job.urgency },
+      metadata: { 
+        companyId: company._id, 
+        urgency: job.urgency,
+        jobTitle: job.title,
+        jobId: job.jobId,
+        userId: req.user!._id.toString(),
+        userFirstName: req.user!.firstName,
+        userLastName: req.user!.lastName
+      },
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
       businessProcess: 'job_management',
+      description: `${req.user!.firstName} ${req.user!.lastName} created job "${job.title}" (ID: ${job.jobId})`,
     });
     
     res.status(201).json({

@@ -319,22 +319,8 @@ export class InterviewController {
       companyName: interview.applicationId?.jobId?.companyId?.name
     })));
 
-    // Log audit trail (safely handle potential errors)
-    try {
-      await AuditLog.createLog({
-        actor: req.user!._id,
-        action: AuditAction.CREATE,
-        entityType: 'Interview',
-        entityId: new mongoose.Types.ObjectId(), // Use a dummy ID for list operations
-        metadata: { queryType: 'list', resultCount: filteredInterviews.length },
-        ipAddress: req.ip || '127.0.0.1',
-        userAgent: req.get('User-Agent') || 'Unknown',
-        businessProcess: 'interview_scheduling',
-        description: `Retrieved ${filteredInterviews.length} interviews`,
-      });
-    } catch (auditError) {
-      console.warn('Failed to create audit log:', auditError);
-    }
+    // Don't log audit trail for listing interviews - this was causing duplicate CREATE logs
+    // Listing operations (READ) shouldn't create audit logs unless specifically required for compliance
 
     res.json({
       data: filteredInterviews,
@@ -385,21 +371,23 @@ export class InterviewController {
       throw createNotFoundError('Interview not found');
     }
 
-    // Log audit trail (safely handle potential errors)
-    try {
-      await AuditLog.createLog({
-        actor: req.user!._id,
-        action: AuditAction.CREATE,
-        entityType: 'Interview',
-        entityId: interview._id,
-        ipAddress: req.ip || '127.0.0.1',
-        userAgent: req.get('User-Agent') || 'Unknown',
-        businessProcess: 'interview_scheduling',
-        description: `Viewed interview details`,
-      });
-    } catch (auditError) {
-      console.warn('Failed to create audit log:', auditError);
-    }
+    // Log audit trail for viewing (READ action, not CREATE)
+    // Only log if needed for compliance - otherwise remove to avoid excessive logs
+    // Commented out to prevent duplicate audit logs on every page refresh/view
+    // try {
+    //   await AuditLog.createLog({
+    //     actor: req.user!._id,
+    //     action: AuditAction.READ,
+    //     entityType: 'Interview',
+    //     entityId: interview._id,
+    //     ipAddress: req.ip || '127.0.0.1',
+    //     userAgent: req.get('User-Agent') || 'Unknown',
+    //     businessProcess: 'interview_scheduling',
+    //     description: `Viewed interview details`,
+    //   });
+    // } catch (auditError) {
+    //   console.warn('Failed to create audit log:', auditError);
+    // }
 
     res.json({ data: interview });
   });
@@ -546,35 +534,84 @@ export class InterviewController {
             populate: [
               { 
                 path: 'userId', 
-                select: 'firstName lastName email' 
+                select: 'firstName lastName email customId' 
               },
               {
                 path: 'assignedAgentId',
-                select: 'firstName lastName email'
+                select: 'firstName lastName email customId'
               }
             ]
           },
-          { path: 'jobId', select: 'title companyId', populate: { path: 'companyId', select: 'name' } }
+          { path: 'jobId', select: 'title companyId jobId', populate: { path: 'companyId', select: 'name' } }
         ]
       })
-      .populate('interviewers', 'firstName lastName email')
-      .populate('createdBy', 'firstName lastName');
+      .populate('interviewers', 'firstName lastName email customId')
+      .populate('createdBy', 'firstName lastName email customId');
 
-    // Log audit trail
+    // Get detailed information for audit log
+    const application = populatedInterview?.applicationId as any;
+    const candidate = application?.candidateId as any;
+    const candidateUser = candidate?.userId as any;
+    const candidateName = candidateUser ? `${candidateUser.firstName} ${candidateUser.lastName}` : 'Unknown';
+    const candidateCustomId = candidateUser?.customId || '';
+    const job = application?.jobId as any;
+    const jobTitle = job?.title || 'N/A';
+    const jobId = job?.jobId || '';
+    const interviewers = (populatedInterview?.interviewers || []) as any[];
+    const interviewerNames = interviewers.map((inv: any) => `${inv.firstName} ${inv.lastName}`).join(', ');
+    const createdBy = populatedInterview?.createdBy as any;
+    const createdByName = createdBy ? `${createdBy.firstName} ${createdBy.lastName}` : 'Unknown';
+
+    // Build description
+    let description = `${req.user!.firstName} ${req.user!.lastName} scheduled ${interview.type} interview`;
+    if (interview.round) {
+      description += ` (Round ${interview.round})`;
+    }
+    description += ` for candidate ${candidateName}`;
+    if (candidateCustomId) {
+      description += ` (${candidateCustomId})`;
+    }
+    if (jobTitle && jobTitle !== 'N/A') {
+      description += ` for job "${jobTitle}"`;
+      if (jobId) {
+        description += ` (${jobId})`;
+      }
+    }
+    if (interview.scheduledAt) {
+      description += ` scheduled for ${new Date(interview.scheduledAt).toLocaleString()}`;
+    }
+
+    // Log audit trail with detailed metadata
     await AuditLog.createLog({
       actor: req.user!._id,
       action: AuditAction.CREATE,
       entityType: 'Interview',
       entityId: interview._id,
       after: populatedInterview?.toObject(),
-      metadata: { 
+      metadata: {
         applicationId: applicationId,
-        candidateId: validatedData.candidateId 
+        candidateId: candidate?._id?.toString(),
+        candidateName,
+        candidateCustomId,
+        jobId: job?._id?.toString(),
+        jobTitle,
+        jobCustomId: jobId,
+        interviewType: interview.type,
+        interviewRound: interview.round,
+        interviewStatus: interview.status,
+        scheduledAt: interview.scheduledAt?.toISOString(),
+        duration: interview.duration,
+        location: interview.location || interview.meetingLink,
+        interviewerIds: interviewers.map((inv: any) => inv._id.toString()),
+        interviewerNames,
+        createdById: interview.createdBy.toString(),
+        createdByName,
+        createdByCustomId: createdBy?.customId
       },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       businessProcess: 'interview_scheduling',
-      description: `Created interview for ${validatedData.candidateId ? 'candidate' : 'application'} ${validatedData.candidateId || applicationId}`,
+      description,
     });
 
     res.status(201).json({ data: populatedInterview });
@@ -596,6 +633,10 @@ export class InterviewController {
     if (!interview) {
       throw createNotFoundError('Interview not found');
     }
+
+    const beforeState = interview.toObject();
+    const oldStatus = interview.status;
+    const oldScheduledAt = interview.scheduledAt;
 
     // Handle notes properly if provided
     if (validatedData.notes) {
@@ -659,32 +700,101 @@ export class InterviewController {
             populate: [
               { 
                 path: 'userId', 
-                select: 'firstName lastName email' 
+                select: 'firstName lastName email customId' 
               },
               {
                 path: 'assignedAgentId',
-                select: 'firstName lastName email'
+                select: 'firstName lastName email customId'
               }
             ]
           },
-          { path: 'jobId', select: 'title companyId', populate: { path: 'companyId', select: 'name' } }
+          { path: 'jobId', select: 'title companyId jobId', populate: { path: 'companyId', select: 'name' } }
         ]
       })
-      .populate('interviewers', 'firstName lastName email')
-      .populate('createdBy', 'firstName lastName');
+      .populate('interviewers', 'firstName lastName email customId')
+      .populate('createdBy', 'firstName lastName email customId');
 
-    // Log audit trail
+    // Get detailed information for audit log
+    const application = populatedInterview?.applicationId as any;
+    const candidate = application?.candidateId as any;
+    const candidateUser = candidate?.userId as any;
+    const candidateName = candidateUser ? `${candidateUser.firstName} ${candidateUser.lastName}` : 'Unknown';
+    const candidateCustomId = candidateUser?.customId || '';
+    const job = application?.jobId as any;
+    const jobTitle = job?.title || 'N/A';
+    const jobId = job?.jobId || '';
+    const interviewers = (populatedInterview?.interviewers || []) as any[];
+    const interviewerNames = interviewers.map((inv: any) => `${inv.firstName} ${inv.lastName}`).join(', ');
+    
+    const newStatus = interview.status;
+    const newScheduledAt = interview.scheduledAt;
+    const statusChanged = oldStatus !== newStatus;
+    const scheduledAtChanged = oldScheduledAt?.getTime() !== newScheduledAt?.getTime();
+
+    // Build description based on what changed
+    let description = '';
+    if (statusChanged) {
+      description = `${req.user!.firstName} ${req.user!.lastName} changed interview status from "${oldStatus}" to "${newStatus}"`;
+      description += ` for candidate ${candidateName}`;
+      if (candidateCustomId) description += ` (${candidateCustomId})`;
+      if (jobTitle && jobTitle !== 'N/A') {
+        description += ` for job "${jobTitle}"`;
+        if (jobId) description += ` (${jobId})`;
+      }
+    } else if (scheduledAtChanged) {
+      description = `${req.user!.firstName} ${req.user!.lastName} rescheduled interview`;
+      if (oldScheduledAt && newScheduledAt) {
+        description += ` from ${new Date(oldScheduledAt).toLocaleString()} to ${new Date(newScheduledAt).toLocaleString()}`;
+      }
+      description += ` for candidate ${candidateName}`;
+      if (candidateCustomId) description += ` (${candidateCustomId})`;
+      if (jobTitle && jobTitle !== 'N/A') {
+        description += ` for job "${jobTitle}"`;
+        if (jobId) description += ` (${jobId})`;
+      }
+    } else {
+      description = `${req.user!.firstName} ${req.user!.lastName} updated interview`;
+      description += ` for candidate ${candidateName}`;
+      if (candidateCustomId) description += ` (${candidateCustomId})`;
+      if (jobTitle && jobTitle !== 'N/A') {
+        description += ` for job "${jobTitle}"`;
+        if (jobId) description += ` (${jobId})`;
+      }
+    }
+
+    // Log audit trail with detailed metadata
     await AuditLog.createLog({
       actor: req.user!._id,
       action: AuditAction.UPDATE,
       entityType: 'Interview',
       entityId: interview._id,
-      before: interview.toObject(),
+      before: beforeState,
       after: populatedInterview?.toObject(),
+      metadata: {
+        applicationId: interview.applicationId.toString(),
+        candidateId: candidate?._id?.toString(),
+        candidateName,
+        candidateCustomId,
+        jobId: job?._id?.toString(),
+        jobTitle,
+        jobCustomId: jobId,
+        interviewType: interview.type,
+        interviewRound: interview.round,
+        oldStatus: statusChanged ? oldStatus : undefined,
+        newStatus: statusChanged ? newStatus : undefined,
+        oldScheduledAt: scheduledAtChanged ? oldScheduledAt?.toISOString() : undefined,
+        newScheduledAt: scheduledAtChanged ? newScheduledAt?.toISOString() : undefined,
+        statusChanged,
+        scheduledAtChanged,
+        interviewerNames,
+        updatedById: req.user!._id.toString(),
+        updatedByName: `${req.user!.firstName} ${req.user!.lastName}`,
+        updatedByCustomId: req.user!.customId
+      },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       businessProcess: 'interview_scheduling',
-      description: `Updated interview`,
+      description,
     });
 
     res.json({ data: populatedInterview });
@@ -701,24 +811,84 @@ export class InterviewController {
       throw createNotFoundError('Interview not found');
     }
 
-    const interview = await Interview.findById(id);
+    const interview = await Interview.findById(id)
+      .populate({
+        path: 'applicationId',
+        populate: [
+          { 
+            path: 'candidateId', 
+            populate: [
+              { 
+                path: 'userId', 
+                select: 'firstName lastName email customId' 
+              }
+            ]
+          },
+          { path: 'jobId', select: 'title companyId jobId' }
+        ]
+      })
+      .populate('createdBy', 'firstName lastName email customId');
+
     if (!interview) {
       throw createNotFoundError('Interview not found');
     }
 
+    const beforeState = interview.toObject();
+
+    // Get detailed information for audit log before deletion
+    const application = interview.applicationId as any;
+    const candidate = application?.candidateId as any;
+    const candidateUser = candidate?.userId as any;
+    const candidateName = candidateUser ? `${candidateUser.firstName} ${candidateUser.lastName}` : 'Unknown';
+    const candidateCustomId = candidateUser?.customId || '';
+    const job = application?.jobId as any;
+    const jobTitle = job?.title || 'N/A';
+    const jobId = job?.jobId || '';
+
     await Interview.findByIdAndDelete(id);
 
-    // Log audit trail
+    // Build description
+    let description = `${req.user!.firstName} ${req.user!.lastName} deleted ${interview.type} interview`;
+    if (interview.round) {
+      description += ` (Round ${interview.round})`;
+    }
+    description += ` for candidate ${candidateName}`;
+    if (candidateCustomId) {
+      description += ` (${candidateCustomId})`;
+    }
+    if (jobTitle && jobTitle !== 'N/A') {
+      description += ` for job "${jobTitle}"`;
+      if (jobId) {
+        description += ` (${jobId})`;
+      }
+    }
+
+    // Log audit trail with detailed metadata
     await AuditLog.createLog({
       actor: req.user!._id,
       action: AuditAction.DELETE,
       entityType: 'Interview',
       entityId: interview._id,
-      before: interview.toObject(),
+      before: beforeState,
+      metadata: {
+        candidateId: candidate?._id?.toString(),
+        candidateName,
+        candidateCustomId,
+        jobId: job?._id?.toString(),
+        jobTitle,
+        jobCustomId: jobId,
+        interviewType: interview.type,
+        interviewRound: interview.round,
+        interviewStatus: interview.status,
+        scheduledAt: interview.scheduledAt?.toISOString(),
+        deletedById: req.user!._id.toString(),
+        deletedByName: `${req.user!.firstName} ${req.user!.lastName}`,
+        deletedByCustomId: req.user!.customId
+      },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       businessProcess: 'interview_scheduling',
-      description: `Deleted interview`,
+      description,
     });
 
     res.json({ message: 'Interview deleted successfully' });
@@ -836,22 +1006,8 @@ export class InterviewController {
       status: { $nin: [InterviewStatus.CANCELLED] }
     });
 
-    // Log audit trail (safely handle potential errors)
-    try {
-      await AuditLog.createLog({
-        actor: req.user!._id,
-        action: AuditAction.CREATE,
-        entityType: 'Interview',
-        entityId: new mongoose.Types.ObjectId(), // Use a dummy ID for stats operations
-        metadata: { queryType: 'stats', statsData: { byStatus: stats, todayCount } },
-        ipAddress: req.ip || '127.0.0.1',
-        userAgent: req.get('User-Agent') || 'Unknown',
-        businessProcess: 'interview_scheduling',
-        description: `Retrieved interview statistics`,
-      });
-    } catch (auditError) {
-      console.warn('Failed to create audit log:', auditError);
-    }
+    // Don't log audit trail for retrieving statistics - this prevents excessive audit logs
+    // Statistics/read operations shouldn't create audit logs unless specifically required for compliance
 
     res.json({
       data: {

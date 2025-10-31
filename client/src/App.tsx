@@ -32,6 +32,7 @@ const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
 const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
 const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
 const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
+const Activity = lazy(() => import("./pages/admin/Activity"));
 const RecycleBin = lazy(() => import("./pages/admin/RecycleBin"));
 const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
@@ -291,6 +292,11 @@ function AppRouter() {
         <Route path="post-ads" element={
           <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <BannerManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="activity" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+            <Activity />
           </RoleProtectedRoute>
         } />
         <Route path="recycle-bin" element={

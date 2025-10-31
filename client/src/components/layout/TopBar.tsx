@@ -41,7 +41,7 @@ export function TopBar() {
     } else if (user?.role === 'hr') {
       // Navigate to HR profile route, it will auto-update with customId
       navigate('/dashboard/hr-profile');
-    } else if (user?.role === 'admin') {
+    } else if (user?.role === 'admin' || user?.role === 'superadmin') {
       navigate('/dashboard/admin-profile');
     } else {
       navigate('/dashboard/profile');
@@ -51,6 +51,7 @@ export function TopBar() {
   const getRoleDisplayName = (role: string) => {
     switch (role) {
       case 'admin': return 'Admin';
+      case 'superadmin': return 'Super Admin';
       case 'hr': return 'HR Manager';
       case 'agent': return 'Agent';
       case 'candidate': return 'Candidate';
@@ -61,6 +62,7 @@ export function TopBar() {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-red-600 text-white';
+      case 'superadmin': return 'bg-gradient-to-r from-purple-600 to-pink-600 text-white';
       case 'hr': return 'bg-blue-600 text-white';
       case 'agent': return 'bg-purple-600 text-white';
       case 'candidate': return 'bg-emerald-600 text-white';
@@ -115,7 +117,7 @@ export function TopBar() {
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleProfileClick}>Profile</DropdownMenuItem>
-            {(user?.role === 'admin' || user?.role === 'agent') && (
+            {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'agent') && (
               <>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />

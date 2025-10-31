@@ -395,6 +395,8 @@ export class CandidateAssignmentController {
     }
 
     const beforeState = assignment.toObject();
+    const oldCandidateStatus = assignment.candidateStatus || 'new';
+    const oldStatus = assignment.status;
 
     // Update assignment
     Object.assign(assignment, validatedData);
@@ -428,7 +430,7 @@ export class CandidateAssignmentController {
       .populate('assignedTo', 'firstName lastName email customId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location createdBy',
+        select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
@@ -441,7 +443,48 @@ export class CandidateAssignmentController {
         ]
       });
 
-    // Log audit trail
+    // Get candidate and job info for audit log
+    const candidate = populatedAssignment?.candidateId as any;
+    const candidateUser = candidate?.userId as any;
+    const candidateName = candidateUser ? `${candidateUser.firstName} ${candidateUser.lastName}` : 'Unknown';
+    const candidateCustomId = candidateUser?.customId || '';
+    const job = populatedAssignment?.jobId as any;
+    const jobTitle = job?.title || 'N/A';
+    const jobId = job?.jobId || '';
+    const assignedTo = populatedAssignment?.assignedTo as any;
+    const assignedToName = assignedTo ? `${assignedTo.firstName} ${assignedTo.lastName}` : 'Unknown';
+    const assignedBy = populatedAssignment?.assignedBy as any;
+    const assignedByName = assignedBy ? `${assignedBy.firstName} ${assignedBy.lastName}` : 'Unknown';
+
+    // Determine what changed
+    const newCandidateStatus = assignment.candidateStatus || 'new';
+    const newStatus = assignment.status;
+    const candidateStatusChanged = newCandidateStatus !== oldCandidateStatus;
+    const statusChanged = newStatus !== oldStatus;
+
+    // Build description based on what changed
+    let description = '';
+    if (candidateStatusChanged) {
+      description = `${req.user!.firstName} ${req.user!.lastName} changed candidate ${candidateName}${candidateCustomId ? ` (${candidateCustomId})` : ''} status from "${oldCandidateStatus}" to "${newCandidateStatus}"`;
+      if (jobTitle && jobTitle !== 'N/A') {
+        description += ` for job "${jobTitle}"`;
+        if (jobId) {
+          description += ` (${jobId})`;
+        }
+      }
+    } else if (statusChanged) {
+      description = `${req.user!.firstName} ${req.user!.lastName} updated assignment status from "${oldStatus}" to "${newStatus}"`;
+      if (candidateName) {
+        description += ` for candidate ${candidateName}${candidateCustomId ? ` (${candidateCustomId})` : ''}`;
+      }
+    } else {
+      description = `${req.user!.firstName} ${req.user!.lastName} updated candidate assignment`;
+      if (candidateName) {
+        description += ` for ${candidateName}${candidateCustomId ? ` (${candidateCustomId})` : ''}`;
+      }
+    }
+
+    // Log audit trail with detailed metadata
     await AuditLog.createLog({
       actor: req.user!._id,
       action: AuditAction.UPDATE,
@@ -449,10 +492,28 @@ export class CandidateAssignmentController {
       entityId: assignment._id,
       before: beforeState,
       after: populatedAssignment?.toObject(),
+      metadata: {
+        candidateId: assignment.candidateId.toString(),
+        candidateName,
+        candidateCustomId,
+        assignedToId: assignment.assignedTo.toString(),
+        assignedToName,
+        assignedById: assignment.assignedBy.toString(),
+        assignedByName,
+        jobId: job?._id?.toString(),
+        jobTitle,
+        jobCustomId: jobId,
+        oldCandidateStatus: candidateStatusChanged ? oldCandidateStatus : undefined,
+        newCandidateStatus: candidateStatusChanged ? newCandidateStatus : undefined,
+        oldStatus: statusChanged ? oldStatus : undefined,
+        newStatus: statusChanged ? newStatus : undefined,
+        candidateStatusChanged,
+        statusChanged
+      },
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       businessProcess: 'candidate_management',
-      description: `Updated candidate assignment`,
+      description,
     });
 
     res.json({ data: populatedAssignment });

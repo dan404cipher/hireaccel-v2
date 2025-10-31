@@ -16,7 +16,8 @@ import {
   PieChart,
   TrendingUp,
   Image,
-  Trash2
+  Trash2,
+  Activity
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
@@ -45,6 +46,7 @@ const navigationItems = [
   { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'superadmin', 'hr'], color: "text-red-600" },
   { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin', 'superadmin'], color: "text-cyan-600" },
   { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin', 'superadmin'], color: "text-yellow-600" },
+  { title: "Activity", url: "/dashboard/activity", icon: Activity, roles: ['admin', 'superadmin', 'hr'], color: "text-purple-600" },
   { title: "Recycle Bin", url: "/dashboard/recycle-bin", icon: Trash2, roles: ['superadmin'], color: "text-red-600" },
   
   // Candidate-specific navigation
