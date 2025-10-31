@@ -580,7 +580,7 @@ export class AuditNotificationHandler {
    * Handle AgentAssignment-related audit logs
    */
   private async handleAgentAssignmentAudit(auditLog: AuditLog) {
-    const { action, entityId, actor, metadata, after } = auditLog;
+    const { action, entityId } = auditLog;
 
     switch (action) {
       case AuditAction.CREATE:
@@ -674,14 +674,14 @@ export class AuditNotificationHandler {
           title: 'Agent Assignment Removed',
           message: `Agent assignment has been removed`,
           recipients: [
-            { id: actor.toString(), role: UserRole.ADMIN },
+            { id: auditLog.actor.toString(), role: UserRole.ADMIN },
             { id: 'admin', role: UserRole.ADMIN },
             { id: 'admin', role: UserRole.SUPERADMIN }
           ],
           entityType: 'AgentAssignment',
           entityId: entityId.toString(),
           metadata: {
-            deletedBy: actor.toString()
+            deletedBy: auditLog.actor.toString()
           },
           priority: NotificationPriority.HIGH
         };
@@ -694,7 +694,7 @@ export class AuditNotificationHandler {
    * Handle CandidateAssignment-related audit logs
    */
   private async handleCandidateAssignmentAudit(auditLog: AuditLog) {
-    const { action, entityId, actor, metadata, after } = auditLog;
+    const { action, entityId, metadata } = auditLog;
 
     switch (action) {
       case AuditAction.UPDATE:

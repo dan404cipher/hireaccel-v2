@@ -168,14 +168,14 @@ export class AuditLogController {
       
       // Calculate stats manually for HR user
       const actionStats: any[] = [];
-      const actionCounts: Record<string, Record<string, number>> = {};
+      const actionCounts: Record<string, { count: number; action: any; entityType: string; success: boolean }> = {};
       
       logs.forEach((log) => {
         const key = `${log.action}-${log.entityType}-${log.success !== false ? 'success' : 'failed'}`;
         if (!actionCounts[key]) {
           actionCounts[key] = { count: 0, action: log.action, entityType: log.entityType, success: log.success !== false };
         }
-        actionCounts[key].count++;
+        actionCounts[key]!.count++;
       });
       
       Object.values(actionCounts).forEach((stat: any) => {
