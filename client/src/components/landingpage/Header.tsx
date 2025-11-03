@@ -17,10 +17,10 @@ interface HeaderProps {
   onBackToHome?: () => void;
 }
 
-export function Header({ 
-  navItems = [], 
+export function Header({
+  navItems = [],
   showAuthButtons = true,
-  onBackToHome
+  onBackToHome,
 }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -34,14 +34,14 @@ export function Header({
       setIsScrolled(window.scrollY > heroFooterOffset);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+      element.scrollIntoView({ behavior: "smooth" });
     }
     setIsMenuOpen(false);
   };
@@ -58,32 +58,54 @@ export function Header({
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-transparent" style={{ background: "#80808052" }}>
+    <header
+      className="fixed top-0 left-0 right-0 z-50 bg-transparent"
+      style={{ background: "#80808052" }}
+    >
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer" 
-            onClick={() => navigate('/')}>
+          <div
+            className="flex items-center space-x-3 cursor-pointer"
+            onClick={() => navigate("/")}
+          >
             <img src={logoColor} alt="HireAccel Logo" className="h-10 w-10" />
             <div>
-              <h1 className="font-bold text-sm md:text-lg font-inter text-white">Hire Accel</h1>
-              <p className="text-xs font-medium font-inter text-white/80">powered by v-accel</p>
+              <h1 className="font-bold text-sm md:text-lg font-inter text-white">
+                Hire Accel
+              </h1>
+              <p className="text-xs font-medium font-inter text-white/80">
+                powered by v-accel
+              </p>
             </div>
           </div>
-
 
           {/* Desktop Auth Buttons */}
           {showAuthButtons && (
             <div className="hidden md:flex items-center space-x-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
                 className="text-white hover:bg-green-600 hover:text-white transition-all duration-300"
               >
                 Sign In
               </Button>
               <Button
-                onClick={() => navigate('/signup')}
+                variant="secondary"
+                onClick={() => navigate("/for-employer")}
+                className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+              >
+                For Employer
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => navigate("/for-job-seekers")}
+                className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+              >
+                For Job Seekers
+              </Button>
+              <Button
+                onClick={() => navigate("/signup")}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -97,7 +119,11 @@ export function Header({
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="md:hidden p-2 rounded-lg transition-colors duration-200 text-white hover:bg-white/10"
           >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
         </div>
 
@@ -107,13 +133,27 @@ export function Header({
             <div className="flex flex-col space-y-2 px-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
                 className="justify-start text-gray-700 hover:bg-green-600 hover:text-white transition-all duration-300"
               >
                 Sign In
               </Button>
               <Button
-                onClick={() => navigate('/signup')}
+                variant="ghost"
+                onClick={() => navigate("/for-employer")}
+                className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
+              >
+                For Employer
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/for-job-seekers")}
+                className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
+              >
+                For job seekers
+              </Button>
+              <Button
+                onClick={() => navigate("/signup")}
                 className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
