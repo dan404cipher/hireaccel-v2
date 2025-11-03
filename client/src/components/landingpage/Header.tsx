@@ -92,14 +92,14 @@ export function Header({
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => navigate("/for-employer")}
+                onClick={() => navigate("/register/hr")}
                 className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
               >
                 For Employer
               </Button>
               <Button
                 variant="secondary"
-                onClick={() => navigate("/for-job-seekers")}
+                onClick={() => navigate("/register/Candidate")}
                 className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
               >
                 For Job Seekers
@@ -140,14 +140,14 @@ export function Header({
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => navigate("/for-employer")}
+                onClick={() => navigate("/register-hr")}
                 className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
               >
                 For Employer
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => navigate("/for-job-seekers")}
+                onClick={() => navigate("/register-Candidate")}
                 className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
               >
                 For job seekers
