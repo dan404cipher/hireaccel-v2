@@ -40,8 +40,10 @@ const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => (
 const OTPVerificationPage = lazy(() => import("./pages/auth/OTPVerificationPage").then(module => ({ default: module.OTPVerificationPage })));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
-const HRProfessionals = lazy(() => import("./components/landingpage/hr/HRFeatures").then(module => ({ default: module.HRProfessionals })));
-const JobCandidates = lazy(() => import("./components/landingpage/condidate/CandidateFeatures").then(module => ({ default: module.JobCandidates })));
+const ForEmployer = lazy(() => import("./pages/ForEmployer"));
+const ForEmployee = lazy(() => import("./pages/ForEmployee"));
+const ForEmployerSignup = lazy(() => import("./pages/ForEmployerSignup"));
+const ForJobSeekersSignup = lazy(() => import("./pages/ForJobSeekersSignup"));
 const ForgetPasswordPage = lazy(() => import("./pages/auth/ForgetPasswordPage").then(module => ({ default: module.ForgetPasswordPage })));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage").then(module => ({ default: module.ResetPasswordPage })));
 
@@ -186,8 +188,10 @@ function AppRouter() {
         } 
       />
       <Route>
-        <Route path="/hr" element={<HRProfessionals />} />
-        <Route path="/candidate" element={<JobCandidates />} />
+        <Route path="/hr" element={<ForEmployer />} />
+        <Route path="/candidate" element={<ForEmployee />} />
+        <Route path="/register/hr" element={<ForEmployerSignup />} />
+        <Route path="/register/candidate" element={<ForJobSeekersSignup />} />
       </Route>
       
       {/* Protected Routes */}

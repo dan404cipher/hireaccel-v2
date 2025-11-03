@@ -266,6 +266,8 @@ export function JobCandidates() {
           { label: "FAQ", id: "faq" }
         ]}
         showAuthButtons={true}
+        showRoleButtons={false}
+        getStartedHref="/register/candidate"
       />
 
       {/* 1. Enhanced Hero Section */}
@@ -333,7 +335,7 @@ export function JobCandidates() {
                   <Button 
                     size="lg"
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg shadow-2xl w-full sm:w-auto"
-                    onClick={()=>navigate('/signup/candidate')}
+                    onClick={()=>navigate('/register/candidate')}
                   >
                     Get matched in 2 minutes
                     <ArrowRight className="w-5 h-5 ml-2" />
@@ -342,7 +344,7 @@ export function JobCandidates() {
                     variant="outline"
                     size="lg"
                     className="border-2 border-blue-200 text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg w-full sm:w-auto font-semibold"
-                    onClick={()=>navigate('/signup/candidate')}
+                    onClick={()=>navigate('/register/candidate')}
                   >
                     <Upload className="w-5 h-5 mr-2" />
                     Just upload CV
@@ -815,7 +817,7 @@ export function JobCandidates() {
                   <Button 
                     size="lg"
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-4 text-sm md:text-md lg:text-lg font-semibold rounded-full shadow-xl transform hover:scale-105 transition-all duration-300"
-                    onClick={()=>navigate('/signup/candidate')}
+                    onClick={()=>navigate('/register/candidate')}
                   >
                     Upload Your CV Now
                     <Upload className="w-5 h-5 ml-2" />

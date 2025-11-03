@@ -292,6 +292,8 @@ export function HRProfessionals() {
           { label: "Compare", id: "competitor-comparison" }
         ]}
         showAuthButtons={true}
+        showRoleButtons={false}
+        getStartedHref="/register/hr"
       />
 
       {/* 1. Hero Section */}
@@ -381,7 +383,7 @@ export function HRProfessionals() {
                 <Button 
                   size="lg"
                   className="bg-gradient-to-r from-blue-900 to-purple-500 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg shadow-xl w-full sm:w-auto"
-                  onClick={()=>navigate('/signup/hr')}
+                  onClick={()=>navigate('/register/hr')}
                 >
                   Post unlimited jobs for FREE
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -390,7 +392,7 @@ export function HRProfessionals() {
                   variant="outline"
                   size="lg"
                   className="border-blue-200 text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg w-full sm:w-auto"
-                  onClick={()=>navigate('/signup/hr')}
+                  onClick={()=>navigate('/register/hr')}
                 >
                   <Play className="w-5 h-5 mr-2" />
                   Watch 2-Min Demo
@@ -648,7 +650,7 @@ export function HRProfessionals() {
             >
               <div className="bg-black/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 border border-white/80 hover:border-white shadow-xl max-w-4xl mx-auto">
                 <div className="flex flex-col items-center space-y-4 sm:space-y-6">
-                  <div className="flex items-center space-x-2 sm:space-x-3" onClick={()=>navigate('/signup/hr')}>
+                  <div className="flex items-center space-x-2 sm:space-x-3" onClick={()=>navigate('/register/hr')}>
                     <Clock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-600" />
                     <span className="text-xl sm:text-2xl font-bold text-white">Ready to get started?</span>
                   </div>
@@ -661,7 +663,7 @@ export function HRProfessionals() {
                     <Button 
                       size="lg"
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 sm:px-8 md:px-10 py-3 sm:py-4 text-base sm:text-lg shadow-xl transform hover:scale-105 transition-all duration-300"
-                      onClick={()=>navigate('/signup/hr')}
+                      onClick={()=>navigate('/register/hr')}
                     >
                       Start Your First Job Post
                       <ArrowRight className="w-5 h-5 ml-2" />
@@ -902,7 +904,7 @@ export function HRProfessionals() {
             <Button 
               size="lg" 
               className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-xl"
-              onClick={()=>navigate('/signup/hr')}
+              onClick={()=>navigate('/register/hr')}
             >
               Get Started Free - Save ₹3,60,000+
               <ArrowRight className="w-5 h-5 ml-2" />
