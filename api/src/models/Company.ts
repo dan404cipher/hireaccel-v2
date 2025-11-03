@@ -43,6 +43,11 @@ export interface CompanyDocument extends Omit<ICompany, '_id' | 'createdBy'>, Do
   successRate?: number;
   avgTimeToHire?: number;
   
+  // Soft delete fields
+  deleted: boolean;
+  deletedAt?: Date;
+  deletedBy?: mongoose.Types.ObjectId;
+  
   // Instance methods
   addContact(contact: CompanyContact): void;
   removeContact(email: string): void;
@@ -359,6 +364,24 @@ const companySchema = new Schema<CompanyDocument>({
   lastActivityAt: {
     type: Date,
     default: Date.now,
+  },
+  
+  // Soft delete fields
+  deleted: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  
+  deletedAt: {
+    type: Date,
+    default: null,
+  },
+  
+  deletedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
   },
   
 }, {

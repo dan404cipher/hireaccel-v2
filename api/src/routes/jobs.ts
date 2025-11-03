@@ -20,6 +20,13 @@ router.use(authenticate);
 router.get('/stats', requireAgent, JobController.getJobStats);
 
 /**
+ * @route   GET /jobs/deleted
+ * @desc    Get deleted jobs (Recycle Bin)
+ * @access  Superadmin only
+ */
+router.get('/deleted', JobController.getDeletedJobs);
+
+/**
  * @route   GET /jobs/search
  * @desc    Search jobs
  * @access  All authenticated users
@@ -81,5 +88,12 @@ router.post('/:id/close', requireHR, JobController.closeJob);
  * @access  Admin
  */
 router.delete('/:id', requireHR, JobController.deleteJob);
+
+/**
+ * @route   POST /jobs/:id/restore
+ * @desc    Restore deleted job from recycle bin
+ * @access  Superadmin only
+ */
+router.post('/:id/restore', JobController.restoreJob);
 
 export default router;

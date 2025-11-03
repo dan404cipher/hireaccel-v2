@@ -39,6 +39,7 @@ import {
   Search, 
   Filter, 
   MoreHorizontal,
+  Plus,
   Clock,
   MapPin,
   Video,
@@ -55,7 +56,8 @@ import {
   Timer,
   MessageSquare,
   Edit,
-  Trash2
+  Trash2,
+  ArrowUpDown
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -73,9 +75,10 @@ export default function InterviewManagement() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState(searchParams.get('date') || "all");
-  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
+  const [viewMode, setViewMode] = useState<"table" | "calendar" | "week" | "day">("table");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [page, setPage] = useState(1);
+  const [sortOption, setSortOption] = useState<"newest" | "oldest" | "candidate-asc" | "candidate-desc" | "job-asc" | "job-desc">("newest");
   
   // Schedule Interview Form State
   const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
@@ -93,6 +96,10 @@ export default function InterviewManagement() {
   // Edit Interview Form State
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingInterview, setEditingInterview] = useState<any>(null);
+
+  // View Interview Details State
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [viewingInterview, setViewingInterview] = useState<any>(null);
   const [editFormData, setEditFormData] = useState({
     type: '',
     round: '',
@@ -183,6 +190,15 @@ export default function InterviewManagement() {
   const candidateAssignments = Array.isArray(candidatesResponse) ? candidatesResponse : ((candidatesResponse as any)?.data || []);
 
 
+  // Helper function to get local date string (YYYY-MM-DD) without timezone conversion issues
+  const getLocalDateString = (dateInput: string | Date): string => {
+    const date = new Date(dateInput);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Transform API data to the format expected by the UI
   const transformedInterviews = interviews.map((interview: any) => ({
     id: interview._id || interview.id,
@@ -194,7 +210,7 @@ export default function InterviewManagement() {
     agent: interview.applicationId?.candidateId?.assignedAgentId?.firstName && interview.applicationId?.candidateId?.assignedAgentId?.lastName
       ? `${interview.applicationId.candidateId.assignedAgentId.firstName} ${interview.applicationId.candidateId.assignedAgentId.lastName}`
       : "Unassigned",
-    date: new Date(interview.scheduledAt).toISOString().split('T')[0],
+    date: getLocalDateString(interview.scheduledAt),
     time: new Date(interview.scheduledAt).toLocaleTimeString('en-US', { 
       hour: 'numeric', 
       minute: '2-digit',
@@ -216,21 +232,55 @@ export default function InterviewManagement() {
     
     let matchesDate = true;
     if (dateFilter === "today") {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString(new Date());
       matchesDate = interview.date === today;
     } else if (dateFilter === "tomorrow") {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      matchesDate = interview.date === tomorrow.toISOString().split('T')[0];
+      matchesDate = interview.date === getLocalDateString(tomorrow);
     } else if (dateFilter === "week") {
       const weekFromNow = new Date();
       weekFromNow.setDate(weekFromNow.getDate() + 7);
-      const interviewDate = new Date(interview.date);
-      matchesDate = interviewDate <= weekFromNow && interviewDate >= new Date();
+      const interviewDate = new Date(interview.date + 'T00:00:00');
+      matchesDate = interviewDate <= weekFromNow && interviewDate >= new Date(new Date().setHours(0, 0, 0, 0));
     }
     
     return matchesSearch && matchesStatus && matchesDate;
   });
+
+  // Sort interviews based on selected option
+  const sortedInterviews = useMemo(() => {
+    return [...filteredInterviews].sort((a, b) => {
+      switch (sortOption) {
+        case "newest":
+          // Sort by scheduledAt descending (newest first)
+          const aDate = new Date(a.originalData?.scheduledAt || a.date).getTime();
+          const bDate = new Date(b.originalData?.scheduledAt || b.date).getTime();
+          return bDate - aDate;
+        
+        case "oldest":
+          // Sort by scheduledAt ascending (oldest first)
+          const aDateOld = new Date(a.originalData?.scheduledAt || a.date).getTime();
+          const bDateOld = new Date(b.originalData?.scheduledAt || b.date).getTime();
+          return aDateOld - bDateOld;
+        
+        case "candidate-asc":
+          return a.candidateName.localeCompare(b.candidateName, undefined, { sensitivity: 'base' });
+        
+        case "candidate-desc":
+          return b.candidateName.localeCompare(a.candidateName, undefined, { sensitivity: 'base' });
+        
+        case "job-asc":
+          return a.jobTitle.localeCompare(b.jobTitle, undefined, { sensitivity: 'base' });
+        
+        case "job-desc":
+          return b.jobTitle.localeCompare(a.jobTitle, undefined, { sensitivity: 'base' });
+        
+        default:
+          return 0;
+      }
+    });
+  }, [filteredInterviews, sortOption]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -542,7 +592,25 @@ export default function InterviewManagement() {
               className="rounded-md"
             >
               <CalendarIcon className="w-4 h-4 mr-2" />
-              Calendar
+              Month
+            </Button>
+            <Button
+              variant={viewMode === "week" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("week")}
+              className="rounded-md"
+            >
+              <CalendarIcon className="w-4 h-4 mr-2" />
+              Week
+            </Button>
+            <Button
+              variant={viewMode === "day" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("day")}
+              className="rounded-md"
+            >
+              <CalendarIcon className="w-4 h-4 mr-2" />
+              Day
             </Button>
         </div>
         {user?.role !== 'candidate' && (
@@ -860,6 +928,158 @@ export default function InterviewManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* View Interview Details Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Interview Details</DialogTitle>
+              <DialogDescription>
+                View detailed information about the interview
+              </DialogDescription>
+            </DialogHeader>
+            
+            {viewingInterview && (
+              <div className="space-y-4 py-4">
+                {/* Candidate Information */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Candidate</label>
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                    <User className="w-5 h-5 text-blue-600" />
+                    <span className="font-medium">{viewingInterview.candidateName}</span>
+                  </div>
+                </div>
+
+                {/* Job Information */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Job</label>
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                    <Briefcase className="w-5 h-5 text-purple-600" />
+                    <div>
+                      <span className="font-medium">{viewingInterview.jobTitle}</span>
+                      <span className="text-sm text-muted-foreground ml-2">at {viewingInterview.company}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date and Time */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Date</label>
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                      <CalendarIcon className="w-5 h-5 text-blue-600" />
+                      <span>{viewingInterview.originalData?.scheduledAt 
+                        ? new Date(viewingInterview.originalData.scheduledAt).toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })
+                        : new Date(viewingInterview.date + 'T00:00:00').toLocaleDateString('en-US', { 
+                            weekday: 'long', 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })
+                      }</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Time</label>
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                      <Clock className="w-5 h-5 text-emerald-600" />
+                      <span>{viewingInterview.time}</span>
+                      <span className="text-sm text-muted-foreground">({viewingInterview.duration})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Interview Type and Location */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Type</label>
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                      {getTypeIcon(viewingInterview.type)}
+                      <span className="capitalize">{viewingInterview.type}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Round</label>
+                    <div className="p-3 bg-slate-50 rounded-md">
+                      <span>Round {viewingInterview.round}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location */}
+                {viewingInterview.location && viewingInterview.location !== 'TBD' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Location</label>
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                      <MapPin className="w-5 h-5 text-purple-600" />
+                      <span className="break-words">{viewingInterview.location}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Status</label>
+                  <div className="p-3 bg-slate-50 rounded-md">
+                    <Badge className={getStatusColor(viewingInterview.status)}>
+                      {getStatusIcon(viewingInterview.status)}
+                      <span className="ml-2 capitalize">{viewingInterview.status}</span>
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Agent */}
+                {viewingInterview.agent && viewingInterview.agent !== 'Unassigned' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Assigned Agent</label>
+                    <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-md">
+                      <Users className="w-5 h-5 text-indigo-600" />
+                      <span>{viewingInterview.agent}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {viewingInterview.originalData?.notes?.[0]?.content && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                    <div className="p-3 bg-slate-50 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="w-5 h-5 text-gray-600 mt-0.5" />
+                        <p className="text-sm whitespace-pre-wrap">{viewingInterview.originalData.notes[0].content}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setIsViewDialogOpen(false)}
+              >
+                Close
+              </Button>
+              {user?.role !== 'candidate' && viewingInterview && (
+                <Button 
+                  onClick={() => {
+                    setIsViewDialogOpen(false);
+                    openEditDialog(viewingInterview.originalData);
+                  }}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Interview
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         </div>
       </div>
 
@@ -971,6 +1191,20 @@ export default function InterviewManagement() {
                     <SelectItem value="week">This Week</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={sortOption} onValueChange={(value: any) => setSortOption(value)}>
+                  <SelectTrigger className="w-40 border-green-200 focus:border-green-400 focus:ring-green-400">
+                    <ArrowUpDown className="w-4 h-4 mr-2 text-green-600" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="candidate-asc">Candidate A-Z</SelectItem>
+                    <SelectItem value="candidate-desc">Candidate Z-A</SelectItem>
+                    <SelectItem value="job-asc">Job Title A-Z</SelectItem>
+                    <SelectItem value="job-desc">Job Title Z-A</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent>
@@ -1008,7 +1242,7 @@ export default function InterviewManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredInterviews.length > 0 ? filteredInterviews.map((interview) => (
+                    {sortedInterviews.length > 0 ? sortedInterviews.map((interview) => (
                     <React.Fragment key={interview.id}>
                     <TableRow>
                       <TableCell>
@@ -1122,7 +1356,7 @@ export default function InterviewManagement() {
             </CardContent>
           </Card>
         </div>
-      ) : (
+      ) : viewMode === "calendar" ? (
         /* Calendar View */
         <div className="w-full max-w-7xl mx-auto">
           <Card>
@@ -1186,7 +1420,7 @@ export default function InterviewManagement() {
                     }
                     
                     return days.map((date, index) => {
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = getLocalDateString(date);
                       const dayInterviews = transformedInterviews.filter(interview => interview.date === dateStr);
                       const isCurrentMonth = date.getMonth() === currentMonth;
                       const isToday = date.toDateString() === today.toDateString();
@@ -1196,7 +1430,7 @@ export default function InterviewManagement() {
                         <div
                           key={index}
                           className={`
-                            min-h-[120px] p-1 border border-border cursor-pointer transition-colors
+                            min-h-[120px] p-1 border border-border cursor-pointer transition-colors group relative
                             ${isCurrentMonth ? 'bg-background' : 'bg-muted/30'}
                             ${isToday ? 'bg-primary/10 border-primary' : ''}
                             ${isSelected ? 'bg-primary/20 border-primary' : ''}
@@ -1204,12 +1438,39 @@ export default function InterviewManagement() {
                           `}
                           onClick={() => setSelectedDate(date)}
                         >
-                          <div className={`
-                            text-sm font-medium mb-1
-                            ${isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}
-                            ${isToday ? 'text-primary font-bold' : ''}
-                          `}>
-                            {date.getDate()}
+                          <div className="flex items-center justify-between mb-1">
+                            <div className={`
+                              text-sm font-medium
+                              ${isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'}
+                              ${isToday ? 'text-primary font-bold' : ''}
+                            `}>
+                              {date.getDate()}
+                            </div>
+                            {user?.role !== 'candidate' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const dateStr = getLocalDateString(date);
+                                  // Set default time to 10:00 (10:00 AM) for future dates, current time for today
+                                  const today = new Date();
+                                  const isToday = dateStr === getLocalDateString(today);
+                                  const timeStr = isToday 
+                                    ? new Date().toTimeString().slice(0, 5) // Current time if today
+                                    : '10:00'; // Default to 10:00 (10 AM) for future dates
+                                  setScheduleFormData(prev => ({
+                                    ...prev,
+                                    scheduledAt: dateStr,
+                                    scheduledTime: timeStr
+                                  }));
+                                  setIsScheduleDialogOpen(true);
+                                }}
+                              >
+                                <Plus className="h-4 w-4 text-primary" />
+                              </Button>
+                            )}
                           </div>
                           
                           {/* Interview Events */}
@@ -1218,10 +1479,15 @@ export default function InterviewManagement() {
                               <div
                                 key={interview.id}
                                 className={`
-                                  text-xs p-1 rounded text-white truncate
+                                  text-xs p-1 rounded text-white truncate cursor-pointer hover:opacity-80 transition-opacity
                                   ${getStatusBackgroundColor(interview.status)}
                                 `}
                                 title={`${interview.time} - ${interview.candidateName} (${interview.jobTitle})`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewingInterview(interview);
+                                  setIsViewDialogOpen(true);
+                                }}
                               >
                                 <div className="flex items-center gap-1">
                                   {getTypeIcon(interview.type)}
@@ -1248,7 +1514,270 @@ export default function InterviewManagement() {
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : viewMode === "week" ? (
+        /* Week View */
+        <div className="w-full max-w-7xl mx-auto">
+          <Card>
+            <CardContent className="p-6">
+              <div className="w-full">
+                {/* Week Navigation */}
+                <div className="flex items-center justify-between mb-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newDate = new Date(selectedDate || new Date());
+                      newDate.setDate(newDate.getDate() - 7);
+                      setSelectedDate(newDate);
+                    }}
+                  >
+                    Previous Week
+                  </Button>
+                  
+                  <h3 className="text-xl font-semibold">
+                    {(() => {
+                      const startOfWeek = new Date(selectedDate || new Date());
+                      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                      const endOfWeek = new Date(startOfWeek);
+                      endOfWeek.setDate(endOfWeek.getDate() + 6);
+                      return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+                    })()}
+                  </h3>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newDate = new Date(selectedDate || new Date());
+                      newDate.setDate(newDate.getDate() + 7);
+                      setSelectedDate(newDate);
+                    }}
+                  >
+                    Next Week
+                  </Button>
+                </div>
+                
+                {/* Week Grid */}
+                <div className="grid grid-cols-7 gap-2">
+                  {/* Header */}
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => {
+                    const startOfWeek = new Date(selectedDate || new Date());
+                    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                    const date = new Date(startOfWeek);
+                    date.setDate(startOfWeek.getDate() + idx);
+                    const dateStr = getLocalDateString(date);
+                    const dayInterviews = transformedInterviews.filter(interview => interview.date === dateStr);
+                    const isToday = dateStr === getLocalDateString(new Date());
+                    
+                    return (
+                      <div key={day} className="border rounded-lg">
+                        <div className={`
+                          p-2 border-b text-center font-medium
+                          ${isToday ? 'bg-primary/10 text-primary' : 'bg-muted/30'}
+                        `}>
+                          <div className="text-sm">{day}</div>
+                          <div className="text-lg font-bold">{date.getDate()}</div>
+                        </div>
+                        <div className="p-2 space-y-1 min-h-[400px]">
+                          {user?.role !== 'candidate' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 mb-2 opacity-0 hover:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const timeStr = isToday 
+                                  ? new Date().toTimeString().slice(0, 5)
+                                  : '10:00';
+                                setScheduleFormData(prev => ({
+                                  ...prev,
+                                  scheduledAt: dateStr,
+                                  scheduledTime: timeStr
+                                }));
+                                setIsScheduleDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="h-3 w-3 text-primary" />
+                            </Button>
+                          )}
+                          {dayInterviews.map((interview) => (
+                            <div
+                              key={interview.id}
+                              className={`
+                                text-xs p-2 rounded text-white cursor-pointer hover:opacity-80 transition-opacity
+                                ${getStatusBackgroundColor(interview.status)}
+                              `}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingInterview(interview);
+                                setIsViewDialogOpen(true);
+                              }}
+                              title={`${interview.time} - ${interview.candidateName}`}
+                            >
+                              <div className="flex items-center gap-1 mb-1">
+                                {getTypeIcon(interview.type)}
+                                <span className="font-medium">{interview.time}</span>
+                              </div>
+                              <div className="font-semibold truncate">{interview.candidateName}</div>
+                              <div className="text-xs opacity-90 truncate">{interview.jobTitle}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : viewMode === "day" ? (
+        /* Day View */
+        <div className="w-full max-w-7xl mx-auto">
+          <Card>
+            <CardContent className="p-6">
+              <div className="w-full">
+                {/* Day Navigation */}
+                <div className="flex items-center justify-between mb-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newDate = new Date(selectedDate || new Date());
+                      newDate.setDate(newDate.getDate() - 1);
+                      setSelectedDate(newDate);
+                    }}
+                  >
+                    Previous Day
+                  </Button>
+                  
+                  <h3 className="text-xl font-semibold">
+                    {selectedDate?.toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </h3>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newDate = new Date(selectedDate || new Date());
+                      newDate.setDate(newDate.getDate() + 1);
+                      setSelectedDate(newDate);
+                    }}
+                  >
+                    Next Day
+                  </Button>
+                </div>
+                
+                {/* Day Timeline */}
+                <div className="grid grid-cols-12 gap-4">
+                  {/* Time Slots */}
+                  <div className="col-span-2 space-y-2">
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <div key={i} className="h-16 text-sm text-muted-foreground text-right pr-2 pt-2">
+                        {i.toString().padStart(2, '0')}:00
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Interview Schedule */}
+                  <div className="col-span-10 border rounded-lg p-4">
+                    <div className="relative min-h-[384px]">
+                      {(() => {
+                        const dateStr = getLocalDateString(selectedDate || new Date());
+                        const dayInterviews = transformedInterviews
+                          .filter(interview => interview.date === dateStr)
+                          .sort((a, b) => {
+                            const timeA = new Date(a.originalData?.scheduledAt || a.date + 'T' + a.time);
+                            const timeB = new Date(b.originalData?.scheduledAt || b.date + 'T' + b.time);
+                            return timeA.getTime() - timeB.getTime();
+                          });
+                        
+                        return (
+                          <div className="space-y-3">
+                            {user?.role !== 'candidate' && (
+                              <Button
+                                variant="outline"
+                                className="w-full mb-4"
+                                onClick={() => {
+                                  const timeStr = dateStr === getLocalDateString(new Date())
+                                    ? new Date().toTimeString().slice(0, 5)
+                                    : '10:00';
+                                  setScheduleFormData(prev => ({
+                                    ...prev,
+                                    scheduledAt: dateStr,
+                                    scheduledTime: timeStr
+                                  }));
+                                  setIsScheduleDialogOpen(true);
+                                }}
+                              >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Schedule Interview
+                              </Button>
+                            )}
+                            {dayInterviews.length > 0 ? (
+                              dayInterviews.map((interview) => (
+                                <div
+                                  key={interview.id}
+                                  className={`
+                                    p-4 rounded-lg border-l-4 cursor-pointer hover:shadow-md transition-shadow
+                                    ${getStatusBackgroundColor(interview.status)} text-white
+                                  `}
+                                  onClick={() => {
+                                    setViewingInterview(interview);
+                                    setIsViewDialogOpen(true);
+                                  }}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        {getTypeIcon(interview.type)}
+                                        <span className="font-bold text-base">{interview.time}</span>
+                                        <Badge variant="secondary" className="text-xs">
+                                          {interview.duration}
+                                        </Badge>
+                                      </div>
+                                      <div className="font-semibold text-lg mb-1">{interview.candidateName}</div>
+                                      <div className="text-sm opacity-90 mb-2">{interview.jobTitle}</div>
+                                      {interview.location && interview.location !== 'TBD' && (
+                                        <div className="flex items-center gap-1 text-xs opacity-80">
+                                          <MapPin className="w-3 h-3" />
+                                          {interview.location}
+                                        </div>
+                                      )}
+                                      {interview.originalData?.notes?.[0]?.content && (
+                                        <div className="mt-2 text-xs opacity-75 line-clamp-2">
+                                          {interview.originalData.notes[0].content}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <Badge className={getStatusColor(interview.status)}>
+                                      {interview.status}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                <p>No interviews scheduled for this day</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
     </div>
   );
 }

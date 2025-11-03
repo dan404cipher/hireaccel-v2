@@ -34,7 +34,8 @@ import {
   CheckSquare,
   Save,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  ArrowUpDown
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment, useRemoveFromAgentAssignment } from '../../hooks/useApi';
@@ -51,6 +52,52 @@ import { useToast } from '../../hooks/use-toast';
 const formatLastLogin = (lastLogin: string | null) => {
   if (!lastLogin) return 'Never';
   return new Date(lastLogin).toLocaleDateString();
+};
+
+// Sort options
+type SortOption = 'name-asc' | 'name-desc' | 'email-asc' | 'email-desc' | 'login-newest' | 'login-oldest';
+
+// Consistent resource sorting
+const sortResources = <T extends { firstName: string; lastName: string; email: string; lastLoginAt?: string | null; _id?: string }>(
+  items: T[],
+  sortOption: SortOption = 'name-asc'
+): T[] => {
+  return [...items].sort((a, b) => {
+    switch (sortOption) {
+      case 'name-asc':
+        const firstAsc = a.firstName.localeCompare(b.firstName, undefined, { sensitivity: 'base' });
+        if (firstAsc !== 0) return firstAsc;
+        const lastAsc = a.lastName.localeCompare(b.lastName, undefined, { sensitivity: 'base' });
+        if (lastAsc !== 0) return lastAsc;
+        return a.email.localeCompare(b.email, undefined, { sensitivity: 'base' });
+      
+      case 'name-desc':
+        const firstDesc = b.firstName.localeCompare(a.firstName, undefined, { sensitivity: 'base' });
+        if (firstDesc !== 0) return firstDesc;
+        const lastDesc = b.lastName.localeCompare(a.lastName, undefined, { sensitivity: 'base' });
+        if (lastDesc !== 0) return lastDesc;
+        return b.email.localeCompare(a.email, undefined, { sensitivity: 'base' });
+      
+      case 'email-asc':
+        return a.email.localeCompare(b.email, undefined, { sensitivity: 'base' });
+      
+      case 'email-desc':
+        return b.email.localeCompare(a.email, undefined, { sensitivity: 'base' });
+      
+      case 'login-newest':
+        const aTime = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+        const bTime = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+        return bTime - aTime;
+      
+      case 'login-oldest':
+        const aTimeOld = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+        const bTimeOld = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+        return aTimeOld - bTimeOld;
+      
+      default:
+        return 0;
+    }
+  });
 };
 
 interface AgentAssignment {
@@ -82,6 +129,7 @@ export default function AgentAllocation(): React.JSX.Element {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'hr' | 'candidate'>('all');
+  const [sortOption, setSortOption] = useState<SortOption>('name-asc');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
   const [selectedResource, setSelectedResource] = useState<ExtendedUser | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
@@ -122,12 +170,12 @@ export default function AgentAllocation(): React.JSX.Element {
   const users = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data || []);
   const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : ((assignmentsResponse as any)?.data || []);
 
-  // Filter users by role
-  const agents = users.filter(user => user.role === 'agent' && user.status === 'active');
-  const hrUsers = users.filter(user => user.role === 'hr' && user.status === 'active');
-  const candidates = users.filter(user => user.role === 'candidate' && user.status === 'active');
+  // Filter users by role - cast to ExtendedUser[] since users from API have _id
+  const agents = sortResources((users.filter(user => user.role === 'agent' && user.status === 'active') as ExtendedUser[]));
+  const hrUsers = users.filter(user => user.role === 'hr' && user.status === 'active') as ExtendedUser[];
+  const candidates = users.filter(user => user.role === 'candidate' && user.status === 'active') as ExtendedUser[];
   
-  // Combine HR users and candidates into a single resources list
+  // Combine HR users and candidates into a single resources list (unsorted here)
   const allResources = [...hrUsers, ...candidates];
 
   // Clear selections when switching allocation tabs
@@ -185,8 +233,8 @@ export default function AgentAllocation(): React.JSX.Element {
       return allocationTab === 'allocated' ? isAllocated : !isAllocated;
     });
 
-
-    return filtered;
+    // Apply consistent sort before returning
+    return sortResources(filtered, sortOption);
   };
 
   const filteredResources = getFilteredResources();
@@ -542,6 +590,29 @@ export default function AgentAllocation(): React.JSX.Element {
                     <SelectItem value="candidate">Candidates Only</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={sortOption} onValueChange={(value: SortOption) => setSortOption(value)}>
+                  <SelectTrigger className="w-[180px] border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <SelectValue placeholder="Sort by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name-asc">
+                      <div className="flex items-center gap-2">
+                        <ArrowUpDown className="h-4 w-4" />
+                        Name (A-Z)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="name-desc">
+                      <div className="flex items-center gap-2">
+                        <ArrowUpDown className="h-4 w-4" />
+                        Name (Z-A)
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="email-asc">Email (A-Z)</SelectItem>
+                    <SelectItem value="email-desc">Email (Z-A)</SelectItem>
+                    <SelectItem value="login-newest">Last Login (Newest)</SelectItem>
+                    <SelectItem value="login-oldest">Last Login (Oldest)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </CardHeader>
@@ -562,15 +633,15 @@ export default function AgentAllocation(): React.JSX.Element {
                       <Select value={selectedAgent} onValueChange={setSelectedAgent}>
                         <SelectTrigger className="w-48 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
                           <SelectValue placeholder="Select agent..." />
-                  </SelectTrigger>
-                  <SelectContent>
+                        </SelectTrigger>
+                        <SelectContent>
                           {agents.map((agent) => (
                             <SelectItem key={agent._id} value={agent._id}>
                               {agent.firstName} {agent.lastName}
                             </SelectItem>
                           ))}
-                  </SelectContent>
-                </Select>
+                        </SelectContent>
+                      </Select>
                       <Button 
                         onClick={() => {
                           handleBulkAllocation();
@@ -600,93 +671,93 @@ export default function AgentAllocation(): React.JSX.Element {
               {usersLoading ? (
                 <div className="flex justify-center py-8">
                   <LoadingSpinner />
-              </div>
+                </div>
               ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                      <TableHead className="w-[50px]">
-                        <Checkbox
-                          checked={selectAll}
-                          onCheckedChange={handleSelectAllResources}
-                          aria-label="Select all resources"
-                        />
-                      </TableHead>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Last Login</TableHead>
-                      <TableHead>Actions</TableHead>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectAll}
+                        onCheckedChange={handleSelectAllResources}
+                        aria-label="Select all resources"
+                      />
+                    </TableHead>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Last Login</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredResources.map((resource) => (
-                      <TableRow key={resource._id}>
+                  {filteredResources.map((resource) => (
+                    <TableRow key={resource._id}>
                       <TableCell>
-                          <Checkbox
-                            checked={selectedResources.has(resource._id)}
-                            onCheckedChange={() => handleResourceSelection(resource._id)}
-                            aria-label={`Select ${resource.firstName} ${resource.lastName}`}
-                          />
-                        </TableCell>
+                        <Checkbox
+                          checked={selectedResources.has(resource._id)}
+                          onCheckedChange={() => handleResourceSelection(resource._id)}
+                          aria-label={`Select ${resource.firstName} ${resource.lastName}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
                           {resource.customId || 'N/A'}
                         </Badge>
                       </TableCell>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-3">
-                            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                              resource.role === 'hr' ? 'bg-green-100' : 'bg-purple-100'
-                            }`}>
-                              {resource.role === 'hr' ? (
-                                <UserCheck className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <Users className="w-4 h-4 text-purple-600" />
-                              )}
-                            </div>
-                        <div>
-                              <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
-                              <Badge variant="outline" className={`text-xs px-1.5 py-0.5 mt-1 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
-                                {resource.role === 'hr' ? 'HR User' : 'Candidate'}
-                              </Badge>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                            resource.role === 'hr' ? 'bg-green-100' : 'bg-purple-100'
+                          }`}>
+                            {resource.role === 'hr' ? (
+                              <UserCheck className="w-4 h-4 text-green-600" />
+                            ) : (
+                              <Users className="w-4 h-4 text-purple-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
+                            <Badge variant="outline" className={`text-xs px-1.5 py-0.5 mt-1 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
+                              {resource.role === 'hr' ? 'HR User' : 'Candidate'}
+                            </Badge>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                          <div className="flex items-center gap-2 text-base">
-                            <Mail className="h-4 w-4 text-blue-600" />
-                            {resource.email}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-base">{formatLastLogin(resource.lastLoginAt)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAllocationDialog(resource)}
-                              className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300"
-                            >
-                              <UserPlus className="h-4 w-4 mr-1" />
-                              Allocate
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-blue-600 hover:bg-blue-50"
-                              onClick={() => {
-                                if (resource.role === 'candidate') {
-                                  navigate(`/dashboard/candidates/${resource.customId}`);
-                                } else if (resource.role === 'hr') {
-                                  navigate(`/dashboard/hr-profile/${resource.customId}`);
-                                }
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                          </div>
+                        <div className="flex items-center gap-2 text-base">
+                          <Mail className="h-4 w-4 text-blue-600" />
+                          {resource.email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-base">{formatLastLogin(resource.lastLoginAt)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAllocationDialog(resource)}
+                            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300"
+                          >
+                            <UserPlus className="h-4 w-4 mr-1" />
+                            Allocate
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-blue-600 hover:bg-blue-50"
+                            onClick={() => {
+                              if (resource.role === 'candidate') {
+                                navigate(`/dashboard/candidates/${resource.customId}`);
+                              } else if (resource.role === 'hr') {
+                                navigate(`/dashboard/hr-profile/${resource.customId}`);
+                              }
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -728,7 +799,7 @@ export default function AgentAllocation(): React.JSX.Element {
                       </Button>
                     </div>
                   </div>
-              </div>
+                </div>
               )}
 
               {usersLoading ? (
@@ -760,7 +831,7 @@ export default function AgentAllocation(): React.JSX.Element {
                       const currentAgent = getCurrentAgent(resource._id, resourceType);
                       const agentInfo = currentAgent ? agents.find(a => a._id === currentAgent._id) : null;
                   
-                  return (
+                      return (
                         <TableRow key={resource._id}>
                           <TableCell>
                             <Checkbox
@@ -784,14 +855,14 @@ export default function AgentAllocation(): React.JSX.Element {
                                 ) : (
                                   <Users className="w-4 h-4 text-purple-600" />
                                 )}
-                        </div>
-                        <div>
+                              </div>
+                              <div>
                                 <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
                                 <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
                                   {resource.role === 'hr' ? 'HR User' : 'Candidate'}
                                 </Badge>
-                        </div>
-                      </div>
+                              </div>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2 text-base">
@@ -893,8 +964,8 @@ export default function AgentAllocation(): React.JSX.Element {
                 onChange={(e) => setAssignmentNotes(e.target.value)}
                 rows={3}
               />
-        </div>
-      </div>
+            </div>
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAllocationDialogOpen(false)}>

@@ -32,6 +32,8 @@ const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
 const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
 const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
 const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
+const Activity = lazy(() => import("./pages/admin/Activity"));
+const RecycleBin = lazy(() => import("./pages/admin/RecycleBin"));
 const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => ({ default: module.SignupPage })));
@@ -114,7 +116,7 @@ function DashboardRouter() {
     return <AgentDashboard />;
   }
   
-  if (user?.role === 'admin') {
+  if (user?.role === 'admin' || user?.role === 'superadmin') {
     return <AdminDashboard />;
   }
   
@@ -196,7 +198,7 @@ function AppRouter() {
       }>
         <Route index element={<DashboardRouter />} />
         <Route path="agents" element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <AgentAllocation />
           </RoleProtectedRoute>
         } />
@@ -211,27 +213,27 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="jobs" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
             <JobManagement />
           </RoleProtectedRoute>
         } />
         <Route path="jobs/:jobId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
             <JobDetailsPage />
           </RoleProtectedRoute>
         } />
         <Route path="jobs/:jobId/edit" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
             <JobEditPage />
           </RoleProtectedRoute>
         } />
         <Route path="shared-candidates" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
             <SharedCandidates />
           </RoleProtectedRoute>
         } />
         <Route path="interviews" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
             <InterviewManagement />
           </RoleProtectedRoute>
         } />
@@ -241,12 +243,12 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="companies" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
             <CompanyManagement />
           </RoleProtectedRoute>
         } />
         <Route path="users" element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <UserManagement />
           </RoleProtectedRoute>
         } />
@@ -264,32 +266,42 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="candidates/:candidateId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'hr', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
             <CandidateProfile />
           </RoleProtectedRoute>
         } />
         
         {/* HR Routes */}
         <Route path="hr-profile/:customId?" element={
-          <RoleProtectedRoute allowedRoles={['hr', 'admin', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['hr', 'admin', 'superadmin', 'agent']}>
             <HRProfile />
           </RoleProtectedRoute>
         } />
         
         {/* Admin Routes */}
         <Route path="analytics" element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <AnalyticsReports />
           </RoleProtectedRoute>
         } />
         <Route path="admin-profile" element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <AdminProfile />
           </RoleProtectedRoute>
         } />
         <Route path="post-ads" element={
-          <RoleProtectedRoute allowedRoles={['admin']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
             <BannerManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="activity" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+            <Activity />
+          </RoleProtectedRoute>
+        } />
+        <Route path="recycle-bin" element={
+          <RoleProtectedRoute allowedRoles={['superadmin']}>
+            <RecycleBin />
           </RoleProtectedRoute>
         } />
       </Route>

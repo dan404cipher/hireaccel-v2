@@ -397,17 +397,19 @@ userSchema.pre('save', function (this: UserDocument, next) {
 //   }
 // });
 
-userSchema.pre('deleteOne', function () {
-    throw new Error('Hard delete forbidden. Use soft delete only.')
-})
+// Hard delete prevention hooks disabled to allow superadmin to permanently delete users
+// Authorization is enforced at the controller level
+// userSchema.pre('deleteOne', function () {
+//     throw new Error('Hard delete forbidden. Use soft delete only.')
+// })
 
-userSchema.pre('deleteMany', function () {
-    throw new Error('Bulk hard delete forbidden.')
-})
+// userSchema.pre('deleteMany', function () {
+//     throw new Error('Bulk hard delete forbidden.')
+// })
 
-userSchema.pre('findOneAndDelete', function () {
-    throw new Error('Hard delete forbidden. Use soft delete only.')
-})
+// userSchema.pre('findOneAndDelete', function () {
+//     throw new Error('Hard delete forbidden. Use soft delete only.')
+// })
 
 // ============================================================================
 // Model Export

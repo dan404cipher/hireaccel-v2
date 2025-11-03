@@ -15,7 +15,9 @@ import {
   Search,
   PieChart,
   TrendingUp,
-  Image
+  Image,
+  Trash2,
+  Activity
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
@@ -34,16 +36,18 @@ import {
 } from "@/components/ui/sidebar";
 
 const navigationItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'hr', 'agent', 'candidate'], color: "text-blue-600" },
-  { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin'], color: "text-green-600" },
+  { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'superadmin', 'hr', 'agent', 'candidate'], color: "text-blue-600" },
+  { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin', 'superadmin'], color: "text-green-600" },
   { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'], color: "text-orange-600" },
   { title: "Interview Management", url: "/dashboard/agent-interviews", icon: Calendar, roles: ['agent'], color: "text-purple-600" },
-  { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'hr'], color: "text-teal-600" },
-  { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'hr'], color: "text-indigo-600" },
-  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'hr', 'agent'], color: "text-pink-600" },
-  { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'hr'], color: "text-red-600" },
-  { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin'], color: "text-cyan-600" },
-  { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin'], color: "text-yellow-600" },
+  { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'superadmin', 'hr'], color: "text-teal-600" },
+  { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'superadmin', 'hr'], color: "text-indigo-600" },
+  { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'superadmin', 'hr', 'agent'], color: "text-pink-600" },
+  { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'superadmin', 'hr'], color: "text-red-600" },
+  { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin', 'superadmin'], color: "text-cyan-600" },
+  { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin', 'superadmin'], color: "text-yellow-600" },
+  { title: "Activity", url: "/dashboard/activity", icon: Activity, roles: ['admin', 'superadmin', 'hr'], color: "text-purple-600" },
+  { title: "Recycle Bin", url: "/dashboard/recycle-bin", icon: Trash2, roles: ['superadmin'], color: "text-red-600" },
   
   // Candidate-specific navigation
   { title: "My Applications", url: "/dashboard/candidate-applications", icon: FileText, roles: ['candidate'], color: "text-emerald-600" },
@@ -65,10 +69,10 @@ const navigationItems = [
 ];
 
 const secondaryItems = [
-  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin'], color: "text-slate-600" },
-  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'agent'], color: "text-lime-600" },
-  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin'], color: "text-amber-600" },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'agent'], color: "text-gray-600" },
+  { title: "Analytics", url: "/dashboard/analytics", icon: BarChart3, roles: ['admin', 'superadmin'], color: "text-slate-600" },
+  { title: "Communications", url: "/dashboard/communications", icon: MessageSquare, roles: ['admin', 'superadmin', 'agent'], color: "text-lime-600" },
+  { title: "Reports", url: "/dashboard/reports", icon: ClipboardList, roles: ['admin', 'superadmin'], color: "text-amber-600" },
+  { title: "Settings", url: "/dashboard/settings", icon: Settings, roles: ['admin', 'superadmin', 'agent'], color: "text-gray-600" },
 ];
 
 export function AppSidebar() {
@@ -106,6 +110,7 @@ export function AppSidebar() {
   // Get role display name for the portal label
   const getRoleDisplayName = (role: string) => {
     switch (role) {
+      case 'superadmin': return 'Super Admin Portal';
       case 'admin': return 'Admin Portal';
       case 'hr': return 'HR Portal';
       case 'agent': return 'Agent Portal';
@@ -156,8 +161,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Secondary Navigation - Only show for admin and agent */}
-        {(user?.role === 'admin' || user?.role === 'agent') && (
+        {/* Secondary Navigation - Only show for admin, superadmin and agent */}
+        {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'agent') && (
           <SidebarGroup>
             <SidebarGroupLabel>Tools & Reports</SidebarGroupLabel>
             <SidebarGroupContent>

@@ -2,7 +2,7 @@
  * Core TypeScript types and interfaces
  */
 
-export type UserRole = 'candidate' | 'agent' | 'hr' | 'partner' | 'admin';
+export type UserRole = 'candidate' | 'agent' | 'hr' | 'partner' | 'admin' | 'superadmin';
 
 export type UserStatus = 'active' | 'inactive' | 'suspended' | 'pending';
 

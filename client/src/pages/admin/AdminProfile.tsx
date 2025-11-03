@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +19,6 @@ import {
   Camera,
   Mail,
   Phone,
-  MapPin,
   Calendar,
   Save,
   Edit,
@@ -35,27 +33,46 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUpdateUser, useUserStats } from "@/hooks/useApi";
+import { apiClient } from "@/services/api";
 
 export default function AdminProfile() {
-  const { user } = useAuth();
+  const { user, updateAuth } = useAuth();
   const { toast } = useToast();
+  const { mutate: updateUser } = useUpdateUser();
+  const { data: statsData } = useUserStats();
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Profile form state
+  // Profile form state - initialized from user data
   const [profileData, setProfileData] = useState({
-    firstName: user?.firstName || "John",
-    lastName: user?.lastName || "Admin",
-    email: user?.email || "admin@hireaccel.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
-    bio: "System Administrator with 8+ years of experience in recruitment technology and platform management.",
-    title: "Platform Administrator",
-    department: "IT Operations",
-    timezone: "America/Los_Angeles",
-    language: "English (US)"
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    email: user?.email || "",
+    phoneNumber: user?.phoneNumber || "",
   });
+
+  // Password change form state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // Update profile data when user changes
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phoneNumber: user.phoneNumber || "",
+      });
+    }
+  }, [user]);
 
   // Security settings
   const [securitySettings, setSecuritySettings] = useState({
@@ -79,40 +96,151 @@ export default function AdminProfile() {
   });
 
   const handleSaveProfile = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User information not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const updateData: any = {
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+      };
+
+      // Only include phoneNumber if it's provided
+      if (profileData.phoneNumber) {
+        updateData.phoneNumber = profileData.phoneNumber;
+      }
+
+      const updatedUser = await updateUser({
+        id: user.id,
+        data: updateData,
+      });
+
+      // Update auth context with new user data
+      // Refetch current user to get updated data
+      try {
+        const response = await apiClient.getCurrentUser();
+        if (response.data?.user) {
+          updateAuth(response.data.user);
+        }
+      } catch (error) {
+        console.error("Failed to refresh user data:", error);
+      }
+
       setEditMode(false);
       toast({
         title: "Profile Updated",
         description: "Your profile information has been successfully updated.",
       });
-    }, 1000);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.detail || error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSecurityUpdate = async (key: string, value: any) => {
     setSecuritySettings(prev => ({ ...prev, [key]: value }));
+    // TODO: Implement API call to save security settings when backend endpoint is available
     toast({
       title: "Security Setting Updated",
-      description: `${key} has been ${value ? 'enabled' : 'disabled'}.`,
+      description: `${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} has been ${value ? 'enabled' : 'disabled'}.`,
     });
+  };
+
+  const handlePasswordChange = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User information not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!passwordData.currentPassword || !passwordData.newPassword) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all password fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast({
+        title: "Validation Error",
+        description: "New password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Validation Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Update password via API
+      await updateUser({
+        id: user.id,
+        data: {
+          password: passwordData.newPassword,
+        },
+      });
+
+      // Reset password form
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully changed.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.detail || error.message || "Failed to update password",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleNotificationUpdate = (key: string, value: boolean) => {
     setNotifications(prev => ({ ...prev, [key]: value }));
   };
 
-  // Mock admin statistics
+  // Admin statistics - use real data if available
   const adminStats = {
-    totalUsers: 1247,
-    activeJobs: 89,
-    systemUptime: "99.9%",
-    lastLogin: "2024-01-15 09:23 AM",
-    sessionDuration: "4h 32m",
-    privilegedActions: 23,
-    dataExports: 5,
-    systemAlerts: 2
+    totalUsers: statsData?.data?.totalUsers || 0,
+    activeUsers: statsData?.data?.totalActive || 0,
+    lastLogin: user?.lastLoginAt 
+      ? new Date(user.lastLoginAt).toLocaleString()
+      : "Never",
+    createdAt: user?.createdAt
+      ? new Date(user.createdAt).toLocaleDateString()
+      : "N/A",
   };
 
   return (
@@ -120,11 +248,25 @@ export default function AdminProfile() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Profile</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {user?.role === 'superadmin' ? 'Super Admin Profile' : 'Admin Profile'}
+          </h1>
         </div>
-        <Button 
-          onClick={() => setEditMode(!editMode)}
+                    <Button 
+          onClick={() => {
+            if (editMode) {
+              // Reset to original user data when canceling
+              setProfileData({
+                firstName: user?.firstName || "",
+                lastName: user?.lastName || "",
+                email: user?.email || "",
+                phoneNumber: user?.phoneNumber || "",
+              });
+            }
+            setEditMode(!editMode);
+          }}
           variant={editMode ? "outline" : "default"}
+          disabled={loading}
         >
           <Edit className="h-4 w-4 mr-2" />
           {editMode ? "Cancel" : "Edit Profile"}
@@ -164,10 +306,9 @@ export default function AdminProfile() {
                 <h3 className="text-lg font-semibold">
                   {profileData.firstName} {profileData.lastName}
                 </h3>
-                <p className="text-sm text-muted-foreground">{profileData.title}</p>
                 <Badge className="mt-2" variant="default">
                   <Shield className="h-3 w-3 mr-1" />
-                  Administrator
+                  {user?.role === 'superadmin' ? 'Super Administrator' : 'Administrator'}
                 </Badge>
               </div>
             </div>
@@ -179,17 +320,19 @@ export default function AdminProfile() {
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <span>{profileData.email}</span>
               </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <span>{profileData.phone}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{profileData.location}</span>
-              </div>
+              {profileData.phoneNumber && (
+                <div className="flex items-center gap-3 text-sm">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <span>{profileData.phoneNumber}</span>
+                </div>
+              )}
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span>Last login: {adminStats.lastLogin}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>Member since: {adminStats.createdAt}</span>
               </div>
             </div>
 
@@ -202,16 +345,8 @@ export default function AdminProfile() {
                 <div className="text-xs text-muted-foreground">Total Users</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-green-600">{adminStats.systemUptime}</div>
-                <div className="text-xs text-muted-foreground">Uptime</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-purple-600">{adminStats.privilegedActions}</div>
-                <div className="text-xs text-muted-foreground">Actions Today</div>
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-orange-600">{adminStats.systemAlerts}</div>
-                <div className="text-xs text-muted-foreground">Active Alerts</div>
+                <div className="text-2xl font-bold text-green-600">{adminStats.activeUsers}</div>
+                <div className="text-xs text-muted-foreground">Active Users</div>
               </div>
             </div>
           </CardContent>
@@ -257,74 +392,23 @@ export default function AdminProfile() {
                         id="email"
                         type="email"
                         value={profileData.email}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-                        disabled={!editMode}
+                        disabled={true}
+                        className="bg-muted"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <Label htmlFor="phoneNumber">Phone Number</Label>
                       <Input
-                        id="phone"
-                        value={profileData.phone}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, phone: e.target.value }))}
+                        id="phoneNumber"
+                        value={profileData.phoneNumber}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, phoneNumber: e.target.value }))}
                         disabled={!editMode}
+                        placeholder="+1 (555) 123-4567"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Job Title</Label>
-                      <Input
-                        id="title"
-                        value={profileData.title}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, title: e.target.value }))}
-                        disabled={!editMode}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="department">Department</Label>
-                      <Input
-                        id="department"
-                        value={profileData.department}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, department: e.target.value }))}
-                        disabled={!editMode}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="location">Location</Label>
-                      <Input
-                        id="location"
-                        value={profileData.location}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, location: e.target.value }))}
-                        disabled={!editMode}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="timezone">Timezone</Label>
-                      <Select
-                        value={profileData.timezone}
-                        onValueChange={(value) => setProfileData(prev => ({ ...prev, timezone: value }))}
-                        disabled={!editMode}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                          <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                          <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                          <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
-                  <div className="space-y-2 mt-4">
-                    <Label htmlFor="bio">Bio</Label>
-                    <Textarea
-                      id="bio"
-                      value={profileData.bio}
-                      onChange={(e) => setProfileData(prev => ({ ...prev, bio: e.target.value }))}
-                      disabled={!editMode}
-                      rows={3}
-                    />
+                  <div className="text-sm text-muted-foreground mt-4">
+                    <p>Note: Email address cannot be changed. Contact support if you need to update your email.</p>
                   </div>
                 </div>
 
@@ -412,17 +496,19 @@ export default function AdminProfile() {
                           <Label>Current Password</Label>
                           <div className="relative">
                             <Input
-                              type={showPassword ? "text" : "password"}
+                              type={showCurrentPassword ? "text" : "password"}
                               placeholder="Enter current password"
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
                             />
                             <Button
                               type="button"
                               variant="ghost"
                               size="sm"
                               className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                              onClick={() => setShowPassword(!showPassword)}
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                             >
-                              {showPassword ? (
+                              {showCurrentPassword ? (
                                 <EyeOff className="h-4 w-4" />
                               ) : (
                                 <Eye className="h-4 w-4" />
@@ -432,15 +518,59 @@ export default function AdminProfile() {
                         </div>
                         <div className="space-y-2">
                           <Label>New Password</Label>
-                          <Input type="password" placeholder="Enter new password" />
+                          <div className="relative">
+                            <Input
+                              type={showNewPassword ? "text" : "password"}
+                              placeholder="Enter new password (min 8 characters)"
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                            >
+                              {showNewPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                         <div className="space-y-2">
                           <Label>Confirm New Password</Label>
-                          <Input type="password" placeholder="Confirm new password" />
+                          <div className="relative">
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirm new password"
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            >
+                              {showConfirmPassword ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                        <Button className="mt-4">
+                        <Button 
+                          className="mt-4" 
+                          onClick={handlePasswordChange}
+                          disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                        >
                           <Key className="h-4 w-4 mr-2" />
-                          Update Password
+                          {loading ? "Updating..." : "Update Password"}
                         </Button>
                       </div>
                     </div>

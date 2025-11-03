@@ -44,6 +44,7 @@ const updateUserSchema = z.object({
   status: z.nativeEnum(UserStatus).optional(),
   role: z.nativeEnum(UserRole).optional(),
   phoneNumber: z.string().regex(/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number').optional().or(z.literal('')),
+  password: z.string().min(8, 'Password must be at least 8 characters').optional(),
 });
 
 const querySchema = z.object({
@@ -172,26 +173,41 @@ export class UserController {
   static createUser = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const validatedData = createUserSchema.parse(req.body);
     
-    // Prevent creating admin users through user management
-    if (validatedData.role === UserRole.ADMIN) {
+    console.log('Creating user with role:', validatedData.role, 'by user:', req.user!.role);
+    
+    // Only superadmin can create admin users
+    if (validatedData.role === UserRole.ADMIN && req.user!.role !== UserRole.SUPERADMIN) {
       return res.status(403).json({
         type: 'https://httpstatuses.com/403',
         title: 'Forbidden',
         status: 403,
-        detail: 'Admin users cannot be created through user management. Use the create-admin script instead.',
+        detail: 'Only superadmin can create admin users.',
       });
     }
     
-    // Check if user already exists
+    // Prevent creating superadmin users through user management
+    if (validatedData.role === UserRole.SUPERADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Superadmin users cannot be created through user management. Use the create-superadmin script instead.',
+      });
+    }
+    
+    // Check if user already exists BY EMAIL (not by role)
     const existingUser = await User.findByEmail(validatedData.email);
     if (existingUser) {
       return res.status(409).json({
         type: 'https://httpstatuses.com/409',
         title: 'Conflict',
         status: 409,
-        detail: 'User with this email already exists',
+        detail: `User with email ${validatedData.email} already exists. User ID: ${existingUser.customId}, Role: ${existingUser.role}. Please use a different email address.`,
       });
     }
+    
+    // Allow multiple admins - no role-based conflict check
+    console.log('No existing user found, proceeding with creation');
     
     // Generate password if not provided
     const password = validatedData.password || generateSecurePassword(12);
@@ -208,7 +224,28 @@ export class UserController {
       emailVerified: true, // Admin-created users are auto-verified
     });
     
-    await user.save();
+    console.log('Attempting to save user with customId:', customId);
+    
+    try {
+      await user.save();
+      console.log('User saved successfully with ID:', user._id);
+    } catch (saveError: any) {
+      console.error('Error saving user:', saveError);
+      
+      // Check if it's a MongoDB duplicate key error
+      if (saveError.code === 11000) {
+        const field = Object.keys(saveError.keyPattern || {})[0];
+        return res.status(409).json({
+          type: 'https://httpstatuses.com/409',
+          title: 'Conflict',
+          status: 409,
+          detail: `Duplicate value for field: ${field}. ${field === 'email' ? 'This email is already registered.' : field === 'customId' ? 'Custom ID collision detected. Please try again.' : 'A user with this information already exists.'}`,
+        });
+      }
+      
+      // Re-throw other errors to be handled by asyncHandler
+      throw saveError;
+    }
     
     // If user is a candidate, create a corresponding Candidate document
     if (validatedData.role === UserRole.CANDIDATE) {
@@ -313,8 +350,18 @@ export class UserController {
     
     const beforeState = user.toObject();
     
-    // Update fields
-    Object.assign(user, updates);
+    // Hash password if provided
+    if (updates.password) {
+      const hashedPassword = await hashPassword(updates.password);
+      user.password = hashedPassword;
+      // Remove password from updates to avoid double assignment
+      const { password, ...otherUpdates } = updates as any;
+      Object.assign(user, otherUpdates);
+    } else {
+      // Update fields
+      Object.assign(user, updates);
+    }
+    
     await user.save();
     
     // Log user update
@@ -338,7 +385,7 @@ export class UserController {
   });
 
   /**
-   * Delete user (soft delete)
+   * Delete user (soft delete for admin, hard delete for superadmin)
    * DELETE /users/:id
    */
   static deleteUser = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -349,40 +396,76 @@ export class UserController {
       throw createNotFoundError('User', id);
     }
     
-    // Prevent deleting admin users through user management
-    if (user.role === UserRole.ADMIN) {
+    // Prevent deleting superadmin users (no one can delete superadmins)
+    if (user.role === UserRole.SUPERADMIN) {
       return res.status(403).json({
         type: 'https://httpstatuses.com/403',
         title: 'Forbidden',
         status: 403,
-        detail: 'Admin users cannot be deleted through user management.',
+        detail: 'Superadmin users cannot be deleted.',
+      });
+    }
+    
+    // Only superadmin can delete admin users
+    if (user.role === UserRole.ADMIN && req.user!.role !== UserRole.SUPERADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Only superadmin can delete admin users.',
       });
     }
     
     const beforeState = user.toObject();
     
-    // Soft delete by setting status to inactive
-    user.status = UserStatus.INACTIVE;
-    await user.save();
-    
-    // Log user deletion
-    await AuditLog.createLog({
-      actor: req.user!._id,
-      action: AuditAction.DELETE,
-      entityType: 'User',
-      entityId: user._id,
-      before: beforeState,
-      after: user.toObject(),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      businessProcess: 'user_management',
-      riskLevel: 'high',
-    });
-    
-    res.json({
-      success: true,
-      message: 'User deleted successfully',
-    });
+    // Superadmin can permanently delete users, others do soft delete
+    if (req.user!.role === UserRole.SUPERADMIN) {
+      // Hard delete - permanently remove from database
+      await User.findByIdAndDelete(id);
+      
+      // Log user permanent deletion
+      await AuditLog.createLog({
+        actor: req.user!._id,
+        action: AuditAction.DELETE,
+        entityType: 'User',
+        entityId: user._id,
+        before: beforeState,
+        metadata: { deletionType: 'permanent' },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        businessProcess: 'user_management',
+        riskLevel: 'critical',
+      });
+      
+      res.json({
+        success: true,
+        message: 'User permanently deleted from database',
+      });
+    } else {
+      // Soft delete by setting status to inactive
+      user.status = UserStatus.INACTIVE;
+      await user.save();
+      
+      // Log user soft deletion
+      await AuditLog.createLog({
+        actor: req.user!._id,
+        action: AuditAction.DELETE,
+        entityType: 'User',
+        entityId: user._id,
+        before: beforeState,
+        after: user.toObject(),
+        metadata: { deletionType: 'soft' },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        businessProcess: 'user_management',
+        riskLevel: 'high',
+      });
+      
+      res.json({
+        success: true,
+        message: 'User deactivated successfully',
+      });
+    }
   });
 
   /**
@@ -830,6 +913,72 @@ export class UserController {
       
       await assignment.save();
 
+      // Get agent info
+      const agent = await User.findById(validatedData.agentId).select('firstName lastName customId');
+      const agentName = agent ? `${agent.firstName} ${agent.lastName}` : 'Unknown';
+      const agentCustomId = agent?.customId || '';
+
+      // Get details for ONLY newly assigned HR users (for clickable names with custom IDs)
+      let newHRNames = '';
+      const newHRDetails: Array<{ id: string; name: string; customId?: string; role: string }> = [];
+      if (newHRs.length > 0) {
+        const newHRUsers = await User.find({ _id: { $in: newHRs } }).select('firstName lastName customId role');
+        newHRNames = newHRUsers.map(hr => `${hr.firstName} ${hr.lastName}`).join(', ');
+        for (const hr of newHRUsers) {
+          const detail: { id: string; name: string; customId?: string; role: string } = {
+            id: hr._id.toString(),
+            name: `${hr.firstName} ${hr.lastName}`,
+            role: hr.role || 'hr'
+          };
+          if (hr.customId) {
+            detail.customId = hr.customId;
+          }
+          newHRDetails.push(detail);
+        }
+      }
+
+      // Get details for ONLY newly assigned candidates (for clickable names with custom IDs)
+      let newCandidateNames = '';
+      const newCandidateDetails: Array<{ id: string; name: string; customId?: string }> = [];
+      if (newCandidates.length > 0) {
+        const newCandidateDocs = await Candidate.find({ _id: { $in: newCandidates } })
+          .populate('userId', 'firstName lastName customId');
+        newCandidateNames = newCandidateDocs
+          .map(c => {
+            const userId = c.userId as any;
+            return userId ? `${userId.firstName} ${userId.lastName}` : 'Unknown';
+          })
+          .join(', ');
+        // Store candidate details for clickable links
+        for (const c of newCandidateDocs) {
+          const userId = c.userId as any;
+          if (userId) {
+            const detail: { id: string; name: string; customId?: string } = {
+              id: c._id.toString(),
+              name: `${userId.firstName} ${userId.lastName}`,
+            };
+            if (userId.customId) {
+              detail.customId = userId.customId;
+            }
+            newCandidateDetails.push(detail);
+          }
+        }
+      }
+
+      // Build description - only show newly assigned HR users and candidates
+      let description = `${req.user!.firstName} ${req.user!.lastName} updated assignment for agent ${agentName}`;
+      if (agentCustomId) description += ` (${agentCustomId})`;
+      if (newHRs.length > 0 && newHRNames) {
+        description += ` - HR: ${newHRNames}`;
+      }
+      if (newCandidates.length > 0 && newCandidateNames) {
+        if (newHRs.length > 0) {
+          description += `, Candidates: ${newCandidateNames}`;
+        } else {
+          description += ` - Candidates: ${newCandidateNames}`;
+        }
+      }
+
       // Log assignment update
       await AuditLog.createLog({
         actor: req.user!._id,
@@ -840,12 +989,28 @@ export class UserController {
         after: assignment.toObject(),
         metadata: { 
           agentId: validatedData.agentId,
-          hrCount: validatedData.hrIds.length,
-          candidateCount: validatedData.candidateIds.length
+          agentName,
+          agentCustomId,
+          assignedByName: `${req.user!.firstName} ${req.user!.lastName}`,
+          assignedByCustomId: req.user!.customId,
+          assignedByRole: req.user!.role,
+          // Only include newly assigned ones for display
+          newHRCount: newHRs.length,
+          newCandidateCount: newCandidates.length,
+          newHRIds: newHRs,
+          newCandidateIds: newCandidates,
+          hrNames: newHRNames || undefined, // Only newly assigned HR names (comma-separated for description)
+          hrDetails: newHRDetails, // Array of HR user details with IDs for clickable links
+          candidateNames: newCandidateNames || undefined, // Only newly assigned candidate names
+          candidateDetails: newCandidateDetails, // Array of candidate details with IDs for clickable links
+          // Keep full counts for reference
+          totalHRCount: assignment.assignedHRs.length,
+          totalCandidateCount: assignment.assignedCandidates.length
         },
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
         businessProcess: 'agent_management',
+        description,
       });
 
       res.json({
@@ -870,6 +1035,70 @@ export class UserController {
         status: 'active',
       });
 
+      // Populate assignment to get names for audit log
+      const populatedAssignment = await AgentAssignment.findById(assignment._id)
+        .populate('agentId', 'firstName lastName customId')
+        .populate('assignedHRs', 'firstName lastName customId')
+        .populate('assignedBy', 'firstName lastName customId role')
+        .populate({
+          path: 'assignedCandidates',
+          populate: {
+            path: 'userId',
+            select: 'firstName lastName customId'
+          }
+        });
+
+      const agentInfo = populatedAssignment?.agentId as any;
+      const agentName = agentInfo ? `${agentInfo.firstName} ${agentInfo.lastName}` : 'Unknown';
+      const agentCustomId = agentInfo?.customId || '';
+      const hrUsers = (populatedAssignment?.assignedHRs || []) as any[];
+      const hrNames = hrUsers.map(hr => `${hr.firstName} ${hr.lastName}`).join(', ');
+      const hrDetails: Array<{ id: string; name: string; customId?: string; role: string }> = [];
+      for (const hr of hrUsers) {
+        const detail: { id: string; name: string; customId?: string; role: string } = {
+          id: hr._id.toString(),
+          name: `${hr.firstName} ${hr.lastName}`,
+          role: hr.role || 'hr'
+        };
+        if (hr.customId) {
+          detail.customId = hr.customId;
+        }
+        hrDetails.push(detail);
+      }
+      const candidateDocs = (populatedAssignment?.assignedCandidates || []) as any[];
+      const candidateNames = candidateDocs
+        .map(c => c.userId ? `${c.userId.firstName} ${c.userId.lastName}` : 'Unknown')
+        .join(', ');
+      const candidateDetails: Array<{ id: string; name: string; customId?: string }> = [];
+      for (const c of candidateDocs) {
+        const userId = c.userId as any;
+        if (userId) {
+          const detail: { id: string; name: string; customId?: string } = {
+            id: c._id.toString(),
+            name: `${userId.firstName} ${userId.lastName}`
+          };
+          if (userId.customId) {
+            detail.customId = userId.customId;
+          }
+          candidateDetails.push(detail);
+        }
+      }
+
+      // Build description for better activity display - show actual names, not counts
+      let description = `${req.user!.firstName} ${req.user!.lastName} assigned`;
+      description += ` to agent ${agentName}`;
+      if (agentCustomId) description += ` (${agentCustomId})`;
+      if (hrUsers.length > 0) {
+        description += ` - HR: ${hrNames}`;
+      }
+      if (candidateDocs.length > 0 && candidateNames) {
+        if (hrUsers.length > 0) {
+          description += `, Candidates: ${candidateNames}`;
+        } else {
+          description += ` - Candidates: ${candidateNames}`;
+        }
+      }
+
       // Log assignment creation
       await AuditLog.createLog({
         actor: req.user!._id,
@@ -879,12 +1108,24 @@ export class UserController {
         after: assignment.toObject(),
         metadata: { 
           agentId: validatedData.agentId,
+          agentName,
+          agentCustomId,
+          assignedByName: `${req.user!.firstName} ${req.user!.lastName}`,
+          assignedByCustomId: req.user!.customId,
+          assignedByRole: req.user!.role,
           hrCount: validatedData.hrIds.length,
-          candidateCount: validatedData.candidateIds.length
+          candidateCount: candidateDocumentIds.length,
+          hrIds: validatedData.hrIds,
+          candidateIds: candidateDocumentIds,
+          hrNames,
+          hrDetails, // Array of HR user details with IDs for clickable links
+          candidateNames: candidateNames || undefined,
+          candidateDetails // Array of candidate details with IDs for clickable links
         },
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
         businessProcess: 'agent_management',
+        description,
       });
 
       res.status(201).json({
@@ -1141,6 +1382,74 @@ export class UserController {
 
     await assignment.save();
 
+    // Get agent info for audit log
+    const agent = await User.findById(agentId).select('firstName lastName customId');
+    const agentName = agent ? `${agent.firstName} ${agent.lastName}` : 'Unknown';
+    const agentCustomId = agent?.customId || '';
+
+    // Get names for removed HR users
+    let removedHRNames = '';
+    const removedHRDetails: Array<{ id: string; name: string; customId?: string }> = [];
+    if (hrIds.length > 0) {
+      const removedHRUsers = await User.find({ _id: { $in: hrIds } }).select('firstName lastName customId');
+      removedHRNames = removedHRUsers.map(hr => `${hr.firstName} ${hr.lastName}`).join(', ');
+      for (const hr of removedHRUsers) {
+        const detail: { id: string; name: string; customId?: string } = {
+          id: hr._id.toString(),
+          name: `${hr.firstName} ${hr.lastName}`
+        };
+        if (hr.customId) {
+          detail.customId = hr.customId;
+        }
+        removedHRDetails.push(detail);
+      }
+    }
+
+    // Get names for removed candidates
+    let removedCandidateNames = '';
+    const removedCandidateDetails: Array<{ id: string; name: string; customId?: string }> = [];
+    if (candidateIds.length > 0) {
+      const removedCandidateDocs = await Candidate.find({ 
+        userId: { $in: candidateIds.map((id: string) => new mongoose.Types.ObjectId(id)) } 
+      }).populate('userId', 'firstName lastName customId');
+      removedCandidateNames = removedCandidateDocs
+        .map(c => {
+          const userId = c.userId as any;
+          return userId ? `${userId.firstName} ${userId.lastName}` : 'Unknown';
+        })
+        .join(', ');
+      for (const c of removedCandidateDocs) {
+        const userId = c.userId as any;
+        if (userId) {
+          const detail: { id: string; name: string; customId?: string } = {
+            id: c._id.toString(),
+            name: `${userId.firstName} ${userId.lastName}`
+          };
+          if (userId.customId) {
+            detail.customId = userId.customId;
+          }
+          removedCandidateDetails.push(detail);
+        }
+      }
+    }
+
+    // Build description
+    let description = `${req.user!.firstName} ${req.user!.lastName} removed`;
+    if (removedHRNames || removedCandidateNames) {
+      if (removedHRNames) {
+        description += ` HR: ${removedHRNames}`;
+      }
+      if (removedCandidateNames) {
+        if (removedHRNames) {
+          description += `, Candidates: ${removedCandidateNames}`;
+        } else {
+          description += ` Candidates: ${removedCandidateNames}`;
+        }
+      }
+    }
+    description += ` from agent ${agentName}`;
+    if (agentCustomId) description += ` (${agentCustomId})`;
+
     // Populate the updated assignment for response
     const updatedAssignment = await AgentAssignment.findById(assignment._id)
       .populate('agentId', 'firstName lastName email')
@@ -1163,15 +1472,25 @@ export class UserController {
       before: beforeState,
       after: updatedAssignment?.toObject(),
       metadata: { 
-        agentId, 
-        removedHRs: hrIds, 
-        removedCandidates: candidateIds,
+        agentId: assignment.agentId.toString(),
+        agentName,
+        agentCustomId,
+        assignedByName: `${req.user!.firstName} ${req.user!.lastName}`,
+        assignedByCustomId: req.user!.customId,
+        assignedByRole: req.user!.role,
+        removedHRIds: hrIds,
+        removedCandidateIds: candidateIds,
+        removedHRNames: removedHRNames || undefined,
+        removedHRDetails,
+        removedCandidateNames: removedCandidateNames || undefined,
+        removedCandidateDetails,
         remainingHRs: assignment.assignedHRs.length,
         remainingCandidates: assignment.assignedCandidates.length
       },
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
       businessProcess: 'agent_management',
+      description,
     });
 
     res.json({
@@ -1188,14 +1507,24 @@ export class UserController {
   static deleteAgentAssignment = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { agentId } = req.params;
 
-    const assignment = await AgentAssignment.findOne({ agentId });
+    const assignment = await AgentAssignment.findOne({ agentId })
+      .populate('agentId', 'firstName lastName customId');
 
     if (!assignment) {
       throw createNotFoundError('Agent assignment not found');
     }
 
     const beforeState = assignment.toObject();
+    
+    // Get agent info for audit log
+    const agentInfo = assignment.agentId as any;
+    const agentName = agentInfo ? `${agentInfo.firstName} ${agentInfo.lastName}` : 'Unknown';
+    const agentCustomId = agentInfo?.customId || '';
+
     await AgentAssignment.findByIdAndDelete(assignment._id);
+
+    // Build description
+    const description = `${req.user!.firstName} ${req.user!.lastName} deleted assignment for agent ${agentName}${agentCustomId ? ` (${agentCustomId})` : ''}`;
 
     // Log assignment deletion
     await AuditLog.createLog({
@@ -1204,10 +1533,18 @@ export class UserController {
       entityType: 'AgentAssignment',
       entityId: assignment._id,
       before: beforeState,
-      metadata: { agentId },
+      metadata: { 
+        agentId: assignment.agentId.toString(),
+        agentName,
+        agentCustomId,
+        assignedByName: `${req.user!.firstName} ${req.user!.lastName}`,
+        assignedByCustomId: req.user!.customId,
+        assignedByRole: req.user!.role
+      },
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
       businessProcess: 'agent_management',
+      description,
     });
 
     res.json({

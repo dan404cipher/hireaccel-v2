@@ -33,6 +33,7 @@ export const COLORS = {
 } as const;
 
 export const ROLES = {
+  SUPERADMIN: 'superadmin',
   ADMIN: 'admin',
   HR: 'hr',
   AGENT: 'agent',

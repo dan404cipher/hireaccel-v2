@@ -100,6 +100,7 @@ export interface INotificationPreference {
  * Role-based notification access mapping
  */
 export const NOTIFICATION_ACCESS_MAP: Record<UserRole, NotificationType[]> = {
+  [UserRole.SUPERADMIN]: Object.values(NotificationType),
   [UserRole.ADMIN]: Object.values(NotificationType),
   [UserRole.AGENT]: [
     NotificationType.CANDIDATE_ASSIGN,

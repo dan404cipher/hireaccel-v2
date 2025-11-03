@@ -36,7 +36,9 @@ export class CompanyController {
     const { page = 1, limit = 20, status, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
-    const query: any = {};
+    const query: any = {
+      deleted: { $ne: true }, // Exclude deleted companies by default
+    };
     if (status) query.status = status;
     if (search) query.$text = { $search: search as string };
     
@@ -190,20 +192,114 @@ export class CompanyController {
       }
     }
     
+    // Check if already deleted
+    if (company.deleted) {
+      return res.status(400).json({
+        type: 'https://httpstatuses.com/400',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Company is already deleted',
+      });
+    }
+    
+    const beforeState = company.toObject();
+    
+    // Soft delete: mark as deleted instead of removing from database
+    company.deleted = true;
+    company.deletedAt = new Date();
+    company.deletedBy = req.user!._id;
     company.status = CompanyStatus.INACTIVE;
-    await company.save();
+    await company.save({ validateBeforeSave: false }); // Skip validation for soft delete
     
     await AuditLog.createLog({
       actor: req.user!._id,
       action: AuditAction.DELETE,
       entityType: 'Company',
       entityId: company._id,
+      before: beforeState,
+      after: company.toObject(),
       ipAddress: req.ip,
       userAgent: req.get('user-agent'),
       businessProcess: 'company_management',
     });
     
     res.json({ success: true, message: 'Company deleted successfully' });
+  });
+  
+  /**
+   * Restore deleted company (Superadmin only)
+   * POST /companies/:id/restore
+   */
+  static restoreCompany = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only superadmin can restore
+    if (req.user!.role !== UserRole.SUPERADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Only superadmin can restore deleted companies',
+      });
+    }
+    
+    const company = await Company.findOne({ _id: req.params['id'], deleted: true });
+    if (!company) throw createNotFoundError('Deleted Company', req.params['id']);
+    
+    const beforeState = company.toObject();
+    
+    // Restore the company
+    company.deleted = false;
+    company.deletedAt = null as any;
+    company.deletedBy = null as any;
+    company.status = CompanyStatus.ACTIVE;
+    await company.save({ validateBeforeSave: false }); // Skip validation for restore
+    
+    await AuditLog.createLog({
+      actor: req.user!._id,
+      action: AuditAction.UPDATE,
+      entityType: 'Company',
+      entityId: company._id,
+      before: beforeState,
+      after: company.toObject(),
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      businessProcess: 'company_management',
+      description: 'Company restored from recycle bin',
+      riskLevel: 'low',
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Company restored successfully',
+      data: company,
+    });
+  });
+  
+  /**
+   * Get deleted companies (Superadmin only)
+   * GET /companies/deleted
+   */
+  static getDeletedCompanies = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // Only superadmin can view deleted companies
+    if (req.user!.role !== UserRole.SUPERADMIN) {
+      return res.status(403).json({
+        type: 'https://httpstatuses.com/403',
+        title: 'Forbidden',
+        status: 403,
+        detail: 'Only superadmin can view deleted companies',
+      });
+    }
+    
+    const companies = await Company.find({ deleted: true })
+      .populate('deletedBy', 'firstName lastName email')
+      .sort({ deletedAt: -1 });
+    
+    res.json({
+      success: true,
+      data: companies,
+      meta: {
+        total: companies.length,
+      },
+    });
   });
 
   static getCompanyStats = asyncHandler(async (_req: AuthenticatedRequest, res: Response) => {

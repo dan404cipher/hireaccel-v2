@@ -79,6 +79,7 @@ export enum UserRole {
   HR = 'hr',
   PARTNER = 'partner',
   ADMIN = 'admin',
+  SUPERADMIN = 'superadmin',
 }
 
 /**
