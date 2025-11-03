@@ -118,10 +118,10 @@ const ForEmployerSignup = () => {
             <div className="text-center mb-8">
               <div className="flex items-center justify-center space-x-1 mb-4">
                 <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                <span className="text-sm text-blue-500">Create Account</span>
+                <span className="text-sm text-blue-500">Create Account as an Employer</span>
               </div>
               <p className="text-gray-600">
-                Join our platform and start your journey
+                Join our platform and start your hiring journey
               </p>
             </div>
 
@@ -169,7 +169,7 @@ const ForEmployerSignup = () => {
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2"
               >
-                Continue →
+                Continue as an Employer →
               </Button>
             </form>
 

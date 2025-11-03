@@ -7,13 +7,13 @@ import { CardLoadingSkeleton } from "@/components/ui/LoadingSpinner";
 const ForEmployee = () => {
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <Header showRoleButtons={false} />
       <main className="pt-16">
-        <Suspense fallback={<CardLoadingSkeleton />}> 
+        <Suspense fallback={<CardLoadingSkeleton />}>
           <JobCandidates />
         </Suspense>
       </main>
-      <Suspense fallback={<CardLoadingSkeleton />}> 
+      <Suspense fallback={<CardLoadingSkeleton />}>
         <Footer />
       </Suspense>
     </div>
@@ -21,5 +21,3 @@ const ForEmployee = () => {
 };
 
 export default ForEmployee;
-
-

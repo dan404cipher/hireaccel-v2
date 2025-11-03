@@ -15,12 +15,16 @@ interface HeaderProps {
   navItems?: NavItem[];
   showAuthButtons?: boolean;
   onBackToHome?: () => void;
+  showRoleButtons?: boolean;
+  getStartedHref?: string;
 }
 
 export function Header({
   navItems = [],
   showAuthButtons = true,
   onBackToHome,
+  showRoleButtons = true,
+  getStartedHref = "/signup",
 }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -90,22 +94,26 @@ export function Header({
               >
                 Sign In
               </Button>
+              {showRoleButtons && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate("/register/hr")}
+                    className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+                  >
+                    For Employer
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => navigate("/register/candidate")}
+                    className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+                  >
+                    For Job Seekers
+                  </Button>
+                </>
+              )}
               <Button
-                variant="secondary"
-                onClick={() => navigate("/register/hr")}
-                className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
-              >
-                For Employer
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/register/Candidate")}
-                className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
-              >
-                For Job Seekers
-              </Button>
-              <Button
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate(getStartedHref)}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
@@ -138,22 +146,26 @@ export function Header({
               >
                 Sign In
               </Button>
+              {showRoleButtons && (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate("/register/hr")}
+                    className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
+                  >
+                    For Employer
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate("/register/candidate")}
+                    className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
+                  >
+                    For Job Seekers
+                  </Button>
+                </>
+              )}
               <Button
-                variant="ghost"
-                onClick={() => navigate("/register-hr")}
-                className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
-              >
-                For Employer
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/register-Candidate")}
-                className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
-              >
-                For job seekers
-              </Button>
-              <Button
-                onClick={() => navigate("/signup")}
+                onClick={() => navigate(getStartedHref)}
                 className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
               >
                 <Sparkles className="w-4 h-4 mr-2" />

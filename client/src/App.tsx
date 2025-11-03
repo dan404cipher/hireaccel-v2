@@ -191,7 +191,7 @@ function AppRouter() {
         <Route path="/hr" element={<ForEmployer />} />
         <Route path="/candidate" element={<ForEmployee />} />
         <Route path="/register/hr" element={<ForEmployerSignup />} />
-        <Route path="/register/Candidate" element={<ForJobSeekersSignup />} />
+        <Route path="/register/candidate" element={<ForJobSeekersSignup />} />
       </Route>
       
       {/* Protected Routes */}

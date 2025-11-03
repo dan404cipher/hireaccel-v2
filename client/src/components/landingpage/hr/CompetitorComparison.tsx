@@ -314,7 +314,7 @@ export function CompetitorComparison() {
 
                   <div className="mt-auto">
                     {competitor.isOurs ? (
-                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300" onClick={()=>navigate('/signup/hr')}> 
+          <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300" onClick={()=>navigate('/register/hr')}> 
                         Get Started Free
                       </Button>
                     ) : (""
@@ -526,7 +526,7 @@ export function CompetitorComparison() {
             <Button 
               size="lg" 
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 shadow-lg hover:shadow-xl transition-all duration-200"
-              onClick={()=>navigate('/signup/hr')}
+            onClick={()=>navigate('/register/hr')}
             >
               Start Saving Today - It's Free!
             </Button>

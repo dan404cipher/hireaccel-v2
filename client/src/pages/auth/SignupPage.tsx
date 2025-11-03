@@ -602,7 +602,7 @@ export function SignupPage({ onSwitchToSignin }: SignupPageProps): React.JSX.Ele
           <div className="text-center mb-8">
             <div className="flex items-center justify-center space-x-1 mb-4">
               <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-              <span className="text-sm text-blue-500">Create Account</span>
+              <span className="text-sm text-blue-500">Create Account </span>
             </div>
             <p className="text-gray-600">
               Join our platform and start your journey
