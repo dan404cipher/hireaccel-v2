@@ -84,41 +84,45 @@ export function Header({
             </div>
           </div>
 
-          {/* Desktop Auth Buttons */}
-          {showAuthButtons && (
+          {/* Desktop Buttons */}
+          {(showAuthButtons || showRoleButtons) && (
             <div className="hidden md:flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/login")}
-                className="text-white hover:bg-green-600 hover:text-white transition-all duration-300"
-              >
-                Sign In
-              </Button>
+              {showAuthButtons && (
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/login")}
+                  className="text-white hover:bg-green-600 hover:text-white transition-all duration-300"
+                >
+                  Sign In
+                </Button>
+              )}
               {showRoleButtons && (
                 <>
                   <Button
                     variant="secondary"
-                    onClick={() => navigate("/register/hr")}
+                    onClick={() => navigate("/hr")}
                     className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
                   >
                     For Employer
                   </Button>
                   <Button
                     variant="secondary"
-                    onClick={() => navigate("/register/candidate")}
-                    className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+                    onClick={() => navigate("/candidate")}
+                    className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300"
                   >
                     For Job Seekers
                   </Button>
                 </>
               )}
-              <Button
-                onClick={() => navigate(getStartedHref)}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Get Started
-              </Button>
+              {showAuthButtons && (
+                <Button
+                  onClick={() => navigate(getStartedHref)}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Get Started
+                </Button>
+              )}
             </div>
           )}
 
@@ -135,42 +139,46 @@ export function Header({
           </button>
         </div>
 
-        {/* Mobile Auth Menu */}
-        {isMenuOpen && showAuthButtons && (
+        {/* Mobile Menu */}
+        {isMenuOpen && (showAuthButtons || showRoleButtons) && (
           <div className="md:hidden py-4 border-t border-gray-200 bg-white/95 backdrop-blur-md">
             <div className="flex flex-col space-y-2 px-4">
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/login")}
-                className="justify-start text-gray-700 hover:bg-green-600 hover:text-white transition-all duration-300"
-              >
-                Sign In
-              </Button>
+              {showAuthButtons && (
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/login")}
+                  className="justify-start text-gray-700 hover:bg-green-600 hover:text-white transition-all duration-300"
+                >
+                  Sign In
+                </Button>
+              )}
               {showRoleButtons && (
                 <>
                   <Button
                     variant="ghost"
-                    onClick={() => navigate("/register/hr")}
+                    onClick={() => navigate("/hr")}
                     className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
                   >
                     For Employer
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => navigate("/register/candidate")}
-                    className="justify-start text-gray-700 hover:bg-gray-100 transition-all duration-300"
+                    onClick={() => navigate("/candidate")}
+                    className="justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300"
                   >
                     For Job Seekers
                   </Button>
                 </>
               )}
-              <Button
-                onClick={() => navigate(getStartedHref)}
-                className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Get Started
-              </Button>
+              {showAuthButtons && (
+                <Button
+                  onClick={() => navigate(getStartedHref)}
+                  className="justify-start bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Get Started
+                </Button>
+              )}
             </div>
           </div>
         )}
