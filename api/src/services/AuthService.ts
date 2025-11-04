@@ -1,12 +1,12 @@
-import { User, UserDocument } from '@/models/User'
-import { Candidate } from '@/models/Candidate'
-import { AuditLog } from '@/models/AuditLog'
-import { OTPService } from './OTPService'
-import { EmailService } from './EmailService'
-import { SMSService } from './SMSService'
-import { GoogleSheetsService } from './GoogleSheetsService'
-import { generateCustomUserId } from '@/utils/customId'
-import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types'
+import { User, UserDocument } from '@/models/User';
+import { Candidate } from '@/models/Candidate';
+import { AuditLog } from '@/models/AuditLog';
+import { OTPService } from './OTPService';
+import { EmailService } from './EmailService';
+import { SMSService } from './SMSService';
+import { GoogleSheetsService } from './GoogleSheetsService';
+import { generateCustomUserId } from '@/utils/customId';
+import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types';
 import {
     hashPassword,
     verifyPassword,
@@ -14,15 +14,15 @@ import {
     hashPasswordResetToken,
     validatePasswordStrength,
     generateTemporaryPassword,
-} from '@/utils/password'
-import { generateTokenPair, verifyRefreshToken, blacklistToken, generateSecureToken } from '@/utils/jwt'
-import { 
-    createBadRequestError, 
-    createConflictError, 
-    createInternalServerError,
+} from '@/utils/password';
+import { generateTokenPair, verifyRefreshToken, blacklistToken, generateSecureToken } from '@/utils/jwt';
+import {
+    createBadRequestError,
+    createConflictError,
     createNotFoundError,
-} from '@/middleware/errorHandler'
-import { logger } from '@/config/logger'
+    createUnauthorizedError,
+} from '@/middleware/errorHandler';
+import { logger } from '@/config/logger';
 
 /**
  * Authentication Service
@@ -33,26 +33,26 @@ export class AuthService {
      * Send OTP for user registration
      */
     static async sendRegistrationOTP(userData: {
-        email: string
-        password: string
-        firstName: string
-        lastName: string
-        role: UserRole
-        source?: string // Make optional for backward compatibility
-        phone?: string | undefined
-        department?: string | undefined
-        currentLocation?: string | undefined
-        yearsOfExperience?: string | undefined
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        role: UserRole;
+        source?: string; // Make optional for backward compatibility
+        phone?: string | undefined;
+        department?: string | undefined;
+        currentLocation?: string | undefined;
+        yearsOfExperience?: string | undefined;
     }): Promise<{ success: boolean; message: string }> {
         try {
             // Check if user already exists
-            const existingUser = await User.findByEmail(userData.email)
+            const existingUser = await User.findByEmail(userData.email);
             if (existingUser) {
-                throw createConflictError('User with this email already exists')
+                throw createConflictError('User with this email already exists');
             }
 
             // Validate password strength
-            validatePasswordStrength(userData.password)
+            validatePasswordStrength(userData.password);
 
             // Send OTP
             await OTPService.sendSignupOTP({
@@ -62,27 +62,27 @@ export class AuthService {
                 lastName: userData.lastName,
                 role: userData.role,
                 ...(userData.source && { source: userData.source }),
-                ...(userData.phone && { phone: userData.phone }),
+                ...(userData.phone && { phoneNumber: userData.phone }),
                 ...(userData.department && { department: userData.department }),
                 ...(userData.currentLocation && { currentLocation: userData.currentLocation }),
                 ...(userData.yearsOfExperience && { yearsOfExperience: userData.yearsOfExperience }),
-            })
+            });
 
             logger.info('Registration OTP sent successfully', {
                 email: userData.email,
                 role: userData.role,
-            })
+            });
 
             return {
                 success: true,
                 message: 'OTP sent to your email. Please verify to complete registration.',
-            }
+            };
         } catch (error) {
             logger.error('Failed to send registration OTP', {
                 email: userData.email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -93,42 +93,49 @@ export class AuthService {
         email: string,
         otp: string,
         context?: {
-            ipAddress?: string
-            userAgent?: string
+            ipAddress?: string;
+            userAgent?: string;
         },
     ): Promise<{ user: UserDocument; tokens: AuthTokens }> {
         try {
             // Verify OTP and get user data
-            const userData = await OTPService.verifyOTP(email, otp)
+            const userData = await OTPService.verifyOTP(email, otp);
             if (!userData) {
-                throw createBadRequestError('Invalid or expired OTP')
+                throw createBadRequestError('Invalid or expired OTP');
             }
 
             // Check if user was created in the meantime
-            const existingUser = await User.findByEmail(userData.email)
+            if (!userData.email) {
+                throw createBadRequestError('Email is required');
+            }
+            if (!userData.password) {
+                throw createBadRequestError('Password is required');
+            }
+
+            const existingUser = await User.findByEmail(userData.email);
             if (existingUser) {
-                throw createConflictError('User with this email already exists')
+                throw createConflictError('User with this email already exists');
             }
 
             // Hash password
-            const hashedPassword = await hashPassword(userData.password)
+            const hashedPassword = await hashPassword(userData.password);
 
             // Generate custom user ID based on role
-            let customId: string
+            let customId: string;
             try {
-                customId = await generateCustomUserId(userData.role as UserRole)
+                customId = await generateCustomUserId(userData.role as UserRole);
                 logger.info('Generated custom user ID', {
                     email: userData.email,
                     role: userData.role,
                     customId: customId,
-                })
+                });
             } catch (error) {
                 logger.error('Failed to generate custom user ID', {
                     email: userData.email,
                     role: userData.role,
                     error: error instanceof Error ? error.message : 'Unknown error',
-                })
-                throw createBadRequestError('Failed to generate user ID')
+                });
+                throw createBadRequestError('Failed to generate user ID');
             }
 
             // Create user
@@ -141,11 +148,11 @@ export class AuthService {
                 role: userData.role as UserRole,
                 status: UserStatus.ACTIVE, // User is verified via OTP
                 emailVerified: true, // Email is verified via OTP
-                phoneNumber: userData.phone, // Save phone number
+                phoneNumber: userData.phoneNumber, // Save phone number
                 ...(userData.source && { source: userData.source }), // Save source if provided
-            })
+            });
 
-            await user.save()
+            await user.save();
 
             // Create candidate profile if user is registering as a candidate
             if (userData.role === UserRole.CANDIDATE) {
@@ -159,7 +166,7 @@ export class AuthService {
                         certifications: [],
                         projects: [],
                         location: userData.currentLocation || '',
-                        phoneNumber: userData.phone || '',
+                        phoneNumber: userData.phoneNumber || '',
                         preferredSalaryRange: {
                             min: 0,
                             max: 0,
@@ -171,60 +178,64 @@ export class AuthService {
                             relocation: false,
                         },
                     },
-                })
+                });
 
-                await candidate.save()
+                await candidate.save();
 
                 logger.info('Candidate profile created successfully', {
                     userId: user._id,
                     candidateId: candidate._id,
-                })
+                });
             }
 
             // Generate tokens
             const tokens = generateTokenPair({
                 userId: user._id.toString(),
-                email: user.email,
+                ...(user.email && { email: user.email }),
+                ...(user.phoneNumber && { phoneNumber: user.phoneNumber }),
                 role: user.role,
-            })
+            });
 
             // Store refresh token
-            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress)
-            await user.save()
+            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress);
+            await user.save();
 
-            // Send welcome email
-            try {
-                await EmailService.sendWelcomeEmail(user.email, user.firstName, user.customId)
-            } catch (error) {
-                logger.warn('Failed to send welcome email', { error })
+            // Send welcome email (only if email exists)
+            if (user.email) {
+                try {
+                    await EmailService.sendWelcomeEmail(user.email, user.firstName, user.customId);
+                } catch (error) {
+                    logger.warn('Failed to send welcome email', { error });
+                }
             }
 
             // Submit registration data to Google Sheets
             try {
                 const formData: {
-                    email: string
-                    firstName: string
-                    lastName: string
-                    role: UserRole
-                    phone?: string
-                    department?: string
-                    currentLocation?: string
-                    yearsOfExperience?: string
+                    email: string;
+                    firstName: string;
+                    lastName: string;
+                    role: UserRole;
+                    phone?: string;
+                    department?: string;
+                    currentLocation?: string;
+                    yearsOfExperience?: string;
                 } = {
-                    email: user.email,
+                    email: user.email || '', // Handle optional email
                     firstName: user.firstName,
                     lastName: user.lastName,
                     role: user.role,
-                }
+                };
 
-                if (userData.phone) formData.phone = userData.phone
-                if (userData.department) formData.department = userData.department
-                if (userData.currentLocation) formData.currentLocation = userData.currentLocation
-                if (userData.yearsOfExperience) formData.yearsOfExperience = userData.yearsOfExperience
+                // Phone number handling: userData structure varies between email and SMS signup
+                // if (userData.phone) formData.phone = userData.phone
+                if (userData.department) formData.department = userData.department;
+                if (userData.currentLocation) formData.currentLocation = userData.currentLocation;
+                if (userData.yearsOfExperience) formData.yearsOfExperience = userData.yearsOfExperience;
 
-                await GoogleSheetsService.submitRegistrationData(formData)
+                await GoogleSheetsService.submitRegistrationData(formData);
             } catch (error) {
-                logger.warn('Failed to submit registration data to Google Sheets', { error })
+                logger.warn('Failed to submit registration data to Google Sheets', { error });
             }
 
             // Log registration
@@ -240,22 +251,22 @@ export class AuthService {
                 ipAddress: context?.ipAddress,
                 userAgent: context?.userAgent,
                 businessProcess: 'authentication',
-            })
+            });
 
             logger.info('User registered successfully via OTP', {
                 userId: user._id,
                 email: user.email,
                 role: user.role,
                 customId: user.customId,
-            })
+            });
 
-            return { user, tokens }
+            return { user, tokens };
         } catch (error) {
             logger.error('OTP verification and registration failed', {
                 email: email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -266,30 +277,30 @@ export class AuthService {
         phoneNumber: string,
         otp: string,
         context?: {
-            ipAddress?: string
-            userAgent?: string
+            ipAddress?: string;
+            userAgent?: string;
         },
     ): Promise<{ user: UserDocument; tokens: AuthTokens; needsEmail: boolean }> {
         try {
             // Verify SMS OTP and get user data
-            const userData = await OTPService.verifySMSOTP(phoneNumber, otp)
+            const userData = await OTPService.verifySMSOTP(phoneNumber, otp);
             if (!userData) {
-                throw createBadRequestError('Invalid or expired OTP')
+                throw createBadRequestError('Invalid or expired OTP');
             }
 
             // Check if user was created in the meantime
-            const existingUser = await User.findByPhoneNumber(phoneNumber)
+            const existingUser = await User.findByPhoneNumber(phoneNumber);
             if (existingUser) {
-                throw createConflictError('User with this phone number already exists')
+                throw createConflictError('User with this phone number already exists');
             }
 
             // Generate custom user ID based on role
-            let customId: string
+            let customId: string;
             try {
-                customId = await generateCustomUserId(userData.role as UserRole)
+                customId = await generateCustomUserId(userData.role as UserRole);
             } catch (error) {
-                logger.error('Failed to generate custom user ID', { error })
-                throw createInternalServerError('Failed to generate user ID')
+                logger.error('Failed to generate custom user ID', { error });
+                throw new Error('Failed to generate user ID');
             }
 
             // Create user with phone number only (no email initially)
@@ -303,66 +314,63 @@ export class AuthService {
                 status: UserStatus.ACTIVE,
                 emailVerified: false, // Will be verified later when email is added
                 source: userData.source,
-            })
+            });
 
-            await user.save()
+            await user.save();
 
             logger.info('User created successfully via SMS OTP', {
                 userId: user._id,
                 phoneNumber: phoneNumber,
                 role: user.role,
-            })
+            });
 
             // If candidate, create candidate profile
             if (user.role === UserRole.CANDIDATE) {
-                const { Candidate } = await import('@/models/Candidate')
+                const { Candidate } = await import('@/models/Candidate');
 
                 const candidate = new Candidate({
                     userId: user._id,
                     profile: {
-                        personalInfo: {
-                            phoneNumber: phoneNumber,
-                            location: '',
-                        },
+                        summary: '',
                         skills: [],
-                        experience: {
-                            totalYears: 0,
-                            jobs: [],
-                            projects: [],
+                        experience: [],
+                        education: [],
+                        certifications: [],
+                        projects: [],
+                        location: '',
+                        phoneNumber: phoneNumber,
+                        preferredSalaryRange: {
+                            min: 0,
+                            max: 0,
+                            currency: 'USD',
                         },
-                        preferences: {
-                            preferredSalaryRange: {
-                                min: 0,
-                                max: 0,
-                                currency: 'USD',
-                            },
-                            availability: {
-                                startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-                                remote: false,
-                                relocation: false,
-                            },
+                        availability: {
+                            startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+                            remote: false,
+                            relocation: false,
                         },
                     },
-                })
+                });
 
-                await candidate.save()
+                await candidate.save();
 
                 logger.info('Candidate profile created successfully', {
                     userId: user._id,
                     candidateId: candidate._id,
-                })
+                });
             }
 
             // Generate tokens
             const tokens = generateTokenPair({
                 userId: user._id.toString(),
-                email: user.email || '', // Empty email initially
+                ...(user.email && { email: user.email }),
+                ...(user.phoneNumber && { phoneNumber: user.phoneNumber }),
                 role: user.role,
-            })
+            });
 
             // Store refresh token
-            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress)
-            await user.save()
+            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress);
+            await user.save();
 
             // Log registration
             await AuditLog.createLog({
@@ -377,26 +385,26 @@ export class AuthService {
                 ipAddress: context?.ipAddress,
                 userAgent: context?.userAgent,
                 businessProcess: 'authentication',
-            })
+            });
 
             logger.info('User registered successfully via SMS OTP', {
                 userId: user._id,
                 phoneNumber: phoneNumber,
                 role: user.role,
                 customId: user.customId,
-            })
+            });
 
-            return { 
-                user, 
+            return {
+                user,
                 tokens,
-                needsEmail: true // Indicate that email collection is needed
-            }
+                needsEmail: true, // Indicate that email collection is needed
+            };
         } catch (error) {
             logger.error('SMS OTP verification and registration failed', {
                 phoneNumber: phoneNumber,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -405,17 +413,17 @@ export class AuthService {
      */
     static async resendSMSOTP(phoneNumber: string): Promise<{ success: boolean; message: string }> {
         try {
-            await OTPService.resendSMSOTP(phoneNumber)
+            await OTPService.resendSMSOTP(phoneNumber);
             return {
                 success: true,
                 message: 'OTP has been resent to your mobile number.',
-            }
+            };
         } catch (error) {
             logger.error('SMS OTP resend failed', {
                 phoneNumber: phoneNumber,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -423,47 +431,47 @@ export class AuthService {
      * Register a new user (Now uses OTP flow)
      */
     static async register(userData: {
-        email: string
-        password: string
-        firstName: string
-        lastName: string
-        role: UserRole
-        source?: string // Make optional for backward compatibility
-        phone?: string | undefined
-        department?: string | undefined
-        currentLocation?: string | undefined
-        yearsOfExperience?: string | undefined
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        role: UserRole;
+        source?: string; // Make optional for backward compatibility
+        phone?: string | undefined;
+        department?: string | undefined;
+        currentLocation?: string | undefined;
+        yearsOfExperience?: string | undefined;
     }): Promise<{ success: boolean; message: string; requiresOTP: boolean }> {
         // Redirect to OTP flow
-        const result = await this.sendRegistrationOTP(userData)
+        const result = await this.sendRegistrationOTP(userData);
         return {
             ...result,
             requiresOTP: true,
-        }
+        };
     }
 
     /**
      * Send SMS OTP for phone-based registration (simplified flow)
      */
     static async sendSMSRegistrationOTP(userData: {
-        phoneNumber: string
-        firstName: string
-        role: UserRole
-        source?: string
+        phoneNumber: string;
+        firstName: string;
+        role: UserRole;
+        source?: string;
     }): Promise<{ success: boolean; message: string }> {
         try {
             // Check if user already exists with this phone number
-            const existingUser = await User.findByPhoneNumber(userData.phoneNumber)
+            const existingUser = await User.findByPhoneNumber(userData.phoneNumber);
             if (existingUser) {
-                throw createConflictError('User with this phone number already exists')
+                throw createConflictError('User with this phone number already exists');
             }
 
             // Format phone number
-            const formattedPhone = SMSService.formatPhoneNumber(userData.phoneNumber)
-            
+            const formattedPhone = SMSService.formatPhoneNumber(userData.phoneNumber);
+
             // Validate phone number
             if (!SMSService.validatePhoneNumber(formattedPhone)) {
-                throw createBadRequestError('Invalid phone number format')
+                throw createBadRequestError('Invalid phone number format');
             }
 
             // Send SMS OTP
@@ -471,19 +479,19 @@ export class AuthService {
                 phoneNumber: formattedPhone,
                 firstName: userData.firstName,
                 role: userData.role,
-                source: userData.source,
-            })
+                ...(userData.source && { source: userData.source }),
+            });
 
             return {
                 success: true,
                 message: 'OTP sent to your mobile number successfully',
-            }
+            };
         } catch (error) {
             logger.error('SMS registration OTP sending failed', {
                 phoneNumber: userData.phoneNumber,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -491,17 +499,17 @@ export class AuthService {
      * Register user via SMS OTP (simplified flow)
      */
     static async registerViaSMS(userData: {
-        phoneNumber: string
-        firstName: string
-        role: UserRole
-        source?: string
+        phoneNumber: string;
+        firstName: string;
+        role: UserRole;
+        source?: string;
     }): Promise<{ success: boolean; message: string; requiresOTP: boolean }> {
         // Send SMS OTP
-        const result = await this.sendSMSRegistrationOTP(userData)
+        const result = await this.sendSMSRegistrationOTP(userData);
         return {
             ...result,
             requiresOTP: true,
-        }
+        };
     }
 
     /**
@@ -509,17 +517,17 @@ export class AuthService {
      */
     static async resendOTP(email: string): Promise<void> {
         try {
-            await OTPService.resendOTP(email)
+            await OTPService.resendOTP(email);
 
             logger.info('OTP resent successfully', {
                 email: email,
-            })
+            });
         } catch (error) {
             logger.error('Failed to resend OTP', {
                 email: email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -530,20 +538,25 @@ export class AuthService {
         email: string,
         password: string,
         context?: {
-            ipAddress?: string
-            userAgent?: string
+            ipAddress?: string;
+            userAgent?: string;
         },
     ): Promise<{ user: UserDocument; tokens: AuthTokens }> {
         try {
             // Find user with password field
-            const user = await User.findOne({ email: email.toLowerCase() }).select('+password +refreshTokens')
+            const user = await User.findOne({ email: email.toLowerCase() }).select('+password +refreshTokens');
 
             if (!user) {
-                throw createUnauthorizedError('Invalid email or password')
+                throw createUnauthorizedError('Invalid email or password');
+            }
+
+            // Check if user has a password (required for email login)
+            if (!user.password) {
+                throw createUnauthorizedError('This account uses SMS authentication. Please use phone login.');
             }
 
             // Verify password
-            const isPasswordValid = await verifyPassword(password, user.password)
+            const isPasswordValid = await verifyPassword(password, user.password);
             if (!isPasswordValid) {
                 // Log failed login attempt
                 await AuditLog.createLog({
@@ -560,34 +573,35 @@ export class AuthService {
                     businessProcess: 'authentication',
                     success: false,
                     errorMessage: 'Invalid password',
-                })
+                });
 
-                throw createUnauthorizedError('Invalid email or password')
+                throw createUnauthorizedError('Invalid email or password');
             }
 
             // Check account status
             if (user.status === UserStatus.SUSPENDED) {
-                throw createUnauthorizedError('Account is suspended. Please contact support.')
+                throw createUnauthorizedError('Account is suspended. Please contact support.');
             }
 
             if (user.status === UserStatus.INACTIVE) {
-                throw createUnauthorizedError('Account is inactive. Please contact administrator.')
+                throw createUnauthorizedError('Account is inactive. Please contact administrator.');
             }
 
             // Generate tokens
             const tokens = generateTokenPair({
                 userId: user._id.toString(),
-                email: user.email,
+                ...(user.email && { email: user.email }),
+                ...(user.phoneNumber && { phoneNumber: user.phoneNumber }),
                 role: user.role,
-            })
+            });
 
             // Store refresh token
-            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress)
+            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress);
 
             // Update last login
-            user.updateLastLogin()
+            user.updateLastLogin();
 
-            await user.save()
+            await user.save();
 
             // Log successful login
             await AuditLog.createLog({
@@ -602,21 +616,21 @@ export class AuthService {
                 ipAddress: context?.ipAddress,
                 userAgent: context?.userAgent,
                 businessProcess: 'authentication',
-            })
+            });
 
             logger.info('User logged in successfully', {
                 userId: user._id,
                 email: user.email,
                 role: user.role,
-            })
+            });
 
-            return { user, tokens }
+            return { user, tokens };
         } catch (error) {
             logger.warn('Login attempt failed', {
                 email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -626,50 +640,51 @@ export class AuthService {
     static async refreshToken(refreshToken: string): Promise<AuthTokens> {
         try {
             // Verify refresh token
-            const decoded = verifyRefreshToken(refreshToken)
+            const decoded = verifyRefreshToken(refreshToken);
 
             // Find user
-            const user = await User.findById(decoded.userId).select('+refreshTokens')
+            const user = await User.findById(decoded.userId).select('+refreshTokens');
             if (!user) {
-                throw createUnauthorizedError('User not found')
+                throw createUnauthorizedError('User not found');
             }
 
             // Check if refresh token exists in user's stored tokens (supports hashed + legacy)
-            const { hashToken } = await import('@/utils/jwt')
-            const hashed = hashToken(refreshToken)
-            const storedToken = user.refreshTokens?.find((rt) => rt.token === hashed || rt.token === refreshToken)
+            const { hashToken } = await import('@/utils/jwt');
+            const hashed = hashToken(refreshToken);
+            const storedToken = user.refreshTokens?.find((rt) => rt.token === hashed || rt.token === refreshToken);
             if (!storedToken) {
-                throw createUnauthorizedError('Invalid refresh token')
+                throw createUnauthorizedError('Invalid refresh token');
             }
 
             // Check account status
             if (user.status !== UserStatus.ACTIVE) {
-                throw createUnauthorizedError('Account is not active')
+                throw createUnauthorizedError('Account is not active');
             }
 
             // Generate new tokens
             const newTokens = generateTokenPair({
                 userId: user._id.toString(),
-                email: user.email,
+                ...(user.email && { email: user.email }),
+                ...(user.phoneNumber && { phoneNumber: user.phoneNumber }),
                 role: user.role,
-            })
+            });
 
             // Remove old refresh token and add new one
-            user.removeRefreshToken(refreshToken)
-            user.addRefreshToken(newTokens.refreshToken)
+            user.removeRefreshToken(refreshToken);
+            user.addRefreshToken(newTokens.refreshToken);
 
-            await user.save()
+            await user.save();
 
             logger.debug('Tokens refreshed successfully', {
                 userId: user._id,
-            })
+            });
 
-            return newTokens
+            return newTokens;
         } catch (error) {
             logger.warn('Token refresh failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -680,26 +695,26 @@ export class AuthService {
         userId: string,
         refreshToken?: string,
         context?: {
-            ipAddress?: string
-            userAgent?: string
+            ipAddress?: string;
+            userAgent?: string;
         },
     ): Promise<void> {
         try {
-            const user = await User.findById(userId).select('+refreshTokens')
+            const user = await User.findById(userId).select('+refreshTokens');
             if (!user) {
-                throw createNotFoundError('User', userId)
+                throw createNotFoundError('User', userId);
             }
 
             if (refreshToken) {
                 // Remove specific refresh token
-                user.removeRefreshToken(refreshToken)
-                blacklistToken(refreshToken)
+                user.removeRefreshToken(refreshToken);
+                blacklistToken(refreshToken);
             } else {
                 // Remove all refresh tokens (logout from all devices)
-                user.removeAllRefreshTokens()
+                user.removeAllRefreshTokens();
             }
 
-            await user.save()
+            await user.save();
 
             // Log logout
             await AuditLog.createLog({
@@ -713,18 +728,18 @@ export class AuthService {
                 ipAddress: context?.ipAddress,
                 userAgent: context?.userAgent,
                 businessProcess: 'authentication',
-            })
+            });
 
             logger.info('User logged out successfully', {
                 userId: user._id,
                 logoutType: refreshToken ? 'single_device' : 'all_devices',
-            })
+            });
         } catch (error) {
             logger.error('Logout failed', {
                 userId,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -733,22 +748,22 @@ export class AuthService {
      */
     static async forgotPassword(email: string): Promise<void> {
         try {
-            const user = await User.findByEmail(email)
+            const user = await User.findByEmail(email);
             if (!user) {
                 // Don't reveal if email exists or not
-                logger.warn('Password reset requested for non-existent email', { email })
-                return
+                logger.warn('Password reset requested for non-existent email', { email });
+                return;
             }
 
             // Generate reset token
-            const resetToken = generatePasswordResetToken()
-            const hashedToken = hashPasswordResetToken(resetToken)
+            const resetToken = generatePasswordResetToken();
+            const hashedToken = hashPasswordResetToken(resetToken);
 
             // Set reset token and expiration (1 hour)
-            user.resetPasswordToken = hashedToken
-            user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000)
+            user.resetPasswordToken = hashedToken;
+            user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
 
-            await user.save()
+            await user.save();
 
             // Log password reset request
             await AuditLog.createLog({
@@ -761,21 +776,23 @@ export class AuthService {
                 },
                 businessProcess: 'authentication',
                 riskLevel: 'medium',
-            })
+            });
 
             logger.info('Password reset token generated', {
                 userId: user._id,
                 email: user.email,
-            })
+            });
 
             // Send password reset email
-            await EmailService.sendPasswordResetEmail(user.email, user.firstName, resetToken)
+            if (user.email) {
+                await EmailService.sendPasswordResetEmail(user.email, user.firstName, resetToken);
+            }
         } catch (error) {
             logger.error('Password reset initiation failed', {
                 email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -784,33 +801,33 @@ export class AuthService {
      */
     static async resetPassword(token: string, newPassword: string): Promise<void> {
         try {
-            const hashedToken = hashPasswordResetToken(token)
+            const hashedToken = hashPasswordResetToken(token);
 
             // Find user with valid reset token
             const user = await User.findOne({
                 resetPasswordToken: hashedToken,
                 resetPasswordExpires: { $gt: Date.now() },
-            }).select('+resetPasswordToken +resetPasswordExpires')
+            }).select('+resetPasswordToken +resetPasswordExpires');
 
             if (!user) {
-                throw createBadRequestError('Invalid or expired reset token')
+                throw createBadRequestError('Invalid or expired reset token');
             }
 
             // Validate new password
-            validatePasswordStrength(newPassword)
+            validatePasswordStrength(newPassword);
 
             // Hash new password
-            const hashedPassword = await hashPassword(newPassword)
+            const hashedPassword = await hashPassword(newPassword);
 
             // Update password and clear reset token
-            user.password = hashedPassword
-            delete user.resetPasswordToken
-            delete user.resetPasswordExpires
+            user.password = hashedPassword;
+            delete user.resetPasswordToken;
+            delete user.resetPasswordExpires;
 
             // Remove all refresh tokens (force re-login)
-            user.removeAllRefreshTokens()
+            user.removeAllRefreshTokens();
 
-            await user.save()
+            await user.save();
 
             // Log password reset
             await AuditLog.createLog({
@@ -823,19 +840,19 @@ export class AuthService {
                 },
                 businessProcess: 'authentication',
                 riskLevel: 'high',
-            })
+            });
 
             logger.info('Password reset completed', {
                 userId: user._id,
                 email: user.email,
-            })
+            });
 
             // TODO: Send password reset confirmation email
         } catch (error) {
             logger.error('Password reset failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -844,25 +861,25 @@ export class AuthService {
      */
     static async verifyEmail(token: string): Promise<void> {
         try {
-            const hashedToken = hashPasswordResetToken(token)
+            const hashedToken = hashPasswordResetToken(token);
 
             // Find user with valid verification token
             const user = await User.findOne({
                 emailVerificationToken: hashedToken,
                 emailVerificationExpires: { $gt: Date.now() },
-            }).select('+emailVerificationToken +emailVerificationExpires')
+            }).select('+emailVerificationToken +emailVerificationExpires');
 
             if (!user) {
-                throw createBadRequestError('Invalid or expired verification token')
+                throw createBadRequestError('Invalid or expired verification token');
             }
 
             // Mark email as verified and activate account
-            user.emailVerified = true
-            user.status = UserStatus.ACTIVE
-            delete user.emailVerificationToken
-            delete user.emailVerificationExpires
+            user.emailVerified = true;
+            user.status = UserStatus.ACTIVE;
+            delete user.emailVerificationToken;
+            delete user.emailVerificationExpires;
 
-            await user.save()
+            await user.save();
 
             // Log email verification
             await AuditLog.createLog({
@@ -874,17 +891,17 @@ export class AuthService {
                     action: 'email_verified',
                 },
                 businessProcess: 'authentication',
-            })
+            });
 
             logger.info('Email verified successfully', {
                 userId: user._id,
                 email: user.email,
-            })
+            });
         } catch (error) {
             logger.error('Email verification failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -893,35 +910,35 @@ export class AuthService {
      */
     static async resendEmailVerification(userId: string): Promise<void> {
         try {
-            const user = await User.findById(userId).select('+emailVerificationToken +emailVerificationExpires')
+            const user = await User.findById(userId).select('+emailVerificationToken +emailVerificationExpires');
 
             if (!user) {
-                throw createNotFoundError('User', userId)
+                throw createNotFoundError('User', userId);
             }
 
             if (user.emailVerified) {
-                throw createBadRequestError('Email is already verified')
+                throw createBadRequestError('Email is already verified');
             }
 
             // Generate new verification token
-            const verificationToken = generateSecureToken()
-            user.emailVerificationToken = hashPasswordResetToken(verificationToken)
-            user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+            const verificationToken = generateSecureToken();
+            user.emailVerificationToken = hashPasswordResetToken(verificationToken);
+            user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-            await user.save()
+            await user.save();
 
             logger.info('Email verification resent', {
                 userId: user._id,
                 email: user.email,
-            })
+            });
 
             // TODO: Send email verification email with verificationToken
         } catch (error) {
             logger.error('Resend email verification failed', {
                 userId,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -930,34 +947,39 @@ export class AuthService {
      */
     static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
         try {
-            const user = await User.findById(userId).select('+password +refreshTokens')
+            const user = await User.findById(userId).select('+password +refreshTokens');
             if (!user) {
-                throw createNotFoundError('User', userId)
+                throw createNotFoundError('User', userId);
+            }
+
+            // Check if user has a password (SMS-only users can't change password this way)
+            if (!user.password) {
+                throw createBadRequestError('This account uses SMS authentication and does not have a password');
             }
 
             // Verify current password
-            const isCurrentPasswordValid = await verifyPassword(currentPassword, user.password)
+            const isCurrentPasswordValid = await verifyPassword(currentPassword, user.password);
             if (!isCurrentPasswordValid) {
-                throw createUnauthorizedError('Current password is incorrect')
+                throw createUnauthorizedError('Current password is incorrect');
             }
 
             // Validate new password
-            validatePasswordStrength(newPassword)
+            validatePasswordStrength(newPassword);
 
             // Check if new password is different from current
-            const isSamePassword = await verifyPassword(newPassword, user.password)
+            const isSamePassword = await verifyPassword(newPassword, user.password);
             if (isSamePassword) {
-                throw createBadRequestError('New password must be different from current password')
+                throw createBadRequestError('New password must be different from current password');
             }
 
             // Hash new password
-            const hashedPassword = await hashPassword(newPassword)
-            user.password = hashedPassword
+            const hashedPassword = await hashPassword(newPassword);
+            user.password = hashedPassword;
 
             // Remove all refresh tokens except current session
             // TODO: Implement session management to keep current session active
 
-            await user.save()
+            await user.save();
 
             // Log password change
             await AuditLog.createLog({
@@ -970,20 +992,20 @@ export class AuthService {
                 },
                 businessProcess: 'authentication',
                 riskLevel: 'medium',
-            })
+            });
 
             logger.info('Password changed successfully', {
                 userId: user._id,
                 email: user.email,
-            })
+            });
 
             // TODO: Send password change notification email
         } catch (error) {
             logger.error('Password change failed', {
                 userId,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -992,18 +1014,18 @@ export class AuthService {
      */
     static async getCurrentUser(userId: string): Promise<UserDocument> {
         try {
-            const user = await User.findById(userId)
+            const user = await User.findById(userId);
             if (!user) {
-                throw createNotFoundError('User', userId)
+                throw createNotFoundError('User', userId);
             }
 
-            return user
+            return user;
         } catch (error) {
             logger.error('Get current user failed', {
                 userId,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
@@ -1011,20 +1033,20 @@ export class AuthService {
      * Create admin user (for initial setup)
      */
     static async createAdminUser(userData: {
-        email: string
-        firstName: string
-        lastName: string
-        password?: string
+        email: string;
+        firstName: string;
+        lastName: string;
+        password?: string;
     }): Promise<{ user: UserDocument; temporaryPassword?: string }> {
         try {
             // Check if admin already exists
-            const existingAdmin = await User.findOne({ role: UserRole.ADMIN })
+            const existingAdmin = await User.findOne({ role: UserRole.ADMIN });
             if (existingAdmin) {
-                throw createConflictError('Admin user already exists')
+                throw createConflictError('Admin user already exists');
             }
 
-            const password = userData.password || generateTemporaryPassword()
-            const hashedPassword = await hashPassword(password)
+            const password = userData.password || generateTemporaryPassword();
+            const hashedPassword = await hashPassword(password);
 
             const user = new User({
                 ...userData,
@@ -1032,9 +1054,9 @@ export class AuthService {
                 role: UserRole.ADMIN,
                 status: UserStatus.ACTIVE,
                 emailVerified: true, // Admin doesn't need email verification
-            })
+            });
 
-            await user.save()
+            await user.save();
 
             // Log admin creation
             await AuditLog.createLog({
@@ -1048,81 +1070,77 @@ export class AuthService {
                 },
                 businessProcess: 'system_administration',
                 riskLevel: 'critical',
-            })
+            });
 
             logger.info('Admin user created', {
                 userId: user._id,
                 email: user.email,
-            })
+            });
 
-            const result: { user: UserDocument; temporaryPassword?: string } = { user }
+            const result: { user: UserDocument; temporaryPassword?: string } = { user };
             if (!userData.password) {
-                result.temporaryPassword = password
+                result.temporaryPassword = password;
             }
-            return result
+            return result;
         } catch (error) {
             logger.error('Admin user creation failed', {
                 email: userData.email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 
     /**
      * Add email and password to existing phone-based account
      */
-    static async addEmailToAccount(
-        userId: string,
-        email: string,
-        password: string
-    ): Promise<{ user: UserDocument }> {
+    static async addEmailToAccount(userId: string, email: string, password: string): Promise<{ user: UserDocument }> {
         try {
             // Check if email is already taken
-            const existingUserWithEmail = await User.findByEmail(email)
+            const existingUserWithEmail = await User.findByEmail(email);
             if (existingUserWithEmail) {
-                throw createConflictError('Email is already registered with another account')
+                throw createConflictError('Email is already registered with another account');
             }
 
             // Find user by ID
-            const user = await User.findById(userId)
+            const user = await User.findById(userId);
             if (!user) {
-                throw createNotFoundError('User not found')
+                throw createNotFoundError('User not found');
             }
 
             // Validate password strength
-            validatePasswordStrength(password)
+            validatePasswordStrength(password);
 
             // Hash password
-            const hashedPassword = await hashPassword(password)
+            const hashedPassword = await hashPassword(password);
 
             // Update user with email and password
-            user.email = email.toLowerCase()
-            user.password = hashedPassword
-            user.emailVerified = true // Consider it verified since user is already authenticated
-            
-            await user.save()
+            user.email = email.toLowerCase();
+            user.password = hashedPassword;
+            user.emailVerified = true; // Consider it verified since user is already authenticated
+
+            await user.save();
 
             logger.info('Email added to phone-based account', {
                 userId: user._id,
                 email: email,
-            })
+            });
 
             // Send welcome email
             try {
-                await EmailService.sendWelcomeEmail(user.email!, user.firstName, user.customId)
+                await EmailService.sendWelcomeEmail(user.email!, user.firstName, user.customId);
             } catch (error) {
-                logger.warn('Failed to send welcome email after adding email', { error })
+                logger.warn('Failed to send welcome email after adding email', { error });
             }
 
-            return { user }
+            return { user };
         } catch (error) {
             logger.error('Failed to add email to account', {
                 userId: userId,
                 email: email,
                 error: error instanceof Error ? error.message : 'Unknown error',
-            })
-            throw error
+            });
+            throw error;
         }
     }
 }

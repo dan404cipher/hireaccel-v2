@@ -1,4 +1,5 @@
 import { logger } from '@/config/logger';
+import { env } from '@/config/env';
 
 /**
  * SMS Service for sending OTP via SMS
@@ -25,6 +26,16 @@ export class SMSService {
                 otp: otp, // Remove this in production for security
                 firstName: firstName,
             });
+
+            // Skip SMS sending in test mode (TEST_SMS=true)
+            if (env.TEST_SMS === true) {
+                logger.info(`📱 TEST MODE: Skipping SMS send for ${firstName}`, {
+                    phoneNumber: phoneNumber,
+                    message: `Hi ${firstName}, your verification code for Hiring Accelerator is: ${otp}. Valid for 10 minutes.`,
+                    note: 'TEST_SMS=true - No actual SMS sent',
+                });
+                return;
+            }
 
             // Mock SMS sending for development
             // Replace this with actual SMS provider integration (Twilio, AWS SNS, etc.)
@@ -65,9 +76,10 @@ export class SMSService {
     private static async sendSMSViaTwilio(phoneNumber: string, otp: string, firstName: string): Promise<void> {
         try {
             // Check if Twilio is available (dynamic import to avoid errors if not installed)
-            let twilio;
+            let twilio: any;
             try {
-                twilio = await import('twilio');
+                const twilioModule = 'twilio';
+                twilio = await import(twilioModule);
             } catch (importError) {
                 logger.warn('Twilio SDK not installed. Install with: npm install twilio');
                 throw new Error('Twilio SDK not available. Please install twilio package.');
@@ -116,9 +128,10 @@ export class SMSService {
     private static async sendSMSViaAWSSNS(phoneNumber: string, otp: string, firstName: string): Promise<void> {
         try {
             // Check if AWS SNS is available (dynamic import to avoid errors if not installed)
-            let SNSClient, PublishCommand;
+            let SNSClient: any, PublishCommand: any;
             try {
-                const awsSdk = await import('@aws-sdk/client-sns');
+                const awsSdkModule = '@aws-sdk/client-sns';
+                const awsSdk: any = await import(awsSdkModule);
                 SNSClient = awsSdk.SNSClient;
                 PublishCommand = awsSdk.PublishCommand;
             } catch (importError) {
@@ -244,7 +257,8 @@ export class SMSService {
 
                 // Check if AWS SDK is available
                 try {
-                    await import('@aws-sdk/client-sns');
+                    const awsSdkModule = '@aws-sdk/client-sns';
+                    await import(awsSdkModule);
                     return {
                         provider,
                         configured: true,
@@ -274,7 +288,8 @@ export class SMSService {
 
                 // Check if Twilio SDK is available
                 try {
-                    await import('twilio');
+                    const twilioModule = 'twilio';
+                    await import(twilioModule);
                     return {
                         provider,
                         configured: true,
