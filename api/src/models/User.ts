@@ -34,7 +34,8 @@ export interface UserDocument extends Omit<IUser, '_id'>, Document {
  */
 export interface UserModel extends mongoose.Model<UserDocument> {
     findByEmail(email: string): Promise<UserDocument | null>
-    findByRole(role: UserRole): Promise<UserDocument[]>
+    findByPhoneNumber(phoneNumber: string): Promise<UserDocument | null>
+    findByRole(role: UserRole): Promise<UserRole[]>
     searchUsers(searchTerm: string, options?: any): Promise<UserDocument[]>
 }
 
@@ -46,8 +47,9 @@ const userSchema = new Schema<UserDocument>(
     {
         email: {
             type: String,
-            required: [true, 'Email is required'],
+            required: false, // Make email optional initially for phone-based signup
             unique: true,
+            sparse: true, // Allow multiple null values but unique non-null values
             lowercase: true,
             trim: true,
             match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address'],
@@ -113,9 +115,15 @@ const userSchema = new Schema<UserDocument>(
 
         phoneNumber: {
             type: String,
-            required: false,
+            required: function() {
+                // Phone is required if email is not provided (phone-based signup)
+                return !this.email;
+            },
+            unique: true,
+            sparse: true, // Allow multiple null values but unique non-null values
             trim: true,
             match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
+            index: true,
         },
 
         source: {
@@ -329,6 +337,13 @@ userSchema.statics['findByEmail'] = function (email: string) {
 }
 
 /**
+ * Find user by phone number
+ */
+userSchema.statics['findByPhoneNumber'] = function (phoneNumber: string) {
+    return this.findOne({ phoneNumber: phoneNumber.trim() })
+}
+
+/**
  * Find users by role
  */
 userSchema.statics['findByRole'] = function (role: UserRole) {
@@ -363,8 +378,13 @@ userSchema.statics['searchUsers'] = function (searchTerm: string, options: any =
  * Pre-save middleware
  */
 userSchema.pre('save', function (this: UserDocument, next) {
+    // Ensure at least email or phone number is provided
+    if (!this.email && !this.phoneNumber) {
+        return next(new Error('Either email or phone number must be provided'))
+    }
+
     // Ensure email is lowercase
-    if (this.isModified('email')) {
+    if (this.isModified('email') && this.email) {
         this.email = this.email.toLowerCase()
     }
 
@@ -375,6 +395,15 @@ userSchema.pre('save', function (this: UserDocument, next) {
 
     if (this.isModified('lastName')) {
         this.lastName = this.lastName.trim()
+    }
+
+    // Format phone number (add +91 prefix for Indian numbers if not present)
+    if (this.isModified('phoneNumber') && this.phoneNumber) {
+        this.phoneNumber = this.phoneNumber.trim()
+        // Add +91 prefix for Indian numbers if not already prefixed
+        if (this.phoneNumber.length === 10 && /^[6-9]\d{9}$/.test(this.phoneNumber)) {
+            this.phoneNumber = '+91' + this.phoneNumber
+        }
     }
 
     next()

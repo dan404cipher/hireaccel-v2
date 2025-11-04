@@ -12,6 +12,7 @@ import fileRoutes from './files';
 import bannerRoutes from './banner';
 import auditLogRoutes from './auditLogs';
 import analyticsRoutes from './analytics';
+import smsRoutes from './sms';
 
 /**
  * Main API routes
@@ -37,13 +38,16 @@ router.use('/api/v1/banners', bannerRoutes);
 router.use('/api/v1/audit-logs', auditLogRoutes);
 router.use('/api/analytics', analyticsRoutes);
 
+// SMS service routes
+router.use('/sms', smsRoutes);
+
 // Health check route
 router.get('/health', (_req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    version: process.env['npm_package_version'] || '1.0.0',
-  });
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: process.env['npm_package_version'] || '1.0.0',
+    });
 });
 
 export default router;

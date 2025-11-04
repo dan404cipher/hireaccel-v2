@@ -51,6 +51,39 @@ const resendOTPSchema = z.object({
   email: z.string().email('Invalid email format'),
 });
 
+const smsRegisterSchema = z.object({
+  phoneNumber: z.string().min(10, 'Phone number is required'),
+  firstName: z.string().min(1, 'Name is required').max(50),
+  role: z.nativeEnum(UserRole, { errorMap: () => ({ message: 'Invalid user role' }) }),
+  source: z.enum([
+    'Email',
+    'WhatsApp',
+    'Telegram',
+    'Instagram',
+    'Facebook',
+    'Journals',
+    'Posters',
+    'Brochures',
+    'Forums',
+    'Google',
+    'Conversational AI (GPT, Gemini etc)'
+  ]).optional(),
+});
+
+const verifySMSOTPSchema = z.object({
+  phoneNumber: z.string().min(10, 'Phone number is required'),
+  otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
+const resendSMSOTPSchema = z.object({
+  phoneNumber: z.string().min(10, 'Phone number is required'),
+});
+
+const addEmailSchema = z.object({
+  email: z.string().email('Invalid email format'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
 // const _refreshTokenSchema = z.object({
 //   refreshToken: z.string().min(1, 'Refresh token is required'),
 // });
@@ -169,6 +202,130 @@ export class AuthController {
       message: "OTP has been resent to your email.",
       data: {
         email: validatedData.email,
+      },
+    });
+  });
+
+  /**
+   * Register via SMS (Phone-based signup)
+   * POST /auth/register-sms
+   */
+  static registerSMS = asyncHandler(async (req: AuthenticatedRequest, res: Response, _next: NextFunction) => {
+    const validatedData = smsRegisterSchema.parse(req.body);
+    
+    const context: { ipAddress?: string; userAgent?: string } = {};
+    if (req.ip) context.ipAddress = req.ip;
+    if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
+    
+    const userData = {
+      phoneNumber: validatedData.phoneNumber,
+      firstName: validatedData.firstName,
+      role: validatedData.role,
+      ...(validatedData.source && { source: validatedData.source }),
+    };
+    
+    const result = await AuthService.registerViaSMS(userData);
+    
+    res.status(200).json({
+      success: result.success,
+      message: result.message,
+      data: {
+        requiresOTP: result.requiresOTP,
+        phoneNumber: userData.phoneNumber,
+      },
+    });
+  });
+
+  /**
+   * Verify SMS OTP and complete registration
+   * POST /auth/verify-sms-otp
+   */
+  static verifySMSOTP = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const validatedData = verifySMSOTPSchema.parse(req.body);
+    
+    const context: { ipAddress?: string; userAgent?: string } = {};
+    if (req.ip) context.ipAddress = req.ip;
+    if (req.get("user-agent")) context.userAgent = req.get("user-agent")!;
+    
+    const { user, tokens, needsEmail } = await AuthService.verifySMSOTPAndRegister(
+      validatedData.phoneNumber,
+      validatedData.otp,
+      context
+    );
+    
+    // Set refresh token in HTTP-only cookie
+    res.cookie("refreshToken", tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env["NODE_ENV"] === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+    
+    res.status(201).json({
+      success: true,
+      message: "Account created successfully via SMS verification!",
+      data: {
+        user: {
+          id: user._id,
+          customId: user.customId,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          status: user.status,
+          emailVerified: user.emailVerified,
+        },
+        accessToken: tokens.accessToken,
+        expiresIn: tokens.expiresIn,
+        needsEmail: needsEmail, // Indicates frontend should collect email
+      },
+    });
+  });
+
+  /**
+   * Resend SMS OTP
+   * POST /auth/resend-sms-otp
+   */
+  static resendSMSOTP = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const validatedData = resendSMSOTPSchema.parse(req.body);
+    
+    await AuthService.resendSMSOTP(validatedData.phoneNumber);
+    
+    res.status(200).json({
+      success: true,
+      message: "OTP has been resent to your mobile number.",
+      data: {
+        phoneNumber: validatedData.phoneNumber,
+      },
+    });
+  });
+
+  /**
+   * Add email to phone-based account
+   * POST /auth/add-email
+   */
+  static addEmail = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const validatedData = addEmailSchema.parse(req.body);
+    
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const result = await AuthService.addEmailToAccount(
+      req.user._id,
+      validatedData.email,
+      validatedData.password
+    );
+    
+    res.status(200).json({
+      success: true,
+      message: "Email added successfully to your account",
+      data: {
+        user: result.user,
       },
     });
   });

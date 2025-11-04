@@ -3,6 +3,7 @@ import { Candidate } from '@/models/Candidate'
 import { AuditLog } from '@/models/AuditLog'
 import { OTPService } from './OTPService'
 import { EmailService } from './EmailService'
+import { SMSService } from './SMSService'
 import { GoogleSheetsService } from './GoogleSheetsService'
 import { generateCustomUserId } from '@/utils/customId'
 import { UserRole, UserStatus, AuthTokens, AuditAction } from '@/types'
@@ -15,11 +16,11 @@ import {
     generateTemporaryPassword,
 } from '@/utils/password'
 import { generateTokenPair, verifyRefreshToken, blacklistToken, generateSecureToken } from '@/utils/jwt'
-import {
-    createUnauthorizedError,
-    createBadRequestError,
+import { 
+    createBadRequestError, 
+    createConflictError, 
+    createInternalServerError,
     createNotFoundError,
-    createConflictError,
 } from '@/middleware/errorHandler'
 import { logger } from '@/config/logger'
 
@@ -259,6 +260,166 @@ export class AuthService {
     }
 
     /**
+     * Verify SMS OTP and complete user registration (phone-based signup)
+     */
+    static async verifySMSOTPAndRegister(
+        phoneNumber: string,
+        otp: string,
+        context?: {
+            ipAddress?: string
+            userAgent?: string
+        },
+    ): Promise<{ user: UserDocument; tokens: AuthTokens; needsEmail: boolean }> {
+        try {
+            // Verify SMS OTP and get user data
+            const userData = await OTPService.verifySMSOTP(phoneNumber, otp)
+            if (!userData) {
+                throw createBadRequestError('Invalid or expired OTP')
+            }
+
+            // Check if user was created in the meantime
+            const existingUser = await User.findByPhoneNumber(phoneNumber)
+            if (existingUser) {
+                throw createConflictError('User with this phone number already exists')
+            }
+
+            // Generate custom user ID based on role
+            let customId: string
+            try {
+                customId = await generateCustomUserId(userData.role as UserRole)
+            } catch (error) {
+                logger.error('Failed to generate custom user ID', { error })
+                throw createInternalServerError('Failed to generate user ID')
+            }
+
+            // Create user with phone number only (no email initially)
+            const user = new User({
+                phoneNumber: phoneNumber,
+                customId: customId,
+                // No password required for SMS signup initially
+                firstName: userData.firstName,
+                lastName: userData.firstName, // Use firstName as lastName initially
+                role: userData.role as UserRole,
+                status: UserStatus.ACTIVE,
+                emailVerified: false, // Will be verified later when email is added
+                source: userData.source,
+            })
+
+            await user.save()
+
+            logger.info('User created successfully via SMS OTP', {
+                userId: user._id,
+                phoneNumber: phoneNumber,
+                role: user.role,
+            })
+
+            // If candidate, create candidate profile
+            if (user.role === UserRole.CANDIDATE) {
+                const { Candidate } = await import('@/models/Candidate')
+
+                const candidate = new Candidate({
+                    userId: user._id,
+                    profile: {
+                        personalInfo: {
+                            phoneNumber: phoneNumber,
+                            location: '',
+                        },
+                        skills: [],
+                        experience: {
+                            totalYears: 0,
+                            jobs: [],
+                            projects: [],
+                        },
+                        preferences: {
+                            preferredSalaryRange: {
+                                min: 0,
+                                max: 0,
+                                currency: 'USD',
+                            },
+                            availability: {
+                                startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+                                remote: false,
+                                relocation: false,
+                            },
+                        },
+                    },
+                })
+
+                await candidate.save()
+
+                logger.info('Candidate profile created successfully', {
+                    userId: user._id,
+                    candidateId: candidate._id,
+                })
+            }
+
+            // Generate tokens
+            const tokens = generateTokenPair({
+                userId: user._id.toString(),
+                email: user.email || '', // Empty email initially
+                role: user.role,
+            })
+
+            // Store refresh token
+            user.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress)
+            await user.save()
+
+            // Log registration
+            await AuditLog.createLog({
+                actor: user._id,
+                action: AuditAction.CREATE,
+                entityType: 'User',
+                entityId: user._id,
+                metadata: {
+                    role: user.role,
+                    registrationMethod: 'sms_otp',
+                },
+                ipAddress: context?.ipAddress,
+                userAgent: context?.userAgent,
+                businessProcess: 'authentication',
+            })
+
+            logger.info('User registered successfully via SMS OTP', {
+                userId: user._id,
+                phoneNumber: phoneNumber,
+                role: user.role,
+                customId: user.customId,
+            })
+
+            return { 
+                user, 
+                tokens,
+                needsEmail: true // Indicate that email collection is needed
+            }
+        } catch (error) {
+            logger.error('SMS OTP verification and registration failed', {
+                phoneNumber: phoneNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            })
+            throw error
+        }
+    }
+
+    /**
+     * Resend SMS OTP
+     */
+    static async resendSMSOTP(phoneNumber: string): Promise<{ success: boolean; message: string }> {
+        try {
+            await OTPService.resendSMSOTP(phoneNumber)
+            return {
+                success: true,
+                message: 'OTP has been resent to your mobile number.',
+            }
+        } catch (error) {
+            logger.error('SMS OTP resend failed', {
+                phoneNumber: phoneNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            })
+            throw error
+        }
+    }
+
+    /**
      * Register a new user (Now uses OTP flow)
      */
     static async register(userData: {
@@ -275,6 +436,68 @@ export class AuthService {
     }): Promise<{ success: boolean; message: string; requiresOTP: boolean }> {
         // Redirect to OTP flow
         const result = await this.sendRegistrationOTP(userData)
+        return {
+            ...result,
+            requiresOTP: true,
+        }
+    }
+
+    /**
+     * Send SMS OTP for phone-based registration (simplified flow)
+     */
+    static async sendSMSRegistrationOTP(userData: {
+        phoneNumber: string
+        firstName: string
+        role: UserRole
+        source?: string
+    }): Promise<{ success: boolean; message: string }> {
+        try {
+            // Check if user already exists with this phone number
+            const existingUser = await User.findByPhoneNumber(userData.phoneNumber)
+            if (existingUser) {
+                throw createConflictError('User with this phone number already exists')
+            }
+
+            // Format phone number
+            const formattedPhone = SMSService.formatPhoneNumber(userData.phoneNumber)
+            
+            // Validate phone number
+            if (!SMSService.validatePhoneNumber(formattedPhone)) {
+                throw createBadRequestError('Invalid phone number format')
+            }
+
+            // Send SMS OTP
+            await OTPService.sendSMSSignupOTP({
+                phoneNumber: formattedPhone,
+                firstName: userData.firstName,
+                role: userData.role,
+                source: userData.source,
+            })
+
+            return {
+                success: true,
+                message: 'OTP sent to your mobile number successfully',
+            }
+        } catch (error) {
+            logger.error('SMS registration OTP sending failed', {
+                phoneNumber: userData.phoneNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            })
+            throw error
+        }
+    }
+
+    /**
+     * Register user via SMS OTP (simplified flow)
+     */
+    static async registerViaSMS(userData: {
+        phoneNumber: string
+        firstName: string
+        role: UserRole
+        source?: string
+    }): Promise<{ success: boolean; message: string; requiresOTP: boolean }> {
+        // Send SMS OTP
+        const result = await this.sendSMSRegistrationOTP(userData)
         return {
             ...result,
             requiresOTP: true,
@@ -840,6 +1063,63 @@ export class AuthService {
         } catch (error) {
             logger.error('Admin user creation failed', {
                 email: userData.email,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            })
+            throw error
+        }
+    }
+
+    /**
+     * Add email and password to existing phone-based account
+     */
+    static async addEmailToAccount(
+        userId: string,
+        email: string,
+        password: string
+    ): Promise<{ user: UserDocument }> {
+        try {
+            // Check if email is already taken
+            const existingUserWithEmail = await User.findByEmail(email)
+            if (existingUserWithEmail) {
+                throw createConflictError('Email is already registered with another account')
+            }
+
+            // Find user by ID
+            const user = await User.findById(userId)
+            if (!user) {
+                throw createNotFoundError('User not found')
+            }
+
+            // Validate password strength
+            validatePasswordStrength(password)
+
+            // Hash password
+            const hashedPassword = await hashPassword(password)
+
+            // Update user with email and password
+            user.email = email.toLowerCase()
+            user.password = hashedPassword
+            user.emailVerified = true // Consider it verified since user is already authenticated
+            
+            await user.save()
+
+            logger.info('Email added to phone-based account', {
+                userId: user._id,
+                email: email,
+            })
+
+            // Send welcome email
+            try {
+                await EmailService.sendWelcomeEmail(user.email!, user.firstName, user.customId)
+            } catch (error) {
+                logger.warn('Failed to send welcome email after adding email', { error })
+            }
+
+            return { user }
+        } catch (error) {
+            logger.error('Failed to add email to account', {
+                userId: userId,
+                email: email,
                 error: error instanceof Error ? error.message : 'Unknown error',
             })
             throw error

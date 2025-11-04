@@ -33,6 +33,34 @@ router.post('/verify-otp', otpLimiter, AuthController.verifyOTP)
 router.post('/resend-otp', otpLimiter, AuthController.resendOTP)
 
 /**
+ * @route   POST /auth/register-sms
+ * @desc    Register via SMS (phone-based signup)
+ * @access  Public
+ */
+router.post('/register-sms', otpLimiter, AuthController.registerSMS)
+
+/**
+ * @route   POST /auth/verify-sms-otp
+ * @desc    Verify SMS OTP and complete registration
+ * @access  Public
+ */
+router.post('/verify-sms-otp', otpLimiter, AuthController.verifySMSOTP)
+
+/**
+ * @route   POST /auth/resend-sms-otp
+ * @desc    Resend SMS OTP for registration
+ * @access  Public
+ */
+router.post('/resend-sms-otp', otpLimiter, AuthController.resendSMSOTP)
+
+/**
+ * @route   POST /auth/add-email
+ * @desc    Add email to phone-based account
+ * @access  Private
+ */
+router.post('/add-email', authenticate, AuthController.addEmail)
+
+/**
  * @route   POST /auth/login
  * @desc    Login user
  * @access  Public

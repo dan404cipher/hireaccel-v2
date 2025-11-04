@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { OTP, OTPDocument } from '@/models/OTP';
 import { EmailService } from './EmailService';
+import { SMSService } from './SMSService';
 import { logger } from '@/config/logger';
 
 export class OTPService {
@@ -36,6 +37,7 @@ export class OTPService {
       // Store OTP with user data
       const otpRecord = new OTP({
         email: userData.email,
+        type: 'email',
         otp: otp,
         userData: userData,
         attempts: 0,
@@ -60,14 +62,63 @@ export class OTPService {
   }
 
   /**
-   * Verify OTP and return user data if valid
+   * Send SMS OTP for phone verification during signup
+   */
+  static async sendSMSSignupOTP(userData: {
+    phoneNumber: string;
+    firstName: string;
+    role: string;
+    source?: string;
+  }): Promise<void> {
+    try {
+      // Generate OTP
+      const otp = this.generateOTP();
+      
+      // Delete any existing OTP for this phone number
+      await OTP.deleteMany({ phoneNumber: userData.phoneNumber });
+      
+      // Store OTP with minimal user data for SMS signup
+      const otpRecord = new OTP({
+        phoneNumber: userData.phoneNumber,
+        type: 'sms',
+        otp: otp,
+        userData: {
+          phoneNumber: userData.phoneNumber,
+          firstName: userData.firstName,
+          role: userData.role,
+          source: userData.source,
+        },
+        attempts: 0,
+      });
+      
+      await otpRecord.save();
+      
+      // Send OTP via SMS
+      await SMSService.sendOTP(userData.phoneNumber, otp, userData.firstName);
+      
+      logger.info('SMS Signup OTP sent successfully', {
+        phoneNumber: userData.phoneNumber,
+        role: userData.role,
+      });
+    } catch (error) {
+      logger.error('Failed to send SMS signup OTP', {
+        phoneNumber: userData.phoneNumber,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Verify OTP and return user data if valid (for email-based signup)
    */
   static async verifyOTP(email: string, otp: string): Promise<OTPDocument['userData'] | null> {
     try {
       // Find OTP record
       const otpRecord = await OTP.findOne({ 
         email: email.toLowerCase().trim(),
-        otp: otp 
+        otp: otp,
+        type: 'email'
       });
       
       if (!otpRecord) {
@@ -122,12 +173,78 @@ export class OTPService {
   }
 
   /**
-   * Resend OTP for existing signup attempt
+   * Verify SMS OTP and return user data if valid (for phone-based signup)
+   */
+  static async verifySMSOTP(phoneNumber: string, otp: string): Promise<OTPDocument['userData'] | null> {
+    try {
+      // Find OTP record
+      const otpRecord = await OTP.findOne({ 
+        phoneNumber: phoneNumber.trim(),
+        otp: otp,
+        type: 'sms'
+      });
+      
+      if (!otpRecord) {
+        logger.warn('Invalid SMS OTP attempt', {
+          phoneNumber: phoneNumber,
+          otp: otp,
+        });
+        return null;
+      }
+      
+      // Check if OTP has expired
+      if (otpRecord.expiresAt < new Date()) {
+        logger.warn('Expired SMS OTP attempt', {
+          phoneNumber: phoneNumber,
+          expiredAt: otpRecord.expiresAt,
+        });
+        await OTP.deleteOne({ _id: otpRecord._id });
+        return null;
+      }
+      
+      // Check attempt limit
+      if (otpRecord.attempts >= 5) {
+        logger.warn('SMS OTP attempt limit exceeded', {
+          phoneNumber: phoneNumber,
+          attempts: otpRecord.attempts,
+        });
+        await OTP.deleteOne({ _id: otpRecord._id });
+        return null;
+      }
+      
+      // Increment attempts
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      
+      // If OTP is correct, return user data and delete OTP record
+      const userData = otpRecord.userData;
+      await OTP.deleteOne({ _id: otpRecord._id });
+      
+      logger.info('OTP verified successfully', {
+        email: email,
+        role: userData.role,
+      });
+      
+      return userData;
+    } catch (error) {
+      logger.error('Failed to verify OTP', {
+        email: email,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Resend OTP for existing email signup attempt
    */
   static async resendOTP(email: string): Promise<void> {
     try {
       // Find existing OTP record
-      const existingOTP = await OTP.findOne({ email: email.toLowerCase().trim() });
+      const existingOTP = await OTP.findOne({ 
+        email: email.toLowerCase().trim(),
+        type: 'email'
+      });
       
       if (!existingOTP) {
         throw new Error('No pending signup found for this email');
@@ -151,6 +268,45 @@ export class OTPService {
     } catch (error) {
       logger.error('Failed to resend OTP', {
         email: email,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Resend SMS OTP for existing phone signup attempt
+   */
+  static async resendSMSOTP(phoneNumber: string): Promise<void> {
+    try {
+      // Find existing OTP record
+      const existingOTP = await OTP.findOne({ 
+        phoneNumber: phoneNumber.trim(),
+        type: 'sms'
+      });
+      
+      if (!existingOTP) {
+        throw new Error('No pending signup found for this phone number');
+      }
+      
+      // Generate new OTP
+      const newOTP = this.generateOTP();
+      
+      // Update the record
+      existingOTP.otp = newOTP;
+      existingOTP.attempts = 0;
+      existingOTP.expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      await existingOTP.save();
+      
+      // Send new OTP via SMS
+      await SMSService.sendOTP(phoneNumber, newOTP, existingOTP.userData.firstName);
+      
+      logger.info('SMS OTP resent successfully', {
+        phoneNumber: phoneNumber,
+      });
+    } catch (error) {
+      logger.error('Failed to resend SMS OTP', {
+        phoneNumber: phoneNumber,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
