@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,12 +16,13 @@ interface SMSOTPVerificationPageProps {
 export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ onVerificationSuccess }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const { updateAuth } = useAuth();
 
-    // Get data from location state (passed from SMS signup)
-    const phoneNumber = location.state?.phoneNumber;
-    const userType = location.state?.userType || 'candidate';
-    const firstName = location.state?.firstName || 'User';
+    // Get data from location state (passed from SMS signup) OR URL parameters
+    const phoneNumber = location.state?.phoneNumber || searchParams.get('phone') || '';
+    const userType = location.state?.userType || searchParams.get('role') || 'candidate';
+    const firstName = location.state?.firstName || searchParams.get('name') || 'User';
 
     const [otp, setOtp] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -34,9 +35,9 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
     // Redirect if no phone number provided
     useEffect(() => {
         if (!phoneNumber) {
-            navigate('/signup/sms', { replace: true });
+            navigate(userType === 'hr' ? '/register/hr' : '/register/candidate', { replace: true });
         }
-    }, [phoneNumber, navigate]);
+    }, [phoneNumber, userType, navigate]);
 
     // Countdown timer
     useEffect(() => {

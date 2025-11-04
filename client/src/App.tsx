@@ -1,363 +1,428 @@
-import React, { Suspense, lazy, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { NotificationProvider } from "./contexts/NotificationContext";
-import { AppLayout } from "./components/layout/AppLayout";
-import { PageLoadingSpinner } from "./components/ui/LoadingSpinner";
-import { useRoutePreloader } from "./hooks/useRoutePreloader";
-import { PerformanceMonitor } from "./components/PerformanceMonitor";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { initializeAnalytics } from "./utils/analytics";
-import { useAnalyticsTracker } from "./hooks/useAnalyticsTracker";
+import React, { Suspense, lazy, useEffect } from 'react';
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { AppLayout } from './components/layout/AppLayout';
+import { PageLoadingSpinner } from './components/ui/LoadingSpinner';
+import { useRoutePreloader } from './hooks/useRoutePreloader';
+import { PerformanceMonitor } from './components/PerformanceMonitor';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { initializeAnalytics } from './utils/analytics';
+import { useAnalyticsTracker } from './hooks/useAnalyticsTracker';
 
 // Lazy load all page components for better performance
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const AgentAllocation = lazy(() => import("./pages/agents/AgentAllocation"));
-const AgentAssignmentDashboard = lazy(() => import("./pages/agents/AgentAssignmentDashboard"));
-const JobManagement = lazy(() => import("./pages/jobs/JobManagementIntegrated"));
-const JobDetailsPage = lazy(() => import("./pages/jobs/JobDetailsPage"));
-const JobEditPage = lazy(() => import("./pages/jobs/JobEditPage"));
-const SharedCandidates = lazy(() => import("./pages/candidates/SharedCandidates"));
-const CandidateApplications = lazy(() => import("./pages/candidates/CandidateApplications"));
-const CandidateProfile = lazy(() => import("./pages/candidates/CandidateProfile"));
-const CandidateDashboard = lazy(() => import("./pages/dashboards/CandidateDashboard"));
-const HRDashboard = lazy(() => import("./pages/dashboards/HRDashboard"));
-const AgentDashboard = lazy(() => import("./pages/dashboards/AgentDashboard"));
-const InterviewManagement = lazy(() => import("./pages/interviews/InterviewManagement"));
-const CompanyManagement = lazy(() => import("./pages/companies/CompanyManagement"));
-const UserManagement = lazy(() => import("./pages/users/UserManagement"));
-const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
-const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
-const AnalyticsDashboard = lazy(() => import("./pages/analytics/AnalyticsDashboard"));
-const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
-const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
-const Activity = lazy(() => import("./pages/admin/Activity"));
-const RecycleBin = lazy(() => import("./pages/admin/RecycleBin"));
-const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
-const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
-const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => ({ default: module.SignupPage })));
-const OTPVerificationPage = lazy(() => import("./pages/auth/OTPVerificationPage").then(module => ({ default: module.OTPVerificationPage })));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const LandingPage = lazy(() => import("./pages/LandingPage"));
-const ForEmployer = lazy(() => import("./pages/ForEmployer"));
-const ForEmployee = lazy(() => import("./pages/ForEmployee"));
-const ForEmployerSignup = lazy(() => import("./pages/ForEmployerSignup"));
-const ForJobSeekersSignup = lazy(() => import("./pages/ForJobSeekersSignup"));
-const ForgetPasswordPage = lazy(() => import("./pages/auth/ForgetPasswordPage").then(module => ({ default: module.ForgetPasswordPage })));
-const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage").then(module => ({ default: module.ResetPasswordPage })));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const AgentAllocation = lazy(() => import('./pages/agents/AgentAllocation'));
+const AgentAssignmentDashboard = lazy(() => import('./pages/agents/AgentAssignmentDashboard'));
+const JobManagement = lazy(() => import('./pages/jobs/JobManagementIntegrated'));
+const JobDetailsPage = lazy(() => import('./pages/jobs/JobDetailsPage'));
+const JobEditPage = lazy(() => import('./pages/jobs/JobEditPage'));
+const SharedCandidates = lazy(() => import('./pages/candidates/SharedCandidates'));
+const CandidateApplications = lazy(() => import('./pages/candidates/CandidateApplications'));
+const CandidateProfile = lazy(() => import('./pages/candidates/CandidateProfile'));
+const CandidateDashboard = lazy(() => import('./pages/dashboards/CandidateDashboard'));
+const HRDashboard = lazy(() => import('./pages/dashboards/HRDashboard'));
+const AgentDashboard = lazy(() => import('./pages/dashboards/AgentDashboard'));
+const InterviewManagement = lazy(() => import('./pages/interviews/InterviewManagement'));
+const CompanyManagement = lazy(() => import('./pages/companies/CompanyManagement'));
+const UserManagement = lazy(() => import('./pages/users/UserManagement'));
+const AdminDashboard = lazy(() => import('./pages/dashboards/AdminDashboard'));
+const AnalyticsReports = lazy(() => import('./pages/admin/AnalyticsReports'));
+const AnalyticsDashboard = lazy(() => import('./pages/analytics/AnalyticsDashboard'));
+const AdminProfile = lazy(() => import('./pages/admin/AdminProfile'));
+const BannerManagement = lazy(() => import('./pages/admin/BannerManagement'));
+const Activity = lazy(() => import('./pages/admin/Activity'));
+const RecycleBin = lazy(() => import('./pages/admin/RecycleBin'));
+const HRProfile = lazy(() => import('./pages/hr/HRProfile'));
+const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
+const SignupPage = lazy(() => import('./pages/auth/SignupPage').then((module) => ({ default: module.SignupPage })));
+const OTPVerificationPage = lazy(() =>
+    import('./pages/auth/OTPVerificationPage').then((module) => ({ default: module.OTPVerificationPage })),
+);
+const SMSOTPVerificationPage = lazy(() =>
+    import('./pages/auth/SMSOTPVerificationPage').then((module) => ({ default: module.SMSOTPVerificationPage })),
+);
+const NotFound = lazy(() => import('./pages/NotFound'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const ForEmployer = lazy(() => import('./pages/ForEmployer'));
+const ForEmployee = lazy(() => import('./pages/ForEmployee'));
+const ForEmployerSignup = lazy(() => import('./pages/ForEmployerSignup'));
+const ForJobSeekersSignup = lazy(() => import('./pages/ForJobSeekersSignup'));
+const ForgetPasswordPage = lazy(() =>
+    import('./pages/auth/ForgetPasswordPage').then((module) => ({ default: module.ForgetPasswordPage })),
+);
+const ResetPasswordPage = lazy(() =>
+    import('./pages/auth/ResetPasswordPage').then((module) => ({ default: module.ResetPasswordPage })),
+);
 
 const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime)
-      retry: 1,
-      refetchOnWindowFocus: false,
+    defaultOptions: {
+        queries: {
+            staleTime: 5 * 60 * 1000, // 5 minutes
+            gcTime: 10 * 60 * 1000, // 10 minutes (renamed from cacheTime)
+            retry: 1,
+            refetchOnWindowFocus: false,
+        },
+        mutations: {
+            retry: 1,
+        },
     },
-    mutations: {
-      retry: 1,
-    },
-  },
 });
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return null;
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return <>{children}</>;
+    const { isAuthenticated, loading } = useAuth();
+
+    if (loading) {
+        return null;
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to='/login' replace />;
+    }
+
+    return <>{children}</>;
 }
 
 // Role-based Route Protection Component
-function RoleProtectedRoute({ 
-  children, 
-  allowedRoles 
-}: { 
-  children: React.ReactNode;
-  allowedRoles: string[];
-}) {
-  const { user, isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return null;
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  if (!user?.role || !allowedRoles.includes(user.role)) {
-    // Redirect to dashboard if user doesn't have access
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  return <>{children}</>;
+function RoleProtectedRoute({ children, allowedRoles }: { children: React.ReactNode; allowedRoles: string[] }) {
+    const { user, isAuthenticated, loading } = useAuth();
+
+    if (loading) {
+        return null;
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to='/login' replace />;
+    }
+
+    if (!user?.role || !allowedRoles.includes(user.role)) {
+        // Redirect to dashboard if user doesn't have access
+        return <Navigate to='/dashboard' replace />;
+    }
+
+    return <>{children}</>;
 }
 
 // Dashboard Router - Shows appropriate dashboard based on user role
 function DashboardRouter() {
-  const { user } = useAuth();
-  
-  if (user?.role === 'candidate') {
-    return <CandidateDashboard />;
-  }
-  
-  if (user?.role === 'hr') {
-    return <HRDashboard />;
-  }
-  
-  if (user?.role === 'agent') {
-    return <AgentDashboard />;
-  }
-  
-  if (user?.role === 'admin' || user?.role === 'superadmin') {
-    return <AdminDashboard />;
-  }
-  
-  return <Dashboard />;
+    const { user } = useAuth();
+
+    if (user?.role === 'candidate') {
+        return <CandidateDashboard />;
+    }
+
+    if (user?.role === 'hr') {
+        return <HRDashboard />;
+    }
+
+    if (user?.role === 'agent') {
+        return <AgentDashboard />;
+    }
+
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
+        return <AdminDashboard />;
+    }
+
+    return <Dashboard />;
 }
 
 // Analytics Tracker Component
 function AnalyticsTrackerWrapper() {
-  useAnalyticsTracker();
-  return null;
+    useAnalyticsTracker();
+    return null;
 }
 
 // App Router Component (needs to be inside AuthProvider)
 function AppRouter() {
-  const { isAuthenticated, loading } = useAuth();
-  const navigate = useNavigate();
-  
-  // Enable route preloading for better performance
-  useRoutePreloader();
-  
-  if (loading) {
-    return null;
-  }
-  
-  return (
-    <Routes>
-      {/* Public Routes */}
-      <Route 
-        path="/" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />
-        } 
-      />
-      <Route 
-        path="/login" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />
-        } 
-      />
-      <Route 
-        path="/forget-password" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgetPasswordPage onBackToSignin={() => {navigate('/login')}} onContinueToResetPassword={() => {navigate('/reset-password')}} />
-        } 
-      />
-      <Route 
-        path="/reset-password" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <ResetPasswordPage />
-        } 
-      />
-      <Route 
-        path="/signup" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/signup/hr" replace />
-        } 
-      />
-      <Route 
-        path="/signup/hr" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage onSwitchToSignin={() => {}} />
-        } 
-      />
-      <Route 
-        path="/signup/candidate" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage onSwitchToSignin={() => {}} />
-        } 
-      />
-      <Route 
-        path="/auth/verify-otp" 
-        element={
-          isAuthenticated ? <Navigate to="/dashboard" replace /> : <OTPVerificationPage />
-        } 
-      />
-      <Route>
-        <Route path="/hr" element={<ForEmployer />} />
-        <Route path="/candidate" element={<ForEmployee />} />
-        <Route path="/register/hr" element={<ForEmployerSignup />} />
-        <Route path="/register/candidate" element={<ForJobSeekersSignup />} />
-      </Route>
-      
-      {/* Protected Routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <AppLayout />
-        </ProtectedRoute>
-      }>
-        <Route index element={<DashboardRouter />} />
-        <Route path="agents" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
-            <AgentAllocation />
-          </RoleProtectedRoute>
-        } />
-        <Route path="assignment-management" element={
-          <RoleProtectedRoute allowedRoles={['agent']}>
-            <AgentAssignmentDashboard />
-          </RoleProtectedRoute>
-        } />
-        <Route path="agent-interviews" element={
-          <RoleProtectedRoute allowedRoles={['agent']}>
-            <InterviewManagement />
-          </RoleProtectedRoute>
-        } />
-        <Route path="jobs" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
-            <JobManagement />
-          </RoleProtectedRoute>
-        } />
-        <Route path="jobs/:jobId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
-            <JobDetailsPage />
-          </RoleProtectedRoute>
-        } />
-        <Route path="jobs/:jobId/edit" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
-            <JobEditPage />
-          </RoleProtectedRoute>
-        } />
-        <Route path="shared-candidates" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
-            <SharedCandidates />
-          </RoleProtectedRoute>
-        } />
-        <Route path="interviews" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
-            <InterviewManagement />
-          </RoleProtectedRoute>
-        } />
-        <Route path="candidate-interviews" element={
-          <RoleProtectedRoute allowedRoles={['candidate']}>
-            <InterviewManagement />
-          </RoleProtectedRoute>
-        } />
-        <Route path="companies" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
-            <CompanyManagement />
-          </RoleProtectedRoute>
-        } />
-        <Route path="users" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
-            <UserManagement />
-          </RoleProtectedRoute>
-        } />
-        
-        {/* Candidate Routes */}
-        <Route path="candidate-applications" element={
-          <RoleProtectedRoute allowedRoles={['candidate']}>
-            <CandidateApplications />
-          </RoleProtectedRoute>
-        } />
-        {/* Candidate Profile Routes */}
-        <Route path="candidate-profile/:customId?" element={
-          <RoleProtectedRoute allowedRoles={['candidate']}>
-            <CandidateProfile />
-          </RoleProtectedRoute>
-        } />
-        <Route path="candidates/:candidateId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
-            <CandidateProfile />
-          </RoleProtectedRoute>
-        } />
-        
-        {/* HR Routes */}
-        <Route path="hr-profile/:customId?" element={
-          <RoleProtectedRoute allowedRoles={['hr', 'admin', 'superadmin', 'agent']}>
-            <HRProfile />
-          </RoleProtectedRoute>
-        } />
-        
-        {/* Admin Routes */}
-        <Route path="analytics" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
-            <AnalyticsDashboard />
-          </RoleProtectedRoute>
-        } />
-        <Route path="admin-profile" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
-            <AdminProfile />
-          </RoleProtectedRoute>
-        } />
-        <Route path="post-ads" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
-            <BannerManagement />
-          </RoleProtectedRoute>
-        } />
-        <Route path="activity" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
-            <Activity />
-          </RoleProtectedRoute>
-        } />
-        <Route path="recycle-bin" element={
-          <RoleProtectedRoute allowedRoles={['superadmin']}>
-            <RecycleBin />
-          </RoleProtectedRoute>
-        } />
-      </Route>
-      
-      {/* Catch all route */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  );
+    const { isAuthenticated, loading } = useAuth();
+    const navigate = useNavigate();
+
+    // Enable route preloading for better performance
+    useRoutePreloader();
+
+    if (loading) {
+        return null;
+    }
+
+    return (
+        <Routes>
+            {/* Public Routes */}
+            <Route path='/' element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <LandingPage />} />
+            <Route path='/login' element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <LoginPage />} />
+            <Route
+                path='/forget-password'
+                element={
+                    isAuthenticated ? (
+                        <Navigate to='/dashboard' replace />
+                    ) : (
+                        <ForgetPasswordPage
+                            onBackToSignin={() => {
+                                navigate('/login');
+                            }}
+                            onContinueToResetPassword={() => {
+                                navigate('/reset-password');
+                            }}
+                        />
+                    )
+                }
+            />
+            <Route
+                path='/reset-password'
+                element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <ResetPasswordPage />}
+            />
+            <Route
+                path='/signup'
+                element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <Navigate to='/signup/hr' replace />}
+            />
+            <Route
+                path='/signup/hr'
+                element={
+                    isAuthenticated ? <Navigate to='/dashboard' replace /> : <SignupPage onSwitchToSignin={() => {}} />
+                }
+            />
+            <Route
+                path='/signup/candidate'
+                element={
+                    isAuthenticated ? <Navigate to='/dashboard' replace /> : <SignupPage onSwitchToSignin={() => {}} />
+                }
+            />
+            <Route
+                path='/auth/verify-otp'
+                element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <OTPVerificationPage />}
+            />
+            <Route
+                path='/auth/verify-sms'
+                element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <SMSOTPVerificationPage />}
+            />
+            <Route>
+                <Route path='/hr' element={<ForEmployer />} />
+                <Route path='/candidate' element={<ForEmployee />} />
+                <Route path='/register/hr' element={<ForEmployerSignup />} />
+                <Route path='/register/candidate' element={<ForJobSeekersSignup />} />
+            </Route>
+
+            {/* Protected Routes */}
+            <Route
+                path='/dashboard'
+                element={
+                    <ProtectedRoute>
+                        <AppLayout />
+                    </ProtectedRoute>
+                }
+            >
+                <Route index element={<DashboardRouter />} />
+                <Route
+                    path='agents'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <AgentAllocation />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='assignment-management'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['agent']}>
+                            <AgentAssignmentDashboard />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='agent-interviews'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['agent']}>
+                            <InterviewManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='jobs'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+                            <JobManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='jobs/:jobId'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+                            <JobDetailsPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='jobs/:jobId/edit'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+                            <JobEditPage />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='shared-candidates'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+                            <SharedCandidates />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='interviews'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+                            <InterviewManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='candidate-interviews'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['candidate']}>
+                            <InterviewManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='companies'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+                            <CompanyManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='users'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <UserManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+
+                {/* Candidate Routes */}
+                <Route
+                    path='candidate-applications'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['candidate']}>
+                            <CandidateApplications />
+                        </RoleProtectedRoute>
+                    }
+                />
+                {/* Candidate Profile Routes */}
+                <Route
+                    path='candidate-profile/:customId?'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['candidate']}>
+                            <CandidateProfile />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='candidates/:candidateId'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+                            <CandidateProfile />
+                        </RoleProtectedRoute>
+                    }
+                />
+
+                {/* HR Routes */}
+                <Route
+                    path='hr-profile/:customId?'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['hr', 'admin', 'superadmin', 'agent']}>
+                            <HRProfile />
+                        </RoleProtectedRoute>
+                    }
+                />
+
+                {/* Admin Routes */}
+                <Route
+                    path='analytics'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <AnalyticsDashboard />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='admin-profile'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <AdminProfile />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='post-ads'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
+                            <BannerManagement />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='activity'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+                            <Activity />
+                        </RoleProtectedRoute>
+                    }
+                />
+                <Route
+                    path='recycle-bin'
+                    element={
+                        <RoleProtectedRoute allowedRoles={['superadmin']}>
+                            <RecycleBin />
+                        </RoleProtectedRoute>
+                    }
+                />
+            </Route>
+
+            {/* Catch all route */}
+            <Route path='*' element={<NotFound />} />
+        </Routes>
+    );
 }
 
 const App = () => {
-  // Initialize analytics on app mount
-  useEffect(() => {
-    initializeAnalytics();
-  }, []);
+    // Initialize analytics on app mount
+    useEffect(() => {
+        initializeAnalytics();
+    }, []);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <ErrorBoundary>
-            <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
-              <AuthProvider>
-                <NotificationProvider>
-                  <AnalyticsTrackerWrapper />
-                  <PerformanceMonitor />
-                  <AppRouter />
-                </NotificationProvider>
-              </AuthProvider>
-            </Suspense>
-          </ErrorBoundary>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+    return (
+        <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter
+                    future={{
+                        v7_startTransition: true,
+                        v7_relativeSplatPath: true,
+                    }}
+                >
+                    <ErrorBoundary>
+                        <Suspense fallback={<PageLoadingSpinner text='Loading application...' />}>
+                            <AuthProvider>
+                                <NotificationProvider>
+                                    <AnalyticsTrackerWrapper />
+                                    <PerformanceMonitor />
+                                    <AppRouter />
+                                </NotificationProvider>
+                            </AuthProvider>
+                        </Suspense>
+                    </ErrorBoundary>
+                </BrowserRouter>
+            </TooltipProvider>
+        </QueryClientProvider>
+    );
 };
 
 export default App;
