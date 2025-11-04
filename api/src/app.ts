@@ -124,7 +124,10 @@ app.use(
 app.use(cookieParser())
 
 // HTTP Parameter Pollution protection
-app.use(hpp())
+// Allow arrays for 'types' parameter (used in search endpoints)
+app.use(hpp({
+  whitelist: ['types'], // Allow multiple 'types' parameters
+}))
 
 // NoSQL injection protection
 app.use(mongoSanitize())

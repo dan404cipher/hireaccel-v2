@@ -25,7 +25,7 @@ const envSchema = z.object({
     // JWT Configuration
     JWT_ACCESS_SECRET: z.string().min(32, 'JWT access secret must be at least 32 characters'),
     JWT_REFRESH_SECRET: z.string().min(32, 'JWT refresh secret must be at least 32 characters'),
-    JWT_ACCESS_TTL: z.string().default('15m'),
+    JWT_ACCESS_TTL: z.string().default('7d'),
     JWT_REFRESH_TTL: z.string().default('7d'),
 
     // Rate Limiting

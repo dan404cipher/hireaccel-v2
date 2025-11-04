@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,12 +61,12 @@ import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CompanyManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
@@ -84,6 +84,7 @@ export default function CompanyManagement() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
 
   // Debug fieldErrors changes
   useEffect(() => {
@@ -134,6 +135,22 @@ export default function CompanyManagement() {
   const companies = Array.isArray(companiesResponse) ? companiesResponse : ((companiesResponse as any)?.data || []);
   const meta = Array.isArray(companiesResponse) ? null : (companiesResponse as any)?.meta;
 
+  // Check for edit company from navigation state
+  useEffect(() => {
+    const locationState = (window.history.state && window.history.state.usr) || {};
+    if (locationState.editCompanyId && companies.length > 0) {
+      // Find the company and open edit dialog
+      const company = companies.find((c: any) => 
+        (c.companyId || c._id || c.id) === locationState.editCompanyId
+      );
+      if (company) {
+        handleEditCompany(company);
+        // Clear the state
+        window.history.replaceState({ ...window.history.state, usr: {} }, '');
+      }
+    }
+  }, [companies]);
+
   // Additional client-side filtering and sorting
   const filteredCompanies = useMemo(() => {
     let filtered = companies.filter(company => {
@@ -176,8 +193,9 @@ export default function CompanyManagement() {
 
 
   const handleViewCompany = (company: any) => {
-    setSelectedCompany(company);
-    setIsViewDialogOpen(true);
+    // Navigate to company profile page using companyId
+    const companyId = company.companyId || company._id || company.id;
+    navigate(`/dashboard/companies/${companyId}`);
   };
 
   const handleEditCompany = (company: any) => {
@@ -995,111 +1013,6 @@ export default function CompanyManagement() {
             </CardContent>
           </Card>
 
-      {/* View Company Modal */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">{selectedCompany?.name}</DialogTitle>
-            <DialogDescription>
-              Complete company profile and information
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedCompany && (
-        <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">Company Information</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                        <div>
-                          <span className="font-medium">Address:</span>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {selectedCompany.address ? (
-                              <>
-                                <div>{selectedCompany.address.street}</div>
-                                <div>
-                                  {[selectedCompany.address.city, selectedCompany.address.state, selectedCompany.address.zipCode].filter(Boolean).join(', ')}
-                                </div>
-                                {selectedCompany.address.country && (
-                                  <div>{selectedCompany.address.country}</div>
-                                )}
-                              </>
-                            ) : (
-                              selectedCompany.location || 'No address provided'
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Company Size:</span>
-                        <Badge variant="outline" className="text-xs">
-                          {selectedCompany.size}
-                        </Badge>
-                      </div>
-                      {selectedCompany.website && (
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">Website:</span>
-                          <a href={`https://${selectedCompany.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                            {selectedCompany.website}
-                          </a>
-                    </div>
-                      )}
-                    </div>
-                    </div>
-                  </div>
-                  
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">Company Details</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Status:</span>
-                        <Badge className={getStatusColor(selectedCompany.status)}>
-                          {selectedCompany.status}
-                        </Badge>
-                    </div>
-                      {selectedCompany.foundedYear && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">Founded:</span>
-                          <span>{selectedCompany.foundedYear}</span>
-                    </div>
-                      )}
-                    </div>
-                  </div>
-                    </div>
-                  </div>
-                  
-              {selectedCompany.description && (
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">Company Description</h3>
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {selectedCompany.description}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              Close
-              </Button>
-            <Button onClick={() => {
-              setIsViewDialogOpen(false);
-              handleEditCompany(selectedCompany);
-            }}>
-              Edit Company
-              </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Company Modal */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

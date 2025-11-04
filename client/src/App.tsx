@@ -29,6 +29,7 @@ const HRDashboard = lazy(() => import("./pages/dashboards/HRDashboard"));
 const AgentDashboard = lazy(() => import("./pages/dashboards/AgentDashboard"));
 const InterviewManagement = lazy(() => import("./pages/interviews/InterviewManagement"));
 const CompanyManagement = lazy(() => import("./pages/companies/CompanyManagement"));
+const CompanyProfile = lazy(() => import("./pages/companies/CompanyProfile"));
 const UserManagement = lazy(() => import("./pages/users/UserManagement"));
 const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
 const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
@@ -259,6 +260,11 @@ function AppRouter() {
         <Route path="companies" element={
           <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
             <CompanyManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="companies/:companyId" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+            <CompanyProfile />
           </RoleProtectedRoute>
         } />
         <Route path="users" element={

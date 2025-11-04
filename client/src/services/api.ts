@@ -1317,6 +1317,26 @@ class ApiClient {
     return this.request(`/api/analytics/events${queryString ? `?${queryString}` : ''}`);
   }
 
+  // Global Search method
+  async globalSearch(params: {
+    q: string;
+    limit?: number;
+    types?: ('jobs' | 'candidates' | 'companies' | 'users')[];
+  }) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('q', params.q);
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.types && params.types.length > 0) {
+      params.types.forEach(type => queryParams.append('types', type));
+    }
+    return this.request<{
+      jobs: any[];
+      candidates: any[];
+      companies: any[];
+      users: any[];
+    }>(`/api/v1/search?${queryParams.toString()}`);
+  }
+
 }
 
 export const apiClient = new ApiClient();
