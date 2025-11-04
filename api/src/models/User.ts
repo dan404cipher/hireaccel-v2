@@ -118,6 +118,12 @@ const userSchema = new Schema<UserDocument>(
             match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
         },
 
+        profilePhotoFileId: {
+            type: Schema.Types.ObjectId,
+            ref: 'File',
+            index: true,
+        },
+
         source: {
             type: String,
             required: false, // Make optional for existing users

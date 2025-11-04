@@ -10,16 +10,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth, User } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useState } from "react";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
 export function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  
+  // Get authenticated profile photo URL
+  const profilePhotoUrl = user?.profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
 
   const handleLogout = async () => {
     try {
@@ -99,9 +107,15 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${getRoleColor(user?.role || 'default')}`}>
-                {getUserInitials(user)}
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage 
+                  src={authenticatedImageUrl || ''} 
+                  alt={user ? `${user.firstName} ${user.lastName}` : 'User'} 
+                />
+                <AvatarFallback className={`font-semibold text-sm ${getRoleColor(user?.role || 'default')}`}>
+                  {getUserInitials(user)}
+                </AvatarFallback>
+              </Avatar>
               <div className="text-left">
                 <p className="text-sm font-medium">
                   {user ? `${user.firstName} ${user.lastName}` : 'User'}

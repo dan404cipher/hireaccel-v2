@@ -70,6 +70,7 @@ export interface User {
   status: 'active' | 'inactive' | 'suspended' | 'pending';
   emailVerified: boolean;
   phoneNumber?: string;
+  profilePhotoFileId?: string;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -669,6 +670,67 @@ class ApiClient {
 
   async getResumeInfo() {
     return this.request('/api/v1/files/resume');
+  }
+
+  async uploadJD(file: File) {
+    const formData = new FormData();
+    formData.append('jd', file);
+    formData.append('fileType', 'document');
+    formData.append('entity', 'jds');
+
+    const url = `${this.baseURL}/api/v1/files/jd`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw data;
+    }
+
+    return data;
+  }
+
+  async parseJD(fileId: string) {
+    return this.request('/api/v1/files/jd/parse', {
+      method: 'POST',
+      body: JSON.stringify({ fileId }),
+    });
+  }
+
+  async uploadProfilePhoto(file: File) {
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const url = `${this.baseURL}/api/v1/files/profile-photo`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw data;
+    }
+    return data;
   }
 
   async downloadResume(fileId: string) {
@@ -1315,6 +1377,28 @@ class ApiClient {
     if (params?.eventName) queryParams.append('eventName', params.eventName);
     const queryString = queryParams.toString();
     return this.request(`/api/analytics/events${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // Auto Match methods
+  async matchJobToCandidates(data: { jobId: string; limit?: number }) {
+    return this.request('/api/v1/auto-match/match-job', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async matchCandidateToJobs(data: { candidateId: string; limit?: number }) {
+    return this.request('/api/v1/auto-match/match-candidate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async batchMatch(data: { jobId?: string; candidateIds?: string[]; limit?: number }) {
+    return this.request('/api/v1/auto-match/batch-match', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
 }

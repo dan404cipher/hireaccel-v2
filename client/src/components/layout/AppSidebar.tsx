@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Image,
   Trash2,
-  Activity
+  Activity,
+  Sparkles
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
@@ -38,7 +39,8 @@ import {
 const navigationItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home, roles: ['admin', 'superadmin', 'hr', 'agent', 'candidate'], color: "text-blue-600" },
   { title: "Agent Allocation", url: "/dashboard/agents", icon: UserCheck, roles: ['admin', 'superadmin'], color: "text-green-600" },
-  { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['agent'], color: "text-orange-600" },
+  { title: "Auto Match", url: "/dashboard/auto-match", icon: Sparkles, roles: ['admin', 'superadmin', 'agent'], color: "text-purple-600" },
+  { title: "Assignment Management", url: "/dashboard/assignment-management", icon: ClipboardList, roles: ['admin', 'superadmin', 'agent'], color: "text-orange-600" },
   { title: "Interview Management", url: "/dashboard/agent-interviews", icon: Calendar, roles: ['agent'], color: "text-purple-600" },
   { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'superadmin', 'hr'], color: "text-teal-600" },
   { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'superadmin', 'hr'], color: "text-indigo-600" },

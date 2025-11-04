@@ -20,7 +20,9 @@ import {
   UserCheck,
   Edit,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  FileText,
+  Eye
 } from "lucide-react";
 import { useJob, useDeleteJob, useUpdateJob, useCompanies } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
@@ -38,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import PDFViewer from "@/components/ui/pdf-viewer";
 
 export default function JobDetailsPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -396,6 +399,20 @@ export default function JobDetailsPage() {
                         {job.workType === 'wfo' ? 'Onsite' : job.workType === 'wfh' ? 'Hybrid' : job.workType === 'remote' ? 'Remote' : job.workType || 'N/A'}
                       </Badge>
                     </div>
+                    {job.jdFileId && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-purple-600" />
+                        <PDFViewer
+                          fileId={job.jdFileId}
+                          fileName="job-description.pdf"
+                        >
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View JD PDF
+                          </Button>
+                        </PDFViewer>
+                      </div>
+                    )}
                     {job.applicationDeadline && (
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-red-600" />

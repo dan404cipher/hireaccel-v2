@@ -18,6 +18,7 @@ import { useAnalyticsTracker } from "./hooks/useAnalyticsTracker";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AgentAllocation = lazy(() => import("./pages/agents/AgentAllocation"));
 const AgentAssignmentDashboard = lazy(() => import("./pages/agents/AgentAssignmentDashboard"));
+const AutoMatch = lazy(() => import("./pages/agents/AutoMatch"));
 const JobManagement = lazy(() => import("./pages/jobs/JobManagementIntegrated"));
 const JobDetailsPage = lazy(() => import("./pages/jobs/JobDetailsPage"));
 const JobEditPage = lazy(() => import("./pages/jobs/JobEditPage"));
@@ -216,8 +217,13 @@ function AppRouter() {
             <AgentAllocation />
           </RoleProtectedRoute>
         } />
+        <Route path="auto-match" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}>
+            <AutoMatch />
+          </RoleProtectedRoute>
+        } />
         <Route path="assignment-management" element={
-          <RoleProtectedRoute allowedRoles={['agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}>
             <AgentAssignmentDashboard />
           </RoleProtectedRoute>
         } />

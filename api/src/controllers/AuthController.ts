@@ -446,6 +446,8 @@ export class AuthController {
           role: user.role,
           status: user.status,
           emailVerified: user.emailVerified,
+          phoneNumber: user.phoneNumber,
+          profilePhotoFileId: user.profilePhotoFileId?.toString(),
           lastLoginAt: user.lastLoginAt,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,

@@ -51,11 +51,15 @@ app.use(
                 styleSrc: ["'self'", "'unsafe-inline'"],
                 // Allow inline scripts only in development to avoid breaking Swagger UI
                 scriptSrc: isDevelopment() ? ["'self'", "'unsafe-inline'"] : ["'self'"],
-                imgSrc: ["'self'", 'data:', 'https:'],
+                // Allow images from same origin, data URIs, HTTPS, and localhost (for development)
+                imgSrc: isDevelopment() 
+                    ? ["'self'", 'data:', 'https:', 'http://localhost:*', 'http://127.0.0.1:*']
+                    : ["'self'", 'data:', 'https:'],
             },
         },
         referrerPolicy: { policy: 'no-referrer' },
         crossOriginEmbedderPolicy: isDevelopment() ? false : true,
+        crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin requests for images
     }),
 )
 

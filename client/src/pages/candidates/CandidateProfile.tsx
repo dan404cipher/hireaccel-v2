@@ -136,10 +136,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateProfile, useUpdateCandidateProfile, useResumeInfo, useUploadResume, useDeleteResume } from '@/hooks/useApi';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
+import { apiClient } from '@/services/api';
 import { format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
 import PDFViewer from '@/components/ui/pdf-viewer';
 import { ResumePreviewModal } from '@/components/candidates/ResumePreviewModal';
+import { ProfilePhotoUploadModal } from '@/components/candidates/ProfilePhotoUploadModal';
+import { useAuthenticatedImage } from '@/hooks/useAuthenticatedImage';
 
 interface WorkExperience {
   company: string;
@@ -198,6 +201,7 @@ interface ProfileData {
     lastName: string;
     email: string;
     customId: string;
+    profilePhotoFileId?: string;
   };
   resumeFileId?: string;
   profile: CandidateProfile;
@@ -227,7 +231,7 @@ interface CandidateProfile {
 }
 
 const CandidateProfile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateAuth } = useAuth();
   const { customId, candidateId } = useParams();
   const navigate = useNavigate();
   const [editingSections, setEditingSections] = useState<Set<string>>(new Set());
@@ -239,12 +243,21 @@ const CandidateProfile: React.FC = () => {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [uploadState, setUploadState] = useState<'idle' | 'uploading' | 'parsing'>('idle');
   const [showPostUpload, setShowPostUpload] = useState(false);
+  const [showAllSkillsModal, setShowAllSkillsModal] = useState(false);
+  const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading'>('idle');
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
   
   // API hooks
   const { data: profileData, loading, refetch } = useCandidateProfile<ProfileData>(customId || candidateId);
   
   // Determine if this is self-view or other-view
   const isSelfView = user?.role === 'candidate' && (!candidateId || (profileData?.userId?.id === user?.id));
+  
+  // Get authenticated image URL
+  const profilePhotoUrl = (isSelfView ? user?.profilePhotoFileId : profileData?.userId?.profilePhotoFileId)
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${isSelfView ? user?.profilePhotoFileId : profileData?.userId?.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
   
   const { data: resumeInfo, refetch: refetchResumeInfo } = useResumeInfo<ResumeInfo>({
     immediate: isSelfView // Only fetch resume info in self-view mode
@@ -418,6 +431,52 @@ const CandidateProfile: React.FC = () => {
     setEditingSections(newEditingSections);
   };
 
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoUploadState('uploading');
+
+    try {
+      const response = await apiClient.uploadProfilePhoto(file);
+      if (response.data?.file?.id) {
+        toast({
+          title: 'Photo Uploaded',
+          description: 'Profile photo has been updated successfully.',
+        });
+        
+        // Refetch profile data to get updated photo
+        await refetch();
+        
+        // Also refresh the user in auth context to update the photo
+        if (isSelfView) {
+          try {
+            const userResponse = await apiClient.getCurrentUser();
+            if (userResponse.data?.user) {
+              updateAuth(userResponse.data.user);
+            }
+          } catch (error) {
+            console.error('Failed to refresh user data:', error);
+          }
+        }
+        
+        setPhotoUploadState('idle');
+        setShowPhotoUploadModal(false);
+        setEditingSections(prev => {
+          const newSet = new Set(prev);
+          newSet.delete('photo');
+          return newSet;
+        });
+      }
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      const errorMessage = error?.detail || error?.message || 'Failed to upload photo. Please try again.';
+      toast({
+        title: 'Upload Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setPhotoUploadState('idle');
+    }
+  };
+
   // Phone number validation function
   const validatePhoneNumber = (phone: string): boolean => {
     // Backend regex: /^[\+]?[1-9][\d]{0,15}$/
@@ -479,7 +538,7 @@ const CandidateProfile: React.FC = () => {
       setUploadState('parsing');
       await updateProfile.mutate({ profile: parsedProfile });
       setUploadState('idle');
-      setShowConfirmationDialog(false);
+      setShowPreviewModal(false);
     }
   };
 
@@ -939,10 +998,10 @@ const CandidateProfile: React.FC = () => {
           <CardContent className="pt-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
               {/* Profile Picture */}
-              <div className="relative">
+              <div className="relative group">
                 <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
                   <AvatarImage 
-                    src="" 
+                    src={authenticatedImageUrl || ''} 
                     alt={isSelfView 
                       ? (user ? `${user.firstName} ${user.lastName}` : '')
                       : (profileData?.userId ? `${profileData.userId.firstName} ${profileData.userId.lastName}` : '')} 
@@ -956,8 +1015,11 @@ const CandidateProfile: React.FC = () => {
                 {isSelfView && (
                   <Button 
                     size="sm" 
-                    className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700"
-                    onClick={() => toggleEdit('photo')}
+                    className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    onClick={() => {
+                      toggleEdit('photo');
+                      setShowPhotoUploadModal(true);
+                    }}
                   >
                     <Edit2 className="w-3 h-3" />
                   </Button>
@@ -1323,18 +1385,49 @@ const CandidateProfile: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {profile.skills.map((skill, index) => (
-                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                        {skill}
-                        {editingSections.has('skills') && (
-                          <X 
-                            className="w-3 h-3 cursor-pointer" 
-                            onClick={() => removeSkill(skill)}
-                          />
+                  <div className="flex flex-wrap gap-2" style={{ minHeight: '60px' }}>
+                    {!editingSections.has('skills') ? (
+                      <>
+                        {/* Display only first 6 skills */}
+                        {profile.skills.length > 0 ? (
+                          <>
+                            {profile.skills.slice(0, 6).map((skill, index) => (
+                              <Badge key={index} variant="secondary">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {/* Show "See more" if there are more than 6 skills */}
+                            {profile.skills.length > 6 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowAllSkillsModal(true)}
+                              >
+                                +{profile.skills.length - 6} more
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No skills added yet</span>
                         )}
-                      </Badge>
-                    ))}
+                      </>
+                    ) : (
+                      // Editing mode - show all skills with remove buttons
+                      profile.skills.length > 0 ? (
+                        profile.skills.map((skill, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                            {skill}
+                            <X 
+                              className="w-3 h-3 cursor-pointer" 
+                              onClick={() => removeSkill(skill)}
+                            />
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-sm text-muted-foreground">No skills added yet</span>
+                      )
+                    )}
                   </div>
                   
                   {editingSections.has('skills') && (
@@ -2616,6 +2709,50 @@ const CandidateProfile: React.FC = () => {
             currentProfile={profileData.profile}
             onApplyChanges={handleConfirmUpdate}
             isLoading={uploadState === 'parsing'}
+          />
+        )}
+
+        {/* All Skills Modal */}
+        <Dialog open={showAllSkillsModal} onOpenChange={setShowAllSkillsModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Award className="w-5 h-5" />
+                All Skills ({profile.skills.length})
+              </DialogTitle>
+              <DialogDescription>
+                Complete list of skills for this candidate
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <div className="flex flex-wrap gap-2 p-4">
+                {profile.skills.map((skill, index) => (
+                  <Badge key={index} variant="secondary" className="text-sm py-2 px-3">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setShowAllSkillsModal(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Profile Photo Upload Modal */}
+        {isSelfView && (
+          <ProfilePhotoUploadModal
+            isOpen={showPhotoUploadModal}
+            onClose={() => {
+              setShowPhotoUploadModal(false);
+              setEditingSections(prev => {
+                const newSet = new Set(prev);
+                newSet.delete('photo');
+                return newSet;
+              });
+            }}
+            onUpload={handlePhotoUpload}
+            isUploading={photoUploadState === 'uploading'}
           />
         )}
       </div>

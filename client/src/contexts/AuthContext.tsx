@@ -14,6 +14,7 @@ export interface User {
   status: string;
   emailVerified: boolean;
   phoneNumber?: string;
+  profilePhotoFileId?: string;
 }
 
 interface AuthContextType {

@@ -12,6 +12,7 @@ import fileRoutes from './files';
 import bannerRoutes from './banner';
 import auditLogRoutes from './auditLogs';
 import analyticsRoutes from './analytics';
+import autoMatchRoutes from './autoMatch';
 
 /**
  * Main API routes
@@ -36,6 +37,7 @@ router.use('/api/v1/files', fileRoutes);
 router.use('/api/v1/banners', bannerRoutes);
 router.use('/api/v1/audit-logs', auditLogRoutes);
 router.use('/api/analytics', analyticsRoutes);
+router.use('/api/v1/auto-match', autoMatchRoutes);
 
 // Health check route
 router.get('/health', (_req, res) => {

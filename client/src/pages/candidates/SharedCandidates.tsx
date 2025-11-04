@@ -273,9 +273,27 @@ const SharedCandidates: React.FC = () => {
       return 'No experience';
     }
     
-    const totalYears = experienceArray.length;
+    // Calculate total months of experience from all entries
+    let totalMonths = 0;
     
-    if (totalYears <= 2) {
+    experienceArray.forEach(exp => {
+      if (!exp.startDate) return;
+      
+      const startDate = new Date(exp.startDate);
+      const endDate = exp.current ? new Date() : (exp.endDate ? new Date(exp.endDate) : new Date());
+      
+      const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                     (endDate.getMonth() - startDate.getMonth());
+      
+      totalMonths += Math.max(0, months);
+    });
+    
+    // Convert months to years (rounded to 1 decimal place)
+    const totalYears = Math.round(totalMonths / 12 * 10) / 10;
+    
+    if (totalYears === 0) {
+      return 'No experience';
+    } else if (totalYears <= 2) {
       return '0-2 years';
     } else if (totalYears <= 5) {
       return '2-5 years';

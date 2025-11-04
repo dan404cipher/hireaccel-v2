@@ -129,7 +129,7 @@ export class CandidateController {
     
     // Find candidate by user ID
     const candidate = await Candidate.findOne({ userId })
-      .populate('userId', 'firstName lastName email customId')
+      .populate('userId', 'firstName lastName email customId profilePhotoFileId')
       .select('-notes');
     
     if (!candidate) {
@@ -364,7 +364,7 @@ export class CandidateController {
     // Access control is handled by requireCandidateAccess middleware
     
     const candidate = await Candidate.findById(id)
-      .populate('userId', 'firstName lastName email customId')
+      .populate('userId', 'firstName lastName email customId profilePhotoFileId')
       .populate('notes.createdBy', 'firstName lastName');
     
     if (!candidate) {
@@ -462,7 +462,7 @@ export class CandidateController {
     
     const [candidates, total] = await Promise.all([
       Candidate.find(query)
-        .populate('userId', 'firstName lastName email customId')
+        .populate('userId', 'firstName lastName email customId profilePhotoFileId')
         .select('-notes') // Exclude internal notes from search results
         .sort({ lastActivityAt: -1 })
         .skip(skip)

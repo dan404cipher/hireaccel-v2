@@ -217,6 +217,33 @@ export const uploadDocument = multer({
 })
 
 /**
+ * Memory storage for JD files (to enable S3 upload)
+ * This stores files in memory as buffers for direct S3 upload
+ */
+const memoryStorage = multer.memoryStorage()
+
+export const uploadJD = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.document.mimeTypes, ALLOWED_FILE_TYPES.document.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.document.maxSize,
+        files: 1,
+    },
+})
+
+/**
+ * Memory storage for profile photos (to enable S3 upload)
+ */
+export const uploadProfilePhoto = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.image.mimeTypes, ALLOWED_FILE_TYPES.image.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.image.maxSize,
+        files: 1,
+    },
+})
+
+/**
  * General upload middleware with dynamic validation
  */
 // General upload uses dynamic fileType from request but sanitized/clamped to known categories

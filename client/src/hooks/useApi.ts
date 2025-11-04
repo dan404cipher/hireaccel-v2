@@ -528,3 +528,28 @@ export function useMyAgentInterviewStats() {
     showToast: false  // Don't show error toasts for stats to prevent spam
   });
 }
+
+// Auto Match hooks
+export function useMatchJobToCandidates(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { jobId: string; limit?: number }) => 
+    apiClient.matchJobToCandidates(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useMatchCandidateToJobs(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { candidateId: string; limit?: number }) => 
+    apiClient.matchCandidateToJobs(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useBatchMatch(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { jobId?: string; candidateIds?: string[]; limit?: number }) => 
+    apiClient.batchMatch(data), {
+    showToast: true,
+    ...options
+  });
+}

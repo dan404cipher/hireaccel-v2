@@ -275,6 +275,12 @@ const jobSchema = new Schema<JobDocument>({
     index: true,
   },
   
+  jdFileId: {
+    type: Schema.Types.ObjectId,
+    ref: 'File',
+    index: true,
+  },
+  
   applications: {
     type: Number,
     default: 0,

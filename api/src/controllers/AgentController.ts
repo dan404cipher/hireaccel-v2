@@ -160,25 +160,35 @@ export class AgentController {
      * @route GET /agents/me/candidates
      */
     static getMyCandidates = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-        // Only agents can access this endpoint
-        if (req.user!.role !== UserRole.AGENT) {
-            throw createForbiddenError('Only agents can access this endpoint')
+        // Only agents, admins, and superadmins can access this endpoint
+        if (![UserRole.AGENT, UserRole.ADMIN, UserRole.SUPERADMIN].includes(req.user!.role)) {
+            throw createForbiddenError('Only agents, admins, and superadmins can access this endpoint')
         }
 
         const query = querySchema.parse(req.query)
         const { page, limit, search, sortBy, sortOrder } = query
 
-        // Get candidates assigned to this agent
-        const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id)
+        // Get candidates based on user role
+        let assignedCandidateIds: mongoose.Types.ObjectId[] = []
+        
+        if (req.user!.role === UserRole.AGENT) {
+            // For agents, only get candidates assigned to them
+            assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id)
+        } else {
+            // For admins and superadmins, get all candidates (will be handled differently in filter)
+            assignedCandidateIds = []
+        }
 
         console.log('🔍 Agent getMyCandidates debug:', {
             agentId: req.user!._id,
             agentEmail: req.user!.email,
+            role: req.user!.role,
             assignedCandidateIds: assignedCandidateIds,
             candidateCount: assignedCandidateIds.length,
         })
 
-        if (assignedCandidateIds.length === 0) {
+        // For agents, check if they have assigned candidates
+        if (req.user!.role === UserRole.AGENT && assignedCandidateIds.length === 0) {
             return res.json({
                 data: [],
                 meta: {
@@ -190,11 +200,16 @@ export class AgentController {
             })
         }
 
-        // Build filter for assigned candidates
-        // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
+        // Build filter for candidates based on user role
         const filter: any = {
-            _id: { $in: assignedCandidateIds },
             userId: { $exists: true, $ne: null }, // Only include candidates that have a valid userId
+            status: 'active', // Only active candidates
+        }
+
+        // For agents, filter by assigned candidates; for admins/superadmins, show all
+        if (req.user!.role === UserRole.AGENT) {
+            // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
+            filter._id = { $in: assignedCandidateIds }
         }
 
         if (search) {
@@ -240,7 +255,26 @@ export class AgentController {
             })),
         })
 
-        const total = candidates.length // Use the filtered count instead of querying again
+        // Get total count for pagination
+        // For agents, use assigned count; for admins/superadmins, get actual count from database
+        let total: number
+        if (req.user!.role === UserRole.AGENT) {
+            total = assignedCandidateIds.length
+        } else {
+            // Get actual count from database for admins/superadmins
+            const countFilter: any = {
+                userId: { $exists: true, $ne: null },
+                status: 'active',
+            }
+            if (search) {
+                countFilter.$or = [
+                    { 'profile.skills': { $regex: search, $options: 'i' } },
+                    { 'profile.summary': { $regex: search, $options: 'i' } },
+                    { 'profile.location': { $regex: search, $options: 'i' } },
+                ]
+            }
+            total = await Candidate.countDocuments(countFilter)
+        }
 
         // Log audit trail
         await AuditLog.createLog({
@@ -257,7 +291,7 @@ export class AgentController {
             ipAddress: req.ip,
             userAgent: req.get('User-Agent'),
             businessProcess: 'agent_management',
-            description: `Agent retrieved ${candidates.length} assigned candidates`,
+            description: `${req.user!.role === UserRole.AGENT ? 'Agent' : 'Admin/Superadmin'} retrieved ${candidates.length} candidates`,
         })
 
         res.json({

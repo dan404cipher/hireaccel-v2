@@ -15,7 +15,11 @@
         "lint:fix": "eslint src/**/*.ts --fix",
         "fix:ttl-index": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/fix-user-ttl-index.ts",
         "create-admin": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/create-admin-user.ts",
-        "create-superadmin": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/create-superadmin-user.ts"
+        "create-superadmin": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/create-superadmin-user.ts",
+        "test:s3": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/test-s3-upload.ts",
+        "test:jd-upload": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/test-jd-upload.ts",
+        "test:3-jd-uploads": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/test-3-jd-uploads.ts",
+        "test:openai": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/test-openai-key.ts"
     },
     "keywords": [
         "recruitment",
@@ -28,6 +32,8 @@
     "author": "Your Name",
     "license": "MIT",
     "dependencies": {
+        "@aws-sdk/client-s3": "^3.922.0",
+        "@aws-sdk/s3-request-presigner": "^3.922.0",
         "@swc/core": "^1.13.5",
         "@types/axios": "^0.9.36",
         "@types/nodemailer": "^7.0.1",

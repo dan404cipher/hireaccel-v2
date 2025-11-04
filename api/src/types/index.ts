@@ -107,6 +107,7 @@ export interface User {
   lastLoginAt?: Date;
   emailVerified: boolean;
   phoneNumber?: string;
+  profilePhotoFileId?: Types.ObjectId;
   source?: string; // Make optional for existing users
   createdAt: Date;
   updatedAt: Date;
