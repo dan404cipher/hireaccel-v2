@@ -96,6 +96,67 @@ export const generateTokenPair = (payload: {
 };
 
 /**
+ * Generate temporary token for lead verification (30 minutes)
+ * Used after SMS OTP verification before account completion
+ */
+export const generateLeadToken = (payload: { leadId: string; phoneNumber: string; role: UserRole }): string => {
+    try {
+        return (jwt as any).sign(
+            {
+                leadId: payload.leadId,
+                phoneNumber: payload.phoneNumber,
+                role: payload.role,
+                type: 'lead_temp',
+            },
+            env.JWT_ACCESS_SECRET, // Use same secret but different type
+            {
+                expiresIn: '30m', // 30 minutes to complete registration
+                issuer: 'hire-accel-api',
+                audience: 'hire-accel-client',
+                subject: payload.leadId,
+            },
+        );
+    } catch (error) {
+        logger.error('Error generating lead token', { error, payload });
+        throw new Error('Failed to generate lead token');
+    }
+};
+
+/**
+ * Verify lead token
+ */
+export const verifyLeadToken = (token: string): { leadId: string; phoneNumber: string; role: UserRole } => {
+    try {
+        const decoded = (jwt as any).verify(token, env.JWT_ACCESS_SECRET, {
+            issuer: 'hire-accel-api',
+            audience: 'hire-accel-client',
+        }) as any;
+
+        // Verify token type
+        if (decoded.type !== 'lead_temp') {
+            throw new Error('Invalid token type');
+        }
+
+        return {
+            leadId: decoded.leadId,
+            phoneNumber: decoded.phoneNumber,
+            role: decoded.role,
+        };
+    } catch (error) {
+        if (error instanceof jwt.TokenExpiredError) {
+            logger.warn('Lead token expired', { token: token.substring(0, 20) + '...' });
+            throw new Error('Lead token expired. Please restart registration.');
+        } else if (error instanceof jwt.JsonWebTokenError) {
+            logger.warn('Invalid lead token', { error: error.message });
+            throw new Error('Invalid lead token');
+        } else {
+            logger.error('Error verifying lead token', { error });
+            throw new Error('Failed to verify lead token');
+        }
+    }
+};
+
+/**
  * Verify access token
  */
 export const verifyAccessToken = (token: string): JwtPayload => {

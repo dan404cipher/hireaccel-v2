@@ -41,7 +41,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-    email: z.string().email('Invalid email format'),
+    identifier: z.string().min(1, 'Email or phone number is required'),
     password: z.string().min(1, 'Password is required'),
 });
 
@@ -56,8 +56,8 @@ const resendOTPSchema = z.object({
 
 const smsRegisterSchema = z.object({
     phoneNumber: z.string().min(10, 'Phone number is required'),
-    firstName: z.string().min(1, 'Name is required').max(50),
-    role: z.nativeEnum(UserRole, { errorMap: () => ({ message: 'Invalid user role' }) }),
+    name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
+    role: z.enum(['candidate', 'hr'], { errorMap: () => ({ message: 'Role must be candidate or hr' }) }),
     source: z
         .enum([
             'Email',
@@ -85,6 +85,11 @@ const resendSMSOTPSchema = z.object({
 });
 
 const addEmailSchema = z.object({
+    email: z.string().email('Invalid email format'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+const completeRegistrationSchema = z.object({
     email: z.string().email('Invalid email format'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
 });
@@ -213,37 +218,27 @@ export class AuthController {
     });
 
     /**
-     * Register via SMS (Phone-based signup)
+     * Register via SMS - Step 1: Create Lead and send OTP
      * POST /auth/register-sms
      */
     static registerSMS = asyncHandler(async (req: AuthenticatedRequest, res: Response, _next: NextFunction) => {
         const validatedData = smsRegisterSchema.parse(req.body);
 
-        const context: { ipAddress?: string; userAgent?: string } = {};
-        if (req.ip) context.ipAddress = req.ip;
-        if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
-
-        const userData = {
+        const result = await AuthService.sendSMSRegistrationOTP({
             phoneNumber: validatedData.phoneNumber,
-            firstName: validatedData.firstName,
-            role: validatedData.role,
+            name: validatedData.name,
+            role: validatedData.role as UserRole,
             ...(validatedData.source && { source: validatedData.source }),
-        };
-
-        const result = await AuthService.registerViaSMS(userData);
+        });
 
         res.status(200).json({
-            success: result.success,
+            success: true,
             message: result.message,
-            data: {
-                requiresOTP: result.requiresOTP,
-                phoneNumber: userData.phoneNumber,
-            },
         });
     });
 
     /**
-     * Verify SMS OTP and complete registration
+     * Verify SMS OTP - Step 2: Mark lead as verified
      * POST /auth/verify-sms-otp
      */
     static verifySMSOTP = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
@@ -253,9 +248,46 @@ export class AuthController {
         if (req.ip) context.ipAddress = req.ip;
         if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
 
-        const { user, tokens, needsEmail } = await AuthService.verifySMSOTPAndRegister(
-            validatedData.phoneNumber,
-            validatedData.otp,
+        const result = await AuthService.verifySMSOTPAndRegister(validatedData.phoneNumber, validatedData.otp, context);
+
+        res.status(200).json({
+            success: true,
+            message: 'Phone number verified successfully!',
+            data: {
+                leadId: result.leadId,
+                tempToken: result.tempToken,
+                phoneNumber: result.phoneNumber,
+                role: result.role,
+                nextStep: result.nextStep,
+            },
+        });
+    });
+
+    /**
+     * Complete registration - Step 3: Add email and password
+     * POST /auth/complete-registration
+     */
+    static completeRegistration = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const validatedData = completeRegistrationSchema.parse(req.body);
+
+        // Get temp token from Authorization header
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new Error('Temporary token required');
+        }
+
+        const tempToken = authHeader.substring(7);
+
+        const context: { ipAddress?: string; userAgent?: string } = {};
+        if (req.ip) context.ipAddress = req.ip;
+        if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
+
+        const { user, tokens } = await AuthService.completeRegistration(
+            tempToken,
+            {
+                email: validatedData.email,
+                password: validatedData.password,
+            },
             context,
         );
 
@@ -269,7 +301,7 @@ export class AuthController {
 
         res.status(201).json({
             success: true,
-            message: 'Account created successfully via SMS verification!',
+            message: 'Registration completed successfully!',
             data: {
                 user: {
                     id: user._id,
@@ -280,11 +312,9 @@ export class AuthController {
                     lastName: user.lastName,
                     role: user.role,
                     status: user.status,
-                    emailVerified: user.emailVerified,
                 },
                 accessToken: tokens.accessToken,
                 expiresIn: tokens.expiresIn,
-                needsEmail: needsEmail, // Indicates frontend should collect email
             },
         });
     });
@@ -337,17 +367,17 @@ export class AuthController {
     });
 
     /**
-     * Login user
+     * Login user with email OR phone number
      * POST /auth/login
      */
     static login = asyncHandler(async (req: AuthenticatedRequest, res: Response, _next: NextFunction) => {
-        const { email, password } = loginSchema.parse(req.body);
+        const { identifier, password } = loginSchema.parse(req.body);
 
         const context: { ipAddress?: string; userAgent?: string } = {};
         if (req.ip) context.ipAddress = req.ip;
         if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
 
-        const { user, tokens } = await AuthService.login(email, password, context);
+        const { user, tokens } = await AuthService.login(identifier, password, context);
 
         // Set refresh token in HTTP-only cookie
         res.cookie('refreshToken', tokens.refreshToken, {
@@ -365,6 +395,7 @@ export class AuthController {
                     id: user._id,
                     customId: user.customId,
                     email: user.email,
+                    phoneNumber: user.phoneNumber,
                     firstName: user.firstName,
                     lastName: user.lastName,
                     role: user.role,

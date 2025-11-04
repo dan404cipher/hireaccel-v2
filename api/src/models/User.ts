@@ -47,13 +47,11 @@ const userSchema = new Schema<UserDocument>(
     {
         email: {
             type: String,
-            required: false, // Make email optional initially for phone-based signup
+            required: [true, 'Email is required'],
             unique: true,
-            sparse: true, // Allow multiple null values but unique non-null values
             lowercase: true,
             trim: true,
             match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address'],
-            index: true,
         },
 
         customId: {
@@ -65,11 +63,7 @@ const userSchema = new Schema<UserDocument>(
 
         password: {
             type: String,
-            required: function (this: UserDocument) {
-                // Password is required for email-based signup
-                // For SMS-based signup (phoneNumber only), password is optional initially
-                return !!this.email;
-            },
+            required: [true, 'Password is required'],
             select: false, // Don't include password in queries by default
         },
 
@@ -119,15 +113,10 @@ const userSchema = new Schema<UserDocument>(
 
         phoneNumber: {
             type: String,
-            required: function (this: UserDocument) {
-                // Phone is required if email is not provided (phone-based signup)
-                return !this.email;
-            },
+            required: [true, 'Phone number is required'],
             unique: true,
-            sparse: true, // Allow multiple null values but unique non-null values
             trim: true,
             match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
-            index: true,
         },
 
         source: {
@@ -382,25 +371,9 @@ userSchema.statics['searchUsers'] = function (searchTerm: string, options: any =
  * Pre-save middleware
  */
 userSchema.pre('save', function (this: UserDocument, next) {
-    // Ensure at least email or phone number is provided
-    if (!this.email && !this.phoneNumber) {
-        return next(new Error('Either email or phone number must be provided'));
-    }
-
-    // Handle email field for sparse unique index
-    if (this.email === null || this.email === '') {
-        // For sparse unique index to work, we need to unset the field completely
-        // rather than setting it to null
-        this.email = undefined;
-    } else if (this.isModified('email') && this.email) {
+    // Ensure email is lowercase
+    if (this.isModified('email') && this.email) {
         this.email = this.email.toLowerCase();
-    }
-
-    // Handle phoneNumber field for sparse unique index
-    if (this.phoneNumber === null || this.phoneNumber === '') {
-        // For sparse unique index to work, we need to unset the field completely
-        // rather than setting it to null
-        this.phoneNumber = undefined;
     }
 
     // Trim and format names

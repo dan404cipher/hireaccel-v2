@@ -1,4 +1,5 @@
 import { User, UserDocument } from '@/models/User';
+import { Lead } from '@/models/Lead';
 import { Candidate } from '@/models/Candidate';
 import { AuditLog } from '@/models/AuditLog';
 import { OTPService } from './OTPService';
@@ -15,7 +16,14 @@ import {
     validatePasswordStrength,
     generateTemporaryPassword,
 } from '@/utils/password';
-import { generateTokenPair, verifyRefreshToken, blacklistToken, generateSecureToken } from '@/utils/jwt';
+import {
+    generateTokenPair,
+    verifyRefreshToken,
+    blacklistToken,
+    generateSecureToken,
+    generateLeadToken,
+    verifyLeadToken,
+} from '@/utils/jwt';
 import {
     createBadRequestError,
     createConflictError,
@@ -271,7 +279,7 @@ export class AuthService {
     }
 
     /**
-     * Verify SMS OTP and complete user registration (phone-based signup)
+     * Verify SMS OTP and mark lead as verified (Step 2: OTP Verification)
      */
     static async verifySMSOTPAndRegister(
         phoneNumber: string,
@@ -280,54 +288,169 @@ export class AuthService {
             ipAddress?: string;
             userAgent?: string;
         },
-    ): Promise<{ user: UserDocument; tokens: AuthTokens; needsEmail: boolean }> {
+    ): Promise<{ leadId: string; tempToken: string; phoneNumber: string; role: string; nextStep: string }> {
         try {
-            // Verify SMS OTP and get user data
+            // Verify SMS OTP
             const userData = await OTPService.verifySMSOTP(phoneNumber, otp);
             if (!userData) {
                 throw createBadRequestError('Invalid or expired OTP');
             }
 
-            // Check if user was created in the meantime
-            const existingUser = await User.findByPhoneNumber(phoneNumber);
-            if (existingUser) {
-                throw createConflictError('User with this phone number already exists');
+            // Find the lead
+            const lead = await Lead.findByPhoneNumber(phoneNumber);
+            if (!lead) {
+                throw createNotFoundError('Lead not found. Please restart registration.');
             }
 
-            // Generate custom user ID based on role
-            let customId: string;
-            try {
-                customId = await generateCustomUserId(userData.role as UserRole);
-            } catch (error) {
-                logger.error('Failed to generate custom user ID', { error });
-                throw new Error('Failed to generate user ID');
+            // Check if already verified
+            if (lead.isPhoneVerified) {
+                // Return existing temp token
+                const tempToken = generateLeadToken({
+                    leadId: lead._id.toString(),
+                    phoneNumber: lead.phoneNumber,
+                    role: lead.role,
+                });
+
+                return {
+                    leadId: lead._id.toString(),
+                    tempToken,
+                    phoneNumber: lead.phoneNumber,
+                    role: lead.role,
+                    nextStep: 'email_setup',
+                };
             }
 
-            // Create user with phone number only (no email initially)
-            const user = new User({
+            // Mark lead as verified
+            lead.isPhoneVerified = true;
+            await lead.save();
+
+            logger.info('SMS OTP verified successfully', {
+                leadId: lead._id,
+                phoneNumber: lead.phoneNumber,
+            });
+
+            // Generate temporary token for completing registration
+            const tempToken = generateLeadToken({
+                leadId: lead._id.toString(),
+                phoneNumber: lead.phoneNumber,
+                role: lead.role,
+            });
+
+            return {
+                leadId: lead._id.toString(),
+                tempToken,
+                phoneNumber: lead.phoneNumber,
+                role: lead.role,
+                nextStep: 'email_setup',
+            };
+        } catch (error) {
+            logger.error('SMS OTP verification failed', {
+                phoneNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Resend SMS OTP
+     */
+    static async resendSMSOTP(phoneNumber: string): Promise<{ success: boolean; message: string }> {
+        try {
+            await OTPService.resendSMSOTP(phoneNumber);
+            return {
+                success: true,
+                message: 'OTP has been resent to your mobile number.',
+            };
+        } catch (error) {
+            logger.error('SMS OTP resend failed', {
                 phoneNumber: phoneNumber,
-                customId: customId,
-                // No password required for SMS signup initially
-                firstName: userData.firstName,
-                lastName: userData.firstName, // Use firstName as lastName initially
-                role: userData.role as UserRole,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Complete registration by adding email and password (Step 3: Create User)
+     */
+    static async completeRegistration(
+        leadToken: string,
+        data: {
+            email: string;
+            password: string;
+        },
+        context?: {
+            ipAddress?: string;
+            userAgent?: string;
+        },
+    ): Promise<{ user: UserDocument; tokens: AuthTokens }> {
+        try {
+            // Verify lead token
+            const decoded = verifyLeadToken(leadToken);
+
+            // Find the verified lead
+            const lead = await Lead.findById(decoded.leadId);
+            if (!lead) {
+                throw createNotFoundError('Lead not found. Registration expired.');
+            }
+
+            if (!lead.isPhoneVerified) {
+                throw createBadRequestError('Phone number not verified. Please complete OTP verification first.');
+            }
+
+            // Check if user already exists with this phone number
+            const existingUserByPhone = await User.findByPhoneNumber(lead.phoneNumber);
+            if (existingUserByPhone) {
+                throw createConflictError('An account with this phone number already exists');
+            }
+
+            // Check if email already exists
+            const existingUserByEmail = await User.findByEmail(data.email);
+            if (existingUserByEmail) {
+                throw createConflictError(`An account with email '${data.email}' already exists`);
+            }
+
+            // Validate password strength (throws if invalid)
+            validatePasswordStrength(data.password);
+
+            // Hash password
+            const hashedPassword = await hashPassword(data.password);
+
+            // Generate custom user ID
+            const customId = await generateCustomUserId(lead.role as UserRole);
+
+            // Split name into first and last
+            const nameParts = lead.name.trim().split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || firstName;
+
+            // Create user
+            const user = new User({
+                email: data.email,
+                phoneNumber: lead.phoneNumber,
+                password: hashedPassword,
+                customId,
+                firstName,
+                lastName,
+                role: lead.role,
                 status: UserStatus.ACTIVE,
-                emailVerified: false, // Will be verified later when email is added
-                source: userData.source,
+                emailVerified: false,
+                source: lead.source,
             });
 
             await user.save();
 
-            logger.info('User created successfully via SMS OTP', {
+            logger.info('User created successfully from lead', {
                 userId: user._id,
-                phoneNumber: phoneNumber,
+                leadId: lead._id,
+                phoneNumber: lead.phoneNumber,
+                email: data.email,
                 role: user.role,
             });
 
             // If candidate, create candidate profile
             if (user.role === UserRole.CANDIDATE) {
-                const { Candidate } = await import('@/models/Candidate');
-
                 const candidate = new Candidate({
                     userId: user._id,
                     profile: {
@@ -338,7 +461,7 @@ export class AuthService {
                         certifications: [],
                         projects: [],
                         location: '',
-                        phoneNumber: phoneNumber,
+                        phoneNumber: lead.phoneNumber,
                         preferredSalaryRange: {
                             min: 0,
                             max: 0,
@@ -360,11 +483,21 @@ export class AuthService {
                 });
             }
 
+            // Keep lead for logging/analytics (stored permanently)
+            // Store email in lead for complete funnel tracking
+            lead.email = data.email;
+            await lead.save();
+
+            logger.info('Lead updated with email for logging', {
+                leadId: lead._id,
+                email: data.email,
+            });
+
             // Generate tokens
             const tokens = generateTokenPair({
                 userId: user._id.toString(),
-                ...(user.email && { email: user.email }),
-                ...(user.phoneNumber && { phoneNumber: user.phoneNumber }),
+                email: user.email!,
+                phoneNumber: user.phoneNumber!,
                 role: user.role,
             });
 
@@ -380,47 +513,36 @@ export class AuthService {
                 entityId: user._id,
                 metadata: {
                     role: user.role,
-                    registrationMethod: 'sms_otp',
+                    registrationMethod: 'sms_lead_completion',
                 },
                 ipAddress: context?.ipAddress,
                 userAgent: context?.userAgent,
                 businessProcess: 'authentication',
             });
 
-            logger.info('User registered successfully via SMS OTP', {
+            logger.info('Registration completed successfully', {
                 userId: user._id,
-                phoneNumber: phoneNumber,
+                email: data.email,
+                phoneNumber: lead.phoneNumber,
                 role: user.role,
-                customId: user.customId,
             });
 
-            return {
-                user,
-                tokens,
-                needsEmail: true, // Indicate that email collection is needed
-            };
-        } catch (error) {
-            logger.error('SMS OTP verification and registration failed', {
-                phoneNumber: phoneNumber,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            });
-            throw error;
-        }
-    }
+            // Submit to Google Sheets
+            try {
+                await GoogleSheetsService.submitRegistrationData({
+                    firstName: firstName || 'N/A',
+                    lastName: lastName || 'N/A',
+                    email: data.email,
+                    phone: lead.phoneNumber,
+                    role: user.role,
+                });
+            } catch (sheetError) {
+                logger.warn('Failed to submit to Google Sheets', { error: sheetError });
+            }
 
-    /**
-     * Resend SMS OTP
-     */
-    static async resendSMSOTP(phoneNumber: string): Promise<{ success: boolean; message: string }> {
-        try {
-            await OTPService.resendSMSOTP(phoneNumber);
-            return {
-                success: true,
-                message: 'OTP has been resent to your mobile number.',
-            };
+            return { user, tokens };
         } catch (error) {
-            logger.error('SMS OTP resend failed', {
-                phoneNumber: phoneNumber,
+            logger.error('Registration completion failed', {
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
             throw error;
@@ -451,21 +573,15 @@ export class AuthService {
     }
 
     /**
-     * Send SMS OTP for phone-based registration (simplified flow)
+     * Send SMS OTP for phone-based registration (Step 1: Create Lead)
      */
     static async sendSMSRegistrationOTP(userData: {
         phoneNumber: string;
-        firstName: string;
+        name: string;
         role: UserRole;
         source?: string;
     }): Promise<{ success: boolean; message: string }> {
         try {
-            // Check if user already exists with this phone number
-            const existingUser = await User.findByPhoneNumber(userData.phoneNumber);
-            if (existingUser) {
-                throw createConflictError('User with this phone number already exists');
-            }
-
             // Format phone number
             const formattedPhone = SMSService.formatPhoneNumber(userData.phoneNumber);
 
@@ -474,13 +590,35 @@ export class AuthService {
                 throw createBadRequestError('Invalid phone number format');
             }
 
+            // Check if user already exists with this phone number
+            const existingUser = await User.findByPhoneNumber(formattedPhone);
+            if (existingUser) {
+                throw createConflictError('An account with this phone number already exists');
+            }
+
+            // Create or update lead (upsert - allows re-registration if unverified)
+            // Leads are just for logging, not blocking registration
+            const lead = await Lead.findOneAndUpdate(
+                { phoneNumber: formattedPhone },
+                {
+                    name: userData.name,
+                    phoneNumber: formattedPhone,
+                    role: userData.role,
+                    ...(userData.source && { source: userData.source }),
+                    isPhoneVerified: false, // Reset verification status
+                },
+                { upsert: true, new: true },
+            );
+
             // Send SMS OTP
             await OTPService.sendSMSSignupOTP({
                 phoneNumber: formattedPhone,
-                firstName: userData.firstName,
+                firstName: userData.name?.split(' ')[0] || 'User', // Use first word as firstName
                 role: userData.role,
                 ...(userData.source && { source: userData.source }),
             });
+
+            logger.info('Lead created and OTP sent', { leadId: lead._id, phoneNumber: formattedPhone });
 
             return {
                 success: true,
@@ -505,7 +643,12 @@ export class AuthService {
         source?: string;
     }): Promise<{ success: boolean; message: string; requiresOTP: boolean }> {
         // Send SMS OTP
-        const result = await this.sendSMSRegistrationOTP(userData);
+        const result = await this.sendSMSRegistrationOTP({
+            phoneNumber: userData.phoneNumber,
+            name: userData.firstName,
+            role: userData.role,
+            ...(userData.source && { source: userData.source }),
+        });
         return {
             ...result,
             requiresOTP: true,
@@ -532,10 +675,10 @@ export class AuthService {
     }
 
     /**
-     * Login user
+     * Login user with email OR phone number
      */
     static async login(
-        email: string,
+        identifier: string,
         password: string,
         context?: {
             ipAddress?: string;
@@ -543,16 +686,38 @@ export class AuthService {
         },
     ): Promise<{ user: UserDocument; tokens: AuthTokens }> {
         try {
-            // Find user with password field
-            const user = await User.findOne({ email: email.toLowerCase() }).select('+password +refreshTokens');
+            // Detect if identifier is email or phone number
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const phoneRegex = /^\+?[1-9]\d{1,14}$/; // E.164 format
 
-            if (!user) {
-                throw createUnauthorizedError('Invalid email or password');
+            let user: UserDocument | null = null;
+            let loginType: 'email' | 'phone' = 'email';
+
+            if (emailRegex.test(identifier)) {
+                // Identifier is an email
+                user = await User.findOne({ email: identifier.toLowerCase() }).select('+password +refreshTokens');
+                loginType = 'email';
+            } else if (phoneRegex.test(identifier.replace(/[\s\-()]/g, ''))) {
+                // Identifier is a phone number - format and search
+                const formattedPhone = SMSService.formatPhoneNumber(identifier);
+                user = await User.findOne({ phoneNumber: formattedPhone }).select('+password +refreshTokens');
+                loginType = 'phone';
+            } else {
+                // Try both as fallback
+                user = await User.findOne({
+                    $or: [{ email: identifier.toLowerCase() }, { phoneNumber: identifier }],
+                }).select('+password +refreshTokens');
             }
 
-            // Check if user has a password (required for email login)
+            if (!user) {
+                throw createUnauthorizedError('Invalid credentials');
+            }
+
+            // Check if user has a password (required for login)
             if (!user.password) {
-                throw createUnauthorizedError('This account uses SMS authentication. Please use phone login.');
+                throw createUnauthorizedError(
+                    'This account does not have a password set. Please use SMS authentication or reset your password.',
+                );
             }
 
             // Verify password
@@ -567,6 +732,7 @@ export class AuthService {
                     metadata: {
                         success: false,
                         reason: 'invalid_password',
+                        loginType,
                     },
                     ipAddress: context?.ipAddress,
                     userAgent: context?.userAgent,
@@ -575,7 +741,7 @@ export class AuthService {
                     errorMessage: 'Invalid password',
                 });
 
-                throw createUnauthorizedError('Invalid email or password');
+                throw createUnauthorizedError('Invalid credentials');
             }
 
             // Check account status
@@ -612,6 +778,7 @@ export class AuthService {
                 metadata: {
                     success: true,
                     lastLogin: user.lastLoginAt,
+                    loginType,
                 },
                 ipAddress: context?.ipAddress,
                 userAgent: context?.userAgent,
@@ -621,13 +788,15 @@ export class AuthService {
             logger.info('User logged in successfully', {
                 userId: user._id,
                 email: user.email,
+                phoneNumber: user.phoneNumber,
+                loginType,
                 role: user.role,
             });
 
             return { user, tokens };
         } catch (error) {
             logger.warn('Login attempt failed', {
-                email,
+                identifier,
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
             throw error;
