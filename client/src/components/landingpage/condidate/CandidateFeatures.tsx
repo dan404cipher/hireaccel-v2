@@ -344,7 +344,7 @@ export function JobCandidates() {
       {/* 1. Enhanced Hero Section */}
       <section
         ref={heroRef}
-        className="relative min-h-screen flex flex-col items-center py-10"
+        className="relative min-h-screen flex flex-col items-center py-15"
         style={{
           backgroundImage: `url(${heroBackground})`,
           backgroundSize: "cover",
@@ -352,9 +352,9 @@ export function JobCandidates() {
           backgroundRepeat: "no-repeat",
         }}
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10  "></div>
         <div className="container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-20">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               {/* Left Content - 7 columns */}
               <div className="lg:col-span-7">
@@ -474,7 +474,7 @@ export function JobCandidates() {
                             setNameError("");
                           }
                         }}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20 w-full text-sm sm:text-base"
+                        className="bg-white/80 border-white/20 text-black placeholder:text-black/50 focus:bg-white/80 w-full text-sm sm:text-base"
                         required
                       />
                       {nameError && (
@@ -494,7 +494,7 @@ export function JobCandidates() {
                         <Input
                           id="phone"
                           type="tel"
-                          placeholder=""
+                          placeholder="Enter your phone number"
                           value={phone.replace("+91", "")}
                           onChange={handlePhoneChange}
                           onBlur={() => {
@@ -506,11 +506,11 @@ export function JobCandidates() {
                               setPhoneError("");
                             }
                           }}
-                          className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20 w-full text-sm sm:text-base"
+                          className="bg-white/80 border-white/20 text-black placeholder:text-black/50 focus:bg-white/80 w-full text-sm sm:text-base"
                           required
                           style={{ paddingLeft: "3.5rem" }}
                         />
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white font-medium pointer-events-none text-sm sm:text-base">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-black font-medium pointer-events-none text-sm sm:text-base">
                           +91
                         </div>
                       </div>
@@ -532,19 +532,19 @@ export function JobCandidates() {
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-start space-y-4 sm:space-y-0 sm:space-x-4 mt-4">
-                    <Button
+                    {/* <Button
                       type="submit"
                       size="lg"
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto"
                     >
                       Get matched in 2 minutes
                       <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
-                    </Button>
+                    </Button> */}
                     <Button
                       type="button"
                       variant="outline"
                       size="lg"
-                      className="border-2 border-blue-200 text-blue-600 hover:bg-blue-50 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto font-semibold"
+                      className=" sm:hidden border-2 border-blue-200 text-blue-600 hover:bg-blue-50 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto font-semibold"
                       onClick={() => navigate("/register/candidate")}
                     >
                       <Upload className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />

@@ -8,7 +8,7 @@ const ForEmployee = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header showRoleButtons={false} />
-      <main className="pt-16">
+      <main className="pt-0">
         <Suspense fallback={<CardLoadingSkeleton />}>
           <JobCandidates />
         </Suspense>
