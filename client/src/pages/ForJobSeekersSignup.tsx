@@ -9,14 +9,103 @@ import heroBackground from "@/assets/Hero-background.jpeg";
 const ForJobSeekersSignup = () => {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+91");
+  const [phoneError, setPhoneError] = useState("");
+  const [nameError, setNameError] = useState("");
 
-  const handleContinue = () => {
-    if (!fullName.trim() || !phone.trim()) {
+  const validateName = (name: string): boolean => {
+    // Name should contain only letters, spaces, hyphens, and apostrophes
+    // Should be at least 2 characters and at most 50 characters
+    const nameRegex = /^[a-zA-Z\s'-]{2,50}$/;
+    return nameRegex.test(name.trim());
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // Only allow letters, spaces, hyphens, and apostrophes
+    // Filter out numbers and other special characters
+    const filtered = value.replace(/[^a-zA-Z\s'-]/g, '');
+    
+    setFullName(filtered);
+    
+    // Clear error when user starts typing
+    if (nameError) {
+      setNameError("");
+    }
+  };
+
+  const validatePhone = (phoneNumber: string): boolean => {
+    // Must start with +91 and have exactly 10 more digits
+    const phoneRegex = /^\+91[6-9]\d{9}$/;
+    return phoneRegex.test(phoneNumber);
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    
+    // If user tries to delete +91, keep it
+    if (!value.startsWith("+91")) {
+      setPhone("+91");
+      setPhoneError("");
       return;
     }
+    
+    // Remove all non-digit characters except the leading +
+    const cleaned = value.replace(/[^\d+]/g, "");
+    
+    // Ensure it starts with +91
+    if (!cleaned.startsWith("+91")) {
+      setPhone("+91");
+      setPhoneError("");
+      return;
+    }
+    
+    // Limit to +91 + 10 digits (total 13 characters)
+    if (cleaned.length <= 13) {
+      setPhone(cleaned);
+      
+      // Validate as user types
+      if (cleaned.length === 13) {
+        if (validatePhone(cleaned)) {
+          setPhoneError("");
+        } else {
+          setPhoneError("Please enter a valid 10-digit Indian mobile number");
+        }
+      } else {
+        setPhoneError("");
+      }
+    }
+  };
+
+  const handleContinue = () => {
+    // Validate name
+    if (!fullName.trim()) {
+      setNameError("Name is required");
+      return;
+    }
+    
+    if (!validateName(fullName)) {
+      setNameError("Please enter a valid name (2-50 characters, letters only)");
+      return;
+    }
+    
+    setNameError("");
+    
+    // Validate phone
+    if (!phone.trim() || phone === "+91") {
+      setPhoneError("Phone number is required");
+      return;
+    }
+    
+    if (!validatePhone(phone)) {
+      setPhoneError("Please enter a valid 10-digit Indian mobile number");
+      return;
+    }
+    
+    setPhoneError("");
     const params = new URLSearchParams();
-    if (fullName) params.set("name", fullName);
+    if (fullName) params.set("name", fullName.trim());
     if (phone) params.set("phone", phone);
     navigate(`/signup/candidate?${params.toString()}`);
   };
@@ -155,20 +244,40 @@ const ForJobSeekersSignup = () => {
                     type="text"
                     placeholder="Jane Doe"
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={handleNameChange}
+                    onBlur={() => {
+                      if (!fullName.trim()) {
+                        setNameError("Name is required");
+                      } else if (!validateName(fullName)) {
+                        setNameError("Please enter a valid name (2-50 characters, letters only)");
+                      }
+                    }}
                     required
+                    className={nameError ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {nameError && (
+                    <p className="text-sm text-red-500">{nameError}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone number*</Label>
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+1 555 000 0000"
+                    placeholder="+91 9876543210"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={handlePhoneChange}
+                    onBlur={() => {
+                      if (phone.length < 13) {
+                        setPhoneError("Phone number must be 10 digits");
+                      }
+                    }}
                     required
+                    className={phoneError ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {phoneError && (
+                    <p className="text-sm text-red-500">{phoneError}</p>
+                  )}
                 </div>
                 <Button
                   type="submit"
