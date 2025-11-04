@@ -130,7 +130,7 @@ leadSchema.pre('save', function (this: LeadDocument, next) {
 /**
  * Find lead by phone number
  */
-leadSchema.statics.findByPhoneNumber = function (phoneNumber: string) {
+leadSchema.statics['findByPhoneNumber'] = function (phoneNumber: string) {
     return this.findOne({ phoneNumber: phoneNumber.trim() });
 };
 

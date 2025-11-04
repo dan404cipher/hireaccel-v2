@@ -284,7 +284,7 @@ export class AuthService {
     static async verifySMSOTPAndRegister(
         phoneNumber: string,
         otp: string,
-        context?: {
+        _context?: {
             ipAddress?: string;
             userAgent?: string;
         },
