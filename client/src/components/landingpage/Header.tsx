@@ -108,7 +108,7 @@ export function Header({
                   <Button
                     variant="secondary"
                     onClick={() => navigate("/candidate")}
-                    className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+                    className="text-white bg-blue-600 hover:bg-blue-600 transition-all duration-300"
                   >
                     For Job Seekers
                   </Button>
