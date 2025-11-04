@@ -418,21 +418,33 @@ export function JobCandidates() {
                     e.preventDefault();
                     let hasError = false;
 
-                    if (!validateName(name)) {
+                    // Validate name
+                    if (!name.trim()) {
+                      setNameError("Name is required");
+                      hasError = true;
+                    } else if (!validateName(name)) {
                       setNameError(
                         "Please enter a valid name (at least 2 characters, letters only)"
                       );
                       hasError = true;
+                    } else {
+                      setNameError("");
                     }
 
-                    if (!validatePhone(phone)) {
+                    // Validate phone
+                    if (phone === "+91" || !phone.trim()) {
+                      setPhoneError("Phone number is required");
+                      hasError = true;
+                    } else if (!validatePhone(phone)) {
                       setPhoneError(
                         "Please enter a valid 10-digit phone number"
                       );
                       hasError = true;
+                    } else {
+                      setPhoneError("");
                     }
 
-                    if (!hasError && name.trim() && phone.trim()) {
+                    if (!hasError) {
                       navigate("/register/candidate", {
                         state: { name: name.trim(), phone },
                       });
@@ -512,8 +524,7 @@ export function JobCandidates() {
                       <Button
                         type="submit"
                         size="lg"
-                        disabled={!validateName(name) || !validatePhone(phone)}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto mt-0 sm:mt-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto mt-0 sm:mt-0"
                       >
                         Sign Up
                         <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
@@ -524,8 +535,7 @@ export function JobCandidates() {
                     <Button
                       type="submit"
                       size="lg"
-                      disabled={!validateName(name) || !validatePhone(phone)}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto"
                     >
                       Get matched in 2 minutes
                       <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
