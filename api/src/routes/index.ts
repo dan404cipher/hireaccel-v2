@@ -11,6 +11,7 @@ import agentRoutes from './agents';
 import fileRoutes from './files';
 import bannerRoutes from './banner';
 import auditLogRoutes from './auditLogs';
+import analyticsRoutes from './analytics';
 
 /**
  * Main API routes
@@ -34,6 +35,7 @@ router.use('/api/v1/agents', agentRoutes);
 router.use('/api/v1/files', fileRoutes);
 router.use('/api/v1/banners', bannerRoutes);
 router.use('/api/v1/audit-logs', auditLogRoutes);
+router.use('/api/analytics', analyticsRoutes);
 
 // Health check route
 router.get('/health', (_req, res) => {

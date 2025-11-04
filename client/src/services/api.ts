@@ -1244,6 +1244,79 @@ class ApiClient {
     });
   }
 
+  // Analytics methods
+  async trackEvent(data: {
+    eventName: string;
+    page: string;
+    referrer?: string;
+    sessionId: string;
+    userId?: string;
+    eventData?: Record<string, any>;
+    utm?: {
+      source?: string;
+      medium?: string;
+      campaign?: string;
+    };
+    duration?: number;
+  }) {
+    return this.request('/api/analytics/track', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAnalyticsSummary(params?: {
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    const queryString = queryParams.toString();
+    return this.request(`/api/analytics/summary${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAnalyticsFunnels(params?: {
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    const queryString = queryParams.toString();
+    return this.request(`/api/analytics/funnels${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAnalyticsSources(params?: {
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    const queryString = queryParams.toString();
+    return this.request(`/api/analytics/sources${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getAnalyticsEvents(params?: {
+    page?: number;
+    limit?: number;
+    startDate?: string;
+    endDate?: string;
+    source?: string;
+    eventName?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.source) queryParams.append('source', params.source);
+    if (params?.eventName) queryParams.append('eventName', params.eventName);
+    const queryString = queryParams.toString();
+    return this.request(`/api/analytics/events${queryString ? `?${queryString}` : ''}`);
+  }
+
 }
 
 export const apiClient = new ApiClient();

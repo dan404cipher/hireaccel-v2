@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +11,8 @@ import { PageLoadingSpinner } from "./components/ui/LoadingSpinner";
 import { useRoutePreloader } from "./hooks/useRoutePreloader";
 import { PerformanceMonitor } from "./components/PerformanceMonitor";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { initializeAnalytics } from "./utils/analytics";
+import { useAnalyticsTracker } from "./hooks/useAnalyticsTracker";
 
 // Lazy load all page components for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -30,6 +32,7 @@ const CompanyManagement = lazy(() => import("./pages/companies/CompanyManagement
 const UserManagement = lazy(() => import("./pages/users/UserManagement"));
 const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
 const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
+const AnalyticsDashboard = lazy(() => import("./pages/analytics/AnalyticsDashboard"));
 const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
 const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
 const Activity = lazy(() => import("./pages/admin/Activity"));
@@ -125,6 +128,12 @@ function DashboardRouter() {
   return <Dashboard />;
 }
 
+// Analytics Tracker Component
+function AnalyticsTrackerWrapper() {
+  useAnalyticsTracker();
+  return null;
+}
+
 // App Router Component (needs to be inside AuthProvider)
 function AppRouter() {
   const { isAuthenticated, loading } = useAuth();
@@ -132,6 +141,7 @@ function AppRouter() {
   
   // Enable route preloading for better performance
   useRoutePreloader();
+  
   if (loading) {
     return null;
   }
@@ -285,7 +295,7 @@ function AppRouter() {
         {/* Admin Routes */}
         <Route path="analytics" element={
           <RoleProtectedRoute allowedRoles={['admin', 'superadmin']}>
-            <AnalyticsReports />
+            <AnalyticsDashboard />
           </RoleProtectedRoute>
         } />
         <Route path="admin-profile" element={
@@ -317,6 +327,11 @@ function AppRouter() {
 }
 
 const App = () => {
+  // Initialize analytics on app mount
+  useEffect(() => {
+    initializeAnalytics();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -332,6 +347,7 @@ const App = () => {
             <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
               <AuthProvider>
                 <NotificationProvider>
+                  <AnalyticsTrackerWrapper />
                   <PerformanceMonitor />
                   <AppRouter />
                 </NotificationProvider>
