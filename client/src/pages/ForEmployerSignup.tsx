@@ -114,7 +114,7 @@ const ForEmployerSignup = () => {
         try {
             await apiClient.signupSMS({
                 phoneNumber: phone,
-                firstName: fullName.trim(),
+                name: fullName.trim(),
                 role: 'hr',
                 source: 'Facebook',
             });
@@ -124,13 +124,19 @@ const ForEmployerSignup = () => {
                 description: "We've sent a verification code to your mobile number.",
             });
 
-            // Navigate to SMS OTP verification page
-            const params = new URLSearchParams({
-                phone: phone,
-                name: fullName.trim(),
-                role: 'hr',
-            });
-            navigate(`/auth/verify-sms?${params.toString()}`);
+            // Store data securely in sessionStorage instead of URL parameters
+            sessionStorage.setItem(
+                'sms_verification_data',
+                JSON.stringify({
+                    phoneNumber: phone,
+                    name: fullName.trim(),
+                    userType: 'hr',
+                    timestamp: Date.now(),
+                }),
+            );
+
+            // Navigate to SMS OTP verification page without sensitive data in URL
+            navigate('/auth/verify-sms');
         } catch (error) {
             // Handle specific error cases
             if (error && typeof error === 'object' && 'status' in error) {
@@ -143,9 +149,9 @@ const ForEmployerSignup = () => {
                         variant: 'destructive',
                     });
                     // Optionally redirect to login after a delay
-                    setTimeout(() => {
-                        navigate('/login');
-                    }, 2000);
+                    // setTimeout(() => {
+                    //     navigate('/login');
+                    // }, 2000);
                     return;
                 }
             }
