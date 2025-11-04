@@ -1230,6 +1230,40 @@ class ApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  // SMS-based authentication methods
+  async signupSMS(data: {
+    phoneNumber: string;
+    firstName: string;
+    role: 'hr' | 'candidate';
+    source?: string;
+  }) {
+    return this.request<{ requiresOTP?: boolean; phoneNumber: string; message: string }>('/auth/register-sms', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async verifySMSOTP(data: { phoneNumber: string; otp: string }) {
+    return this.request('/auth/verify-sms-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resendSMSOTP(data: { phoneNumber: string }) {
+    return this.request('/auth/resend-sms-otp', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addEmail(data: { email: string; password: string }) {
+    return this.request('/auth/add-email', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
   async forgotPassword(data: { email: string }) {
     return this.request('/auth/forgot-password', {
       method: 'POST',
