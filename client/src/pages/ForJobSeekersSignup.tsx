@@ -314,14 +314,7 @@ const ForJobSeekersSignup = () => {
             {/* Right Side - Form */}
             <div className='flex-1 flex flex-col overflow-y-auto relative z-10'>
                 <div className='flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 pt-16 sm:pt-20 lg:pt-8'>
-                    <div
-                        className='w-full max-w-md animate-slide-in-right'
-                        style={{
-                            animationDelay: '0.8s',
-                            animationDuration: '1.5s',
-                            animationTimingFunction: 'ease-in-out',
-                        }}
-                    >
+                    <div className='w-full max-w-md'>
                         <div
                             className='bg-white/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 shadow-2xl hover:shadow-3xl'
                             style={{ transition: 'box-shadow 0.5s ease-in-out' }}
@@ -331,14 +324,7 @@ const ForJobSeekersSignup = () => {
                                     <div className='w-4 h-4 bg-purple-500 rounded-full'></div>
                                     <span className='text-sm text-purple-500'>Create Account as a Job Seeker</span>
                                 </div>
-                                <p
-                                    className='text-gray-600 animate-fade-in'
-                                    style={{
-                                        animationDelay: '1.2s',
-                                        animationDuration: '1.2s',
-                                        animationTimingFunction: 'ease-in-out',
-                                    }}
-                                >
+                                <p className='text-gray-600'>
                                     Join our platform and start your job search journey
                                 </p>
                             </div>
@@ -351,7 +337,7 @@ const ForJobSeekersSignup = () => {
                                 }}
                             >
                                 <div className='space-y-2'>
-                                    <Label htmlFor='fullName'>Full name*</Label>
+                                    <Label htmlFor='fullName'>Name*</Label>
                                     <Input
                                         id='fullName'
                                         type='text'
