@@ -82,12 +82,12 @@ const envSchema = z.object({
 
     // SMS Service Configuration
     SMS_PROVIDER: z.enum(['twilio', 'aws-sns']).optional().default('twilio'),
-    
+
     // Twilio Configuration (optional - required if SMS_PROVIDER=twilio)
     TWILIO_ACCOUNT_SID: z.string().optional(),
     TWILIO_AUTH_TOKEN: z.string().optional(),
     TWILIO_PHONE_NUMBER: z.string().optional(),
-    
+
     // AWS SNS Configuration (optional - required if SMS_PROVIDER=aws-sns)
     AWS_REGION: z.string().optional(),
     AWS_ACCESS_KEY_ID: z.string().optional(),
