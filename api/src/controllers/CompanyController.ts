@@ -91,17 +91,21 @@ export class CompanyController {
   });
 
   static getCompanyById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const identifier = req.params['id'];
+    const { id } = req.params;
     
-    // Try to find by companyId (custom ID) first, then fallback to MongoDB _id
-    let company = await Company.findOne({ 
-      $or: [
-        { companyId: identifier },
-        { _id: identifier }
-      ]
-    }).populate('createdBy', 'firstName lastName customId');
+    // Try to find by custom companyId first, then by MongoDB _id
+    let company = await Company.findOne({ companyId: id })
+      .populate('createdBy', 'firstName lastName customId');
     
-    if (!company) throw createNotFoundError('Company', identifier);
+    // If not found by companyId, try by MongoDB _id
+    if (!company) {
+      company = await Company.findById(id)
+        .populate('createdBy', 'firstName lastName customId');
+    }
+    
+    if (!company) {
+      throw createNotFoundError('Company', id);
+    }
     
     // HR-specific access control: Only allow access to companies they created or posted jobs for
     if (req.user!.role === UserRole.HR) {
@@ -113,7 +117,7 @@ export class CompanyController {
         });
 
       if (!hasAccess) {
-        throw createNotFoundError('Company', identifier);
+        throw createNotFoundError('Company', id);
       }
     }
     

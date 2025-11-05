@@ -677,18 +677,7 @@ candidateSchema.pre('save', function(this: CandidateDocument, next) {
     this.lastActivityAt = new Date();
   }
   
-  // Validate availability start date
-  if (this.isModified('profile.availability.startDate') && this.profile.availability?.startDate) {
-    const startDate = this.profile.availability.startDate;
-    const now = new Date();
-    const oneYearFromNow = new Date();
-    oneYearFromNow.setFullYear(now.getFullYear() + 1);
-    
-    if (startDate < now || startDate > oneYearFromNow) {
-      return next(new Error('Availability start date must be between now and one year from now'));
-    }
-  }
-  
+  // Availability start date validation removed - allowing any valid date
   next();
 });
 

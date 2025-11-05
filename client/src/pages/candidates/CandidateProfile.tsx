@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -410,11 +411,48 @@ const CandidateProfile: React.FC = () => {
           max: 0,
           currency: 'USD'
         },
-        availability: {
-            startDate: apiProfile.availability?.startDate ? (apiProfile.availability.startDate instanceof Date ? apiProfile.availability.startDate : new Date(apiProfile.availability.startDate)) : new Date(),
-          remote: apiProfile.availability?.remote || false,
-          relocation: apiProfile.availability?.relocation || false
-        }
+        availability: (() => {
+          // Validate and normalize the date to ensure it's within valid range
+          // Backend compares with current time (not just date), so we need to ensure date >= now
+          const now = new Date();
+          const oneYearFromNow = new Date();
+          oneYearFromNow.setFullYear(now.getFullYear() + 1);
+          
+          let startDate: Date;
+          if (apiProfile.availability?.startDate) {
+            startDate = apiProfile.availability.startDate instanceof Date 
+              ? apiProfile.availability.startDate 
+              : new Date(apiProfile.availability.startDate);
+            
+            // Normalize date and validate
+            // Backend validation checks: startDate >= now && startDate <= oneYearFromNow
+            const dateToCheck = new Date(startDate);
+            const nowStartOfDay = new Date(now);
+            nowStartOfDay.setHours(0, 0, 0, 0);
+            const dateStartOfDay = new Date(dateToCheck);
+            dateStartOfDay.setHours(0, 0, 0, 0);
+            
+            // If date is invalid or outside range, set to current time + 1 minute
+            if (isNaN(dateToCheck.getTime()) || dateStartOfDay < nowStartOfDay || dateStartOfDay > oneYearFromNow) {
+              // Set to 1 minute from now to ensure it's > now (passes validation)
+              startDate = new Date(now.getTime() + 60000);
+            } else if (dateStartOfDay.getTime() === nowStartOfDay.getTime()) {
+              // If date is today, set to current time + 1 minute to ensure it's > now
+              startDate = new Date(now.getTime() + 60000);
+            } else {
+              // Future date - use start of day
+              startDate = dateStartOfDay;
+            }
+          } else {
+            // Default to 1 minute from now to ensure it's > now (passes validation)
+            startDate = new Date(now.getTime() + 60000);
+          }
+          return {
+            startDate,
+            remote: apiProfile.availability?.remote || false,
+            relocation: apiProfile.availability?.relocation || false
+          };
+        })()
       };
 
       setProfile(newProfile);
@@ -486,10 +524,15 @@ const CandidateProfile: React.FC = () => {
 
   // Availability date validation
   const validateAvailabilityDate = (date: Date | string): boolean => {
+    if (!date) return true; // Allow empty dates
     const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return false; // Invalid date
     const now = new Date();
+    now.setHours(0, 0, 0, 0); // Set to start of today
     const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-    return dateObj >= now && dateObj <= oneYearFromNow;
+    const dateToCheck = new Date(dateObj);
+    dateToCheck.setHours(0, 0, 0, 0); // Set to start of day for comparison
+    return dateToCheck >= now && dateToCheck <= oneYearFromNow;
   };
 
   // File handling functions
@@ -593,6 +636,61 @@ const CandidateProfile: React.FC = () => {
     return errors;
   };
 
+  // Helper function to normalize availability date before sending to backend
+  // Always ensures the date is at least 7 days from now to provide a large safety buffer
+  const getValidAvailabilityDate = (): string => {
+    const now = new Date();
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(now.getFullYear() + 1);
+    
+    // Always use at least 7 days from now (start of day) to ensure it's definitely > now
+    // This provides a large safe buffer for network delays, clock differences, and timezone issues
+    const sevenDaysFromNow = new Date(now);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    sevenDaysFromNow.setHours(0, 0, 0, 0);
+    
+    let startDate: Date = sevenDaysFromNow; // Default to safe date
+    
+    if (profile.availability?.startDate) {
+      try {
+        const dateToCheck = profile.availability.startDate instanceof Date 
+          ? profile.availability.startDate 
+          : new Date(profile.availability.startDate);
+        
+        // Check if date is valid
+        if (!isNaN(dateToCheck.getTime())) {
+          // Normalize to start of day for comparison
+          const dateStartOfDay = new Date(dateToCheck);
+          dateStartOfDay.setHours(0, 0, 0, 0);
+          
+          // Only use the date if it's at least 7 days in the future and within 1 year
+          if (dateStartOfDay > sevenDaysFromNow && dateStartOfDay <= oneYearFromNow) {
+            startDate = dateStartOfDay;
+          }
+        }
+      } catch (e) {
+        // If parsing fails, use default (sevenDaysFromNow)
+        console.warn('Error parsing availability date:', e);
+      }
+    }
+    
+    // Final safety check: ensure date is definitely > now and <= oneYearFromNow
+    // Add extra buffer - ensure it's at least 6 days from now
+    const sixDaysFromNow = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
+    if (startDate <= sixDaysFromNow) {
+      startDate = sevenDaysFromNow;
+    }
+    if (startDate > oneYearFromNow) {
+      const safeDate = new Date(oneYearFromNow);
+      safeDate.setHours(0, 0, 0, 0);
+      startDate = safeDate;
+    }
+    
+    // Ensure we return a valid ISO string
+    const isoString = startDate.toISOString();
+    return isoString;
+  };
+
   const handleSave = async () => {
     try {
       // Validate phone number if provided
@@ -605,8 +703,8 @@ const CandidateProfile: React.FC = () => {
         return;
       }
 
-      // Validate availability date if provided
-      if (profile.availability?.startDate && !validateAvailabilityDate(profile.availability.startDate)) {
+      // Validate availability date only if editing availability section
+      if (editingSections.has('availability') && profile.availability?.startDate && !validateAvailabilityDate(profile.availability.startDate)) {
         toast({
           title: 'Invalid Availability Date',
           description: 'Availability date must be between now and one year from now.',
@@ -650,8 +748,133 @@ const CandidateProfile: React.FC = () => {
             skills: profile.skills
           }
         };
+      } else if (editingSections.has('experience')) {
+        // Save experience section and include valid availability to override invalid DB data
+        profileToSave = {
+          profile: {
+            experience: profile.experience.map(exp => {
+              const expData: any = {
+                ...exp,
+                startDate: exp.startDate.toISOString(), // Full ISO datetime
+                current: exp.current
+              };
+              // Only include endDate if it exists and current is false
+              if (!exp.current && exp.endDate) {
+                expData.endDate = exp.endDate.toISOString();
+              }
+              return expData;
+            }),
+            // Always include valid availability to override potentially invalid DB data
+            availability: {
+              startDate: getValidAvailabilityDate(),
+              remote: profile.availability?.remote || false,
+              relocation: profile.availability?.relocation || false
+            }
+          }
+        };
+      } else if (editingSections.has('education')) {
+        // Save education section and include valid availability to override invalid DB data
+        profileToSave = {
+          profile: {
+            education: profile.education,
+            // Always include valid availability to override potentially invalid DB data
+            availability: {
+              startDate: getValidAvailabilityDate(),
+              remote: profile.availability?.remote || false,
+              relocation: profile.availability?.relocation || false
+            }
+          }
+        };
+      } else if (editingSections.has('certifications')) {
+        // Save certifications section and include valid availability to override invalid DB data
+        profileToSave = {
+          profile: {
+            certifications: profile.certifications.map(cert => {
+              const certData: any = {
+                name: cert.name,
+                issuer: cert.issuer,
+                issueDate: cert.issueDate.toISOString() // Full ISO datetime
+              };
+              // Only include expiryDate if it exists
+              if (cert.expiryDate) {
+                certData.expiryDate = cert.expiryDate.toISOString();
+              }
+              // Only include optional fields if they have valid values
+              if (cert.credentialId && cert.credentialId.trim()) {
+                certData.credentialId = cert.credentialId;
+              }
+              if (cert.credentialUrl && cert.credentialUrl.trim()) {
+                certData.credentialUrl = cert.credentialUrl;
+              }
+              return certData;
+            }),
+            // Always include valid availability to override potentially invalid DB data
+            availability: {
+              startDate: getValidAvailabilityDate(),
+              remote: profile.availability?.remote || false,
+              relocation: profile.availability?.relocation || false
+            }
+          }
+        };
+      } else if (editingSections.has('projects')) {
+        // Save projects section and include valid availability to override invalid DB data
+        profileToSave = {
+          profile: {
+            projects: profile.projects.map(project => {
+              const projectData: any = {
+                title: project.title,
+                description: project.description,
+                technologies: project.technologies,
+                startDate: project.startDate.toISOString(), // Full ISO datetime
+                current: project.current
+              };
+              // Only include endDate if it exists and current is false
+              if (!project.current && project.endDate) {
+                projectData.endDate = project.endDate.toISOString();
+              }
+              // Only include optional URL fields if they have valid values
+              if (project.role && project.role.trim()) {
+                projectData.role = project.role;
+              }
+              if (project.projectUrl && project.projectUrl.trim()) {
+                projectData.projectUrl = project.projectUrl;
+              }
+              if (project.githubUrl && project.githubUrl.trim()) {
+                projectData.githubUrl = project.githubUrl;
+              }
+              return projectData;
+            }),
+            // Always include valid availability to override potentially invalid DB data
+            availability: {
+              startDate: getValidAvailabilityDate(),
+              remote: profile.availability?.remote || false,
+              relocation: profile.availability?.relocation || false
+            }
+          }
+        };
+      } else if (editingSections.has('contact')) {
+        // Only save contact information
+        profileToSave = {
+          profile: {
+            phoneNumber: profile.phoneNumber,
+            location: profile.location,
+            linkedinUrl: profile.linkedinUrl,
+            portfolioUrl: profile.portfolioUrl
+          }
+        };
+      } else if (editingSections.has('availability')) {
+        // Only save availability section
+        profileToSave = {
+          profile: {
+            availability: {
+              ...profile.availability,
+              startDate: getValidAvailabilityDate() // Normalized and validated date
+            },
+            preferredSalaryRange: profile.preferredSalaryRange
+          }
+        };
       } else {
-        // For other sections, handle the full profile update
+        // Fallback: handle the full profile update (shouldn't normally reach here)
         const updatedProfile = {
           ...profile,
           experience: profile.experience.map(exp => {
@@ -711,10 +934,11 @@ const CandidateProfile: React.FC = () => {
           })
         };
 
-        if (profile.availability) {
+        // Only include availability if editing availability section
+        if (editingSections.has('availability') && profile.availability) {
           updatedProfile.availability = {
             ...profile.availability,
-            startDate: profile.availability.startDate instanceof Date ? profile.availability.startDate.toISOString() : profile.availability.startDate // Full ISO datetime
+            startDate: getValidAvailabilityDate() // Normalized and validated date
           };
         }
 
@@ -795,16 +1019,27 @@ const CandidateProfile: React.FC = () => {
   };
 
   const addExperience = () => {
-    setProfile(prev => ({
-      ...prev,
-      experience: [...prev.experience, {
-        company: '',
-        position: '',
-        startDate: new Date(),
-        current: false,
-        description: ''
-      }]
-    }));
+    // Enable edit mode and add experience entry synchronously
+    const newExperience = {
+      company: '',
+      position: '',
+      startDate: new Date(),
+      current: false,
+      description: ''
+    };
+    
+    // Use flushSync to ensure both updates happen immediately and trigger a re-render
+    flushSync(() => {
+      setEditingSections(prev => {
+        const newSet = new Set(prev);
+        newSet.add('experience');
+        return newSet;
+      });
+      setProfile(prev => ({
+        ...prev,
+        experience: [...prev.experience, newExperience]
+      }));
+    });
   };
 
   const updateExperience = (index: number, field: keyof WorkExperience, value: any) => {
@@ -824,16 +1059,27 @@ const CandidateProfile: React.FC = () => {
   };
 
   const addEducation = () => {
-    setProfile(prev => ({
-      ...prev,
-      education: [...prev.education, {
-        degree: '',
-        field: '',
-        institution: '',
-        graduationYear: new Date().getFullYear(),
-        gpa: undefined
-      }]
-    }));
+    // Enable edit mode and add education entry synchronously
+    const newEducation = {
+      degree: '',
+      field: '',
+      institution: '',
+      graduationYear: new Date().getFullYear(),
+      gpa: undefined
+    };
+    
+    // Use flushSync to ensure both updates happen immediately and trigger a re-render
+    flushSync(() => {
+      setEditingSections(prev => {
+        const newSet = new Set(prev);
+        newSet.add('education');
+        return newSet;
+      });
+      setProfile(prev => ({
+        ...prev,
+        education: [...prev.education, newEducation]
+      }));
+    });
   };
 
   const updateEducation = (index: number, field: keyof Education, value: any) => {
@@ -854,17 +1100,28 @@ const CandidateProfile: React.FC = () => {
 
   // Certification management functions
   const addCertification = () => {
-    setProfile(prev => ({
-      ...prev,
-      certifications: [...prev.certifications, {
-        name: '',
-        issuer: '',
-        issueDate: new Date(),
-        expiryDate: undefined,
-        credentialId: '',
-        credentialUrl: ''
-      }]
-    }));
+    // Enable edit mode and add certification entry synchronously
+    const newCertification = {
+      name: '',
+      issuer: '',
+      issueDate: new Date(),
+      expiryDate: undefined,
+      credentialId: '',
+      credentialUrl: ''
+    };
+    
+    // Use flushSync to ensure both updates happen immediately and trigger a re-render
+    flushSync(() => {
+      setEditingSections(prev => {
+        const newSet = new Set(prev);
+        newSet.add('certifications');
+        return newSet;
+      });
+      setProfile(prev => ({
+        ...prev,
+        certifications: [...prev.certifications, newCertification]
+      }));
+    });
   };
 
   const updateCertification = (index: number, field: keyof Certification, value: any) => {
@@ -885,20 +1142,31 @@ const CandidateProfile: React.FC = () => {
 
   // Project management functions
   const addProject = () => {
-    setProfile(prev => ({
-      ...prev,
-      projects: [...prev.projects, {
-        title: '',
-        description: '',
-        technologies: [],
-        startDate: new Date(),
-        endDate: undefined,
-        current: false,
-        projectUrl: '',
-        githubUrl: '',
-        role: ''
-      }]
-    }));
+    // Enable edit mode and add project entry synchronously
+    const newProject = {
+      title: '',
+      description: '',
+      technologies: [],
+      startDate: new Date(),
+      endDate: undefined,
+      current: false,
+      projectUrl: '',
+      githubUrl: '',
+      role: ''
+    };
+    
+    // Use flushSync to ensure both updates happen immediately and trigger a re-render
+    flushSync(() => {
+      setEditingSections(prev => {
+        const newSet = new Set(prev);
+        newSet.add('projects');
+        return newSet;
+      });
+      setProfile(prev => ({
+        ...prev,
+        projects: [...prev.projects, newProject]
+      }));
+    });
   };
 
   const updateProject = (index: number, field: keyof Project, value: any) => {
@@ -1912,7 +2180,7 @@ const CandidateProfile: React.FC = () => {
                   <p className="text-sm mb-4">Add your work experience to showcase your professional background.</p>
                   <Button 
                     variant="outline" 
-                    onClick={() => toggleEdit('experience')}
+                    onClick={addExperience}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Your First Experience
@@ -1926,7 +2194,7 @@ const CandidateProfile: React.FC = () => {
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes
                   </Button>
-                  <Button variant="outline" onClick={() => toggleEdit('experience')}>
+                  <Button variant="outline" onClick={cancelExperience}>
                     Cancel
                   </Button>
                 </div>
@@ -2068,7 +2336,7 @@ const CandidateProfile: React.FC = () => {
                   <p className="text-sm mb-4">Add your educational background to complete your profile.</p>
                   <Button 
                     variant="outline" 
-                    onClick={() => toggleEdit('education')}
+                    onClick={addEducation}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Your Education
@@ -2082,7 +2350,7 @@ const CandidateProfile: React.FC = () => {
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes
                   </Button>
-                  <Button variant="outline" onClick={() => toggleEdit('education')}>
+                  <Button variant="outline" onClick={cancelEducation}>
                     Cancel
                   </Button>
                 </div>
@@ -2282,7 +2550,7 @@ const CandidateProfile: React.FC = () => {
                   <p className="text-sm mb-4">Add your professional certifications to boost your credibility.</p>
                   <Button 
                     variant="outline" 
-                    onClick={() => toggleEdit('certifications')}
+                    onClick={addCertification}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Your First Certification
@@ -2296,7 +2564,7 @@ const CandidateProfile: React.FC = () => {
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes
                   </Button>
-                  <Button variant="outline" onClick={() => toggleEdit('certifications')}>
+                  <Button variant="outline" onClick={cancelCertifications}>
                     Cancel
                   </Button>
                 </div>
@@ -2582,7 +2850,7 @@ const CandidateProfile: React.FC = () => {
                   <p className="text-sm mb-4">Showcase your work by adding personal or professional projects.</p>
                   <Button 
                     variant="outline" 
-                    onClick={() => toggleEdit('projects')}
+                    onClick={addProject}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Your First Project
@@ -2596,7 +2864,7 @@ const CandidateProfile: React.FC = () => {
                     <Save className="w-4 h-4 mr-2" />
                     Save Changes
                   </Button>
-                  <Button variant="outline" onClick={() => toggleEdit('projects')}>
+                  <Button variant="outline" onClick={cancelProjects}>
                     Cancel
                   </Button>
                 </div>

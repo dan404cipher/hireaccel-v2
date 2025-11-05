@@ -18,6 +18,7 @@ export { AgentAssignment, AgentAssignmentDocument } from './AgentAssignment';
 export { Notification, NotificationDocument } from './Notification';
 export { AnalyticsEvent, AnalyticsEventDocument } from './AnalyticsEvent';
 export { ContactHistory, ContactHistoryDocument } from './ContactHistory';
+export { Message, MessageDocument, Conversation, ConversationDocument } from './Message';
 
 /**
  * Initialize all models
@@ -40,6 +41,7 @@ export const initializeModels = () => {
   require('./Notification');
   require('./AnalyticsEvent');
   require('./ContactHistory');
+  require('./Message');
   
   console.log('✅ All models initialized');
 };

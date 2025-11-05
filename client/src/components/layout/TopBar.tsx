@@ -1,6 +1,5 @@
-import { Search, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -15,6 +14,7 @@ import { useAuth, User } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { GlobalSearch } from "./GlobalSearch";
 import { useState } from "react";
 import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
@@ -87,13 +87,7 @@ export function TopBar() {
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-4">
         <SidebarTrigger />
-        <div className="relative w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search jobs, candidates, companies..." 
-            className="pl-10 bg-background"
-          />
-        </div>
+        <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-4">

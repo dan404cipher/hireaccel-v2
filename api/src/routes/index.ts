@@ -14,6 +14,7 @@ import auditLogRoutes from './auditLogs';
 import analyticsRoutes from './analytics';
 import autoMatchRoutes from './autoMatch';
 import contactHistoryRoutes from './contactHistory';
+import searchRoutes from './search';
 
 /**
  * Main API routes
@@ -40,6 +41,7 @@ router.use('/api/v1/audit-logs', auditLogRoutes);
 router.use('/api/analytics', analyticsRoutes);
 router.use('/api/v1/auto-match', autoMatchRoutes);
 router.use('/api/v1/contact-history', contactHistoryRoutes);
+router.use('/api/v1/search', searchRoutes);
 
 // Health check route
 router.get('/health', (_req, res) => {
