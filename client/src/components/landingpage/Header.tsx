@@ -101,7 +101,7 @@ export function Header({
                   <Button
                     variant="secondary"
                     onClick={() => navigate("/hr")}
-                    className="text-white bg-white/10 hover:bg-white/20 transition-all duration-300"
+                    className="text-white bg-green-600 hover:bg-green-600 transition-all duration-300"
                   >
                     For Employer
                   </Button>
@@ -157,7 +157,7 @@ export function Header({
                   <Button
                     variant="ghost"
                     onClick={() => navigate("/hr")}
-                    className="justify-start bg-purple-600 hover:bg-purple-700 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 rounded-lg"
+                    className="justify-start bg-green-600 hover:bg-green-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 rounded-lg"
                   >
                     For Employer
                   </Button>
