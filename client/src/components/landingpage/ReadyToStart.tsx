@@ -34,7 +34,7 @@ export function ReadyToStart() {
             <Button 
               size="lg" 
               className="bg-blue-800 text-white-600 hover:bg-blue-700 px-8 py-4 text-lg font-semibold"
-              onClick={() => navigate('/signup/hr')}
+              onClick={() => navigate('/register/hr')}
             >
               <Zap className="mr-2 w-5 h-5" />
               Start Hiring
@@ -43,7 +43,7 @@ export function ReadyToStart() {
               variant="outline" 
               size="lg" 
               className="text-white bg-purple-800 border-none hover:bg-purple-700 hover:text-white-600 px-8 py-4 text-lg font-semibold"
-              onClick={() => navigate('/signup/candidate')}
+              onClick={() => navigate('/register/candidate')}
             >
               <ArrowRight className="mr-2 w-5 h-5" />
               Find Jobs
