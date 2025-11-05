@@ -398,6 +398,7 @@ const ForEmployerSignup = () => {
                   <Input
                     id="phone"
                     type="tel"
+                    inputMode="numeric"
                     placeholder="+91 9876543210"
                     value={phone}
                     onChange={handlePhoneChange}

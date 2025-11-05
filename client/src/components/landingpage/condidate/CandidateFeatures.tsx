@@ -565,6 +565,7 @@ export function JobCandidates() {
                         <Input
                           id="phone"
                           type="tel"
+                          inputMode="numeric"
                           placeholder="Enter your phone number"
                           value={phone.replace("+91", "")}
                           onChange={handlePhoneChange}
