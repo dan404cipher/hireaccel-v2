@@ -333,7 +333,7 @@ class ApiClient {
         return this.request(url, { ...options, method: 'DELETE' });
     }
 
-    async login(data: { email: string; password: string }) {
+    async login(data: { identifier: string; password: string }) {
         try {
             const result = await this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
                 method: 'POST',
@@ -1254,17 +1254,33 @@ class ApiClient {
     }
 
     // SMS-based authentication methods
-    async signupSMS(data: { phoneNumber: string; firstName: string; role: 'hr' | 'candidate'; source?: string }) {
-        return this.request<{ requiresOTP?: boolean; phoneNumber: string; message: string }>('/auth/register-sms', {
+    async signupSMS(data: { phoneNumber: string; name: string; role: 'hr' | 'candidate'; source?: string }) {
+        return this.request<{ success: boolean; message: string }>('/auth/register-sms', {
             method: 'POST',
             body: JSON.stringify(data),
         });
     }
 
     async verifySMSOTP(data: { phoneNumber: string; otp: string }) {
-        return this.request('/auth/verify-sms-otp', {
+        return this.request<{
+            leadId: string;
+            tempToken: string;
+            phoneNumber: string;
+            role: string;
+            nextStep: string;
+        }>('/auth/verify-sms-otp', {
             method: 'POST',
             body: JSON.stringify(data),
+        });
+    }
+
+    async completeRegistration(data: { email: string; password: string }, tempToken: string) {
+        return this.request('/auth/complete-registration', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                Authorization: `Bearer ${tempToken}`,
+            },
         });
     }
 

@@ -113,7 +113,7 @@ export function SMSSignupPage({ onSwitchToSignin }: SMSSignupPageProps): React.J
         try {
             const signupData = {
                 phoneNumber: formatPhoneNumber(formData.phoneNumber),
-                firstName: formData.firstName.trim(),
+                name: formData.firstName.trim(),
                 role: formData.role,
                 source: formData.source,
             };

@@ -3,15 +3,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 import logoColor from "@/assets/logo-color.png";
 import heroBackground from "@/assets/Hero-background.jpeg";
+import { apiClient } from "@/services/api";
 
 const ForEmployerSignup = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("+91");
   const [phoneError, setPhoneError] = useState("");
   const [nameError, setNameError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateName = (name: string): boolean => {
     // Name should contain only letters, spaces, hyphens, and apostrophes
@@ -22,13 +26,13 @@ const ForEmployerSignup = () => {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    
+
     // Only allow letters, spaces, hyphens, and apostrophes
     // Filter out numbers and other special characters
-    const filtered = value.replace(/[^a-zA-Z\s'-]/g, '');
-    
+    const filtered = value.replace(/[^a-zA-Z\s'-]/g, "");
+
     setFullName(filtered);
-    
+
     // Clear error when user starts typing
     if (nameError) {
       setNameError("");
@@ -43,28 +47,28 @@ const ForEmployerSignup = () => {
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    
+
     // If user tries to delete +91, keep it
     if (!value.startsWith("+91")) {
       setPhone("+91");
       setPhoneError("");
       return;
     }
-    
+
     // Remove all non-digit characters except the leading +
     const cleaned = value.replace(/[^\d+]/g, "");
-    
+
     // Ensure it starts with +91
     if (!cleaned.startsWith("+91")) {
       setPhone("+91");
       setPhoneError("");
       return;
     }
-    
+
     // Limit to +91 + 10 digits (total 13 characters)
     if (cleaned.length <= 13) {
       setPhone(cleaned);
-      
+
       // Validate as user types
       if (cleaned.length === 13) {
         if (validatePhone(cleaned)) {
@@ -78,37 +82,91 @@ const ForEmployerSignup = () => {
     }
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     // Validate name
     if (!fullName.trim()) {
       setNameError("Name is required");
       return;
     }
-    
+
     if (!validateName(fullName)) {
       setNameError("Please enter a valid name (2-50 characters, letters only)");
       return;
     }
-    
+
     setNameError("");
-    
+
     // Validate phone
     if (!phone.trim() || phone === "+91") {
       setPhoneError("Phone number is required");
       return;
     }
-    
+
     if (!validatePhone(phone)) {
       setPhoneError("Please enter a valid 10-digit Indian mobile number");
       return;
     }
-    
+
     setPhoneError("");
-    // Redirect to existing signup with any prefill via query params (non-breaking)
-    const params = new URLSearchParams();
-    if (fullName) params.set("name", fullName.trim());
-    if (phone) params.set("phone", phone);
-    navigate(`/signup/hr?${params.toString()}`);
+
+    // Start SMS-based signup
+    setIsLoading(true);
+    try {
+      await apiClient.signupSMS({
+        phoneNumber: phone,
+        name: fullName.trim(),
+        role: "hr",
+        source: "Facebook",
+      });
+
+      toast({
+        title: "Verification Code Sent",
+        description: "We've sent a verification code to your mobile number.",
+      });
+
+      // Store data securely in sessionStorage instead of URL parameters
+      sessionStorage.setItem(
+        "sms_verification_data",
+        JSON.stringify({
+          phoneNumber: phone,
+          name: fullName.trim(),
+          userType: "hr",
+          timestamp: Date.now(),
+        })
+      );
+
+      // Navigate to SMS OTP verification page without sensitive data in URL
+      navigate("/auth/verify-sms");
+    } catch (error) {
+      // Handle specific error cases
+      if (error && typeof error === "object" && "status" in error) {
+        const apiError = error as { status: number; detail?: string };
+
+        if (apiError.status === 409) {
+          toast({
+            title: "Account Already Exists",
+            description:
+              "An account with this phone number already exists. Please sign in instead.",
+            variant: "destructive",
+          });
+          // Optionally redirect to login after a delay
+          // setTimeout(() => {
+          //     navigate('/login');
+          // }, 2000);
+          return;
+        }
+      }
+
+      toast({
+        title: "Signup Failed",
+        description:
+          (error as Error).message ||
+          "Failed to send verification code. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -138,7 +196,9 @@ const ForEmployerSignup = () => {
             className="w-10 h-10 sm:w-12 sm:h-12"
           />
           <div>
-            <h1 className="font-bold text-white text-lg sm:text-xl">Hire Accel</h1>
+            <h1 className="font-bold text-white text-lg sm:text-xl">
+              Hire Accel
+            </h1>
             <p className="text-xs text-white/80 font-medium">
               powered by v-accel
             </p>
@@ -156,7 +216,14 @@ const ForEmployerSignup = () => {
             onClick={() => navigate("/")}
             style={{ cursor: "pointer", transition: "opacity 0.3s ease" }}
           >
-            <div className="flex items-center gap-3 animate-fade-in" style={{ animationDelay: "0.3s", animationDuration: "1.5s", animationTimingFunction: "ease-in-out" }}>
+            <div
+              className="flex items-center gap-3 animate-fade-in"
+              style={{
+                animationDelay: "0.3s",
+                animationDuration: "1.5s",
+                animationTimingFunction: "ease-in-out",
+              }}
+            >
               <img
                 src={logoColor}
                 alt="HireAccel Logo"
@@ -175,13 +242,27 @@ const ForEmployerSignup = () => {
           {/* Central content section */}
           <div className="flex-1 flex flex-col justify-center items-center px-8">
             <div className="mb-8 text-center">
-              <h1 className="max-w-xl text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-extrabold tracking-tight text-white animate-slide-up mx-auto px-4" style={{ animationDelay: "0.6s", animationDuration: "1.5s", animationTimingFunction: "ease-in-out" }}>
+              <h1
+                className="max-w-xl text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-extrabold tracking-tight text-white animate-slide-up mx-auto px-4"
+                style={{
+                  animationDelay: "0.6s",
+                  animationDuration: "1.5s",
+                  animationTimingFunction: "ease-in-out",
+                }}
+              >
                 Get started as an{" "}
                 <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   Employer
                 </span>
               </h1>
-              <p className="mt-4 max-w-xl text-xs sm:text-sm leading-6 text-white/80 mb-6 animate-slide-up mx-auto px-4" style={{ animationDelay: "1s", animationDuration: "1.5s", animationTimingFunction: "ease-in-out" }}>
+              <p
+                className="mt-4 max-w-xl text-xs sm:text-sm leading-6 text-white/80 mb-6 animate-slide-up mx-auto px-4"
+                style={{
+                  animationDelay: "1s",
+                  animationDuration: "1.5s",
+                  animationTimingFunction: "ease-in-out",
+                }}
+              >
                 Share your contact details and continue to complete your HR
                 signup. Join hundreds of HR professionals transforming their
                 hiring process.
@@ -189,24 +270,68 @@ const ForEmployerSignup = () => {
 
               {/* Stats section as badges */}
               <div className="flex flex-wrap gap-2 justify-center px-4">
-                <div className="bg-blue-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-blue-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left" style={{ animationDelay: "1.4s", animationDuration: "1.2s", animationTimingFunction: "ease-in-out", transition: "all 0.5s ease-in-out" }}>
+                <div
+                  className="bg-blue-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-blue-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left"
+                  style={{
+                    animationDelay: "1.4s",
+                    animationDuration: "1.2s",
+                    animationTimingFunction: "ease-in-out",
+                    transition: "all 0.5s ease-in-out",
+                  }}
+                >
                   <div className="text-sm sm:text-base font-bold text-white">
-                    5000+ <span className="text-xs font-medium text-white/90">Active Users</span>
+                    5000+{" "}
+                    <span className="text-xs font-medium text-white/90">
+                      Active Users
+                    </span>
                   </div>
                 </div>
-                <div className="bg-purple-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-purple-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left" style={{ animationDelay: "1.6s", animationDuration: "1.2s", animationTimingFunction: "ease-in-out", transition: "all 0.5s ease-in-out" }}>
+                <div
+                  className="bg-purple-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-purple-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left"
+                  style={{
+                    animationDelay: "1.6s",
+                    animationDuration: "1.2s",
+                    animationTimingFunction: "ease-in-out",
+                    transition: "all 0.5s ease-in-out",
+                  }}
+                >
                   <div className="text-sm sm:text-base font-bold text-white">
-                    200+ <span className="text-xs font-medium text-white/90">Companies</span>
+                    200+{" "}
+                    <span className="text-xs font-medium text-white/90">
+                      Companies
+                    </span>
                   </div>
                 </div>
-                <div className="bg-green-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-green-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left" style={{ animationDelay: "1.8s", animationDuration: "1.2s", animationTimingFunction: "ease-in-out", transition: "all 0.5s ease-in-out" }}>
+                <div
+                  className="bg-green-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-green-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left"
+                  style={{
+                    animationDelay: "1.8s",
+                    animationDuration: "1.2s",
+                    animationTimingFunction: "ease-in-out",
+                    transition: "all 0.5s ease-in-out",
+                  }}
+                >
                   <div className="text-sm sm:text-base font-bold text-white">
-                    24/7 <span className="text-xs font-medium text-white/90">Support</span>
+                    24/7{" "}
+                    <span className="text-xs font-medium text-white/90">
+                      Support
+                    </span>
                   </div>
                 </div>
-                <div className="bg-orange-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-orange-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left" style={{ animationDelay: "2s", animationDuration: "1.2s", animationTimingFunction: "ease-in-out", transition: "all 0.5s ease-in-out" }}>
+                <div
+                  className="bg-orange-500/80 backdrop-blur-md rounded-full px-3 py-1.5 sm:px-4 sm:py-2 border border-orange-400/50 shadow-lg hover:scale-105 hover:shadow-xl animate-slide-in-left"
+                  style={{
+                    animationDelay: "2s",
+                    animationDuration: "1.2s",
+                    animationTimingFunction: "ease-in-out",
+                    transition: "all 0.5s ease-in-out",
+                  }}
+                >
                   <div className="text-sm sm:text-base font-bold text-white">
-                    98% <span className="text-xs font-medium text-white/90">Success Rate</span>
+                    98%{" "}
+                    <span className="text-xs font-medium text-white/90">
+                      Success Rate
+                    </span>
                   </div>
                 </div>
               </div>
@@ -218,8 +343,11 @@ const ForEmployerSignup = () => {
       {/* Right Side - Form */}
       <div className="flex-1 flex flex-col overflow-y-auto relative z-10">
         <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 pt-16 sm:pt-20 lg:pt-8">
-          <div className="w-full max-w-md animate-slide-in-right" style={{ animationDelay: "0.8s", animationDuration: "1.5s", animationTimingFunction: "ease-in-out" }}>
-            <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 shadow-2xl hover:shadow-3xl" style={{ transition: "box-shadow 0.5s ease-in-out" }}>
+          <div className="w-full max-w-md">
+            <div
+              className="bg-white/95 backdrop-blur-xl rounded-2xl p-4 sm:p-6 lg:p-8 border border-white/20 shadow-2xl hover:shadow-3xl"
+              style={{ transition: "box-shadow 0.5s ease-in-out" }}
+            >
               <div className="text-center mb-8">
                 <div className="flex items-center justify-center space-x-1 mb-4">
                   <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
@@ -227,7 +355,7 @@ const ForEmployerSignup = () => {
                     Create Account as an Employer
                   </span>
                 </div>
-                <p className="text-gray-600 animate-fade-in" style={{ animationDelay: "1.2s", animationDuration: "1.2s", animationTimingFunction: "ease-in-out" }}>
+                <p className="text-gray-600">
                   Join our platform and start your hiring journey
                 </p>
               </div>
@@ -240,7 +368,7 @@ const ForEmployerSignup = () => {
                 }}
               >
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full name*</Label>
+                  <Label htmlFor="fullName">Name*</Label>
                   <Input
                     id="fullName"
                     type="text"
@@ -251,11 +379,15 @@ const ForEmployerSignup = () => {
                       if (!fullName.trim()) {
                         setNameError("Name is required");
                       } else if (!validateName(fullName)) {
-                        setNameError("Please enter a valid name (2-50 characters, letters only)");
+                        setNameError(
+                          "Please enter a valid name (2-50 characters, letters only)"
+                        );
                       }
                     }}
                     required
-                    className={nameError ? "border-red-500 focus:border-red-500" : ""}
+                    className={
+                      nameError ? "border-red-500 focus:border-red-500" : ""
+                    }
                   />
                   {nameError && (
                     <p className="text-sm text-red-500">{nameError}</p>
@@ -266,7 +398,8 @@ const ForEmployerSignup = () => {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="+91 9876543210"
+                    inputMode="numeric"
+                    placeholder="9876543210"
                     value={phone}
                     onChange={handlePhoneChange}
                     onBlur={() => {
@@ -275,7 +408,9 @@ const ForEmployerSignup = () => {
                       }
                     }}
                     required
-                    className={phoneError ? "border-red-500 focus:border-red-500" : ""}
+                    className={
+                      phoneError ? "border-red-500 focus:border-red-500" : ""
+                    }
                   />
                   {phoneError && (
                     <p className="text-sm text-red-500">{phoneError}</p>
@@ -283,10 +418,11 @@ const ForEmployerSignup = () => {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2 hover:scale-[1.02] hover:shadow-lg"
+                  disabled={isLoading}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2 hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ transition: "all 0.5s ease-in-out" }}
                 >
-                  Continue as an Employer →
+                  {isLoading ? "Sending Code..." : "Continue as an Employer →"}
                 </Button>
               </form>
 

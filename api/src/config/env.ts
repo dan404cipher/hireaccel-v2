@@ -1,8 +1,8 @@
-import { z } from 'zod'
-import dotenv from 'dotenv'
+import { z } from 'zod';
+import dotenv from 'dotenv';
 
 // Load environment variables from .env file
-dotenv.config()
+dotenv.config();
 
 /**
  * Environment configuration schema using Zod for validation
@@ -73,6 +73,13 @@ const envSchema = z.object({
     BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
     SESSION_SECRET: z.string().min(32, 'Session secret must be at least 32 characters').optional(),
 
+    // Testing/Development Features
+    TEST_SMS: z
+        .string()
+        .transform((val) => val === 'true')
+        .default('false')
+        .describe('Enable test SMS mode - uses 000000 as OTP for all SMS. DISABLE IN PRODUCTION!'),
+
     // CSRF Protection
     CSRF_ENABLED: z
         .string()
@@ -80,49 +87,49 @@ const envSchema = z.object({
         .default('false'),
     CSRF_COOKIE_NAME: z.string().default('XSRF-TOKEN'),
     CSRF_HEADER_NAME: z.string().default('X-CSRF-Token'),
-})
+});
 
 /**
  * Parse and validate environment variables
  */
 const parseEnv = () => {
     try {
-        return envSchema.parse(process.env)
+        return envSchema.parse(process.env);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            const missingVars = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n')
+            const missingVars = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n');
 
             throw new Error(
                 `Environment validation failed:\n${missingVars}\n\n` +
                     'Please check your .env file and ensure all required variables are set.',
-            )
+            );
         }
-        throw error
+        throw error;
     }
-}
+};
 
 /**
  * Validated environment configuration
  * This is the single source of truth for all environment variables in the application
  */
-export const env = parseEnv()
+export const env = parseEnv();
 
 /**
  * Type definition for environment configuration
  */
-export type Environment = typeof env
+export type Environment = typeof env;
 
 /**
  * Helper function to check if we're in development mode
  */
-export const isDevelopment = () => env.NODE_ENV === 'development'
+export const isDevelopment = () => env.NODE_ENV === 'development';
 
 /**
  * Helper function to check if we're in production mode
  */
-export const isProduction = () => env.NODE_ENV === 'production'
+export const isProduction = () => env.NODE_ENV === 'production';
 
 /**
  * Helper function to check if we're in test mode
  */
-export const isTest = () => env.NODE_ENV === 'test'
+export const isTest = () => env.NODE_ENV === 'test';
