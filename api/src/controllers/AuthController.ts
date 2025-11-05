@@ -35,9 +35,22 @@ const registerSchema = z.object({
             'Forums',
             'Google',
             'Conversational AI (GPT, Gemini etc)',
+            'Direct',
         ],
         { errorMap: () => ({ message: 'Source is required and must be one of the valid options' }) },
     ),
+    // UTM tracking data
+    utmData: z
+        .object({
+            utm_source: z.string().optional(),
+            utm_medium: z.string().optional(),
+            utm_campaign: z.string().optional(),
+            utm_content: z.string().optional(),
+            utm_term: z.string().optional(),
+            referrer: z.string().optional(),
+            landing_page: z.string().optional(),
+        })
+        .optional(),
 });
 
 const loginSchema = z.object({
@@ -71,7 +84,20 @@ const smsRegisterSchema = z.object({
             'Forums',
             'Google',
             'Conversational AI (GPT, Gemini etc)',
+            'Direct',
         ])
+        .optional(),
+    // UTM tracking data
+    utmData: z
+        .object({
+            utm_source: z.string().optional(),
+            utm_medium: z.string().optional(),
+            utm_campaign: z.string().optional(),
+            utm_content: z.string().optional(),
+            utm_term: z.string().optional(),
+            referrer: z.string().optional(),
+            landing_page: z.string().optional(),
+        })
         .optional(),
 });
 
@@ -136,6 +162,7 @@ export class AuthController {
             lastName: validatedData.lastName,
             role: validatedData.role,
             source: validatedData.source,
+            ...(validatedData.utmData && { utmData: validatedData.utmData }),
             ...(validatedData.phone && { phone: validatedData.phone }),
             ...(validatedData.department && { department: validatedData.department }),
             ...(validatedData.currentLocation && { currentLocation: validatedData.currentLocation }),
@@ -229,6 +256,7 @@ export class AuthController {
             name: validatedData.name,
             role: validatedData.role as UserRole,
             ...(validatedData.source && { source: validatedData.source }),
+            ...(validatedData.utmData && { utmData: validatedData.utmData }),
         });
 
         res.status(200).json({

@@ -437,6 +437,7 @@ export class AuthService {
                 status: UserStatus.ACTIVE,
                 emailVerified: false,
                 source: lead.source,
+                ...(lead.utmData && { utmData: lead.utmData }),
             });
 
             await user.save();
@@ -580,6 +581,15 @@ export class AuthService {
         name: string;
         role: UserRole;
         source?: string;
+        utmData?: {
+            utm_source?: string | undefined;
+            utm_medium?: string | undefined;
+            utm_campaign?: string | undefined;
+            utm_content?: string | undefined;
+            utm_term?: string | undefined;
+            referrer?: string | undefined;
+            landing_page?: string | undefined;
+        };
     }): Promise<{ success: boolean; message: string }> {
         try {
             // Format phone number
@@ -605,6 +615,12 @@ export class AuthService {
                     phoneNumber: formattedPhone,
                     role: userData.role,
                     ...(userData.source && { source: userData.source }),
+                    ...(userData.utmData && {
+                        utmData: {
+                            ...userData.utmData,
+                            captured_at: new Date(),
+                        },
+                    }),
                     isPhoneVerified: false, // Reset verification status
                 },
                 { upsert: true, new: true },

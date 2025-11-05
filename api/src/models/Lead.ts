@@ -11,6 +11,17 @@ export interface ILead {
     source?: string;
     isPhoneVerified: boolean;
     email?: string;
+    // UTM tracking data
+    utmData?: {
+        utm_source?: string;
+        utm_medium?: string;
+        utm_campaign?: string;
+        utm_content?: string;
+        utm_term?: string;
+        referrer?: string;
+        landing_page?: string;
+        captured_at?: Date;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
@@ -69,7 +80,19 @@ const leadSchema = new Schema<LeadDocument>(
                 'Forums',
                 'Google',
                 'Conversational AI (GPT, Gemini etc)',
+                'Direct',
             ],
+        },
+        // UTM tracking data for detailed campaign attribution
+        utmData: {
+            utm_source: { type: String, trim: true },
+            utm_medium: { type: String, trim: true },
+            utm_campaign: { type: String, trim: true },
+            utm_content: { type: String, trim: true },
+            utm_term: { type: String, trim: true },
+            referrer: { type: String, trim: true },
+            landing_page: { type: String, trim: true },
+            captured_at: { type: Date, default: Date.now },
         },
         isPhoneVerified: {
             type: Boolean,

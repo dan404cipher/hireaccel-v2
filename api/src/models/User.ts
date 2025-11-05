@@ -135,11 +135,24 @@ const userSchema = new Schema<UserDocument>(
                     'Forums',
                     'Google',
                     'Conversational AI (GPT, Gemini etc)',
+                    'Direct',
                 ],
                 message:
-                    'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc)',
+                    'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc), Direct',
             },
             index: true,
+        },
+
+        // UTM tracking data for detailed campaign attribution
+        utmData: {
+            utm_source: { type: String, trim: true },
+            utm_medium: { type: String, trim: true },
+            utm_campaign: { type: String, trim: true },
+            utm_content: { type: String, trim: true },
+            utm_term: { type: String, trim: true },
+            referrer: { type: String, trim: true },
+            landing_page: { type: String, trim: true },
+            captured_at: { type: Date },
         },
 
         // Metadata for password reset

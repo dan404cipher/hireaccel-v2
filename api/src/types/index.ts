@@ -108,6 +108,16 @@ export interface User {
     emailVerified: boolean;
     phoneNumber?: string;
     source?: string; // Make optional for existing users
+    utmData?: {
+        utm_source?: string;
+        utm_medium?: string;
+        utm_campaign?: string;
+        utm_content?: string;
+        utm_term?: string;
+        referrer?: string;
+        landing_page?: string;
+        captured_at?: Date;
+    };
     createdAt: Date;
     updatedAt: Date;
 }
