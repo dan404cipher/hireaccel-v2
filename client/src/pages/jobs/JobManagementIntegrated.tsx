@@ -47,7 +47,10 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown
+  ArrowUpDown,
+  FileText,
+  Upload,
+  Sparkles
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -110,6 +113,13 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const [skillInputValue, setSkillInputValue] = useState('');
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
+  const [selectedJDFile, setSelectedJDFile] = useState<File | null>(null);
+  const [jdUploadState, setJDUploadState] = useState<'idle' | 'uploading' | 'parsing'>('idle');
+  const [jdFileId, setJDFileId] = useState<string | null>(null);
+  const [editJDFileId, setEditJDFileId] = useState<string | null>(null);
+  const [editJDUploadState, setEditJDUploadState] = useState<'idle' | 'uploading'>('idle');
+  const [selectedEditJDFile, setSelectedEditJDFile] = useState<File | null>(null);
+  const [isPostUsingJDDialogOpen, setIsPostUsingJDDialogOpen] = useState(false);
 
   // Skill suggestions data
   const skillSuggestions = [
@@ -447,13 +457,15 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       interviewProcess: createFormData.interviewRounds || createFormData.estimatedDuration ? {
         rounds: createFormData.interviewRounds,
         estimatedDuration: createFormData.estimatedDuration
-      } : undefined
+      } : undefined,
+      jdFileId: jdFileId || undefined
     };
 
     try {
       const createdJob = await createJob(jobData);
       setIsCreateDialogOpen(false);
       resetCreateForm();
+      setJDFileId(null);
       refetchJobs();
       fetchAllJobsStats(); // Refresh stats
       toast({
@@ -627,6 +639,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   };
 
   const resetCreateForm = () => {
+    setSelectedJDFile(null);
+    setJDFileId(null);
+    setJDUploadState('idle');
     setCreateFormData({
       title: '',
       description: '',
@@ -655,6 +670,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       companyId: ''
     });
     setFormErrors({});
+    setJDFileId(null);
   };
 
   const handleDeleteJob = async (id: string) => {
@@ -713,6 +729,10 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       numberOfOpenings: String(job.numberOfOpenings || '1'),
       companyId: job.companyId?._id || job.companyId || ''
     });
+    // Initialize JD file ID if job has one
+    setEditJDFileId(job.jdFileId || null);
+    setSelectedEditJDFile(null);
+    setEditJDUploadState('idle');
     setSelectedJobForEdit(job);
     setIsEditDialogOpen(true);
   };
@@ -792,7 +812,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       interviewProcess: editFormData.interviewRounds || editFormData.estimatedDuration ? {
         rounds: editFormData.interviewRounds,
         estimatedDuration: editFormData.estimatedDuration
-      } : undefined
+      } : undefined,
+      jdFileId: editJDFileId || undefined
     };
 
     try {
@@ -800,6 +821,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       toast({ title: 'Success', description: 'Job updated successfully' });
       setIsEditDialogOpen(false);
       setSelectedJobForEdit(null);
+      setEditJDFileId(null);
+      setSelectedEditJDFile(null);
+      setEditJDUploadState('idle');
       refetchJobs();
       fetchAllJobsStats(); // Refresh stats
     } catch (e) {
@@ -818,17 +842,176 @@ export default function JobManagementIntegrated(): React.JSX.Element {
           <h1 className="text-3xl font-bold text-foreground">Job Management</h1>
           <p className="text-muted-foreground">Manage job postings and track recruitment progress</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-              disabled={!hasCompanies}
-              title={!hasCompanies ? "Please add a company first" : ""}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Post New Job
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Dialog open={isPostUsingJDDialogOpen} onOpenChange={setIsPostUsingJDDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline"
+                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 border-0"
+                disabled={!hasCompanies}
+                title={!hasCompanies ? "Please add a company first" : ""}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Post using JD
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Upload Job Description</DialogTitle>
+                <DialogDescription>
+                  Upload a PDF file containing the job description. We'll extract the information automatically.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="jd-upload">Job Description File</Label>
+                  <div className="mt-2">
+                  <input
+                    type="file"
+                    id="jd-upload"
+                    accept=".pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file type - only PDF (check both MIME type and file extension)
+                          const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                          if (!isPDF) {
+                            toast({
+                              title: 'Invalid File Type',
+                              description: 'Please upload a PDF file (.pdf only)',
+                              variant: 'destructive',
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+
+                          // Validate file size (5MB limit)
+                          const maxSize = 5 * 1024 * 1024;
+                          if (file.size > maxSize) {
+                            toast({
+                              title: 'File Too Large',
+                              description: 'Please upload a file smaller than 5MB',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+
+                          setSelectedJDFile(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label htmlFor="jd-upload">
+                      <Button variant="outline" asChild className="w-full">
+                        <span className="cursor-pointer">
+                          <Upload className="w-4 h-4 mr-2" />
+                          {selectedJDFile ? selectedJDFile.name : 'Choose PDF File'}
+                        </span>
+                      </Button>
+                    </label>
+                    {selectedJDFile && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="w-4 h-4" />
+                        <span>{(selectedJDFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedJDFile(null);
+                    setIsPostUsingJDDialogOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    if (!selectedJDFile) {
+                      toast({
+                        title: 'No File Selected',
+                        description: 'Please select a JD file to upload',
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+
+                    try {
+                      setJDUploadState('uploading');
+                      const uploadResponse = await apiClient.uploadJD(selectedJDFile);
+                      
+                      if (uploadResponse.data?.file?.id) {
+                        setJDFileId(uploadResponse.data.file.id);
+                        setJDUploadState('parsing');
+                        
+                        // Parse the JD
+                        const parseResponse = await apiClient.parseJD(uploadResponse.data.file.id);
+                        
+                        if (parseResponse.data?.parsedJD) {
+                          const parsed = parseResponse.data.parsedJD as any;
+                          
+                          // Auto-populate form
+                          setCreateFormData({
+                            ...createFormData,
+                            title: parsed.title || '',
+                            description: parsed.description || '',
+                            location: parsed.location || '',
+                            type: (parsed.type as any) || 'full-time',
+                            workType: (parsed.workType as any) || 'wfo',
+                            salaryMin: parsed.salaryRange?.min?.toString() || '',
+                            salaryMax: parsed.salaryRange?.max?.toString() || '',
+                            currency: parsed.salaryRange?.currency || 'INR',
+                            skills: parsed.requirements?.skills?.join(', ') || '',
+                            experienceMin: parsed.requirements?.experienceMin?.toString() || '',
+                            experienceMax: parsed.requirements?.experienceMax?.toString() || '',
+                            benefits: parsed.benefits?.join(', ') || '',
+                            numberOfOpenings: parsed.numberOfOpenings?.toString() || '1',
+                            duration: parsed.duration || '',
+                            applicationDeadline: parsed.applicationDeadline ? new Date(parsed.applicationDeadline).toISOString().split('T')[0] : '',
+                          });
+                          
+                          toast({
+                            title: 'JD Parsed Successfully',
+                            description: 'Job information has been extracted. Please review and complete the form.',
+                          });
+                          
+                          setIsPostUsingJDDialogOpen(false);
+                          setIsCreateDialogOpen(true);
+                          setSelectedJDFile(null);
+                          setJDUploadState('idle');
+                        }
+                      }
+                    } catch (error: any) {
+                      console.error('JD upload/parse error:', error);
+                      toast({
+                        title: 'Error',
+                        description: error?.detail || error?.message || 'Failed to upload or parse JD. Please try again.',
+                        variant: 'destructive',
+                      });
+                      setJDUploadState('idle');
+                    }
+                  }}
+                  disabled={!selectedJDFile || jdUploadState !== 'idle'}
+                >
+                  {jdUploadState === 'uploading' ? 'Uploading...' : jdUploadState === 'parsing' ? 'Parsing...' : 'Upload & Parse'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                disabled={!hasCompanies}
+                title={!hasCompanies ? "Please add a company first" : ""}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Post New Job
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Job Posting</DialogTitle>
@@ -1273,6 +1456,93 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     </Select>
                   </div>
                 </div>
+                
+                {/* Optional JD Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="jd-upload-create">Job Description PDF (Optional)</Label>
+                  <input
+                    type="file"
+                    id="jd-upload-create"
+                    accept=".pdf"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validate file type - only PDF
+                        if (file.type !== 'application/pdf') {
+                          toast({
+                            title: 'Invalid File Type',
+                            description: 'Please upload a PDF file (.pdf only)',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        // Validate file size (5MB limit)
+                        const maxSize = 5 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          toast({
+                            title: 'File Too Large',
+                            description: 'Please upload a file smaller than 5MB',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        setSelectedJDFile(file);
+                        setJDUploadState('uploading');
+                        
+                        try {
+                          const uploadResponse = await apiClient.uploadJD(file);
+                          if (uploadResponse.data?.file?.id) {
+                            setJDFileId(uploadResponse.data.file.id);
+                            setJDUploadState('idle');
+                            toast({
+                              title: 'JD Uploaded',
+                              description: 'Job Description PDF has been uploaded successfully.',
+                            });
+                          }
+                        } catch (error: any) {
+                          console.error('JD upload error:', error);
+                          const errorMessage = error?.detail || error?.message || 'Failed to upload JD. Please try again.';
+                          toast({
+                            title: 'Upload Failed',
+                            description: errorMessage,
+                            variant: 'destructive',
+                          });
+                          setJDUploadState('idle');
+                          setSelectedJDFile(null);
+                          e.target.value = '';
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label htmlFor="jd-upload-create">
+                    <Button variant="outline" asChild className="w-full">
+                      <span className="cursor-pointer">
+                        <Upload className="w-4 h-4 mr-2" />
+                        {selectedJDFile ? selectedJDFile.name : 'Choose JD File (PDF)'}
+                      </span>
+                    </Button>
+                  </label>
+                  {selectedJDFile && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="w-4 h-4" />
+                      <span>{(selectedJDFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      {jdUploadState === 'uploading' && (
+                        <span className="text-blue-600">Uploading...</span>
+                      )}
+                    </div>
+                  )}
+                  {jdFileId && (
+                    <p className="text-sm text-green-600 mt-1">JD uploaded successfully. It will be attached to this job.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload a PDF file containing the job description. This is optional but recommended.
+                  </p>
+                </div>
               </div>
             </div>
             
@@ -1293,9 +1563,11 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
+        </div>
 
-        {/* Edit Job Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* Edit Job Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job</DialogTitle>
@@ -1515,6 +1787,97 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                   <Input id="edit-benefits" value={editFormData.benefits} onChange={(e) => setEditFormData({...editFormData, benefits: e.target.value})} />
                 </div>
               </div>
+
+              {/* Optional JD Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="jd-upload-edit">Job Description PDF (Optional)</Label>
+                  <input
+                    type="file"
+                    id="jd-upload-edit"
+                    accept=".pdf"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validate file type - only PDF (check both MIME type and file extension)
+                        const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                        if (!isPDF) {
+                          toast({
+                            title: 'Invalid File Type',
+                            description: 'Please upload a PDF file (.pdf only)',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        // Validate file size (5MB limit)
+                        const maxSize = 5 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          toast({
+                            title: 'File Too Large',
+                            description: 'Please upload a file smaller than 5MB',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        setSelectedEditJDFile(file);
+                        setEditJDUploadState('uploading');
+                        
+                        try {
+                          const uploadResponse = await apiClient.uploadJD(file);
+                          if (uploadResponse.data?.file?.id) {
+                            setEditJDFileId(uploadResponse.data.file.id);
+                            setEditJDUploadState('idle');
+                            toast({
+                              title: 'JD Uploaded',
+                              description: 'Job Description PDF has been uploaded successfully.',
+                            });
+                          }
+                        } catch (error: any) {
+                          console.error('JD upload error:', error);
+                          const errorMessage = error?.detail || error?.message || 'Failed to upload JD. Please try again.';
+                          toast({
+                            title: 'Upload Failed',
+                            description: errorMessage,
+                            variant: 'destructive',
+                          });
+                          setEditJDUploadState('idle');
+                          setSelectedEditJDFile(null);
+                          e.target.value = '';
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label htmlFor="jd-upload-edit">
+                    <Button variant="outline" asChild className="w-full">
+                      <span className="cursor-pointer">
+                        <Upload className="w-4 h-4 mr-2" />
+                        {selectedEditJDFile ? selectedEditJDFile.name : editJDFileId ? 'Replace JD File (PDF)' : 'Choose JD File (PDF)'}
+                      </span>
+                    </Button>
+                  </label>
+                  {selectedEditJDFile && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="w-4 h-4" />
+                      <span>{(selectedEditJDFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      {editJDUploadState === 'uploading' && (
+                        <span className="text-blue-600">Uploading...</span>
+                      )}
+                    </div>
+                  )}
+                  {editJDFileId && !selectedEditJDFile && (
+                    <p className="text-sm text-green-600 mt-1">JD file is already attached to this job. Upload a new file to replace it.</p>
+                  )}
+                  {editJDFileId && selectedEditJDFile && (
+                    <p className="text-sm text-green-600 mt-1">New JD uploaded successfully. It will replace the existing one when you save changes.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload a PDF file containing the job description. This is optional but recommended.
+                  </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={updateLoading}>Cancel</Button>
@@ -1522,7 +1885,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

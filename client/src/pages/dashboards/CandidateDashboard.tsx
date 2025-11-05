@@ -212,20 +212,24 @@ export default function CandidateDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <ProfileItem
                 title="Resume"
-                completed={true}
-                description="CV uploaded"
+                completed={!!profileData?.resumeFileId}
+                description={profileData?.resumeFileId ? "CV uploaded" : "Upload CV"}
                 icon={<FileText className="h-4 w-4" />}
               />
               <ProfileItem
                 title="Skills"
-                completed={true}
-                description="5 skills added"
+                completed={(profileData?.profile?.skills?.length || 0) > 0}
+                description={
+                  (profileData?.profile?.skills?.length || 0) > 0
+                    ? `${profileData.profile.skills.length} skill${profileData.profile.skills.length !== 1 ? 's' : ''} added`
+                    : "Add skills"
+                }
                 icon={<Star className="h-4 w-4" />}
               />
               <ProfileItem
                 title="Portfolio"
-                completed={false}
-                description="Add portfolio"
+                completed={!!profileData?.profile?.portfolioUrl}
+                description={profileData?.profile?.portfolioUrl ? "Portfolio added" : "Add portfolio"}
                 icon={<Briefcase className="h-4 w-4" />}
               />
             </div>

@@ -253,7 +253,7 @@ candidateAssignmentSchema.statics['getAssignmentsForHR'] = async function(
       path: 'candidateId',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId profilePhotoFileId'
       }
     })
     .populate('assignedBy', 'firstName lastName email')
@@ -290,7 +290,7 @@ candidateAssignmentSchema.statics['getAssignmentsByAgent'] = function(
       path: 'candidateId',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId profilePhotoFileId'
       }
     })
     .populate('assignedTo', 'firstName lastName email')
@@ -318,7 +318,7 @@ candidateAssignmentSchema.statics['getActiveAssignments'] = function(options: an
       path: 'candidateId',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId profilePhotoFileId'
       }
     })
     .populate('assignedBy', 'firstName lastName email')

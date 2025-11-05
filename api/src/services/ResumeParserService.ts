@@ -64,11 +64,11 @@ ${resumeText}`;
 
       // Make API call with optimized parameters
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo-1106', // Using the latest 3.5 model which is cost-effective
+        model: 'gpt-3.5-turbo-16k', // Updated to use available model
         messages: [
           {
             role: 'system',
-            content: 'You are a precise resume parser that extracts structured information. Only include fields that are explicitly present in the resume. Use brief descriptions. Format dates as YYYY-MM. IMPORTANT: Only include certifications if you can extract a valid issue date (YYYY-MM format). If a certification has no clear issue date, omit it entirely.',
+            content: 'You are a precise resume parser that extracts structured information. Only include fields that are explicitly present in the resume. Use brief descriptions. Format dates as YYYY-MM. IMPORTANT: Only include certifications if you can extract a valid issue date (YYYY-MM format). If a certification has no clear issue date, omit it entirely. Always respond with valid JSON only.',
           },
           {
             role: 'user',

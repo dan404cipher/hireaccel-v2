@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiClient, ApiResponse, ApiError } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,10 +80,18 @@ export function useApi<T>(
 
   useEffect(() => {
     if (immediate) {
+      let cancelled = false;
       execute().catch(error => {
-        // Error is already handled in execute function
-        console.error('Unhandled promise rejection in useApi:', error);
+        // Only log if not cancelled (component unmounted)
+        if (!cancelled) {
+          // Error is already handled in execute function, but we catch to prevent unhandled rejections
+          console.error('Unhandled promise rejection in useApi:', error);
+        }
       });
+      
+      return () => {
+        cancelled = true;
+      };
     }
   }, [immediate, execute]);
 
@@ -168,8 +176,15 @@ export function useMutation<T, P = any>(
 
 // Jobs
 export function useJobs(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getJobs(params), [JSON.stringify(params)]);
-  return useApi(memoizedCall, { immediate: true });
+  // Create stable stringified params for dependency tracking
+  const paramsStr = JSON.stringify(params);
+  const paramsKey = useMemo(() => paramsStr, [paramsStr]);
+  
+  // Only execute immediately if params are not empty (to prevent unnecessary API calls)
+  const hasParams = Object.keys(params).length > 0;
+  
+  const memoizedCall = useCallback(() => apiClient.getJobs(params), [paramsKey]);
+  return useApi(memoizedCall, { immediate: hasParams });
 }
 
 export function useJob(id: string) {
@@ -526,5 +541,93 @@ export function useMyAgentInterviewStats() {
   return useApi(memoizedCall, { 
     immediate: true,
     showToast: false  // Don't show error toasts for stats to prevent spam
+  });
+}
+
+// Auto Match hooks
+export function useMatchJobToCandidates(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { jobId: string; limit?: number }) => 
+    apiClient.matchJobToCandidates(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useMatchCandidateToJobs(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { candidateId: string; limit?: number }) => 
+    apiClient.matchCandidateToJobs(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useBatchMatch(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { jobId?: string; candidateIds?: string[]; limit?: number }) => 
+    apiClient.batchMatch(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+// Contact History hooks
+export function useContactHistory(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getContactHistory(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
+}
+
+export function useContactHistoryById(id: string) {
+  const memoizedCall = useCallback(() => apiClient.getContactHistoryById(id), [id]);
+  return useApi(memoizedCall, { immediate: !!id });
+}
+
+export function useContactHistoryStats(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getContactHistoryStats(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true, showToast: false });
+}
+
+export function useCreateContactHistory(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: {
+    contactType: 'hr' | 'candidate';
+    contactId: string;
+    contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+    subject: string;
+    notes: string;
+    duration?: number;
+    outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+    followUpDate?: string;
+    followUpNotes?: string;
+    tags?: string[];
+    relatedJobId?: string;
+    relatedCandidateAssignmentId?: string;
+  }) => apiClient.createContactHistory(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useUpdateContactHistory(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation(({ id, data }: { id: string; data: Partial<{
+    contactType: 'hr' | 'candidate';
+    contactId: string;
+    contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+    subject: string;
+    notes: string;
+    duration?: number;
+    outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+    followUpDate?: string;
+    followUpNotes?: string;
+    tags?: string[];
+    relatedJobId?: string;
+    relatedCandidateAssignmentId?: string;
+  }> }) => apiClient.updateContactHistory(id, data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useDeleteContactHistory(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((id: string) => apiClient.deleteContactHistory(id), {
+    showToast: true,
+    ...options
   });
 }

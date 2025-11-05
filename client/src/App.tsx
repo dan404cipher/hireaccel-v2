@@ -18,6 +18,7 @@ import { useAnalyticsTracker } from "./hooks/useAnalyticsTracker";
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AgentAllocation = lazy(() => import("./pages/agents/AgentAllocation"));
 const AgentAssignmentDashboard = lazy(() => import("./pages/agents/AgentAssignmentDashboard"));
+const AutoMatch = lazy(() => import("./pages/agents/AutoMatch"));
 const JobManagement = lazy(() => import("./pages/jobs/JobManagementIntegrated"));
 const JobDetailsPage = lazy(() => import("./pages/jobs/JobDetailsPage"));
 const JobEditPage = lazy(() => import("./pages/jobs/JobEditPage"));
@@ -39,6 +40,7 @@ const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
 const Activity = lazy(() => import("./pages/admin/Activity"));
 const RecycleBin = lazy(() => import("./pages/admin/RecycleBin"));
 const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
+const ContactHistory = lazy(() => import("./pages/contact/ContactHistory"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => ({ default: module.SignupPage })));
 const OTPVerificationPage = lazy(() => import("./pages/auth/OTPVerificationPage").then(module => ({ default: module.OTPVerificationPage })));
@@ -217,8 +219,13 @@ function AppRouter() {
             <AgentAllocation />
           </RoleProtectedRoute>
         } />
+        <Route path="auto-match" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}>
+            <AutoMatch />
+          </RoleProtectedRoute>
+        } />
         <Route path="assignment-management" element={
-          <RoleProtectedRoute allowedRoles={['agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}>
             <AgentAssignmentDashboard />
           </RoleProtectedRoute>
         } />
@@ -245,6 +252,11 @@ function AppRouter() {
         <Route path="shared-candidates" element={
           <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
             <SharedCandidates />
+          </RoleProtectedRoute>
+        } />
+        <Route path="contact-history" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}>
+            <ContactHistory />
           </RoleProtectedRoute>
         } />
         <Route path="interviews" element={

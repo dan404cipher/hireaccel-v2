@@ -87,7 +87,7 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email customId'
+          select: 'firstName lastName email customId profilePhotoFileId'
         }
       })
       .populate('assignedBy', 'firstName lastName email customId')
@@ -623,7 +623,7 @@ export class CandidateAssignmentController {
           path: 'candidateId',
           populate: {
             path: 'userId',
-            select: 'firstName lastName email customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         })
         .populate('assignedBy', 'firstName lastName email customId')

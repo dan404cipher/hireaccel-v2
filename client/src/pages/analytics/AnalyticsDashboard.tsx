@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ import {
   Calendar,
   Download,
   Filter,
+  LayoutGrid,
 } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -108,6 +110,7 @@ export default function AnalyticsDashboard() {
   const [dateRange, setDateRange] = useState<{ start?: string; end?: string }>({});
   const [eventFilter, setEventFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'charts' | 'grid'>('charts');
 
   useEffect(() => {
     fetchData();
@@ -335,7 +338,17 @@ export default function AnalyticsDashboard() {
           <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
           <p className="text-muted-foreground">Track user behavior and conversion metrics</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'charts' | 'grid')}>
+            <ToggleGroupItem value="charts" aria-label="Charts view">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Charts
+            </ToggleGroupItem>
+            <ToggleGroupItem value="grid" aria-label="Grid view">
+              <LayoutGrid className="h-4 w-4 mr-2" />
+              Grid
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Input
             type="date"
             placeholder="Start Date"
@@ -414,78 +427,221 @@ export default function AnalyticsDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily Active Users</CardTitle>
-                <CardDescription>Active sessions over time</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ReactApexChart
-                  options={dauOptions}
-                  series={dauSeries}
-                  type="area"
-                  height={350}
-                />
-              </CardContent>
-            </Card>
+          {viewMode === 'charts' ? (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Daily Active Users</CardTitle>
+                    <CardDescription>Active sessions over time</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ReactApexChart
+                      options={dauOptions}
+                      series={dauSeries}
+                      type="area"
+                      height={350}
+                    />
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Session Duration Comparison</CardTitle>
-                <CardDescription>Average duration by user type</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ReactApexChart
-                  options={durationOptions}
-                  series={durationSeries}
-                  type="bar"
-                  height={350}
-                />
-              </CardContent>
-            </Card>
-          </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Session Duration Comparison</CardTitle>
+                    <CardDescription>Average duration by user type</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ReactApexChart
+                      options={durationOptions}
+                      series={durationSeries}
+                      type="bar"
+                      height={350}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
 
-          <div className="grid grid-cols-1 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Bounce Rate Trend</CardTitle>
-                <CardDescription>Daily bounce rate percentage</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ReactApexChart
-                  options={bounceRateOptions}
-                  series={bounceRateSeries}
-                  type="line"
-                  height={350}
-                />
-              </CardContent>
-            </Card>
-          </div>
+              <div className="grid grid-cols-1 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Bounce Rate Trend</CardTitle>
+                    <CardDescription>Daily bounce rate percentage</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ReactApexChart
+                      options={bounceRateOptions}
+                      series={bounceRateSeries}
+                      type="line"
+                      height={350}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Daily Active Users</CardTitle>
+                    <CardDescription>Active sessions over time</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Active Sessions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {summary?.dailyActiveUsers.map((dau) => (
+                          <TableRow key={dau.date}>
+                            <TableCell>
+                              {new Date(dau.date).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </TableCell>
+                            <TableCell className="font-medium">{dau.count.toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                        {(!summary?.dailyActiveUsers || summary.dailyActiveUsers.length === 0) && (
+                          <TableRow>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground">
+                              No data available
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Session Duration Comparison</CardTitle>
+                    <CardDescription>Average duration by user type</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User Type</TableHead>
+                          <TableHead>Average Duration</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-medium">Bounced</TableCell>
+                          <TableCell>
+                            <Badge variant="destructive">
+                              {summary?.avgSessionDuration.bounced.toFixed(1) || 0}s
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">Registered</TableCell>
+                          <TableCell>
+                            <Badge variant="default">
+                              {summary?.avgSessionDuration.registered.toFixed(1) || 0}s
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-medium">All Users</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {summary?.avgSessionDuration.all.toFixed(1) || 0}s
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Bounce Rate Trend</CardTitle>
+                    <CardDescription>Daily bounce rate percentage</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Bounce Rate</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {summary?.dailyActiveUsers.map((dau) => (
+                          <TableRow key={dau.date}>
+                            <TableCell>
+                              {new Date(dau.date).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={summary?.bounceRate > 50 ? 'destructive' : 'secondary'}>
+                                {summary?.bounceRate.toFixed(1) || 0}%
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {(!summary?.dailyActiveUsers || summary.dailyActiveUsers.length === 0) && (
+                          <TableRow>
+                            <TableCell colSpan={2} className="text-center text-muted-foreground">
+                              No data available
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="funnels" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Signup Funnel</CardTitle>
-              <CardDescription>
-                Conversion rate: {funnelData?.conversionRate.toFixed(2) || 0}% | 
-                Dashboard reached: {funnelData?.dashboardReached || 0}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ReactApexChart
-                options={funnelChartOptions}
-                series={funnelChartSeries}
-                type="bar"
-                height={400}
-              />
-            </CardContent>
-          </Card>
+          {viewMode === 'charts' ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Signup Funnel</CardTitle>
+                <CardDescription>
+                  Conversion rate: {funnelData?.conversionRate.toFixed(2) || 0}% | 
+                  Dashboard reached: {funnelData?.dashboardReached || 0}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ReactApexChart
+                  options={funnelChartOptions}
+                  series={funnelChartSeries}
+                  type="bar"
+                  height={400}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>
               <CardTitle>Funnel Drop-off Analysis</CardTitle>
+              <CardDescription>
+                {viewMode === 'charts' 
+                  ? 'Detailed breakdown of funnel stages and drop-off rates'
+                  : 'Complete funnel analysis with conversion metrics'}
+                {funnelData && (
+                  <> | Conversion rate: {funnelData.conversionRate.toFixed(2)}% | Dashboard reached: {funnelData.dashboardReached}</>
+                )}
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -494,20 +650,46 @@ export default function AnalyticsDashboard() {
                     <TableHead>Stage</TableHead>
                     <TableHead>Users</TableHead>
                     <TableHead>Drop-off Rate</TableHead>
+                    {viewMode === 'grid' && <TableHead>Conversion from Previous</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {funnelData?.funnel.map((stage, index) => (
-                    <TableRow key={stage.stage}>
-                      <TableCell className="font-medium">{stage.stage}</TableCell>
-                      <TableCell>{stage.count.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Badge variant={stage.dropoff > 50 ? 'destructive' : 'secondary'}>
-                          {stage.dropoff.toFixed(1)}%
-                        </Badge>
+                  {funnelData?.funnel.map((stage, index) => {
+                    const previousCount = index > 0 ? funnelData.funnel[index - 1].count : stage.count;
+                    const conversionFromPrevious = previousCount > 0 
+                      ? ((stage.count / previousCount) * 100).toFixed(1) 
+                      : '0.0';
+                    
+                    return (
+                      <TableRow key={stage.stage}>
+                        <TableCell className="font-medium">{stage.stage}</TableCell>
+                        <TableCell>{stage.count.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant={stage.dropoff > 50 ? 'destructive' : 'secondary'}>
+                            {stage.dropoff.toFixed(1)}%
+                          </Badge>
+                        </TableCell>
+                        {viewMode === 'grid' && (
+                          <TableCell>
+                            {index > 0 ? (
+                              <Badge variant={parseFloat(conversionFromPrevious) > 70 ? 'default' : 'outline'}>
+                                {conversionFromPrevious}%
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                  {(!funnelData?.funnel || funnelData.funnel.length === 0) && (
+                    <TableRow>
+                      <TableCell colSpan={viewMode === 'grid' ? 4 : 3} className="text-center text-muted-foreground">
+                        No funnel data available
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -516,30 +698,37 @@ export default function AnalyticsDashboard() {
 
         <TabsContent value="sources" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Referral Source Performance</CardTitle>
-                <CardDescription>Distribution by source</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {sourcePieSeries.length > 0 ? (
-                  <ReactApexChart
-                    options={sourcePieOptions}
-                    series={sourcePieSeries}
-                    type="pie"
-                    height={350}
-                  />
-                ) : (
-                  <div className="h-[350px] flex items-center justify-center text-muted-foreground">
-                    No source data available
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {viewMode === 'charts' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Referral Source Performance</CardTitle>
+                  <CardDescription>Distribution by source</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {sourcePieSeries.length > 0 ? (
+                    <ReactApexChart
+                      options={sourcePieOptions}
+                      series={sourcePieSeries}
+                      type="pie"
+                      height={350}
+                    />
+                  ) : (
+                    <div className="h-[350px] flex items-center justify-center text-muted-foreground">
+                      No source data available
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
+            <Card className={viewMode === 'charts' ? '' : 'lg:col-span-2'}>
               <CardHeader>
                 <CardTitle>Source Performance Metrics</CardTitle>
+                <CardDescription>
+                  {viewMode === 'charts' 
+                    ? 'Detailed metrics by source'
+                    : 'Complete source performance analysis with conversion rates'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -549,6 +738,12 @@ export default function AnalyticsDashboard() {
                       <TableHead>Sessions</TableHead>
                       <TableHead>Signups</TableHead>
                       <TableHead>Conv. Rate</TableHead>
+                      {viewMode === 'grid' && (
+                        <>
+                          <TableHead>Total Events</TableHead>
+                          <TableHead>Conversions</TableHead>
+                        </>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -562,8 +757,21 @@ export default function AnalyticsDashboard() {
                             {source.conversionRate.toFixed(1)}%
                           </Badge>
                         </TableCell>
+                        {viewMode === 'grid' && (
+                          <>
+                            <TableCell>{source.totalEvents.toLocaleString()}</TableCell>
+                            <TableCell>{source.conversions.toLocaleString()}</TableCell>
+                          </>
+                        )}
                       </TableRow>
                     ))}
+                    {(!sourceData?.sourcePerformance || sourceData.sourcePerformance.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={viewMode === 'grid' ? 6 : 4} className="text-center text-muted-foreground">
+                          No source data available
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

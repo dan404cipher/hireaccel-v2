@@ -62,6 +62,7 @@ const createJobSchema = z.object({
     rounds: z.number().min(1).max(10).default(3),
     estimatedDuration: z.string().optional(),
   }).optional(),
+  jdFileId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid JD file ID').optional(),
 });
 
 const updateJobSchema = createJobSchema.partial();

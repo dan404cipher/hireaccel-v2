@@ -193,13 +193,21 @@ const createMulterConfig = (maxSize?: number, filter: multer.Options['fileFilter
 })
 
 /**
+ * Memory storage for S3 uploads
+ * This stores files in memory as buffers for direct S3 upload
+ */
+const memoryStorage = multer.memoryStorage()
+
+/**
  * Multer instances for different upload types
  */
 export const uploadResume = multer({
-    ...createMulterConfig(
-        ALLOWED_FILE_TYPES.resume.maxSize,
-        createFileFilter(ALLOWED_FILE_TYPES.resume.mimeTypes, ALLOWED_FILE_TYPES.resume.extensions),
-    ),
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.resume.mimeTypes, ALLOWED_FILE_TYPES.resume.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.resume.maxSize,
+        files: 1,
+    },
 })
 
 export const uploadImage = multer({
@@ -214,6 +222,27 @@ export const uploadDocument = multer({
         ALLOWED_FILE_TYPES.document.maxSize,
         createFileFilter(ALLOWED_FILE_TYPES.document.mimeTypes, ALLOWED_FILE_TYPES.document.extensions),
     ),
+})
+
+export const uploadJD = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.document.mimeTypes, ALLOWED_FILE_TYPES.document.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.document.maxSize,
+        files: 1,
+    },
+})
+
+/**
+ * Memory storage for profile photos (to enable S3 upload)
+ */
+export const uploadProfilePhoto = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.image.mimeTypes, ALLOWED_FILE_TYPES.image.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.image.maxSize,
+        files: 1,
+    },
 })
 
 /**

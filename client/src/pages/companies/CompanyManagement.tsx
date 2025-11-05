@@ -60,6 +60,7 @@ import { toast } from "@/hooks/use-toast";
 import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CompanyManagement() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -986,7 +987,7 @@ export default function CompanyManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCompany(company)}>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/companies/${company.companyId || company.id || company._id}`)}>
                               <Eye className="w-4 h-4 mr-2" />
                             View Details
                             </DropdownMenuItem>
