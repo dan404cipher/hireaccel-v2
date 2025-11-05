@@ -667,3 +667,31 @@ export interface AuditLog {
   description?: string;
   retentionUntil?: Date;
 }
+
+// ============================================================================
+// Contact History Types
+// ============================================================================
+
+/**
+ * Contact History entity
+ */
+export interface ContactHistory {
+  _id: Types.ObjectId;
+  agentId: Types.ObjectId;
+  contactType: 'hr' | 'candidate';
+  contactId: Types.ObjectId;
+  contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+  subject: string;
+  notes: string;
+  duration?: number;
+  outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+  followUpDate?: Date;
+  followUpNotes?: string;
+  tags?: string[];
+  attachments?: Types.ObjectId[];
+  relatedJobId?: Types.ObjectId;
+  relatedCandidateAssignmentId?: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: Types.ObjectId;
+}

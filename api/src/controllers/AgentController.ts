@@ -564,7 +564,7 @@ export class AgentController {
                 path: 'candidateId',
                 populate: {
                     path: 'userId',
-                    select: 'firstName lastName email',
+                    select: 'firstName lastName email customId profilePhotoFileId',
                 },
             })
             .populate('assignedBy', 'firstName lastName email')

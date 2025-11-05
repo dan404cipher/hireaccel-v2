@@ -31,6 +31,18 @@ export class FileController {
 
     const userId = req.user!._id;
     
+    // Validate file size
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (req.file.size > maxSize) {
+      throw createBadRequestError('File size exceeds 5MB limit');
+    }
+
+    // Validate file type
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      throw createBadRequestError('Invalid file type. Please upload a PDF or Word document (.pdf, .doc, .docx)');
+    }
+    
     // Find or create candidate profile
     let candidate = await Candidate.findOne({ userId });
     if (!candidate) {
@@ -71,48 +83,101 @@ export class FileController {
       if (candidate.resumeFileId) {
         const oldFile = await File.findById(candidate.resumeFileId);
         if (oldFile) {
-          // Delete physical file
-          const oldFilePath = path.join(env.UPLOADS_PATH, oldFile.path);
-          if (fs.existsSync(oldFilePath)) {
-            fs.unlinkSync(oldFilePath);
+          // Delete from S3 if applicable
+          if (oldFile.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
+            try {
+              await s3Service.deleteFile(oldFile.path);
+              logger.info('Old resume deleted from S3', {
+                userId,
+                s3Key: oldFile.path,
+                businessProcess: 'resume_upload',
+              });
+            } catch (s3Error) {
+              logger.warn('Failed to delete old resume from S3', {
+                userId,
+                s3Key: oldFile.path,
+                error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+                businessProcess: 'resume_upload',
+              });
+            }
+          } else {
+            // Delete local file
+            const oldFilePath = path.join(env.UPLOADS_PATH, oldFile.path);
+            if (fs.existsSync(oldFilePath)) {
+              fs.unlinkSync(oldFilePath);
+            }
           }
           // Delete database record
           await File.findByIdAndDelete(candidate.resumeFileId);
         }
       }
 
-      // Get the relative path from multer
-      const relativePath = req.uploadedFilePath || path.relative(env.UPLOADS_PATH, req.file.path);
+      // Read file buffer (memory storage provides buffer directly)
+      const fileBuffer = req.file.buffer;
+      if (!fileBuffer) {
+        throw createBadRequestError('File buffer is required');
+      }
+
+      // Generate filename if not provided
+      const filename = req.file.filename || req.file.originalname || `resume-${Date.now()}.${path.extname(req.file.originalname || '.pdf')}`;
       
-      // Create new file record
-      const fileRecord = new File({
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        path: relativePath,
-        url: `/uploads/${relativePath}`,
-        size: req.file.size,
+      let fileData: any = {
+        filename: filename,
+        originalName: req.file.originalname || filename,
         mimetype: req.file.mimetype,
+        size: req.file.size,
         category: FileCategory.RESUME,
         uploadedBy: userId,
-      });
+      };
 
+      // Upload to S3 (required, no fallback for new uploads)
+      if (!s3Service.isS3Enabled()) {
+        throw createBadRequestError('S3 service is not enabled. Resume uploads require S3 storage.');
+      }
+
+      try {
+        const s3Result = await s3Service.uploadFile({
+          fileBuffer,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+          folder: 'resumes',
+          makePublic: false, // Resumes should be private
+        });
+
+        // Calculate checksum
+        const checksum = s3Service.calculateChecksum(fileBuffer);
+
+        fileData = {
+          ...fileData,
+          path: s3Result.key, // Store S3 key in path field
+          url: s3Result.url,
+          storageProvider: 'aws_s3',
+          storageLocation: s3Result.location,
+          checksum,
+          checksumAlgorithm: 'sha256',
+        };
+
+        logger.info('Resume uploaded to S3', {
+          userId,
+          s3Key: s3Result.key,
+          bucket: s3Service.bucketName,
+          businessProcess: 'resume_upload',
+        });
+      } catch (s3Error) {
+        logger.error('Failed to upload resume to S3', {
+          error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          businessProcess: 'resume_upload',
+        });
+        throw createBadRequestError('Failed to upload resume to S3. Please try again.');
+      }
+
+      // Create file record
+      const fileRecord = new File(fileData);
       await fileRecord.save();
 
       // Update candidate with new resume file ID
       candidate.resumeFileId = fileRecord._id;
       candidate.updatedAt = new Date();
-      // Validate file size (moved from client-side)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (req.file.size > maxSize) {
-        throw createBadRequestError('File size exceeds 5MB limit');
-      }
-
-      // Validate file type (moved from client-side)
-      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(req.file.mimetype)) {
-        throw createBadRequestError('Invalid file type. Please upload a PDF or Word document (.pdf, .doc, .docx)');
-      }
-
       await candidate.save();
 
       logger.info('Resume uploaded successfully', {
@@ -120,8 +185,8 @@ export class FileController {
         candidateId: candidate._id,
         fileId: fileRecord._id,
         filename: req.file.originalname,
-        filepath: relativePath,
-        businessProcess: 'file_management'
+        s3Key: fileData.path,
+        businessProcess: 'resume_upload'
       });
 
       res.status(201).json({
@@ -139,10 +204,11 @@ export class FileController {
         },
       });
     } catch (error) {
-      // Cleanup uploaded file on error
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
+      logger.error('Failed to upload resume', {
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        businessProcess: 'resume_upload',
+      });
       throw error;
     }
   });
@@ -172,16 +238,11 @@ export class FileController {
       throw createNotFoundError('Resume not found or access denied');
     }
 
-    // Check if user can access this file (own resume or HR/Admin)
+    // Check if user can access this file (own resume, HR/Admin/SuperAdmin, or Agent)
     const userRole = req.user!.role;
-    if (userRole !== 'hr' && userRole !== 'admin' && !candidate.userId.equals(userId)) {
+    const hasAccess = userRole === 'hr' || userRole === 'admin' || userRole === 'superadmin' || userRole === 'agent' || candidate.userId.toString() === userId.toString();
+    if (!hasAccess) {
       throw createNotFoundError('Access denied');
-    }
-
-    const filePath = path.join(env.UPLOADS_PATH, file.path);
-    
-    if (!fs.existsSync(filePath)) {
-      throw createNotFoundError('File not found on disk');
     }
 
     logger.info('Resume downloaded', {
@@ -191,12 +252,62 @@ export class FileController {
       businessProcess: 'file_management',
     });
 
+    // Get file content based on storage provider
+    // Try S3 first, then fallback to local
+    if (file.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
+      try {
+        // Download from S3
+        const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+        const s3Client = s3Service.getClient();
+        const bucketName = s3Service.bucketName;
+        
+        if (!s3Client) {
+          throw new Error('S3 client is not available');
+        }
+        
+        const command = new GetObjectCommand({
+          Bucket: bucketName,
+          Key: file.path,
+        });
+
+        const response = await s3Client.send(command);
+        
+        // Set headers for file download
+        res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+        res.setHeader('Content-Type', file.mimetype);
+        
+        // Stream the file from S3
+        if (response.Body) {
+          (response.Body as any).pipe(res);
+          return; // Successfully streamed from S3
+        } else {
+          throw new Error('Failed to download file from S3');
+        }
+      } catch (s3Error) {
+        logger.warn('Failed to download resume from S3, falling back to local', {
+          fileId,
+          s3Key: file.path,
+          error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          businessProcess: 'resume_download',
+        });
+        // Fall through to local storage fallback
+      }
+    }
+    
+    // Fallback to local storage
+    const filePath = path.join(env.UPLOADS_PATH, file.path);
+    
+    if (!fs.existsSync(filePath)) {
+      throw createNotFoundError('Resume file not found');
+    }
+
     // Set headers for file download
     res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
     res.setHeader('Content-Type', file.mimetype);
     
     // Stream the file
-    res.sendFile(filePath);
+    const absoluteFilePath = path.resolve(filePath);
+    res.sendFile(absoluteFilePath);
   });
 
   /**
@@ -245,9 +356,9 @@ export class FileController {
       userIdsMatch: candidate.userId.toString() === userId.toString()
     });
 
-    // Check if user can access this file (own resume, HR/Admin, or Agent)
+    // Check if user can access this file (own resume, HR/Admin/SuperAdmin, or Agent)
     const userRole = req.user!.role;
-    const hasAccess = userRole === 'hr' || userRole === 'admin' || userRole === 'agent' || candidate.userId.toString() === userId.toString();
+    const hasAccess = userRole === 'hr' || userRole === 'admin' || userRole === 'superadmin' || userRole === 'agent' || candidate.userId.toString() === userId.toString();
     
     console.log('Access check:', {
       userRole,
@@ -260,6 +371,57 @@ export class FileController {
       throw createNotFoundError('Access denied');
     }
 
+    logger.info('Resume viewed', {
+      userId,
+      fileId,
+      filename: file.originalName,
+      businessProcess: 'file_management',
+    });
+
+    // Get file content based on storage provider
+    // Try S3 first, then fallback to local
+    if (file.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
+      try {
+        // Download from S3 and stream to client (to avoid CSP issues with direct S3 URLs)
+        const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+        const s3Client = s3Service.getClient();
+        const bucketName = s3Service.bucketName;
+        
+        if (!s3Client) {
+          throw new Error('S3 client is not available');
+        }
+        
+        const command = new GetObjectCommand({
+          Bucket: bucketName,
+          Key: file.path,
+        });
+
+        const response = await s3Client.send(command);
+        
+        // Set headers for inline viewing
+        res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+        res.setHeader('Content-Type', file.mimetype);
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        
+        // Stream the file from S3 to client
+        if (response.Body) {
+          (response.Body as any).pipe(res);
+          return; // Successfully streamed from S3
+        } else {
+          throw new Error('Failed to download file from S3');
+        }
+      } catch (s3Error) {
+        logger.warn('Failed to fetch resume from S3, falling back to local', {
+          fileId,
+          s3Key: file.path,
+          error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          businessProcess: 'resume_view',
+        });
+        // Fall through to local storage fallback
+      }
+    }
+    
+    // Fallback to local storage
     const filePath = path.join(env.UPLOADS_PATH, file.path);
     
     console.log('File path check:', {
@@ -269,19 +431,13 @@ export class FileController {
 
     if (!fs.existsSync(filePath)) {
       console.log('File not found on disk:', filePath);
-      throw createNotFoundError('File not found on disk');
+      throw createNotFoundError('Resume file not found');
     }
-
-    logger.info('Resume viewed', {
-      userId,
-      fileId,
-      filename: file.originalName,
-      businessProcess: 'file_management',
-    });
 
     // Set headers for inline viewing
     res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
     res.setHeader('Content-Type', file.mimetype);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     
     console.log('Sending file:', filePath);
     
@@ -342,10 +498,29 @@ export class FileController {
 
     const file = await File.findById(candidate.resumeFileId);
     if (file) {
-      // Delete physical file
-      const filePath = path.join(env.UPLOADS_PATH, file.path);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      // Delete from S3 if applicable
+      if (file.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
+        try {
+          await s3Service.deleteFile(file.path);
+          logger.info('Resume deleted from S3', {
+            userId,
+            s3Key: file.path,
+            businessProcess: 'resume_delete',
+          });
+        } catch (s3Error) {
+          logger.warn('Failed to delete resume from S3', {
+            userId,
+            s3Key: file.path,
+            error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+            businessProcess: 'resume_delete',
+          });
+        }
+      } else {
+        // Delete local file
+        const filePath = path.join(env.UPLOADS_PATH, file.path);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       }
       
       // Delete database record
@@ -382,10 +557,59 @@ export class FileController {
     }
 
     const file = candidate.resumeFileId as any;
-    const filePath = path.join(env.UPLOADS_PATH, file.path);
+    
+    let filePath: string;
+    let tempFilePath: string | null = null;
+
+    // Get file content based on storage provider
+    // Try S3 first, then fallback to local
+    if (file.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
+      try {
+        // Download from S3
+        const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+        const s3Client = s3Service.getClient();
+        const bucketName = s3Service.bucketName;
+        
+        if (!s3Client) {
+          throw new Error('S3 client is not available');
+        }
+        
+        const command = new GetObjectCommand({
+          Bucket: bucketName,
+          Key: file.path,
+        });
+
+        const response = await s3Client.send(command);
+        const chunks: Buffer[] = [];
+        
+        if (response.Body) {
+          for await (const chunk of response.Body as any) {
+            chunks.push(Buffer.from(chunk));
+          }
+        }
+        
+        const fileBuffer = Buffer.concat(chunks);
+        
+        // Create temporary file for text extraction
+        tempFilePath = path.join(env.UPLOADS_PATH, `temp_resume_${Date.now()}_${file.filename}`);
+        fs.writeFileSync(tempFilePath, fileBuffer);
+        filePath = tempFilePath;
+      } catch (s3Error) {
+        logger.warn('Failed to fetch resume from S3 for parsing, falling back to local', {
+          fileId: file._id,
+          s3Key: file.path,
+          error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          businessProcess: 'resume_parsing',
+        });
+        // Fall through to local storage
+        filePath = path.join(env.UPLOADS_PATH, file.path);
+      }
+    } else {
+      filePath = path.join(env.UPLOADS_PATH, file.path);
+    }
     
     if (!fs.existsSync(filePath)) {
-      throw createNotFoundError('Resume file not found on disk');
+      throw createNotFoundError('Resume file not found');
     }
 
     try {
@@ -443,6 +667,18 @@ export class FileController {
         businessProcess: 'resume_parsing',
       });
       throw error;
+    } finally {
+      // Cleanup temporary file if created from S3
+      if (tempFilePath && tempFilePath.includes('temp_resume_')) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (unlinkError) {
+          logger.warn('Failed to cleanup temporary resume file', {
+            path: tempFilePath,
+            error: unlinkError instanceof Error ? unlinkError.message : 'Unknown error',
+          });
+        }
+      }
     }
   });
 

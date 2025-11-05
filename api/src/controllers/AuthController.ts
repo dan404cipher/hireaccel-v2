@@ -208,6 +208,8 @@ export class AuthController {
           status: user.status,
           emailVerified: user.emailVerified,
           lastLoginAt: user.lastLoginAt,
+          phoneNumber: user.phoneNumber,
+          profilePhotoFileId: user.profilePhotoFileId?.toString(),
         },
         accessToken: tokens.accessToken,
         expiresIn: tokens.expiresIn,

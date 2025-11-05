@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -44,6 +44,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/lib/utils';
 import { DashboardBanner } from '@/components/dashboard/Banner';
+import { useAuthenticatedImage } from '@/hooks/useAuthenticatedImage';
 
 interface CandidateAssignment {
   _id: string;
@@ -54,6 +55,7 @@ interface CandidateAssignment {
       lastName: string;
       email: string;
       customId: string;
+      profilePhotoFileId?: string;
     };
     profile: {
       skills: string[];
@@ -424,6 +426,32 @@ const SharedCandidates: React.FC = () => {
     }
   };
 
+  // Component for candidate avatar with profile photo
+  const CandidateAvatar: React.FC<{
+    profilePhotoFileId?: string;
+    firstName: string;
+    lastName: string;
+    statusColor: string;
+    initials: string;
+  }> = ({ profilePhotoFileId, firstName, lastName, statusColor, initials }) => {
+    const profilePhotoUrl = profilePhotoFileId
+      ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+      : null;
+    const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+    
+    return (
+      <Avatar className="h-12 w-12 flex-shrink-0">
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${firstName} ${lastName}`} 
+        />
+        <AvatarFallback className={`text-sm text-white font-semibold ${statusColor}`}>
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+    );
+  };
+
   const renderAssignmentCard = (assignment: any) => {
     // Safety check for malformed assignment data
     if (!assignment || !assignment.candidateId) {
@@ -583,11 +611,13 @@ const SharedCandidates: React.FC = () => {
           <div className="grid grid-cols-3 gap-4 mb-3">
             {/* Column 1: Candidate Info */}
             <div className="flex items-start space-x-3">
-              <Avatar className="h-12 w-12 flex-shrink-0">
-                <AvatarFallback className={`text-sm text-white font-semibold ${getCandidateStatusColor(assignment.candidateStatus)}`}>
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <CandidateAvatar
+                profilePhotoFileId={candidate?.userId?.profilePhotoFileId}
+                firstName={firstName}
+                lastName={lastName}
+                statusColor={getCandidateStatusColor(assignment.candidateStatus)}
+                initials={initials}
+              />
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-lg text-gray-900 truncate">{fullName}</div>
                 <div className="text-base text-gray-500 truncate">{email}</div>

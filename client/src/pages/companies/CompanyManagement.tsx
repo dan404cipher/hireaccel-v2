@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,7 @@ import { toast } from "@/hooks/use-toast";
 import { DashboardBanner } from "@/components/dashboard/Banner";
 
 export default function CompanyManagement() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -968,7 +969,7 @@ export default function CompanyManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCompany(company)}>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/companies/${company.companyId || company.id || company._id}`)}>
                               <Eye className="w-4 h-4 mr-2" />
                             View Details
                             </DropdownMenuItem>

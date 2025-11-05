@@ -18,7 +18,8 @@ import {
   Image,
   Trash2,
   Activity,
-  Sparkles
+  Sparkles,
+  History
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
@@ -45,6 +46,7 @@ const navigationItems = [
   { title: "Company Management", url: "/dashboard/companies", icon: Building2, roles: ['admin', 'superadmin', 'hr'], color: "text-teal-600" },
   { title: "Job Management", url: "/dashboard/jobs", icon: Briefcase, roles: ['admin', 'superadmin', 'hr'], color: "text-indigo-600" },
   { title: "Shared Candidates", url: "/dashboard/shared-candidates", icon: UserPlus, roles: ['admin', 'superadmin', 'hr', 'agent'], color: "text-pink-600" },
+  { title: "Contact History", url: "/dashboard/contact-history", icon: History, roles: ['admin', 'superadmin', 'agent'], color: "text-blue-600" },
   { title: "Interview Management", url: "/dashboard/interviews", icon: Calendar, roles: ['admin', 'superadmin', 'hr'], color: "text-red-600" },
   { title: "User Management", url: "/dashboard/users", icon: Users, roles: ['admin', 'superadmin'], color: "text-cyan-600" },
   { title: "Post Ads", url: "/dashboard/post-ads", icon: Image, roles: ['admin', 'superadmin'], color: "text-yellow-600" },

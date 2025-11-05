@@ -71,7 +71,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { user: userData, accessToken } = response.data!;
       
       apiClient.setToken(accessToken);
-      setUser(userData);
+      
+      // Fetch full user data to ensure we have all fields including profilePhotoFileId
+      try {
+        const fullUserResponse = await apiClient.getCurrentUser();
+        if (fullUserResponse.data?.user) {
+          setUser(fullUserResponse.data.user);
+        } else {
+          setUser(userData);
+        }
+      } catch (error) {
+        // Fallback to login response if getCurrentUser fails
+        console.warn('Failed to fetch full user data after login, using login response:', error);
+        setUser(userData);
+      }
     } catch (error) {
       throw error;
     }

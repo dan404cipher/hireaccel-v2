@@ -1401,6 +1401,95 @@ class ApiClient {
     });
   }
 
+  // Contact History methods
+  async getContactHistory(params?: {
+    page?: number;
+    limit?: number;
+    contactType?: 'hr' | 'candidate';
+    agentId?: string;
+    contactId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    sortBy?: 'createdAt' | 'followUpDate';
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.contactType) queryParams.append('contactType', params.contactType);
+    if (params?.agentId) queryParams.append('agentId', params.agentId);
+    if (params?.contactId) queryParams.append('contactId', params.contactId);
+    if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    const queryString = queryParams.toString();
+    return this.request(`/api/v1/contact-history${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getContactHistoryById(id: string) {
+    return this.request(`/api/v1/contact-history/${id}`);
+  }
+
+  async createContactHistory(data: {
+    contactType: 'hr' | 'candidate';
+    contactId: string;
+    contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+    subject: string;
+    notes: string;
+    duration?: number;
+    outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+    followUpDate?: string;
+    followUpNotes?: string;
+    tags?: string[];
+    relatedJobId?: string;
+    relatedCandidateAssignmentId?: string;
+  }) {
+    return this.request('/api/v1/contact-history', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateContactHistory(id: string, data: Partial<{
+    contactType: 'hr' | 'candidate';
+    contactId: string;
+    contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+    subject: string;
+    notes: string;
+    duration?: number;
+    outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+    followUpDate?: string;
+    followUpNotes?: string;
+    tags?: string[];
+    relatedJobId?: string;
+    relatedCandidateAssignmentId?: string;
+  }>) {
+    return this.request(`/api/v1/contact-history/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteContactHistory(id: string) {
+    return this.request(`/api/v1/contact-history/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getContactHistoryStats(params?: {
+    agentId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.agentId) queryParams.append('agentId', params.agentId);
+    if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom);
+    if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
+    const queryString = queryParams.toString();
+    return this.request(`/api/v1/contact-history/stats${queryString ? `?${queryString}` : ''}`);
+  }
+
 }
 
 export const apiClient = new ApiClient();

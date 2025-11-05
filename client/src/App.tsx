@@ -30,6 +30,7 @@ const HRDashboard = lazy(() => import("./pages/dashboards/HRDashboard"));
 const AgentDashboard = lazy(() => import("./pages/dashboards/AgentDashboard"));
 const InterviewManagement = lazy(() => import("./pages/interviews/InterviewManagement"));
 const CompanyManagement = lazy(() => import("./pages/companies/CompanyManagement"));
+const CompanyDetailsPage = lazy(() => import("./pages/companies/CompanyDetailsPage"));
 const UserManagement = lazy(() => import("./pages/users/UserManagement"));
 const AdminDashboard = lazy(() => import("./pages/dashboards/AdminDashboard"));
 const AnalyticsReports = lazy(() => import("./pages/admin/AnalyticsReports"));
@@ -39,6 +40,7 @@ const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
 const Activity = lazy(() => import("./pages/admin/Activity"));
 const RecycleBin = lazy(() => import("./pages/admin/RecycleBin"));
 const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
+const ContactHistory = lazy(() => import("./pages/contact/ContactHistory"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => ({ default: module.SignupPage })));
 const OTPVerificationPage = lazy(() => import("./pages/auth/OTPVerificationPage").then(module => ({ default: module.OTPVerificationPage })));
@@ -252,6 +254,11 @@ function AppRouter() {
             <SharedCandidates />
           </RoleProtectedRoute>
         } />
+        <Route path="contact-history" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'agent']}>
+            <ContactHistory />
+          </RoleProtectedRoute>
+        } />
         <Route path="interviews" element={
           <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
             <InterviewManagement />
@@ -265,6 +272,11 @@ function AppRouter() {
         <Route path="companies" element={
           <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
             <CompanyManagement />
+          </RoleProtectedRoute>
+        } />
+        <Route path="companies/:companyId" element={
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+            <CompanyDetailsPage />
           </RoleProtectedRoute>
         } />
         <Route path="users" element={
