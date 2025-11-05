@@ -595,6 +595,11 @@ export function JobCandidates() {
                                             size='lg'
                                             className=' sm:hidden border-2 border-blue-200 text-blue-600 hover:bg-blue-50 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto font-semibold'
                                             onClick={() => navigate('/register/candidate')}
+                                            data-gtm-cta='candidate_hero_upload_cv_button'
+                                            data-gtm-cta-text='Just upload CV'
+                                            data-gtm-cta-position='hero'
+                                            data-gtm-cta-destination='/register/candidate'
+                                            data-gtm-page='candidate_landing'
                                         >
                                             <Upload className='w-4 h-4 sm:w-5 sm:h-5 mr-2' />
                                             Just upload CV
@@ -774,7 +779,7 @@ export function JobCandidates() {
                                 <Button
                                     size='lg'
                                     className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-10 py-4 text-sm md:text-md lg:text-xl shadow-xl'
-                                    onClick={() => navigate('/signup/candidate')}
+                                    onClick={() => navigate('/register/candidate')}
                                 >
                                     Experience the Magic
                                     <ArrowRight className='w-5 h-5 ml-2' />
@@ -1069,6 +1074,11 @@ export function JobCandidates() {
                                         size='lg'
                                         className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-12 py-4 text-sm md:text-md lg:text-lg font-semibold rounded-full shadow-xl transform hover:scale-105 transition-all duration-300'
                                         onClick={() => navigate('/register/candidate')}
+                                        data-gtm-cta='candidate_final_cta_button'
+                                        data-gtm-cta-text='Upload Your CV Now'
+                                        data-gtm-cta-position='final_cta'
+                                        data-gtm-cta-destination='/register/candidate'
+                                        data-gtm-page='candidate_landing'
                                     >
                                         Upload Your CV Now
                                         <Upload className='w-5 h-5 ml-2' />
@@ -1312,7 +1322,7 @@ export function JobCandidates() {
                         <Button
                             size='lg'
                             className='bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-xl'
-                            onClick={() => navigate('/signup/candidate')}
+                            onClick={() => navigate('/register/candidate')}
                         >
                             Create Your Profile Now
                             <ArrowRight className='w-5 h-5 ml-2' />

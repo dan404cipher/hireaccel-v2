@@ -446,6 +446,11 @@ export function HRProfessionals() {
                                         size='lg'
                                         className='bg-gradient-to-r from-blue-900 to-purple-500 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 text-lg shadow-xl w-full sm:w-auto'
                                         onClick={() => navigate('/register/hr')}
+                                        data-gtm-cta='hr_hero_cta_button'
+                                        data-gtm-cta-text='Post unlimited jobs for FREE'
+                                        data-gtm-cta-position='hero'
+                                        data-gtm-cta-destination='/register/hr'
+                                        data-gtm-page='hr_landing'
                                     >
                                         Post unlimited jobs for FREE
                                         <ArrowRight className='w-5 h-5 ml-2' />
@@ -778,11 +783,15 @@ export function HRProfessionals() {
                                                 size='lg'
                                                 className='w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold px-6 sm:px-8 md:px-10 py-3 sm:py-4 text-base sm:text-lg shadow-xl transform hover:scale-105 transition-all duration-300'
                                                 onClick={() => navigate('/register/hr')}
+                                                data-gtm-cta='hr_how_it_works_cta_button'
+                                                data-gtm-cta-text='Start Your First Job Post'
+                                                data-gtm-cta-position='how_it_works'
+                                                data-gtm-cta-destination='/register/hr'
+                                                data-gtm-page='hr_landing'
                                             >
                                                 Start Your First Job Post
                                                 <ArrowRight className='w-5 h-5 ml-2' />
-                                            </Button>
-
+                                            </Button>{' '}
                                             <div className='flex items-center text-sm text-white'>
                                                 <Shield className='w-4 h-4 mr-2 text-green-500' />
                                                 No credit card required • 100% Free
@@ -1024,6 +1033,11 @@ export function HRProfessionals() {
                             size='lg'
                             className='bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-xl'
                             onClick={() => navigate('/register/hr')}
+                            data-gtm-cta='hr_final_cta_button'
+                            data-gtm-cta-text='Get Started Free - Save ₹3,60,000+'
+                            data-gtm-cta-position='final_cta'
+                            data-gtm-cta-destination='/register/hr'
+                            data-gtm-page='hr_landing'
                         >
                             Get Started Free - Save ₹3,60,000+
                             <ArrowRight className='w-5 h-5 ml-2' />
