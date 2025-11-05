@@ -33,6 +33,7 @@ import { Header } from '../Header';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/services/api';
+import { getUTMParams, mapUTMToSource } from '@/utils/utmTracking';
 import condidate from '@/assets/candidate.png';
 import heroBackground from '@/assets/Hero-background.jpeg';
 import howItWorksBackground from '@/assets/section1.jpg';
@@ -395,6 +396,9 @@ export function JobCandidates() {
 
                                 <form
                                     className='flex flex-col space-y-4 mb-6'
+                                    data-gtm-form='candidate_hero_signup'
+                                    data-gtm-cta-funnel='candidate_signup'
+                                    data-gtm-cta-step='1'
                                     onSubmit={async (e) => {
                                         e.preventDefault();
                                         let hasError = false;
@@ -430,11 +434,16 @@ export function JobCandidates() {
                                         // Start SMS-based signup
                                         setIsLoading(true);
                                         try {
+                                            // Get UTM parameters
+                                            const utmParams = getUTMParams();
+                                            const source = mapUTMToSource(utmParams);
+
                                             await apiClient.signupSMS({
                                                 phoneNumber: phone,
                                                 name: name.trim(),
                                                 role: 'candidate',
-                                                source: 'Google',
+                                                source: source,
+                                                utmData: utmParams,
                                             });
 
                                             toast({
@@ -510,6 +519,7 @@ export function JobCandidates() {
                                                     }
                                                 }}
                                                 className='bg-white/80 border-white/20 text-black placeholder:text-black/50 focus:bg-white/80 w-full text-sm sm:text-base'
+                                                data-gtm-element='candidate_hero_name_input'
                                                 required
                                             />
                                             {nameError && (
@@ -541,6 +551,7 @@ export function JobCandidates() {
                                                         }
                                                     }}
                                                     className='bg-white/80 border-white/20 text-black placeholder:text-black/50 focus:bg-white/80 w-full text-sm sm:text-base'
+                                                    data-gtm-element='candidate_hero_phone_input'
                                                     required
                                                     style={{ paddingLeft: '3.5rem' }}
                                                 />
@@ -558,6 +569,11 @@ export function JobCandidates() {
                                                 disabled={isLoading}
                                                 size='lg'
                                                 className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto mt-0 sm:mt-0 disabled:opacity-50 disabled:cursor-not-allowed'
+                                                data-gtm-cta='candidate_hero_signup_button'
+                                                data-gtm-cta-text='Sign Up'
+                                                data-gtm-cta-position='hero'
+                                                data-gtm-cta-funnel='candidate_signup'
+                                                data-gtm-cta-step='1'
                                             >
                                                 {isLoading ? 'Sending Code...' : 'Sign Up'}
                                                 {!isLoading && <ArrowRight className='w-4 h-4 sm:w-5 sm:h-5 ml-2' />}

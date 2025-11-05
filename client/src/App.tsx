@@ -13,6 +13,7 @@ import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initializeAnalytics } from './utils/analytics';
 import { useAnalyticsTracker } from './hooks/useAnalyticsTracker';
+import { captureUTMParams, storeUTMParams } from './utils/utmTracking';
 
 // Lazy load all page components for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -397,9 +398,18 @@ function AppRouter() {
 }
 
 const App = () => {
-    // Initialize analytics on app mount
+    // Initialize analytics and UTM tracking on app mount
     useEffect(() => {
         initializeAnalytics();
+
+        // Capture UTM parameters when app loads
+        const utmParams = captureUTMParams();
+        storeUTMParams(utmParams);
+
+        // Optional: Log captured UTM for debugging (remove in production)
+        if (process.env.NODE_ENV === 'development' && (utmParams.utm_source || utmParams.utm_campaign)) {
+            console.log('📊 UTM Parameters Captured:', utmParams);
+        }
     }, []);
 
     return (

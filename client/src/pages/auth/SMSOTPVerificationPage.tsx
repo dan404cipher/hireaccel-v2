@@ -313,7 +313,13 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
                             </Alert>
                         )}
 
-                        <form onSubmit={handleVerifyOTP} className='space-y-4'>
+                        <form
+                            onSubmit={handleVerifyOTP}
+                            className='space-y-4'
+                            data-gtm-form={`${userType === 'hr' ? 'hr' : 'candidate'}_otp_verify`}
+                            data-gtm-cta-funnel={`${userType === 'hr' ? 'hr' : 'candidate'}_signup`}
+                            data-gtm-cta-step='2'
+                        >
                             <div className='space-y-2'>
                                 <Label htmlFor='otp' className='text-sm font-medium text-gray-700'>
                                     Verification Code
@@ -328,6 +334,7 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
                                     maxLength={6}
                                     autoComplete='one-time-code'
                                     autoFocus
+                                    data-gtm-element={`${userType === 'hr' ? 'hr' : 'candidate'}_otp_input`}
                                 />
                                 <div className='text-xs text-gray-500 text-center'>
                                     Code expires in:{' '}
@@ -339,6 +346,11 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
                                 type='submit'
                                 disabled={isLoading || otp.length !== 6}
                                 className='w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                                data-gtm-cta={`${userType === 'hr' ? 'hr' : 'candidate'}_otp_verify_button`}
+                                data-gtm-cta-text='Verify Mobile'
+                                data-gtm-cta-position='otp_page'
+                                data-gtm-cta-funnel={`${userType === 'hr' ? 'hr' : 'candidate'}_signup`}
+                                data-gtm-cta-step='2'
                             >
                                 {isLoading ? (
                                     <>
@@ -359,6 +371,9 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
                                     onClick={handleResendOTP}
                                     disabled={isResending || timeRemaining > 540} // Allow resend after 1 minute
                                     className='text-sm text-blue-600 hover:text-blue-700'
+                                    data-gtm-cta={`${userType === 'hr' ? 'hr' : 'candidate'}_otp_resend_button`}
+                                    data-gtm-cta-text='Resend Code'
+                                    data-gtm-cta-position='otp_page'
                                 >
                                     {isResending ? (
                                         <>
@@ -380,6 +395,9 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
                                     variant='ghost'
                                     onClick={handleBackToSignup}
                                     className='text-sm text-gray-600 hover:text-gray-700'
+                                    data-gtm-cta={`${userType === 'hr' ? 'hr' : 'candidate'}_otp_back_button`}
+                                    data-gtm-cta-text='Back to Sign Up'
+                                    data-gtm-cta-position='otp_page'
                                 >
                                     <ArrowLeft className='mr-2 h-4 w-4' />
                                     Back to Sign Up

@@ -290,7 +290,13 @@ export default function CompleteRegistrationPage() {
 
                 {/* Registration Form */}
                 <div className='bg-white rounded-lg shadow-xl p-8'>
-                    <form onSubmit={handleSubmit} className='space-y-6'>
+                    <form
+                        onSubmit={handleSubmit}
+                        className='space-y-6'
+                        data-gtm-form={`${verificationData?.role === 'hr' ? 'hr' : 'candidate'}_email_setup`}
+                        data-gtm-cta-funnel={`${verificationData?.role === 'hr' ? 'hr' : 'candidate'}_signup`}
+                        data-gtm-cta-step='3'
+                    >
                         {/* Email Input */}
                         <div>
                             <label htmlFor='email' className='block text-sm font-medium text-gray-700 mb-2'>
@@ -308,6 +314,9 @@ export default function CompleteRegistrationPage() {
                                     disabled={isLoading}
                                     autoComplete='email'
                                     autoFocus
+                                    data-gtm-element={`${
+                                        verificationData?.role === 'hr' ? 'hr' : 'candidate'
+                                    }_email_input`}
                                 />
                             </div>
                             {emailError && <p className='mt-1 text-sm text-red-600'>{emailError}</p>}
@@ -329,6 +338,9 @@ export default function CompleteRegistrationPage() {
                                     className={`pl-10 pr-10 ${passwordError ? 'border-red-500' : ''}`}
                                     disabled={isLoading}
                                     autoComplete='new-password'
+                                    data-gtm-element={`${
+                                        verificationData?.role === 'hr' ? 'hr' : 'candidate'
+                                    }_password_input`}
                                 />
                                 <button
                                     type='button'
@@ -364,6 +376,9 @@ export default function CompleteRegistrationPage() {
                                     className={`pl-10 pr-10 ${confirmPasswordError ? 'border-red-500' : ''}`}
                                     disabled={isLoading}
                                     autoComplete='new-password'
+                                    data-gtm-element={`${
+                                        verificationData?.role === 'hr' ? 'hr' : 'candidate'
+                                    }_confirm_password_input`}
                                 />
                                 <button
                                     type='button'
@@ -380,7 +395,19 @@ export default function CompleteRegistrationPage() {
                         </div>
 
                         {/* Submit Button */}
-                        <Button type='submit' className='w-full' size='lg' disabled={isLoading}>
+                        <Button
+                            type='submit'
+                            className='w-full'
+                            size='lg'
+                            disabled={isLoading}
+                            data-gtm-cta={`${
+                                verificationData?.role === 'hr' ? 'hr' : 'candidate'
+                            }_create_account_button`}
+                            data-gtm-cta-text='Create Account'
+                            data-gtm-cta-position='email_setup_page'
+                            data-gtm-cta-funnel={`${verificationData?.role === 'hr' ? 'hr' : 'candidate'}_signup`}
+                            data-gtm-cta-step='3'
+                        >
                             {isLoading ? (
                                 <>
                                     <Loader2 className='mr-2 h-5 w-5 animate-spin' />

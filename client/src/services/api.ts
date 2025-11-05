@@ -1254,7 +1254,21 @@ class ApiClient {
     }
 
     // SMS-based authentication methods
-    async signupSMS(data: { phoneNumber: string; name: string; role: 'hr' | 'candidate'; source?: string }) {
+    async signupSMS(data: {
+        phoneNumber: string;
+        name: string;
+        role: 'hr' | 'candidate';
+        source?: string;
+        utmData?: {
+            utm_source?: string;
+            utm_medium?: string;
+            utm_campaign?: string;
+            utm_content?: string;
+            utm_term?: string;
+            referrer?: string;
+            landing_page?: string;
+        };
+    }) {
         return this.request<{ success: boolean; message: string }>('/auth/register-sms', {
             method: 'POST',
             body: JSON.stringify(data),
