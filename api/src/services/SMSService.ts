@@ -49,7 +49,7 @@ export class SMSService {
 
             // Production SMS implementation
             // Choose your preferred SMS provider
-            const smsProvider = process.env['SMS_PROVIDER'] || 'twilio'; // Options: 'twilio', 'aws-sns'
+            const smsProvider = env.SMS_PROVIDER || 'twilio';
 
             if (smsProvider === 'aws-sns') {
                 await this.sendSMSViaAWSSNS(phoneNumber, otp, firstName);
@@ -86,19 +86,16 @@ export class SMSService {
             }
 
             // Validate required environment variables
-            const requiredEnvVars = ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_PHONE_NUMBER'];
-            const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
-
-            if (missingVars.length > 0) {
-                throw new Error(`Missing required Twilio environment variables: ${missingVars.join(', ')}`);
+            if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_PHONE_NUMBER) {
+                throw new Error('Missing required Twilio environment variables: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER');
             }
 
             // Initialize Twilio client
-            const client = twilio.default(process.env['TWILIO_ACCOUNT_SID']!, process.env['TWILIO_AUTH_TOKEN']!);
+            const client = twilio.default(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
 
             const message = await client.messages.create({
                 body: `Hi ${firstName}, your verification code for Hiring Accelerator is: ${otp}. Valid for 10 minutes.`,
-                from: process.env['TWILIO_PHONE_NUMBER']!,
+                from: env.TWILIO_PHONE_NUMBER,
                 to: phoneNumber,
             });
 
@@ -140,19 +137,16 @@ export class SMSService {
             }
 
             // Validate required environment variables
-            const requiredEnvVars = ['AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'];
-            const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
-
-            if (missingVars.length > 0) {
-                throw new Error(`Missing required AWS environment variables: ${missingVars.join(', ')}`);
+            if (!env.AWS_REGION || !env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+                throw new Error('Missing required AWS environment variables: AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY');
             }
 
             // Initialize SNS client
             const snsClient = new SNSClient({
-                region: process.env['AWS_REGION']!,
+                region: env.AWS_REGION,
                 credentials: {
-                    accessKeyId: process.env['AWS_ACCESS_KEY_ID']!,
-                    secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY']!,
+                    accessKeyId: env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
                 },
             });
 
@@ -166,10 +160,10 @@ export class SMSService {
                         DataType: 'String',
                         StringValue: 'Transactional', // Important for OTP messages
                     },
-                    ...(process.env['AWS_SNS_SENDER_ID'] && {
+                    ...(env.AWS_SNS_SENDER_ID && {
                         'AWS.SNS.SMS.SenderID': {
                             DataType: 'String',
-                            StringValue: process.env['AWS_SNS_SENDER_ID'], // Max 6 chars for India
+                            StringValue: env.AWS_SNS_SENDER_ID,
                         },
                     }),
                 },
@@ -181,7 +175,7 @@ export class SMSService {
             logger.info('SMS sent successfully via AWS SNS', {
                 messageId: result.MessageId,
                 phoneNumber: phoneNumber,
-                region: process.env['AWS_REGION'],
+                region: env.AWS_REGION,
             });
         } catch (error) {
             logger.error('AWS SNS SMS sending failed', {

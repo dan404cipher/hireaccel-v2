@@ -80,6 +80,20 @@ const envSchema = z.object({
         .default('false')
         .describe('Enable test SMS mode - uses 000000 as OTP for all SMS. DISABLE IN PRODUCTION!'),
 
+    // SMS Service Configuration
+    SMS_PROVIDER: z.enum(['twilio', 'aws-sns']).optional().default('twilio'),
+    
+    // Twilio Configuration (optional - required if SMS_PROVIDER=twilio)
+    TWILIO_ACCOUNT_SID: z.string().optional(),
+    TWILIO_AUTH_TOKEN: z.string().optional(),
+    TWILIO_PHONE_NUMBER: z.string().optional(),
+    
+    // AWS SNS Configuration (optional - required if SMS_PROVIDER=aws-sns)
+    AWS_REGION: z.string().optional(),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    AWS_SNS_SENDER_ID: z.string().optional(),
+
     // CSRF Protection
     CSRF_ENABLED: z
         .string()
