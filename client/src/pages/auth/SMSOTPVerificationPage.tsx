@@ -56,7 +56,10 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
         };
     };
 
-    const { phoneNumber, userType, firstName } = getVerificationData();
+    const initialData = getVerificationData();
+    const [phoneNumber, setPhoneNumber] = useState(initialData.phoneNumber);
+    const [userType, setUserType] = useState(initialData.userType);
+    const [firstName, setFirstName] = useState(initialData.firstName);
 
     const [otp, setOtp] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -65,15 +68,17 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
     const [success, setSuccess] = useState('');
     const [timeRemaining, setTimeRemaining] = useState(600); // 10 minutes in seconds
     const [needsEmailSetup, setNeedsEmailSetup] = useState(false);
+    const [isVerified, setIsVerified] = useState(false); // Track if verification was successful
 
-    // Redirect if no phone number provided
+    // Redirect if no phone number provided (but not if we've already verified)
     useEffect(() => {
-        if (!phoneNumber) {
+        if (!phoneNumber && !isVerified) {
             // Clear any stale verification data
             sessionStorage.removeItem('sms_verification_data');
-            navigate(userType === 'hr' ? '/register/hr' : '/register/candidate', { replace: true });
+            const defaultUserType = userType || 'candidate';
+            navigate(defaultUserType === 'hr' ? '/register/hr' : '/register/candidate', { replace: true });
         }
-    }, [phoneNumber, userType, navigate]);
+    }, [phoneNumber, userType, navigate, isVerified]);
 
     // Cleanup verification data when component unmounts (user navigates away)
     useEffect(() => {
@@ -135,6 +140,9 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
                 // Access data directly from response.data (not response.data.data)
                 const { leadId, tempToken, phoneNumber: verifiedPhone, role, nextStep } = response.data;
 
+                // Mark as verified before clearing sessionStorage to prevent redirect
+                setIsVerified(true);
+
                 // Store temporary data for completing registration
                 sessionStorage.setItem(
                     'lead_verification_data',
@@ -153,10 +161,8 @@ export const SMSOTPVerificationPage: React.FC<SMSOTPVerificationPageProps> = ({ 
 
                 setSuccess('Phone verified! Redirecting to complete registration...');
 
-                // Navigate to email setup page
-                setTimeout(() => {
-                    navigate('/auth/complete-registration');
-                }, 1500);
+                // Navigate to email setup page immediately (no delay needed)
+                navigate('/auth/complete-registration', { replace: true });
             } else {
                 setError('Verification failed. Please try again.');
             }

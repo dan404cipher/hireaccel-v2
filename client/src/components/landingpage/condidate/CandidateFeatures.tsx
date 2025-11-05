@@ -522,7 +522,7 @@ export function JobCandidates() {
                     }
                   }}
                 >
-                  <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                  <div className="flex flex-col sm:flex-row gap-4 sm:items-start">
                     <div className="flex-1 w-full">
                       <Label
                         htmlFor="name"
@@ -591,7 +591,7 @@ export function JobCandidates() {
                         </p>
                       )}
                     </div>
-                    <div className="w-full sm:w-auto sm:flex-shrink-0">
+                    <div className="w-full pt-7 sm:w-auto sm:flex-shrink-0">
                       <Button
                         type="submit"
                         disabled={isLoading}
