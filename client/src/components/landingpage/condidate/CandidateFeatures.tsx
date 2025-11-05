@@ -36,6 +36,8 @@ import { Card } from "@/components/ui/card";
 import { CardContent } from "../ui/card";
 import { Header } from "../Header";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
+import { apiClient } from "@/services/api";
 import condidate from "@/assets/candidate.png";
 import heroBackground from "@/assets/Hero-background.jpeg";
 import howItWorksBackground from "@/assets/section1.jpg";
@@ -245,6 +247,7 @@ const faqs = [
 
 export function JobCandidates() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [heroRef, heroInView] = useInView();
   const [stepsRef, stepsInView] = useInView();
   const [testimonialsRef, testimonialsInView] = useInView();
@@ -257,6 +260,7 @@ export function JobCandidates() {
   const [phone, setPhone] = useState("+91");
   const [phoneError, setPhoneError] = useState("");
   const [nameError, setNameError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -289,21 +293,27 @@ export function JobCandidates() {
 
     // Limit to 10 digits
     if (digitsOnly.length <= 10) {
-      setPhone("+91" + digitsOnly);
+      const fullPhone = "+91" + digitsOnly;
+      setPhone(fullPhone);
       setPhoneError("");
 
       // Validate when user finishes typing
       if (digitsOnly.length === 10) {
-        setPhoneError("");
+        if (validatePhone(fullPhone)) {
+          setPhoneError("");
+        } else {
+          setPhoneError("Please enter a valid 10-digit Indian mobile number");
+        }
       } else if (digitsOnly.length > 0 && digitsOnly.length < 10) {
-        setPhoneError("Phone number must be 10 digits");
+        setPhoneError("");
       }
     }
   };
 
   const validatePhone = (phoneNumber: string): boolean => {
-    const digitsOnly = phoneNumber.replace("+91", "").replace(/\D/g, "");
-    return digitsOnly.length === 10;
+    // Must start with +91 and have exactly 10 more digits
+    const phoneRegex = /^\+91[6-9]\d{9}$/;
+    return phoneRegex.test(phoneNumber);
   };
 
   useEffect(() => {
@@ -414,7 +424,7 @@ export function JobCandidates() {
 
                 <form
                   className="flex flex-col space-y-4 mb-6"
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     let hasError = false;
 
@@ -437,17 +447,78 @@ export function JobCandidates() {
                       hasError = true;
                     } else if (!validatePhone(phone)) {
                       setPhoneError(
-                        "Please enter a valid 10-digit phone number"
+                        "Please enter a valid 10-digit Indian mobile number"
                       );
                       hasError = true;
                     } else {
                       setPhoneError("");
                     }
 
-                    if (!hasError) {
-                      navigate("/register/candidate", {
-                        state: { name: name.trim(), phone },
+                    if (hasError) {
+                      return;
+                    }
+
+                    // Start SMS-based signup
+                    setIsLoading(true);
+                    try {
+                      await apiClient.signupSMS({
+                        phoneNumber: phone,
+                        name: name.trim(),
+                        role: "candidate",
+                        source: "Google",
                       });
+
+                      toast({
+                        title: "Verification Code Sent",
+                        description:
+                          "We've sent a verification code to your mobile number.",
+                      });
+
+                      // Store data securely in sessionStorage
+                      sessionStorage.setItem(
+                        "sms_verification_data",
+                        JSON.stringify({
+                          phoneNumber: phone,
+                          name: name.trim(),
+                          userType: "candidate",
+                          timestamp: Date.now(),
+                        })
+                      );
+
+                      // Navigate to SMS OTP verification page
+                      navigate("/auth/verify-sms");
+                    } catch (error) {
+                      // Handle specific error cases
+                      if (
+                        error &&
+                        typeof error === "object" &&
+                        "status" in error
+                      ) {
+                        const apiError = error as {
+                          status: number;
+                          detail?: string;
+                        };
+
+                        if (apiError.status === 409) {
+                          toast({
+                            title: "Account Already Exists",
+                            description:
+                              "An account with this phone number already exists. Please sign in instead.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                      }
+
+                      toast({
+                        title: "Signup Failed",
+                        description:
+                          (error as Error).message ||
+                          "Failed to send verification code. Please try again.",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsLoading(false);
                     }
                   }}
                 >
@@ -500,7 +571,7 @@ export function JobCandidates() {
                           onBlur={() => {
                             if (phone !== "+91" && !validatePhone(phone)) {
                               setPhoneError(
-                                "Please enter a valid 10-digit phone number"
+                                "Please enter a valid 10-digit Indian mobile number"
                               );
                             } else {
                               setPhoneError("");
@@ -523,11 +594,14 @@ export function JobCandidates() {
                     <div className="w-full sm:w-auto sm:flex-shrink-0">
                       <Button
                         type="submit"
+                        disabled={isLoading}
                         size="lg"
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto mt-0 sm:mt-0"
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto mt-0 sm:mt-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Sign Up
-                        <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                        {isLoading ? "Sending Code..." : "Sign Up"}
+                        {!isLoading && (
+                          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                        )}
                       </Button>
                     </div>
                   </div>
