@@ -96,15 +96,21 @@ export const generateTokenPair = (payload: {
 };
 
 /**
- * Generate temporary token for lead verification (30 minutes)
+ * Generate temporary token for leads after initial registration
  * Used after SMS OTP verification before account completion
  */
-export const generateLeadToken = (payload: { leadId: string; phoneNumber: string; role: UserRole }): string => {
+export const generateLeadToken = (payload: {
+    leadId: string;
+    phoneNumber?: string;
+    email?: string;
+    role: UserRole | 'candidate' | 'hr';
+}): string => {
     try {
         return (jwt as any).sign(
             {
                 leadId: payload.leadId,
                 phoneNumber: payload.phoneNumber,
+                email: payload.email,
                 role: payload.role,
                 type: 'lead_temp',
             },

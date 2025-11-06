@@ -164,36 +164,47 @@ export class AuthService {
 
             // Create candidate profile if user is registering as a candidate
             if (userData.role === UserRole.CANDIDATE) {
-                const candidate = new Candidate({
-                    userId: user._id,
-                    profile: {
-                        summary: '',
-                        skills: [],
-                        experience: [],
-                        education: [],
-                        certifications: [],
-                        projects: [],
-                        location: userData.currentLocation || '',
-                        phoneNumber: userData.phoneNumber || '',
-                        preferredSalaryRange: {
-                            min: 0,
-                            max: 0,
-                            currency: 'USD',
+                try {
+                    const candidate = new Candidate({
+                        userId: user._id,
+                        profile: {
+                            summary: '',
+                            skills: [],
+                            experience: [],
+                            education: [],
+                            certifications: [],
+                            projects: [],
+                            location: userData.currentLocation || '',
+                            phoneNumber: userData.phoneNumber || '',
+                            preferredSalaryRange: {
+                                min: 0,
+                                max: 0,
+                                currency: 'USD',
+                            },
+                            availability: {
+                                startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+                                remote: false,
+                                relocation: false,
+                            },
                         },
-                        availability: {
-                            startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-                            remote: false,
-                            relocation: false,
-                        },
-                    },
-                });
+                        status: 'active',
+                    });
 
-                await candidate.save();
+                    await candidate.save();
 
-                logger.info('Candidate profile created successfully', {
-                    userId: user._id,
-                    candidateId: candidate._id,
-                });
+                    logger.info('Candidate profile created successfully', {
+                        userId: user._id,
+                        candidateId: candidate._id,
+                    });
+                } catch (candidateError) {
+                    logger.error('Failed to create candidate profile during registration', {
+                        userId: user._id,
+                        error: candidateError instanceof Error ? candidateError.message : 'Unknown error',
+                    });
+                    // Delete the user since candidate profile creation is critical
+                    await User.deleteOne({ _id: user._id });
+                    throw createBadRequestError('Failed to create candidate profile. Please try again.');
+                }
             }
 
             // Generate tokens
@@ -452,36 +463,47 @@ export class AuthService {
 
             // If candidate, create candidate profile
             if (user.role === UserRole.CANDIDATE) {
-                const candidate = new Candidate({
-                    userId: user._id,
-                    profile: {
-                        summary: '',
-                        skills: [],
-                        experience: [],
-                        education: [],
-                        certifications: [],
-                        projects: [],
-                        location: '',
-                        phoneNumber: lead.phoneNumber,
-                        preferredSalaryRange: {
-                            min: 0,
-                            max: 0,
-                            currency: 'USD',
+                try {
+                    const candidate = new Candidate({
+                        userId: user._id,
+                        profile: {
+                            summary: '',
+                            skills: [],
+                            experience: [],
+                            education: [],
+                            certifications: [],
+                            projects: [],
+                            location: '',
+                            phoneNumber: lead.phoneNumber,
+                            preferredSalaryRange: {
+                                min: 0,
+                                max: 0,
+                                currency: 'USD',
+                            },
+                            availability: {
+                                startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+                                remote: false,
+                                relocation: false,
+                            },
                         },
-                        availability: {
-                            startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-                            remote: false,
-                            relocation: false,
-                        },
-                    },
-                });
+                        status: 'active',
+                    });
 
-                await candidate.save();
+                    await candidate.save();
 
-                logger.info('Candidate profile created successfully', {
-                    userId: user._id,
-                    candidateId: candidate._id,
-                });
+                    logger.info('Candidate profile created successfully', {
+                        userId: user._id,
+                        candidateId: candidate._id,
+                    });
+                } catch (candidateError) {
+                    logger.error('Failed to create candidate profile during SMS registration', {
+                        userId: user._id,
+                        error: candidateError instanceof Error ? candidateError.message : 'Unknown error',
+                    });
+                    // Delete the user since candidate profile creation is critical
+                    await User.deleteOne({ _id: user._id });
+                    throw createBadRequestError('Failed to create candidate profile. Please try again.');
+                }
             }
 
             // Keep lead for logging/analytics (stored permanently)
@@ -669,6 +691,381 @@ export class AuthService {
             ...result,
             requiresOTP: true,
         };
+    }
+
+    /**
+     * Unified Registration - Collects all data upfront, creates lead, sends OTP
+     * POST /auth/register-unified
+     */
+    static async registerUnified(userData: {
+        firstName: string;
+        lastName: string;
+        phoneNumber: string;
+        email: string;
+        password: string;
+        role: 'candidate' | 'hr';
+        source?: string;
+        designation?: string;
+        utmData?: Record<string, any>;
+    }): Promise<{
+        leadId: string;
+        verificationType: 'sms' | 'email';
+        maskedContact: string;
+        tempToken: string;
+    }> {
+        try {
+            const { env } = await import('@/config/env');
+
+            // Check if user already exists
+            const existingUser = await User.findOne({
+                $or: [{ email: userData.email.toLowerCase() }, { phoneNumber: userData.phoneNumber }],
+            });
+
+            if (existingUser) {
+                if (existingUser.email === userData.email.toLowerCase()) {
+                    throw createConflictError('User with this email already exists');
+                }
+                if (existingUser.phoneNumber === userData.phoneNumber) {
+                    throw createConflictError('User with this phone number already exists');
+                }
+            }
+
+            // Check for existing lead
+            const existingLead = await Lead.findOne({
+                $or: [{ email: userData.email.toLowerCase() }, { phoneNumber: userData.phoneNumber }],
+            });
+
+            if (existingLead && existingLead.isVerified) {
+                throw createConflictError('A verified lead already exists with this information');
+            }
+
+            // Validate password strength
+            validatePasswordStrength(userData.password);
+
+            // Hash password for storage in User (not in Lead)
+            const passwordHash = await hashPassword(userData.password);
+
+            // Determine verification method from env
+            const verificationType = env.OTP_VERIFICATION_METHOD || 'sms';
+
+            // Create or update lead (unverified)
+            const leadData = {
+                name: `${userData.firstName} ${userData.lastName}`.trim(),
+                phoneNumber: userData.phoneNumber,
+                email: userData.email.toLowerCase(),
+                role: userData.role === 'hr' ? UserRole.HR : UserRole.CANDIDATE,
+                source: userData.source,
+                designation: userData.designation,
+                isPhoneVerified: false,
+                isEmailVerified: false,
+                isVerified: false,
+                verificationMethod: verificationType,
+                utmData: userData.utmData,
+            };
+
+            let lead;
+            if (existingLead) {
+                // Update existing unverified lead
+                Object.assign(existingLead, leadData);
+                lead = await existingLead.save();
+            } else {
+                // Create new lead
+                lead = await Lead.create(leadData);
+            }
+
+            // Generate 6-digit OTP
+            const otp = OTPService.generateOTP();
+
+            // Store OTP temporarily (using OTP model)
+            await OTPService.storeOTP({
+                identifier: verificationType === 'sms' ? userData.phoneNumber : userData.email,
+                otp,
+                type: verificationType, // 'sms' or 'email'
+                metadata: {
+                    leadId: lead._id.toString(),
+                    firstName: userData.firstName,
+                    lastName: userData.lastName,
+                    password: passwordHash, // Store hashed password as 'password' field
+                    role: userData.role,
+                },
+            });
+
+            // Send OTP based on verification method
+            if (verificationType === 'sms') {
+                await SMSService.sendOTP(userData.phoneNumber, otp);
+            } else {
+                await EmailService.sendOTP(userData.email, otp, userData.firstName);
+            }
+
+            // Generate temporary token for OTP verification
+            const tempToken = generateLeadToken({
+                leadId: lead._id.toString(),
+                phoneNumber: userData.phoneNumber,
+                email: userData.email,
+                role: userData.role,
+            });
+
+            // Mask contact info for security
+            const maskedContact =
+                verificationType === 'sms'
+                    ? userData.phoneNumber.replace(/(\+\d{2})(\d{4})(\d{4})/, '$1****$3')
+                    : userData.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+
+            logger.info('Unified registration initiated', {
+                leadId: lead._id.toString(),
+                verificationType,
+                role: userData.role,
+            });
+
+            return {
+                leadId: lead._id.toString(),
+                verificationType,
+                maskedContact,
+                tempToken,
+            };
+        } catch (error) {
+            logger.error('Unified registration failed', {
+                email: userData.email,
+                phoneNumber: userData.phoneNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Verify Unified OTP - Creates user account after successful verification
+     * POST /auth/verify-otp-unified
+     */
+    static async verifyUnifiedOTP(
+        leadId: string,
+        otp: string,
+        tempToken: string,
+        context?: {
+            ipAddress?: string;
+            userAgent?: string;
+        },
+    ): Promise<{ user: UserDocument; tokens: AuthTokens }> {
+        try {
+            // Verify temp token
+            const tokenPayload = verifyLeadToken(tempToken);
+            if (tokenPayload.leadId !== leadId) {
+                throw createUnauthorizedError('Invalid verification token');
+            }
+
+            // Find lead
+            const lead = await Lead.findById(leadId);
+            if (!lead) {
+                throw createNotFoundError('Lead not found');
+            }
+
+            const { env } = await import('@/config/env');
+            const verificationType = env.OTP_VERIFICATION_METHOD || 'sms';
+
+            let firstName: string;
+            let lastName: string;
+            let passwordHash: string;
+            let role: string;
+
+            // Check if lead is already verified
+            if (lead.isVerified) {
+                // Lead already verified - we should NOT re-verify OTP
+                // The OTP has already been consumed and deleted
+
+                // Check if user account was already created
+                const existingUserCheck = await User.findOne({
+                    $or: [{ email: lead.email }, { phoneNumber: lead.phoneNumber }],
+                });
+
+                if (existingUserCheck) {
+                    // User already exists, return it with new tokens
+                    const tokens = generateTokenPair({
+                        userId: existingUserCheck._id.toString(),
+                        ...(existingUserCheck.email && { email: existingUserCheck.email }),
+                        ...(existingUserCheck.phoneNumber && { phoneNumber: existingUserCheck.phoneNumber }),
+                        role: existingUserCheck.role,
+                    });
+
+                    logger.info('Lead already verified and user exists, returning existing account', {
+                        leadId: lead._id.toString(),
+                        userId: existingUserCheck._id.toString(),
+                    });
+
+                    return { user: existingUserCheck, tokens };
+                }
+
+                // Lead is verified but no user exists - something went wrong in previous attempt
+                // We can't proceed because OTP (with password) has been deleted
+                throw createBadRequestError(
+                    'Your verification was already completed. Please try registering again or contact support if you continue to face issues.',
+                );
+            }
+
+            // Lead is NOT verified yet - proceed with normal OTP verification
+            const identifier = verificationType === 'sms' ? lead.phoneNumber : lead.email!;
+            const otpRecord = await OTPService.verifyGenericOTP({
+                identifier,
+                otp,
+                type: verificationType,
+            });
+
+            if (!otpRecord || !otpRecord.metadata) {
+                throw createUnauthorizedError('Invalid or expired OTP');
+            }
+
+            // Extract stored data from OTP metadata
+            // Note: password is already hashed (stored during registration)
+            firstName = otpRecord.metadata.firstName;
+            lastName = otpRecord.metadata.lastName || '';
+            passwordHash = otpRecord.metadata.password || '';
+            role = otpRecord.metadata.role;
+
+            // Mark lead as verified
+            if (verificationType === 'sms') {
+                lead.isPhoneVerified = true;
+            } else {
+                lead.isEmailVerified = true;
+            }
+            lead.isVerified = true;
+            await lead.save();
+
+            // Ensure lastName has a value (default to firstName if empty)
+            const finalLastName = lastName && lastName.trim() ? lastName.trim() : firstName;
+
+            // Check if user already exists (edge case)
+            const existingUser = await User.findOne({
+                $or: [{ email: lead.email }, { phoneNumber: lead.phoneNumber }],
+            });
+
+            if (existingUser) {
+                throw createConflictError('User account already exists');
+            }
+
+            // Convert role string to UserRole enum
+            const userRole = role === 'hr' ? UserRole.HR : UserRole.CANDIDATE;
+
+            // Generate custom user ID
+            const customId = await generateCustomUserId(userRole);
+
+            // Create user account
+            const newUser = await User.create({
+                customId,
+                email: lead.email,
+                phoneNumber: lead.phoneNumber,
+                password: passwordHash, // Already hashed
+                firstName,
+                lastName: finalLastName,
+                role: userRole,
+                status: UserStatus.ACTIVE,
+                emailVerified: verificationType === 'email',
+                phoneVerified: verificationType === 'sms',
+                source: lead.source,
+                utmData: lead.utmData,
+            });
+
+            // Create Candidate profile if role is candidate
+            if (userRole === UserRole.CANDIDATE) {
+                try {
+                    const candidateProfile = await Candidate.create({
+                        userId: newUser._id,
+                        profile: {
+                            summary: '',
+                            skills: [],
+                            experience: [],
+                            education: [],
+                            certifications: [],
+                            projects: [],
+                            location: '',
+                            phoneNumber: lead.phoneNumber || '',
+                            preferredSalaryRange: {
+                                min: 0,
+                                max: 0,
+                                currency: 'USD',
+                            },
+                            availability: {
+                                startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+                                remote: false,
+                                relocation: false,
+                            },
+                        },
+                        status: 'active',
+                        tags: [],
+                        notes: [],
+                    });
+
+                    logger.info('Candidate profile created', {
+                        userId: newUser._id.toString(),
+                        candidateId: candidateProfile._id.toString(),
+                    });
+                } catch (candidateError) {
+                    logger.error('Failed to create candidate profile', {
+                        userId: newUser._id.toString(),
+                        error: candidateError instanceof Error ? candidateError.message : 'Unknown error',
+                    });
+                    // Throw error - candidate profile is critical for candidate users
+                    throw createBadRequestError('Failed to create candidate profile');
+                }
+            }
+
+            // Log to Google Sheets if available
+            try {
+                await GoogleSheetsService.submitRegistrationData({
+                    firstName,
+                    lastName,
+                    email: lead.email || '',
+                    phone: lead.phoneNumber,
+                    role: newUser.role,
+                });
+            } catch (sheetError) {
+                logger.warn('Failed to log to Google Sheets', {
+                    error: sheetError instanceof Error ? sheetError.message : 'Unknown error',
+                });
+            }
+
+            // Generate authentication tokens
+            const tokens = generateTokenPair({
+                userId: newUser._id.toString(),
+                ...(newUser.email && { email: newUser.email }),
+                ...(newUser.phoneNumber && { phoneNumber: newUser.phoneNumber }),
+                role: newUser.role,
+            });
+
+            // Store refresh token
+            newUser.addRefreshToken(tokens.refreshToken, context?.userAgent, context?.ipAddress);
+            await newUser.save();
+
+            // Log successful registration
+            await AuditLog.createLog({
+                actor: newUser._id,
+                action: AuditAction.CREATE,
+                entityType: 'User',
+                entityId: newUser._id,
+                metadata: {
+                    registrationType: 'unified',
+                    verificationType,
+                    role: newUser.role,
+                },
+                ipAddress: context?.ipAddress,
+                userAgent: context?.userAgent,
+                businessProcess: 'authentication',
+                success: true,
+            });
+
+            logger.info('User account created via unified registration', {
+                userId: newUser._id.toString(),
+                customId: newUser.customId,
+                role: newUser.role,
+                verificationType,
+            });
+
+            return { user: newUser, tokens };
+        } catch (error) {
+            logger.error('Unified OTP verification failed', {
+                leadId,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
     }
 
     /**

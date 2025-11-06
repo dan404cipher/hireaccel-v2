@@ -80,6 +80,12 @@ const envSchema = z.object({
         .default('false')
         .describe('Enable test SMS mode - uses 000000 as OTP for all SMS. DISABLE IN PRODUCTION!'),
 
+    // OTP Verification Method
+    OTP_VERIFICATION_METHOD: z
+        .enum(['sms', 'email'])
+        .default('sms')
+        .describe('Method for OTP verification: sms (via phone) or email'),
+
     // SMS Service Configuration
     SMS_PROVIDER: z.enum(['twilio', 'aws-sns']).optional().default('twilio'),
 

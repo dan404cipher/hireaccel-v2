@@ -47,6 +47,7 @@ const OTPVerificationPage = lazy(() =>
 const SMSOTPVerificationPage = lazy(() =>
     import('./pages/auth/SMSOTPVerificationPage').then((module) => ({ default: module.SMSOTPVerificationPage })),
 );
+const UnifiedOTPVerificationPage = lazy(() => import('./pages/auth/UnifiedOTPVerificationPage'));
 const CompleteRegistrationPage = lazy(() => import('./pages/auth/CompleteRegistrationPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
@@ -200,6 +201,10 @@ function AppRouter() {
             <Route
                 path='/auth/verify-sms'
                 element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <SMSOTPVerificationPage />}
+            />
+            <Route
+                path='/auth/verify-unified'
+                element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <UnifiedOTPVerificationPage />}
             />
             <Route
                 path='/auth/complete-registration'

@@ -7,10 +7,14 @@ import { UserRole } from '@/types';
 export interface ILead {
     name: string;
     phoneNumber: string;
+    email?: string;
     role: UserRole.CANDIDATE | UserRole.HR;
     source?: string;
+    designation?: string; // For HR role only
     isPhoneVerified: boolean;
-    email?: string;
+    isEmailVerified: boolean;
+    isVerified: boolean; // Master verification flag
+    verificationMethod?: 'sms' | 'email';
     // UTM tracking data
     utmData?: {
         utm_source?: string;
@@ -58,6 +62,12 @@ const leadSchema = new Schema<LeadDocument>(
             trim: true,
             match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
         },
+        email: {
+            type: String,
+            trim: true,
+            lowercase: true,
+            match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
+        },
         role: {
             type: String,
             required: [true, 'Role is required'],
@@ -68,6 +78,7 @@ const leadSchema = new Schema<LeadDocument>(
         },
         source: {
             type: String,
+            required: false,
             enum: [
                 'Email',
                 'WhatsApp',
@@ -81,7 +92,14 @@ const leadSchema = new Schema<LeadDocument>(
                 'Google',
                 'Conversational AI (GPT, Gemini etc)',
                 'Direct',
+                'Referral',
+                'Other',
             ],
+        },
+        designation: {
+            type: String,
+            trim: true,
+            maxlength: [100, 'Designation cannot exceed 100 characters'],
         },
         // UTM tracking data for detailed campaign attribution
         utmData: {
@@ -99,11 +117,19 @@ const leadSchema = new Schema<LeadDocument>(
             default: false,
             required: true,
         },
-        email: {
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+            required: true,
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,
+            required: true,
+        },
+        verificationMethod: {
             type: String,
-            trim: true,
-            lowercase: true,
-            match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
+            enum: ['sms', 'email'],
         },
     },
     {

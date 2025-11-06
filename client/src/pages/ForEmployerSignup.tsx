@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
+import { Eye, EyeOff } from 'lucide-react';
 import logoColor from '@/assets/logo-color.png';
 import heroBackground from '@/assets/Hero-background.jpeg';
 import { apiClient } from '@/services/api';
@@ -14,8 +15,20 @@ const ForEmployerSignup = () => {
     const { toast } = useToast();
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('+91');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [source, setSource] = useState('');
+    const [designation, setDesignation] = useState('');
+
     const [phoneError, setPhoneError] = useState('');
     const [nameError, setNameError] = useState('');
+    const [emailError, setEmailError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     const validateName = (name: string): boolean => {
@@ -83,6 +96,78 @@ const ForEmployerSignup = () => {
         }
     };
 
+    const validateEmail = (email: string): boolean => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setEmail(value);
+
+        if (value && !validateEmail(value)) {
+            setEmailError('Please enter a valid email address');
+        } else {
+            setEmailError('');
+        }
+    };
+
+    const validatePassword = (password: string): { isValid: boolean; errors: string[] } => {
+        const errors: string[] = [];
+
+        if (password.length < 8) {
+            errors.push('at least 8 characters');
+        }
+        if (!/[A-Z]/.test(password)) {
+            errors.push('one uppercase letter');
+        }
+        if (!/[a-z]/.test(password)) {
+            errors.push('one lowercase letter');
+        }
+        if (!/[0-9]/.test(password)) {
+            errors.push('one number');
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+        };
+    };
+
+    const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setPassword(value);
+
+        if (value) {
+            const validation = validatePassword(value);
+            if (!validation.isValid) {
+                setPasswordError(`Password must contain ${validation.errors.join(', ')}`);
+            } else {
+                setPasswordError('');
+            }
+        } else {
+            setPasswordError('');
+        }
+
+        // Check confirm password match
+        if (confirmPassword && value !== confirmPassword) {
+            setConfirmPasswordError('Passwords do not match');
+        } else {
+            setConfirmPasswordError('');
+        }
+    };
+
+    const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setConfirmPassword(value);
+
+        if (value && value !== password) {
+            setConfirmPasswordError('Passwords do not match');
+        } else {
+            setConfirmPasswordError('');
+        }
+    };
+
     const handleContinue = async () => {
         // Validate name
         if (!fullName.trim()) {
@@ -110,39 +195,93 @@ const ForEmployerSignup = () => {
 
         setPhoneError('');
 
-        // Start SMS-based signup
+        // Validate email
+        if (!email.trim()) {
+            setEmailError('Email is required');
+            return;
+        }
+
+        if (!validateEmail(email)) {
+            setEmailError('Please enter a valid email address');
+            return;
+        }
+
+        setEmailError('');
+
+        // Validate password
+        if (!password) {
+            setPasswordError('Password is required');
+            return;
+        }
+
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.isValid) {
+            setPasswordError(`Password must contain ${passwordValidation.errors.join(', ')}`);
+            return;
+        }
+
+        setPasswordError('');
+
+        // Validate confirm password
+        if (!confirmPassword) {
+            setConfirmPasswordError('Please confirm your password');
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setConfirmPasswordError('Passwords do not match');
+            return;
+        }
+
+        setConfirmPasswordError('');
+
+        // Start unified registration
         setIsLoading(true);
         try {
             // Get UTM parameters
             const utmParams = getUTMParams();
-            const source = mapUTMToSource(utmParams);
+            const utmSource = mapUTMToSource(utmParams);
 
-            await apiClient.signupSMS({
+            const response = await apiClient.registerUnified({
+                fullName: fullName.trim(),
                 phoneNumber: phone,
-                name: fullName.trim(),
+                email: email.trim().toLowerCase(),
+                password: password,
                 role: 'hr',
-                source: source,
+                source: source || utmSource,
+                designation: designation.trim() || undefined,
                 utmData: utmParams,
             });
 
-            toast({
-                title: 'Verification Code Sent',
-                description: "We've sent a verification code to your mobile number.",
-            });
+            if (response.success) {
+                toast({
+                    title: 'Verification Code Sent',
+                    description: `We've sent a verification code via ${response.data.verificationType}.`,
+                });
 
-            // Store data securely in sessionStorage instead of URL parameters
-            sessionStorage.setItem(
-                'sms_verification_data',
-                JSON.stringify({
-                    phoneNumber: phone,
-                    name: fullName.trim(),
-                    userType: 'hr',
-                    timestamp: Date.now(),
-                }),
-            );
+                // Store data securely in sessionStorage
+                sessionStorage.setItem(
+                    'unified_verification_data',
+                    JSON.stringify({
+                        leadId: response.data.leadId,
+                        verificationType: response.data.verificationType,
+                        maskedContact: response.data.maskedContact,
+                        tempToken: response.data.tempToken,
+                        fullName: fullName.trim(),
+                        phoneNumber: phone,
+                        email: email.trim().toLowerCase(),
+                        password: password, // Store for resend functionality
+                        role: 'hr',
+                        source: source || utmSource,
+                        designation: designation.trim() || undefined,
+                        utmData: utmParams,
+                        timestamp: Date.now(),
+                    }),
+                );
 
-            // Navigate to SMS OTP verification page without sensitive data in URL
-            navigate('/auth/verify-sms');
+                // Navigate to unified OTP verification page
+                navigate('/auth/verify-unified');
+            }
         } catch (error) {
             // Handle specific error cases
             if (error && typeof error === 'object' && 'status' in error) {
@@ -151,13 +290,10 @@ const ForEmployerSignup = () => {
                 if (apiError.status === 409) {
                     toast({
                         title: 'Account Already Exists',
-                        description: 'An account with this phone number already exists. Please sign in instead.',
+                        description:
+                            'An account with this email or phone number already exists. Please sign in instead.',
                         variant: 'destructive',
                     });
-                    // Optionally redirect to login after a delay
-                    // setTimeout(() => {
-                    //     navigate('/login');
-                    // }, 2000);
                     return;
                 }
             }
@@ -386,18 +522,145 @@ const ForEmployerSignup = () => {
                                     />
                                     {phoneError && <p className='text-sm text-red-500'>{phoneError}</p>}
                                 </div>
+
+                                <div className='space-y-2'>
+                                    <Label htmlFor='email'>Email*</Label>
+                                    <Input
+                                        id='email'
+                                        type='email'
+                                        placeholder='jane@company.com'
+                                        value={email}
+                                        onChange={handleEmailChange}
+                                        onBlur={() => {
+                                            if (!email.trim()) {
+                                                setEmailError('Email is required');
+                                            } else if (!validateEmail(email)) {
+                                                setEmailError('Please enter a valid email address');
+                                            }
+                                        }}
+                                        required
+                                        className={emailError ? 'border-red-500 focus:border-red-500' : ''}
+                                        data-gtm-element='hr_signup_email_input'
+                                    />
+                                    {emailError && <p className='text-sm text-red-500'>{emailError}</p>}
+                                </div>
+
+                                <div className='space-y-2'>
+                                    <Label htmlFor='password'>Password*</Label>
+                                    <div className='relative'>
+                                        <Input
+                                            id='password'
+                                            type={showPassword ? 'text' : 'password'}
+                                            placeholder='••••••••'
+                                            value={password}
+                                            onChange={handlePasswordChange}
+                                            onBlur={() => {
+                                                if (!password) {
+                                                    setPasswordError('Password is required');
+                                                }
+                                            }}
+                                            required
+                                            className={passwordError ? 'border-red-500 focus:border-red-500' : ''}
+                                            data-gtm-element='hr_signup_password_input'
+                                        />
+                                        <button
+                                            type='button'
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700'
+                                            tabIndex={-1}
+                                        >
+                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
+                                    {passwordError && <p className='text-sm text-red-500'>{passwordError}</p>}
+                                    {password && !passwordError && (
+                                        <p className='text-xs text-green-600'>✓ Password meets requirements</p>
+                                    )}
+                                </div>
+
+                                <div className='space-y-2'>
+                                    <Label htmlFor='confirmPassword'>Confirm Password*</Label>
+                                    <div className='relative'>
+                                        <Input
+                                            id='confirmPassword'
+                                            type={showConfirmPassword ? 'text' : 'password'}
+                                            placeholder='••••••••'
+                                            value={confirmPassword}
+                                            onChange={handleConfirmPasswordChange}
+                                            onBlur={() => {
+                                                if (!confirmPassword) {
+                                                    setConfirmPasswordError('Please confirm your password');
+                                                }
+                                            }}
+                                            required
+                                            className={
+                                                confirmPasswordError ? 'border-red-500 focus:border-red-500' : ''
+                                            }
+                                            data-gtm-element='hr_signup_confirm_password_input'
+                                        />
+                                        <button
+                                            type='button'
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700'
+                                            tabIndex={-1}
+                                        >
+                                            {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
+                                    {confirmPasswordError && (
+                                        <p className='text-sm text-red-500'>{confirmPasswordError}</p>
+                                    )}
+                                    {confirmPassword && password === confirmPassword && (
+                                        <p className='text-xs text-green-600'>✓ Passwords match</p>
+                                    )}
+                                </div>
+
+                                <div className='space-y-2'>
+                                    <Label htmlFor='designation'>Designation (Optional)</Label>
+                                    <Input
+                                        id='designation'
+                                        type='text'
+                                        placeholder='e.g., HR Manager, Recruiter'
+                                        value={designation}
+                                        onChange={(e) => setDesignation(e.target.value)}
+                                        maxLength={100}
+                                        data-gtm-element='hr_signup_designation_input'
+                                    />
+                                    <p className='text-xs text-gray-500'>Help us understand your role</p>
+                                </div>
+
+                                <div className='space-y-2'>
+                                    <Label htmlFor='source'>How did you hear about us? (Optional)</Label>
+                                    <select
+                                        id='source'
+                                        value={source}
+                                        onChange={(e) => setSource(e.target.value)}
+                                        className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                                        data-gtm-element='hr_signup_source_select'
+                                    >
+                                        <option value=''>Select source</option>
+                                        <option value='Email'>Email</option>
+                                        <option value='WhatsApp'>WhatsApp</option>
+                                        <option value='Instagram'>Instagram</option>
+                                        <option value='Facebook'>Facebook</option>
+                                        <option value='Google'>Google</option>
+                                        <option value='Referral'>Referral</option>
+                                        <option value='Other'>Other</option>
+                                    </select>
+                                </div>
+
                                 <Button
                                     type='submit'
                                     disabled={isLoading}
                                     className='w-full bg-blue-600 hover:bg-blue-700 text-white mt-2 hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed'
                                     style={{ transition: 'all 0.5s ease-in-out' }}
-                                    data-gtm-cta='hr_signup_continue_button'
-                                    data-gtm-cta-text='Continue as an Employer'
+                                    data-gtm-cta='hr_unified_signup_button'
+                                    data-gtm-cta-text='Create Employer Account'
                                     data-gtm-cta-position='signup_page'
-                                    data-gtm-cta-funnel='hr_signup'
+                                    data-gtm-cta-funnel='hr_unified_signup'
                                     data-gtm-cta-step='1'
                                 >
-                                    {isLoading ? 'Sending Code...' : 'Continue as an Employer →'}
+                                    {isLoading ? 'Creating Account...' : 'Create Employer Account →'}
                                 </Button>
                             </form>
 

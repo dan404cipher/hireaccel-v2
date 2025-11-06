@@ -1311,6 +1311,51 @@ class ApiClient {
             body: JSON.stringify(data),
         });
     }
+
+    // Unified registration methods
+    async registerUnified(data: {
+        fullName: string;
+        phoneNumber: string;
+        email: string;
+        password: string;
+        role: 'hr' | 'candidate';
+        source?: string;
+        designation?: string;
+        utmData?: {
+            utm_source?: string;
+            utm_medium?: string;
+            utm_campaign?: string;
+            utm_content?: string;
+            utm_term?: string;
+            referrer?: string;
+            landing_page?: string;
+        };
+    }) {
+        return this.request<{
+            leadId: string;
+            verificationType: 'sms' | 'email';
+            maskedContact: string;
+            tempToken: string;
+        }>('/auth/register-unified', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async verifyUnifiedOTP(data: { leadId: string; otp: string }, tempToken: string) {
+        return this.request<{
+            user: User;
+            accessToken: string;
+            expiresIn: number;
+        }>('/auth/verify-otp-unified', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                Authorization: `Bearer ${tempToken}`,
+            },
+        });
+    }
+
     async forgotPassword(data: { email: string }) {
         return this.request('/auth/forgot-password', {
             method: 'POST',

@@ -120,6 +120,51 @@ const completeRegistrationSchema = z.object({
     password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
+// Unified registration schema
+const unifiedRegisterSchema = z.object({
+    fullName: z.string().min(1, 'Full name is required').max(100, 'Name too long'),
+    phoneNumber: z.string().min(10, 'Phone number is required'),
+    email: z.string().email('Invalid email format'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    role: z.enum(['candidate', 'hr'], { errorMap: () => ({ message: 'Role must be candidate or hr' }) }),
+    source: z
+        .enum([
+            'Email',
+            'WhatsApp',
+            'Telegram',
+            'Instagram',
+            'Facebook',
+            'Journals',
+            'Posters',
+            'Brochures',
+            'Forums',
+            'Google',
+            'Conversational AI (GPT, Gemini etc)',
+            'Direct',
+            'Referral',
+            'Other',
+        ])
+        .optional(),
+    designation: z.string().max(100, 'Designation too long').optional(),
+    // UTM tracking data
+    utmData: z
+        .object({
+            utm_source: z.string().optional(),
+            utm_medium: z.string().optional(),
+            utm_campaign: z.string().optional(),
+            utm_content: z.string().optional(),
+            utm_term: z.string().optional(),
+            referrer: z.string().optional(),
+            landing_page: z.string().optional(),
+        })
+        .optional(),
+});
+
+const verifyUnifiedOTPSchema = z.object({
+    leadId: z.string().min(1, 'Lead ID is required'),
+    otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
 // const _refreshTokenSchema = z.object({
 //   refreshToken: z.string().min(1, 'Refresh token is required'),
 // });
@@ -330,6 +375,110 @@ export class AuthController {
         res.status(201).json({
             success: true,
             message: 'Registration completed successfully!',
+            data: {
+                user: {
+                    id: user._id,
+                    customId: user.customId,
+                    email: user.email,
+                    phoneNumber: user.phoneNumber,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    role: user.role,
+                    status: user.status,
+                },
+                accessToken: tokens.accessToken,
+                expiresIn: tokens.expiresIn,
+            },
+        });
+    });
+
+    /**
+     * Unified Registration - Single step with all fields
+     * POST /auth/register-unified
+     */
+    static registerUnified = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const validatedData = unifiedRegisterSchema.parse(req.body);
+
+        // Parse full name into firstName and lastName
+        const parseFullName = (fullName: string): { firstName: string; lastName: string } => {
+            const trimmed = fullName.trim();
+            const parts = trimmed.split(' ').filter((p) => p.length > 0);
+
+            if (parts.length === 0) {
+                return { firstName: '', lastName: '' };
+            }
+            if (parts.length === 1) {
+                return { firstName: parts[0] || '', lastName: '' };
+            }
+
+            const firstName = parts[0] || '';
+            const lastName = parts.slice(1).join(' ');
+            return { firstName, lastName };
+        };
+
+        const { firstName, lastName } = parseFullName(validatedData.fullName);
+
+        const result = await AuthService.registerUnified({
+            firstName,
+            lastName,
+            phoneNumber: validatedData.phoneNumber,
+            email: validatedData.email,
+            password: validatedData.password,
+            role: validatedData.role,
+            ...(validatedData.source && { source: validatedData.source }),
+            ...(validatedData.designation && { designation: validatedData.designation }),
+            ...(validatedData.utmData && { utmData: validatedData.utmData }),
+        });
+
+        res.status(201).json({
+            success: true,
+            message: `OTP sent successfully via ${result.verificationType}`,
+            data: {
+                leadId: result.leadId,
+                verificationType: result.verificationType,
+                maskedContact: result.maskedContact,
+                tempToken: result.tempToken,
+            },
+        });
+    });
+
+    /**
+     * Verify Unified OTP - Creates user account after verification
+     * POST /auth/verify-otp-unified
+     */
+    static verifyUnifiedOTP = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+        const validatedData = verifyUnifiedOTPSchema.parse(req.body);
+
+        // Get temp token from Authorization header
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new Error('Temporary token required');
+        }
+
+        const tempToken = authHeader.substring(7);
+
+        const context: { ipAddress?: string; userAgent?: string } = {};
+        if (req.ip) context.ipAddress = req.ip;
+        if (req.get('user-agent')) context.userAgent = req.get('user-agent')!;
+
+        const { user, tokens } = await AuthService.verifyUnifiedOTP(
+            validatedData.leadId,
+            validatedData.otp,
+            tempToken,
+            context,
+        );
+
+        // Set refresh token in HTTP-only cookie
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env['NODE_ENV'] === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Account verified and created successfully!',
             data: {
                 user: {
                     id: user._id,

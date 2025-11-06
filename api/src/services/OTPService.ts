@@ -29,6 +29,49 @@ export class OTPService {
     }
 
     /**
+     * Store OTP in database
+     * Generic method for storing OTP with metadata
+     */
+    static async storeOTP(data: {
+        identifier: string; // email or phone number
+        otp: string;
+        type: 'email' | 'sms';
+        metadata?: any;
+    }): Promise<void> {
+        try {
+            const { identifier, otp, type, metadata } = data;
+
+            // Delete any existing OTP for this identifier
+            if (type === 'email') {
+                await OTP.deleteMany({ email: identifier });
+            } else {
+                await OTP.deleteMany({ phoneNumber: identifier });
+            }
+
+            // Create OTP record
+            const otpRecord = new OTP({
+                ...(type === 'email' ? { email: identifier } : { phoneNumber: identifier }),
+                type,
+                otp,
+                userData: metadata || {},
+                attempts: 0,
+            });
+
+            await otpRecord.save();
+
+            logger.info(`OTP stored successfully`, {
+                type,
+                identifier: type === 'email' ? identifier : `${identifier.slice(0, 6)}...`,
+            });
+        } catch (error) {
+            logger.error('Failed to store OTP', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
+    }
+
+    /**
      * Send OTP for email verification during signup
      * Note: When TEST_SMS=true, OTP will be "000000" for testing
      */
@@ -128,9 +171,87 @@ export class OTPService {
     }
 
     /**
-     * Verify OTP and return user data if valid (for email-based signup)
+     * Verify OTP for email-based signup
      */
     static async verifyOTP(email: string, otp: string): Promise<OTPDocument['userData'] | null> {
+        return this.verifyGenericOTP({ identifier: email, otp, type: 'email' });
+    }
+
+    /**
+     * Generic OTP verification for both email and SMS
+     */
+    static async verifyGenericOTP(data: {
+        identifier: string;
+        otp: string;
+        type: 'email' | 'sms';
+    }): Promise<any | null> {
+        try {
+            const { identifier, otp, type } = data;
+
+            // Find OTP record
+            const query: any = {
+                otp,
+                type,
+            };
+
+            if (type === 'email') {
+                query.email = identifier.toLowerCase().trim();
+            } else {
+                query.phoneNumber = identifier;
+            }
+
+            const otpRecord = await OTP.findOne(query);
+
+            if (!otpRecord) {
+                logger.warn('Invalid OTP attempt', {
+                    identifier: type === 'email' ? identifier : `${identifier.slice(0, 6)}...`,
+                    type,
+                });
+                return null;
+            }
+
+            // Check if OTP has expired
+            if (otpRecord.expiresAt < new Date()) {
+                logger.warn('Expired OTP attempt', {
+                    identifier: type === 'email' ? identifier : `${identifier.slice(0, 6)}...`,
+                    type,
+                });
+                await otpRecord.deleteOne();
+                return null;
+            }
+
+            // Check attempt limit (max 5 attempts)
+            if (otpRecord.attempts >= 5) {
+                logger.warn('Maximum OTP attempts exceeded', {
+                    identifier: type === 'email' ? identifier : `${identifier.slice(0, 6)}...`,
+                    type,
+                });
+                await otpRecord.deleteOne();
+                return null;
+            }
+
+            // OTP is valid, delete the record and return metadata + userData
+            const metadata = otpRecord.userData;
+            await otpRecord.deleteOne();
+
+            logger.info('OTP verified successfully', {
+                identifier: type === 'email' ? identifier : `${identifier.slice(0, 6)}...`,
+                type,
+            });
+
+            return { metadata, userData: otpRecord.userData };
+        } catch (error) {
+            logger.error('Failed to verify OTP', {
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
+    }
+
+    /**
+     * Verify OTP for email-based signup (original method)
+     */
+    static async verifyOriginalOTP(email: string, otp: string): Promise<OTPDocument['userData'] | null> {
         try {
             // Find OTP record
             const otpRecord = await OTP.findOne({

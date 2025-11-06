@@ -54,6 +54,20 @@ router.post('/verify-sms-otp', otpLimiter, AuthController.verifySMSOTP);
 router.post('/complete-registration', AuthController.completeRegistration);
 
 /**
+ * @route   POST /auth/register-unified
+ * @desc    Unified registration - collect all data upfront, send OTP
+ * @access  Public
+ */
+router.post('/register-unified', otpLimiter, AuthController.registerUnified);
+
+/**
+ * @route   POST /auth/verify-otp-unified
+ * @desc    Verify OTP for unified registration and create user account
+ * @access  Public (requires temp token)
+ */
+router.post('/verify-otp-unified', otpLimiter, AuthController.verifyUnifiedOTP);
+
+/**
  * @route   POST /auth/resend-sms-otp
  * @desc    Resend SMS OTP for registration
  * @access  Public
