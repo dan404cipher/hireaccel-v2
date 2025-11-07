@@ -241,19 +241,61 @@ const ForJobSeekersSignup = () => {
     return true;
   };
 
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, and arrow keys
+    if (
+      [
+        "Backspace",
+        "Delete",
+        "Tab",
+        "Escape",
+        "Enter",
+        "ArrowLeft",
+        "ArrowRight",
+        "ArrowUp",
+        "ArrowDown",
+      ].includes(e.key)
+    ) {
+      return;
+    }
+
+    // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+Z
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      ["a", "c", "v", "x", "z"].includes(e.key.toLowerCase())
+    ) {
+      return;
+    }
+
+    // Allow: digits (0-9), plus (+), space, and hyphen (-)
+    // These are needed for intl-tel-input formatting
+    if (/^[0-9+\s-]$/.test(e.key)) {
+      return;
+    }
+
+    // Block everything else (letters and other special characters)
+    e.preventDefault();
+  };
+
   const handlePhoneChange = () => {
     if (phoneInputRef.current) {
       // Get the actual input value directly
-      const inputValue = phoneInputRef.current.value.trim();
+      let inputValue = phoneInputRef.current.value.trim();
+
+      // Remove all non-digit characters immediately
+      const digitsOnly = inputValue.replace(/\D/g, "");
+
+      // Update the input field to show only digits
+      if (inputValue !== digitsOnly) {
+        phoneInputRef.current.value = digitsOnly;
+        inputValue = digitsOnly;
+      }
 
       if (!inputValue) {
         setPhone("");
         setPhoneError("");
         return;
       }
-
-      // Extract digits only
-      const digitsOnly = inputValue.replace(/\D/g, "");
 
       // Get country code from intl-tel-input if available, otherwise default to India
       let countryDialCode = "91";
@@ -309,8 +351,87 @@ const ForJobSeekersSignup = () => {
   };
 
   const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    if (!email || !email.trim()) return false;
+
+    // More robust email validation regex
+    // This follows RFC 5322 specification more closely
+    const emailRegex =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+    // Basic structure check
+    if (!emailRegex.test(email)) {
+      return false;
+    }
+
+    // Additional checks
+    const parts = email.split("@");
+    if (parts.length !== 2) {
+      return false;
+    }
+
+    const [localPart, domain] = parts;
+
+    // Local part validation - must be at least 2 characters
+    if (!localPart || localPart.length < 2 || localPart.length > 64) {
+      return false;
+    }
+
+    // Check for consecutive dots in local part
+    if (localPart.includes("..")) {
+      return false;
+    }
+
+    // Local part cannot start or end with dot
+    if (localPart.startsWith(".") || localPart.endsWith(".")) {
+      return false;
+    }
+
+    // Domain validation - must be at least 2 characters before TLD
+    if (!domain || domain.length < 2 || domain.length > 255) {
+      return false;
+    }
+
+    // Check for consecutive dots in domain
+    if (domain.includes("..")) {
+      return false;
+    }
+
+    // Domain cannot start or end with dot or hyphen
+    if (
+      domain.startsWith(".") ||
+      domain.endsWith(".") ||
+      domain.startsWith("-") ||
+      domain.endsWith("-")
+    ) {
+      return false;
+    }
+
+    // Must have at least one dot in domain (for TLD)
+    if (!domain.includes(".")) {
+      return false;
+    }
+
+    // Split domain to check parts before TLD
+    const domainParts = domain.split(".");
+    const domainName = domainParts.slice(0, -1).join("."); // Everything before TLD
+    const tld = domainParts[domainParts.length - 1];
+
+    // Domain name (before TLD) must be at least 2 characters
+    if (!domainName || domainName.length < 2) {
+      return false;
+    }
+
+    // TLD (top-level domain) should be at least 2 characters
+    if (!tld || tld.length < 2) {
+      return false;
+    }
+
+    // TLD should only contain letters
+    if (!/^[a-zA-Z]+$/.test(tld)) {
+      return false;
+    }
+
+    return true;
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -830,7 +951,9 @@ const ForJobSeekersSignup = () => {
                       ref={phoneInputRef}
                       id="phone"
                       type="tel"
+                      inputMode="numeric"
                       placeholder="Enter your phone number"
+                      onKeyDown={handlePhoneKeyDown}
                       onChange={handlePhoneChange}
                       onBlur={() => {
                         const inputValue =
