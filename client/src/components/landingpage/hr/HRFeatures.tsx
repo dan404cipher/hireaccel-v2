@@ -46,6 +46,7 @@ import heroBackground from '@/assets/Hero-background.jpeg';
 import howItWorksBackground from '@/assets/bg.png';
 import problemBackground from '@/assets/section1.jpg';
 import featuresBackground from '@/assets/btbg2.jpg';
+import UnifiedSignupForm from '@/components/auth/UnifiedSignupForm';
 
 // Hook to detect when element is in view
 function useInView(threshold = 0.1) {
@@ -655,6 +656,58 @@ export function HRProfessionals() {
                                     </Card>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Signup Form Section - Second Page */}
+            <section
+                id="signup"
+                className="relative min-h-screen flex items-center justify-center py-12 sm:py-16 md:py-20 px-4 sm:px-6 overflow-hidden"
+                style={{
+                    backgroundImage: `url(${heroBackground})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                }}
+            >
+                {/* Gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/60 to-black/50"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-transparent"></div>
+
+                {/* Background pattern matching other sections */}
+                <div className="absolute inset-0">
+                    <div className="absolute top-0 left-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl"></div>
+                    <div className="absolute top-1/3 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl"></div>
+                </div>
+
+                <div className="container mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-8 md:py-10 relative z-10 w-full">
+                    <div className="max-w-4xl mx-auto">
+                        {/* Section Header matching page style */}
+                        <div className="text-center mb-8 sm:mb-10 md:mb-12">
+                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-white leading-tight">
+                                Create Your Account
+                            </h2>
+                            <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4">
+                                Join hundreds of HR professionals transforming their hiring process
+                            </p>
+                        </div>
+
+                        {/* Form Card */}
+                        <div className="bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-2xl border border-white/30">
+                            <UnifiedSignupForm role="hr" variant="inline" />
+
+                            <div className="text-center text-xs sm:text-sm text-gray-600 mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-gray-200">
+                                Already have an account?{" "}
+                                <button
+                                    type="button"
+                                    onClick={() => navigate("/login")}
+                                    className="text-blue-600 hover:underline font-medium"
+                                >
+                                    Sign in here
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
