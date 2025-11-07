@@ -6,6 +6,7 @@ import { Company } from '@/models/Company';
 import { User } from '@/models/User';
 import { AuditLog } from '@/models/AuditLog';
 import { AgentAssignment } from '@/models/AgentAssignment';
+import { CandidateAssignment } from '@/models/CandidateAssignment';
 import { AuthenticatedRequest, JobStatus, JobType, JobUrgency, WorkType, UserRole, AuditAction } from '@/types';
 import { asyncHandler, createNotFoundError } from '@/middleware/errorHandler';
 
@@ -183,21 +184,57 @@ export class JobController {
     
     const [jobs, total] = await Promise.all([
       Job.find(searchQuery)
-        .populate('companyId', 'name industry location')
-        .populate('assignedAgentId', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName customId')
+        .populate('companyId', 'name industry location logoFileId')
+        .populate('assignedAgentId', 'firstName lastName email customId profilePhotoFileId')
+        .populate('createdBy', 'firstName lastName email customId profilePhotoFileId')
         .sort(sort)
         .skip(skip)
         .limit(limit),
       Job.countDocuments(searchQuery),
     ]);
     
+    // For HR users, find the agent assigned to them (cache this lookup since it's the same for all jobs)
+    let assignedAgent: any = null;
+    if (req.user?.role === UserRole.HR) {
+      const hrId = req.user._id;
+      
+      // Try to find agent through AgentAssignment first
+      let agentAssignment = await AgentAssignment.findOne({
+        assignedHRs: { $in: [hrId] },
+        status: 'active'
+      }).populate('agentId', 'firstName lastName email customId profilePhotoFileId');
+      
+      if (agentAssignment?.agentId) {
+        assignedAgent = agentAssignment.agentId;
+      } else {
+        // Fallback: Find agent through CandidateAssignment (if agent has shared candidates to this HR)
+        const candidateAssignment = await CandidateAssignment.findOne({
+          assignedTo: hrId,
+          status: { $in: ['active', 'completed'] }
+        })
+        .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId role')
+        .sort({ assignedAt: -1 }); // Get the most recent one
+        
+        if (candidateAssignment?.assignedBy && candidateAssignment.assignedBy.role === UserRole.AGENT) {
+          assignedAgent = candidateAssignment.assignedBy;
+        }
+      }
+    }
+    
     // Calculate actual applications count for each job based on candidate assignments
+    // Also populate assigned agent for HR users (from AgentAssignment)
     const jobsWithApplicationsCount = await Promise.all(
       jobs.map(async (job) => {
         const applicationsCount = await Job.calculateApplicationsCount(job._id);
+        const jobObject = job.toObject();
+        
+        // For HR users, add the assigned agent (cached from above)
+        if (req.user?.role === UserRole.HR && assignedAgent) {
+          jobObject.assignedAgentId = assignedAgent;
+        }
+        
         return {
-          ...job.toObject(),
+          ...jobObject,
           applications: applicationsCount
         };
       })
@@ -271,16 +308,16 @@ export class JobController {
     
     // Try to find by custom jobId first, then by MongoDB _id
     let job = await Job.findOne({ jobId: id })
-      .populate('companyId')
-      .populate('assignedAgentId', 'firstName lastName email')
-      .populate('createdBy', 'firstName lastName customId');
+      .populate('companyId', 'name industry location logoFileId')
+      .populate('assignedAgentId', 'firstName lastName email customId profilePhotoFileId')
+      .populate('createdBy', 'firstName lastName customId profilePhotoFileId');
     
     // If not found by jobId, try by MongoDB _id
     if (!job) {
       job = await Job.findById(id)
-        .populate('companyId')
-        .populate('assignedAgentId', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName customId');
+        .populate('companyId', 'name industry location logoFileId')
+        .populate('assignedAgentId', 'firstName lastName email customId profilePhotoFileId')
+        .populate('createdBy', 'firstName lastName customId profilePhotoFileId');
     }
     
     if (!job) {

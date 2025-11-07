@@ -38,13 +38,16 @@ import {
   ArrowUpDown
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useUsers, useAgentAssignmentsList, useCreateAgentAssignment, useRemoveFromAgentAssignment } from '../../hooks/useApi';
 import { User } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuthenticatedImage } from '../../hooks/useAuthenticatedImage';
 
 interface ExtendedUser extends User {
   _id: string; // MongoDB ObjectId as string
   candidateId?: string; // The ID of the candidate document for users with role 'candidate'
+  profilePhotoFileId?: string;
 }
 import { useToast } from '../../hooks/use-toast';
 
@@ -52,6 +55,70 @@ import { useToast } from '../../hooks/use-toast';
 const formatLastLogin = (lastLogin: string | null) => {
   if (!lastLogin) return 'Never';
   return new Date(lastLogin).toLocaleDateString();
+};
+
+// Format customId to remove leading zeros (e.g., CAND00004 -> CAND4)
+const formatCustomId = (customId: string | undefined): string => {
+  if (!customId) return 'N/A';
+  
+  // Match pattern like CAND00004, HR00001, etc.
+  const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    // Remove leading zeros and return formatted ID
+    return `${prefix}${parseInt(number, 10)}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Component to display user avatar with profile picture support
+const UserAvatar = ({ user, onClick }: { user: ExtendedUser; onClick?: () => void }) => {
+  // Only show profile picture for HR and candidate roles
+  const showProfilePicture = (user.role === 'hr' || user.role === 'candidate') && user.profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = showProfilePicture && authenticatedImageUrl ? (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={`${user.firstName} ${user.lastName}`}
+      />
+      <AvatarFallback className={`text-xs font-semibold text-white ${
+        user.role === 'hr' ? 'bg-blue-600' : 'bg-purple-600'
+      }`}>
+        {user.firstName[0]}{user.lastName[0]}
+      </AvatarFallback>
+    </Avatar>
+  ) : (
+    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+      user.role === 'hr' ? 'bg-green-100' : 'bg-purple-100'
+    }`}>
+      {user.role === 'hr' ? (
+        <UserCheck className="w-4 h-4 text-green-600" />
+      ) : (
+        <Users className="w-4 h-4 text-purple-600" />
+      )}
+    </div>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
 };
 
 // Sort options
@@ -207,6 +274,7 @@ export default function AgentAllocation(): React.JSX.Element {
 
     return assignment?.agentId || null;
   };
+
 
   // Filter resources based on search and allocation status
   const getFilteredResources = () => {
@@ -702,22 +770,34 @@ export default function AgentAllocation(): React.JSX.Element {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
-                          {resource.customId || 'N/A'}
+                          {formatCustomId(resource.customId)}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-3">
-                          <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                            resource.role === 'hr' ? 'bg-green-100' : 'bg-purple-100'
-                          }`}>
-                            {resource.role === 'hr' ? (
-                              <UserCheck className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <Users className="w-4 h-4 text-purple-600" />
-                            )}
-                          </div>
+                          <UserAvatar 
+                            user={resource}
+                            onClick={() => {
+                              if (resource.role === 'candidate') {
+                                navigate(`/dashboard/candidates/${resource.customId}`);
+                              } else if (resource.role === 'hr') {
+                                navigate(`/dashboard/hr-profile/${resource.customId}`);
+                              }
+                            }}
+                          />
                           <div>
-                            <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
+                            <p 
+                              className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                              onClick={() => {
+                                if (resource.role === 'candidate') {
+                                  navigate(`/dashboard/candidates/${resource.customId}`);
+                                } else if (resource.role === 'hr') {
+                                  navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                }
+                              }}
+                            >
+                              {resource.firstName} {resource.lastName}
+                            </p>
                             <Badge variant="outline" className={`text-xs px-1.5 py-0.5 mt-1 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
                               {resource.role === 'hr' ? 'HR User' : 'Candidate'}
                             </Badge>
@@ -842,22 +922,34 @@ export default function AgentAllocation(): React.JSX.Element {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="font-mono text-xs">
-                              {resource.customId || 'N/A'}
+                              {formatCustomId(resource.customId)}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-3">
-                              <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                                resource.role === 'hr' ? 'bg-green-100' : 'bg-purple-100'
-                              }`}>
-                                {resource.role === 'hr' ? (
-                                  <UserCheck className="w-4 h-4 text-green-600" />
-                                ) : (
-                                  <Users className="w-4 h-4 text-purple-600" />
-                                )}
-                              </div>
+                              <UserAvatar 
+                                user={resource}
+                                onClick={() => {
+                                  if (resource.role === 'candidate') {
+                                    navigate(`/dashboard/candidates/${resource.customId}`);
+                                  } else if (resource.role === 'hr') {
+                                    navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                  }
+                                }}
+                              />
                               <div>
-                                <p className="font-medium text-base">{resource.firstName} {resource.lastName}</p>
+                                <p 
+                                  className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                                  onClick={() => {
+                                    if (resource.role === 'candidate') {
+                                      navigate(`/dashboard/candidates/${resource.customId}`);
+                                    } else if (resource.role === 'hr') {
+                                      navigate(`/dashboard/hr-profile/${resource.customId}`);
+                                    }
+                                  }}
+                                >
+                                  {resource.firstName} {resource.lastName}
+                                </p>
                                 <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${resource.role === 'hr' ? 'text-green-600 border-green-200' : 'text-purple-600 border-purple-200'}`}>
                                   {resource.role === 'hr' ? 'HR User' : 'Candidate'}
                                 </Badge>
@@ -982,6 +1074,7 @@ export default function AgentAllocation(): React.JSX.Element {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

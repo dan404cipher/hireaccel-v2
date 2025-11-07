@@ -69,9 +69,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiErrorAlert } from "@/components/ui/error-boundary";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
 interface User {
   _id: string;
@@ -85,6 +87,7 @@ interface User {
   emailVerified?: boolean;
   phoneNumber?: string;
   source?: string;
+  profilePhotoFileId?: string;
   createdAt: string;
 }
 
@@ -123,6 +126,80 @@ const roleLabels = {
   hr: 'HR Manager',
   agent: 'Agent',
   candidate: 'Candidate',
+};
+
+// Format customId to remove leading zeros (e.g., CAND00004 -> CAND4)
+const formatCustomId = (customId: string): string => {
+  if (!customId) return customId;
+  
+  // Match pattern like CAND00004, HR00001, etc.
+  const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    // Remove leading zeros and return formatted ID
+    return `${prefix}${parseInt(number, 10)}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Component to display user avatar with profile picture support
+const UserAvatar = ({ user, onClick }: { user: User; onClick?: () => void }) => {
+  // Only show profile picture for HR and candidate roles
+  const showProfilePicture = (user.role === 'hr' || user.role === 'candidate') && user.profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = showProfilePicture && authenticatedImageUrl ? (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={`${user.firstName} ${user.lastName}`}
+      />
+      <AvatarFallback className={`text-xs font-semibold text-white ${
+        user.role === 'hr' ? 'bg-blue-600' : 'bg-purple-600'
+      }`}>
+        {user.firstName[0]}{user.lastName[0]}
+      </AvatarFallback>
+    </Avatar>
+  ) : (
+    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+      user.role === 'superadmin' ? 'bg-gradient-to-r from-purple-100 to-pink-100' :
+      user.role === 'admin' ? 'bg-red-100' :
+      user.role === 'hr' ? 'bg-blue-100' :
+      user.role === 'agent' ? 'bg-emerald-100' :
+      'bg-purple-100'
+    }`}>
+      {user.role === 'superadmin' || user.role === 'admin' ? (
+        <Shield className={`w-4 h-4 ${
+          user.role === 'superadmin' ? 'text-purple-600' : 'text-red-600'
+        }`} />
+      ) : user.role === 'hr' ? (
+        <UserCheck className="w-4 h-4 text-blue-600" />
+      ) : user.role === 'agent' ? (
+        <UserCheck className="w-4 h-4 text-emerald-600" />
+      ) : (
+        <Users className="w-4 h-4 text-purple-600" />
+      )}
+    </div>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
 };
 
 export default function UserManagement() {
@@ -751,10 +828,9 @@ export default function UserManagement() {
                       />
                     </TableHead>
                     <TableHead>ID</TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead className="min-w-[250px]">Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Role</TableHead>
                     <TableHead>Lead Source</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[50px]">Actions</TableHead>
@@ -772,11 +848,45 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
-                          {user.customId}
+                          {formatCustomId(user.customId)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium text-base">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <UserAvatar 
+                            user={user}
+                            onClick={() => {
+                              if (user.role === 'candidate') {
+                                navigate(`/dashboard/candidates/${user.customId || user._id}`);
+                              } else if (user.role === 'hr') {
+                                navigate(`/dashboard/hr-profile/${user.customId || user._id}`);
+                              } else {
+                                // For other roles, open the view details dialog
+                                setViewingUser(user);
+                              }
+                            }}
+                          />
+                          <div>
+                            <p 
+                              className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                              onClick={() => {
+                                if (user.role === 'candidate') {
+                                  navigate(`/dashboard/candidates/${user.customId || user._id}`);
+                                } else if (user.role === 'hr') {
+                                  navigate(`/dashboard/hr-profile/${user.customId || user._id}`);
+                                } else {
+                                  // For other roles, open the view details dialog
+                                  setViewingUser(user);
+                                }
+                              }}
+                            >
                         {user.firstName} {user.lastName}
+                            </p>
+                            <Badge className={`${roleColors[user.role]} text-xs px-1.5 py-0.5 mt-1`}>
+                              {roleLabels[user.role]}
+                            </Badge>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-base">
@@ -789,11 +899,6 @@ export default function UserManagement() {
                           <Phone className="h-4 w-4 text-emerald-600" />
                           {user.phoneNumber || '-'}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={roleColors[user.role]}>
-                          {roleLabels[user.role]}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge className={sourceColors[user.source || 'Not specified']}>

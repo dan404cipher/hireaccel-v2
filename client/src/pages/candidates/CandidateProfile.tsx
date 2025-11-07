@@ -131,7 +131,8 @@ import {
   Building2,
   Code,
   Github,
-  Link
+  Link,
+  ArrowLeft
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCandidateProfile, useUpdateCandidateProfile, useResumeInfo, useUploadResume, useDeleteResume } from '@/hooks/useApi';
@@ -1258,6 +1259,17 @@ const CandidateProfile: React.FC = () => {
       {/* Header Banner */}
       <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="absolute inset-0 bg-black opacity-20"></div>
+        <div className="absolute top-4 left-4 z-20">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="text-white hover:bg-white/20 hover:text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+        </div>
       </div>
 
       <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">

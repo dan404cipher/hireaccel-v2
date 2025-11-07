@@ -1,6 +1,6 @@
 
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -80,20 +80,35 @@ interface CandidateAssignment {
     lastName: string;
     email: string;
     customId: string;
+    profilePhotoFileId?: string;
+  };
+  assignedTo?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    customId: string;
+    profilePhotoFileId?: string;
   };
   jobId?: {
+    _id?: string;
+    id?: string;
+    jobId?: string;
     title: string;
     companyId: {
       _id: string;
+      companyId?: string;
       name: string;
       industry?: string;
       location?: string;
+      logoUrl?: string;
     };
     location?: string;
     createdBy?: {
       firstName: string;
       lastName: string;
+      email: string;
       customId: string;
+      profilePhotoFileId?: string;
     };
   };
   status: 'active' | 'completed' | 'rejected' | 'withdrawn';
@@ -108,12 +123,194 @@ interface CandidateAssignment {
   daysSinceAssigned?: number;
 }
 
+// Component for candidate avatar with profile photo (moved outside to prevent re-creation)
+const CandidateAvatar: React.FC<{
+  profilePhotoFileId?: string;
+  firstName: string;
+  lastName: string;
+  statusColor: string;
+  initials: string;
+}> = React.memo(({ profilePhotoFileId, firstName, lastName, statusColor, initials }) => {
+  // Memoize the URL to prevent unnecessary re-fetches
+  const profilePhotoUrl = useMemo(() => {
+    return profilePhotoFileId
+      ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+      : null;
+  }, [profilePhotoFileId]);
+  
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+  
+  return (
+    <Avatar className="h-12 w-12 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={`${firstName} ${lastName}`} 
+      />
+      <AvatarFallback className={`text-sm text-white font-semibold ${statusColor}`}>
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if props actually changed
+  return (
+    prevProps.profilePhotoFileId === nextProps.profilePhotoFileId &&
+    prevProps.firstName === nextProps.firstName &&
+    prevProps.lastName === nextProps.lastName &&
+    prevProps.statusColor === nextProps.statusColor &&
+    prevProps.initials === nextProps.initials
+  );
+});
+CandidateAvatar.displayName = 'CandidateAvatar';
+
+// Component for HR avatar with profile photo (moved outside to prevent re-creation)
+const HRAvatar: React.FC<{
+  profilePhotoFileId?: string;
+  firstName: string;
+  lastName: string;
+  initials: string;
+}> = React.memo(({ profilePhotoFileId, firstName, lastName, initials }) => {
+  // Memoize the URL to prevent unnecessary re-fetches
+  const profilePhotoUrl = useMemo(() => {
+    return profilePhotoFileId
+      ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+      : null;
+  }, [profilePhotoFileId]);
+  
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+  
+  return (
+    <Avatar className="h-10 w-10 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={`${firstName} ${lastName}`} 
+      />
+      <AvatarFallback className="text-xs text-white font-semibold bg-blue-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if props actually changed
+  return (
+    prevProps.profilePhotoFileId === nextProps.profilePhotoFileId &&
+    prevProps.firstName === nextProps.firstName &&
+    prevProps.lastName === nextProps.lastName &&
+    prevProps.initials === nextProps.initials
+  );
+});
+HRAvatar.displayName = 'HRAvatar';
+
+// Component for Agent avatar with profile photo (moved outside to prevent re-creation)
+const AgentAvatar: React.FC<{
+  profilePhotoFileId?: string;
+  firstName: string;
+  lastName: string;
+  initials: string;
+}> = React.memo(({ profilePhotoFileId, firstName, lastName, initials }) => {
+  // Memoize the URL to prevent unnecessary re-fetches
+  const profilePhotoUrl = useMemo(() => {
+    return profilePhotoFileId
+      ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+      : null;
+  }, [profilePhotoFileId]);
+  
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+  
+  return (
+    <Avatar className="h-10 w-10 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={`${firstName} ${lastName}`} 
+      />
+      <AvatarFallback className="text-xs text-white font-semibold bg-emerald-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if props actually changed
+  return (
+    prevProps.profilePhotoFileId === nextProps.profilePhotoFileId &&
+    prevProps.firstName === nextProps.firstName &&
+    prevProps.lastName === nextProps.lastName &&
+    prevProps.initials === nextProps.initials
+  );
+});
+AgentAvatar.displayName = 'AgentAvatar';
+
+// Component for company avatar with logo (moved outside to prevent re-creation)
+const CompanyAvatar: React.FC<{
+  logoFileId?: string | { _id?: string; toString?: () => string };
+  companyName: string;
+}> = React.memo(({ logoFileId, companyName }) => {
+  // Extract company logo file ID from various formats
+  const fileId = logoFileId 
+    ? (typeof logoFileId === 'object' && logoFileId !== null && '_id' in logoFileId
+        ? (logoFileId._id?.toString() || logoFileId.toString?.())
+        : typeof logoFileId === 'string'
+        ? logoFileId
+        : null)
+    : null;
+  
+  // Construct authenticated API endpoint URL
+  const logoUrl = fileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${fileId}`
+    : null;
+  
+  const authenticatedImageUrl = useAuthenticatedImage(logoUrl);
+  
+  // Memoize initials calculation
+  const initials = useMemo(() => {
+    return companyName
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [companyName]);
+  
+  return (
+    <Avatar className="h-10 w-10 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={companyName} 
+      />
+      <AvatarFallback className="text-xs text-white font-semibold bg-purple-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if props actually changed
+  const prevFileId = prevProps.logoFileId 
+    ? (typeof prevProps.logoFileId === 'object' && prevProps.logoFileId !== null && '_id' in prevProps.logoFileId
+        ? (prevProps.logoFileId._id?.toString() || prevProps.logoFileId.toString?.())
+        : typeof prevProps.logoFileId === 'string'
+        ? prevProps.logoFileId
+        : null)
+    : null;
+  const nextFileId = nextProps.logoFileId 
+    ? (typeof nextProps.logoFileId === 'object' && nextProps.logoFileId !== null && '_id' in nextProps.logoFileId
+        ? (nextProps.logoFileId._id?.toString() || nextProps.logoFileId.toString?.())
+        : typeof nextProps.logoFileId === 'string'
+        ? nextProps.logoFileId
+        : null)
+    : null;
+  
+  return (
+    prevFileId === nextFileId &&
+    prevProps.companyName === nextProps.companyName
+  );
+});
+CompanyAvatar.displayName = 'CompanyAvatar';
+
 const SharedCandidates: React.FC = () => {
   const [searchParams] = useSearchParams();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [candidateStatusFilter, setCandidateStatusFilter] = useState(searchParams.get('candidateStatus') || 'all');
-  const [jobFilter, setJobFilter] = useState('all');
+  const [jobFilter, setJobFilter] = useState(searchParams.get('jobId') ? 'all' : 'all'); // Will be set from jobId if provided
   const [companyFilter, setCompanyFilter] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,30 +334,19 @@ const SharedCandidates: React.FC = () => {
       setCandidateStatusFilter(statusFromUrl);
     }
   }, [searchParams]);
-  
-  // API calls
-  const { data: assignmentsData, loading, refetch } = user?.role === 'agent' 
-    ? useCandidateAssignments({
-        page: currentPage,
-        limit: 20,
-        assignedBy: user?.id,
-        sortBy: 'assignedAt',
-        sortOrder: 'desc'
-      })
-    : (user?.role === 'admin' || user?.role === 'superadmin')
-    ? useCandidateAssignments({
-        page: currentPage,
-        limit: 20,
-        sortBy: 'assignedAt',
-        sortOrder: 'desc'
-      })
-    : useCandidateAssignments({
-        page: currentPage,
-        limit: 20,
-        assignedTo: user?.id,
-        sortBy: 'assignedAt',
-        sortOrder: 'desc'
-      });
+
+  // API calls - Always call hooks unconditionally (React Rules of Hooks)
+  const { data: assignmentsData, loading, refetch } = useCandidateAssignments({
+    page: currentPage,
+    limit: 20,
+    ...(user?.role === 'agent' 
+      ? { assignedBy: user?.id }
+      : (user?.role === 'admin' || user?.role === 'superadmin')
+      ? {}
+      : { assignedTo: user?.id }),
+    sortBy: 'assignedAt',
+    sortOrder: 'desc'
+  });
 
   const { data: statsData } = useCandidateAssignmentStats();
   const updateAssignment = useUpdateCandidateAssignment();
@@ -169,6 +355,56 @@ const SharedCandidates: React.FC = () => {
   const assignments = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData as any)?.data || [];
   const meta = Array.isArray(assignmentsData) ? {} : (assignmentsData as any)?.meta || {};
   const stats = (statsData as any)?.data || {};
+
+  // Update job filter when jobId is provided in URL
+  useEffect(() => {
+    const jobIdFromUrl = searchParams.get('jobId');
+    if (jobIdFromUrl && assignments && assignments.length > 0) {
+      // Find the job title from assignments that match the jobId
+      const matchingAssignment = assignments.find((assignment: CandidateAssignment) => {
+        if (!assignment || !assignment.jobId) return false;
+        const jobId = assignment.jobId;
+        const jobIdStr = jobId._id ? (typeof jobId._id === 'string' ? jobId._id : String(jobId._id)) : null;
+        return (
+          jobIdStr === jobIdFromUrl ||
+          (jobId as any).id === jobIdFromUrl
+        );
+      });
+      if (matchingAssignment?.jobId?.title) {
+        setJobFilter(matchingAssignment.jobId.title);
+      }
+    }
+  }, [searchParams, assignments]);
+
+  // Normalize ID for flexible matching (CAND0001, CAND1, CAND01 all match)
+  const normalizeIdForSearch = (id: string | undefined): string => {
+    if (!id) return '';
+    
+    // Match pattern like CAND00001, CAND001, CAND1, etc.
+    const match = id.toUpperCase().match(/^([A-Z]+)(0*)(\d+)$/);
+    if (match) {
+      const [, prefix, zeros, number] = match;
+      // Return normalized format: PREFIX + number (e.g., CAND1)
+      return `${prefix}${parseInt(number, 10)}`;
+    }
+    
+    // If pattern doesn't match, return uppercase for case-insensitive matching
+    return id.toUpperCase();
+  };
+
+  // Check if search term matches an ID (supports flexible formats)
+  const matchesId = (searchTerm: string, id: string | undefined): boolean => {
+    if (!id || !searchTerm) return false;
+    
+    const normalizedSearch = normalizeIdForSearch(searchTerm);
+    const normalizedId = normalizeIdForSearch(id);
+    
+    // Check if normalized IDs match
+    if (normalizedSearch === normalizedId) return true;
+    
+    // Also check if the original ID contains the search term (case-insensitive)
+    return id.toUpperCase().includes(searchTerm.toUpperCase());
+  };
 
   // Filter assignments based on search term and filters
   const filteredAssignments = useMemo(() => {
@@ -182,19 +418,71 @@ const SharedCandidates: React.FC = () => {
           return false;
         }
 
-        const firstName = assignment.candidateId?.userId?.firstName || '';
-        const lastName = assignment.candidateId?.userId?.lastName || '';
-        const email = assignment.candidateId?.userId?.email || '';
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Candidate information
+        const candidateFirstName = assignment.candidateId?.userId?.firstName || '';
+        const candidateLastName = assignment.candidateId?.userId?.lastName || '';
+        const candidateFullName = `${candidateFirstName} ${candidateLastName}`.trim();
+        const candidateEmail = assignment.candidateId?.userId?.email || '';
+        const candidateId = assignment.candidateId?.userId?.customId || '';
+        
+        // Agent information (assignedBy)
+        const agentFirstName = assignment.assignedBy?.firstName || '';
+        const agentLastName = assignment.assignedBy?.lastName || '';
+        const agentFullName = `${agentFirstName} ${agentLastName}`.trim();
+        const agentId = assignment.assignedBy?.customId || '';
+        
+        // Job information
         const jobTitle = assignment.jobId?.title || '';
+        const jobCustomId = assignment.jobId?.jobId || ''; // Custom ID like JOB00001
+        const jobId = assignment.jobId?._id || assignment.jobId?.id || '';
+        const jobIdStr = typeof jobId === 'string' ? jobId : jobId?.toString() || '';
+        
+        // Company information
         const companyName = assignment.jobId?.companyId?.name || '';
+        const companyCustomId = assignment.jobId?.companyId?.companyId || ''; // Custom ID like COMP00001
+        const companyId = assignment.jobId?.companyId?._id || '';
+        const companyIdStr = typeof companyId === 'string' ? companyId : companyId?.toString() || '';
+        
+        // Notes
         const notes = assignment.notes || '';
         
-        return firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               notes.toLowerCase().includes(searchTerm.toLowerCase());
+        // Search in all fields
+        return (
+          // Candidate name
+          candidateFirstName.toLowerCase().includes(searchLower) ||
+          candidateLastName.toLowerCase().includes(searchLower) ||
+          candidateFullName.toLowerCase().includes(searchLower) ||
+          // Candidate ID (flexible matching: CAND0001, CAND1, CAND01)
+          matchesId(searchTerm, candidateId) ||
+          candidateId.toLowerCase().includes(searchLower) ||
+          // Candidate email
+          candidateEmail.toLowerCase().includes(searchLower) ||
+          // Agent name
+          agentFirstName.toLowerCase().includes(searchLower) ||
+          agentLastName.toLowerCase().includes(searchLower) ||
+          agentFullName.toLowerCase().includes(searchLower) ||
+          // Agent ID (flexible matching: AGENT0001, AGENT1, AGENT01)
+          matchesId(searchTerm, agentId) ||
+          agentId.toLowerCase().includes(searchLower) ||
+          // Job title
+          jobTitle.toLowerCase().includes(searchLower) ||
+          // Job custom ID (flexible matching: JOB0001, JOB1, JOB01)
+          matchesId(searchTerm, jobCustomId) ||
+          jobCustomId.toLowerCase().includes(searchLower) ||
+          // Job ID (MongoDB _id)
+          jobIdStr.toLowerCase().includes(searchLower) ||
+          // Company name
+          companyName.toLowerCase().includes(searchLower) ||
+          // Company custom ID (flexible matching: COMP0001, COMP1, COMP01)
+          matchesId(searchTerm, companyCustomId) ||
+          companyCustomId.toLowerCase().includes(searchLower) ||
+          // Company ID (MongoDB _id)
+          companyIdStr.toLowerCase().includes(searchLower) ||
+          // Notes
+          notes.toLowerCase().includes(searchLower)
+        );
       });
     }
     
@@ -206,7 +494,20 @@ const SharedCandidates: React.FC = () => {
     }
     
     // Apply job filter
-    if (jobFilter !== 'all') {
+    const jobIdFromUrl = searchParams.get('jobId');
+    if (jobIdFromUrl) {
+      // Filter by jobId if provided in URL
+      filtered = filtered.filter((assignment: CandidateAssignment) => {
+        if (!assignment || !assignment.jobId) return false;
+        const jobId = assignment.jobId;
+        return (
+          jobId._id === jobIdFromUrl || 
+          (jobId._id && jobId._id.toString() === jobIdFromUrl) ||
+          (jobId as any).id === jobIdFromUrl
+        );
+      });
+    } else if (jobFilter !== 'all') {
+      // Filter by job title (existing behavior)
       filtered = filtered.filter((assignment: CandidateAssignment) => 
         assignment && assignment.jobId?.title === jobFilter
       );
@@ -220,7 +521,7 @@ const SharedCandidates: React.FC = () => {
     }
     
     return filtered;
-  }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter]);
+  }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter, searchParams]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -270,24 +571,79 @@ const SharedCandidates: React.FC = () => {
     }
   };
 
+  // Format customId to remove leading zeros (e.g., CAND00001 -> CAND1)
+  const formatCustomId = (customId: string | undefined): string => {
+    if (!customId) return '';
+    
+    // Match pattern like CAND00001, CAND001, etc.
+    const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+    if (match) {
+      const [, prefix, zeros, number] = match;
+      // Remove leading zeros and return formatted ID
+      return `${prefix}${parseInt(number, 10)}`;
+    }
+    
+    // If pattern doesn't match, return as is
+    return customId;
+  };
+
   const formatExperience = (experienceArray: any[]) => {
     if (!experienceArray || experienceArray.length === 0) {
       return 'No experience';
     }
     
-    // Calculate total months of experience from all entries
+    // Calculate total months of experience from ALL entries in the candidate's profile
     let totalMonths = 0;
+    const now = new Date();
     
+    // Process all experience entries
     experienceArray.forEach(exp => {
+      // Skip entries without valid start date
       if (!exp.startDate) return;
       
-      const startDate = new Date(exp.startDate);
-      const endDate = exp.current ? new Date() : (exp.endDate ? new Date(exp.endDate) : new Date());
-      
-      const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                     (endDate.getMonth() - startDate.getMonth());
-      
-      totalMonths += Math.max(0, months);
+      try {
+        const startDate = new Date(exp.startDate);
+        
+        // Validate start date
+        if (isNaN(startDate.getTime())) return;
+        
+        // Determine end date: use current date if current job, otherwise use endDate or current date
+        let endDate: Date;
+        if (exp.current === true) {
+          endDate = now;
+        } else if (exp.endDate) {
+          endDate = new Date(exp.endDate);
+          // Validate end date
+          if (isNaN(endDate.getTime())) {
+            endDate = now;
+          }
+        } else {
+          // If no endDate and not current, skip this entry (invalid data)
+          return;
+        }
+        
+        // Ensure end date is not before start date
+        if (endDate < startDate) return;
+        
+        // Calculate months between start and end date
+        const yearDiff = endDate.getFullYear() - startDate.getFullYear();
+        const monthDiff = endDate.getMonth() - startDate.getMonth();
+        const dayDiff = endDate.getDate() - startDate.getDate();
+        
+        // Calculate total months (including partial months)
+        let months = yearDiff * 12 + monthDiff;
+        // Add 1 month if day difference is positive (partial month counts)
+        if (dayDiff > 0) {
+          months += 1;
+        }
+        
+        // Add to total (ensure non-negative)
+        totalMonths += Math.max(0, months);
+      } catch (error) {
+        // Skip invalid entries
+        console.warn('Invalid experience entry:', exp, error);
+        return;
+      }
     });
     
     // Convert months to years (rounded to 1 decimal place)
@@ -295,15 +651,26 @@ const SharedCandidates: React.FC = () => {
     
     if (totalYears === 0) {
       return 'No experience';
-    } else if (totalYears <= 2) {
-      return '0-2 years';
-    } else if (totalYears <= 5) {
-      return '2-5 years';
-    } else if (totalYears <= 10) {
-      return '5-10 years';
     } else {
-      return '10+ years';
+      // Return exact total experience
+      return `${totalYears} ${totalYears === 1 ? 'year' : 'years'}`;
     }
+  };
+
+  const getCurrentPosition = (experienceArray: any[]) => {
+    if (!experienceArray || experienceArray.length === 0) {
+      return null;
+    }
+    
+    const currentExp = experienceArray.find(exp => exp.current === true);
+    if (!currentExp || !currentExp.position) {
+      return null;
+    }
+    
+    return {
+      position: currentExp.position,
+      company: currentExp.company || ''
+    };
   };
 
   const handleStatusUpdate = async (assignment: CandidateAssignment, newStatus: string) => {
@@ -424,32 +791,6 @@ const SharedCandidates: React.FC = () => {
         variant: "destructive"
       });
     }
-  };
-
-  // Component for candidate avatar with profile photo
-  const CandidateAvatar: React.FC<{
-    profilePhotoFileId?: string;
-    firstName: string;
-    lastName: string;
-    statusColor: string;
-    initials: string;
-  }> = ({ profilePhotoFileId, firstName, lastName, statusColor, initials }) => {
-    const profilePhotoUrl = profilePhotoFileId
-      ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
-      : null;
-    const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
-    
-    return (
-      <Avatar className="h-12 w-12 flex-shrink-0">
-        <AvatarImage 
-          src={authenticatedImageUrl || ''} 
-          alt={`${firstName} ${lastName}`} 
-        />
-        <AvatarFallback className={`text-sm text-white font-semibold ${statusColor}`}>
-          {initials}
-        </AvatarFallback>
-      </Avatar>
-    );
   };
 
   const renderAssignmentCard = (assignment: any) => {
@@ -619,7 +960,12 @@ const SharedCandidates: React.FC = () => {
                 initials={initials}
               />
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-lg text-gray-900 truncate">{fullName}</div>
+                <div 
+                  className="font-semibold text-lg text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
+                >
+                  {fullName}
+                </div>
                 <div className="text-base text-gray-500 truncate">{email}</div>
                 <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                   {isAgentView ? (
@@ -667,43 +1013,74 @@ const SharedCandidates: React.FC = () => {
               </div>
             </div>
 
-            {/* Column 2: Job */}
-            <div>
-              <div className="text-sm font-medium text-gray-500 mb-1">Job Position</div>
+            {/* Column 2: HR Profile (for agents) or Agent Profile (for HR) */}
+            <div className="flex items-start space-x-3">
               {isAgentView ? (
-                <>
-                  <div className="text-base font-medium text-gray-900">
-                    {assignment.jobId ? assignment.jobId.title : 'General'}
-                  </div>
-                  {assignment.jobId?.companyId && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Briefcase className="w-3 h-3 text-purple-600" />
-                      <div className="text-xs text-gray-600">
-                        <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
-                        {assignment.jobId.location && (
-                          <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
-                        )}
+                // For agents: Show HR details (from assignedTo - the HR the candidate is assigned to)
+                assignment.assignedTo ? (
+                  <>
+                    <HRAvatar
+                      profilePhotoFileId={assignment.assignedTo.profilePhotoFileId}
+                      firstName={assignment.assignedTo.firstName}
+                      lastName={assignment.assignedTo.lastName}
+                      initials={`${assignment.assignedTo.firstName?.charAt(0) || ''}${assignment.assignedTo.lastName?.charAt(0) || ''}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div 
+                        className="text-base font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
+                        onClick={() => {
+                          if (assignment.assignedTo?.customId) {
+                            navigate(`/dashboard/hr-profile/${assignment.assignedTo.customId}`);
+                          }
+                        }}
+                      >
+                        {assignment.assignedTo.firstName} {assignment.assignedTo.lastName}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate mt-0.5">
+                        {assignment.assignedTo.email}
+                      </div>
+                      <div className="text-xs text-gray-500 font-mono mt-0.5">
+                        {assignment.assignedTo.customId}
                       </div>
                     </div>
-                  )}
-                </>
+                  </>
+                ) : (
+                  <div className="h-12 w-12 flex-shrink-0"></div>
+                )
               ) : (
-                <>
-                  <div className="text-base font-medium text-gray-900">
-                    {assignment.jobId ? assignment.jobId.title : 'General'}
-                  </div>
-                  {assignment.jobId?.companyId && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Briefcase className="w-3 h-3 text-purple-600" />
-                      <div className="text-xs text-gray-600">
-                        <span className="font-medium">{assignment.jobId?.companyId?.name || 'Unknown Company'}</span>
-                        {assignment.jobId.location && (
-                          <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
-                        )}
+                // For HR: Show Agent Profile (assignedBy)
+                assignment.assignedBy ? (
+                  <>
+                    <AgentAvatar
+                      profilePhotoFileId={assignment.assignedBy.profilePhotoFileId}
+                      firstName={assignment.assignedBy.firstName}
+                      lastName={assignment.assignedBy.lastName}
+                      initials={`${assignment.assignedBy.firstName?.charAt(0) || ''}${assignment.assignedBy.lastName?.charAt(0) || ''}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div 
+                        className="text-base font-semibold text-gray-900 cursor-pointer hover:text-emerald-600 transition-colors truncate"
+                        onClick={() => {
+                          if (assignment.assignedBy?.customId) {
+                            navigate(`/dashboard/agent-profile/${assignment.assignedBy.customId}`);
+                          } else {
+                            navigate(`/dashboard/agent-dashboard`);
+                          }
+                        }}
+                      >
+                        {assignment.assignedBy.firstName} {assignment.assignedBy.lastName}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate mt-0.5">
+                        {assignment.assignedBy.email}
+                      </div>
+                      <div className="text-xs text-gray-500 font-mono mt-0.5">
+                        {assignment.assignedBy.customId}
                       </div>
                     </div>
-                  )}
-                </>
+                  </>
+                ) : (
+                  <div className="h-12 w-12 flex-shrink-0"></div>
+                )
               )}
             </div>
 
@@ -753,52 +1130,88 @@ const SharedCandidates: React.FC = () => {
             </div>
           </div>
 
-          {/* Row 2: Assigned By, Experience, Resume */}
+          {/* Row 2: Experience, Job Position, Resume */}
           <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Column 1: HR ID and View Profile Button */}
-            <div className="flex items-start space-x-3">
-              <div className="h-12 w-12 flex-shrink-0"></div>
-              <div className="flex-1 min-w-0 space-y-2">
-                {assignment.jobId?.createdBy && (
-                  <div className="flex items-center gap-2">
-                    <User className="w-3 h-3 text-blue-600" />
-                    <div className="text-xs text-gray-600">
-                      <span className="font-medium">HR: </span>
-                      <Badge 
-                        variant="outline" 
-                        className="font-mono text-xs ml-1 cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors"
-                        onClick={() => navigate(`/dashboard/hr-profile/${assignment.jobId.createdBy.customId}`)}
-                      >
-                        {assignment.jobId.createdBy.customId}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="text-xs h-8 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
-                  onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
-                >
-                  <Eye className="w-3 h-3 mr-1" />
-                  View Profile
-                </Button>
-              </div>
-            </div>
-
-            {/* Column 2: Experience */}
+            {/* Column 1: Experience */}
             <div>
-              <div className="text-sm font-medium text-gray-500 mb-1 flex items-center gap-1">
-                <Briefcase className="w-4 h-4 text-emerald-600" />
-                Experience
-              </div>
-              {isAgentView ? (
+              <div className="flex items-center gap-2">
                 <div className="text-base font-medium text-gray-900">
                   {formatExperience(candidate?.profile?.experience || [])}
                 </div>
+                {candidate?.userId?.customId && (
+                  <Badge variant="outline" className="font-mono text-xs px-2 py-0.5 border-0">
+                    <span className="text-gray-400 mr-1">•</span>
+                    {formatCustomId(candidate.userId.customId)}
+                  </Badge>
+                )}
+              </div>
+              {(() => {
+                const currentPosition = getCurrentPosition(candidate?.profile?.experience || []);
+                return currentPosition ? (
+                  <div className="text-xs text-gray-600 mt-1">
+                    <span className="font-medium">{currentPosition.position}</span>
+                    {currentPosition.company && (
+                      <span className="text-gray-500"> at {currentPosition.company}</span>
+                    )}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            {/* Column 2: Job Position */}
+            <div className="flex items-start space-x-3">
+              {assignment.jobId?.companyId ? (
+                <>
+                  <CompanyAvatar
+                    logoFileId={assignment.jobId.companyId.logoFileId}
+                    companyName={assignment.jobId.companyId.name || 'Unknown Company'}
+                  />
+                  <div className="flex-1 min-w-0">
+                    {assignment.jobId?._id || assignment.jobId?.id ? (
+                      <div 
+                        className="text-base font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
+                        onClick={() => navigate(`/dashboard/jobs/${assignment.jobId._id || assignment.jobId.id}`)}
+                      >
+                        {assignment.jobId.title}
+                      </div>
+                    ) : (
+                      <div className="text-base font-medium text-gray-900">
+                        {assignment.jobId ? assignment.jobId.title : 'General'}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-600 mt-0.5">
+                      {assignment.jobId?.companyId?._id ? (
+                        <span 
+                          className="font-medium cursor-pointer hover:text-blue-600 transition-colors"
+                          onClick={() => navigate(`/dashboard/companies/${assignment.jobId.companyId._id}`)}
+                        >
+                          {assignment.jobId?.companyId?.name || 'Unknown Company'}
+                        </span>
+                      ) : (
+                        <span className="font-medium">
+                          {assignment.jobId?.companyId?.name || 'Unknown Company'}
+                        </span>
+                      )}
+                      {assignment.jobId.location && (
+                        <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
+                      )}
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="text-base font-medium text-gray-900">
-                  {formatExperience(candidate?.profile?.experience || [])}
+                <div className="flex-1 min-w-0">
+                  {assignment.jobId?._id || assignment.jobId?.id ? (
+                    <div 
+                      className="text-base font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
+                      onClick={() => navigate(`/dashboard/jobs/${assignment.jobId._id || assignment.jobId.id}`)}
+                    >
+                      {assignment.jobId ? assignment.jobId.title : 'General'}
+                    </div>
+                  ) : (
+                    <div className="text-base font-medium text-gray-900">
+                      {assignment.jobId ? assignment.jobId.title : 'General'}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

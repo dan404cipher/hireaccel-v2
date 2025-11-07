@@ -78,17 +78,43 @@ export class ContactHistoryController {
     const sort: any = {};
     sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
+    // Build populate options for contactId
+    // If filtering by a specific contactType, we can optimize populate
+    // Otherwise, we need to handle mixed types
+    let contactIdPopulate: any;
+    if (contactType === 'hr') {
+      // Only HR contacts - populate User directly
+      contactIdPopulate = {
+        path: 'contactId',
+        select: 'firstName lastName email customId',
+      };
+    } else if (contactType === 'candidate') {
+      // Only candidate contacts - populate Candidate with nested userId
+      contactIdPopulate = {
+        path: 'contactId',
+        select: 'userId',
+        populate: {
+          path: 'userId',
+          select: 'firstName lastName email customId',
+        },
+      };
+    } else {
+      // Mixed types - populate contactId normally (refPath handles model selection)
+      // Then we'll need to handle nested userId separately for candidates
+      contactIdPopulate = 'contactId';
+    }
+
+    let contactHistoryQuery = ContactHistory.find(filter)
+      .populate('agentId', 'firstName lastName email customId');
+    
+    if (typeof contactIdPopulate === 'string') {
+      contactHistoryQuery = contactHistoryQuery.populate(contactIdPopulate);
+    } else {
+      contactHistoryQuery = contactHistoryQuery.populate(contactIdPopulate);
+    }
+
     const [contactHistory, total] = await Promise.all([
-      ContactHistory.find(filter)
-        .populate('agentId', 'firstName lastName email customId')
-        .populate({
-          path: 'contactId',
-          select: contactType === 'hr' ? 'firstName lastName email customId' : 'userId',
-          populate: contactType === 'candidate' ? {
-            path: 'userId',
-            select: 'firstName lastName email customId',
-          } : undefined,
-        })
+      contactHistoryQuery
         .populate('relatedJobId', 'title companyId')
         .populate('relatedCandidateAssignmentId', 'status priority')
         .populate('createdBy', 'firstName lastName email')
@@ -97,6 +123,21 @@ export class ContactHistoryController {
         .limit(limit),
       ContactHistory.countDocuments(filter),
     ]);
+
+    // For mixed types, populate userId for candidate contacts
+    if (!contactType) {
+      const candidateContacts = contactHistory.filter((ch: any) => ch.contactType === 'candidate' && ch.contactId);
+      if (candidateContacts.length > 0) {
+        await Promise.all(
+          candidateContacts.map((ch: any) =>
+            ContactHistory.populate(ch, {
+              path: 'contactId.userId',
+              select: 'firstName lastName email customId',
+            })
+          )
+        );
+      }
+    }
 
     res.json({
       success: true,
@@ -215,13 +256,20 @@ export class ContactHistoryController {
 
     // Populate for response
     await contactHistory.populate('agentId', 'firstName lastName email customId');
-    await contactHistory.populate({
-      path: 'contactId',
-      populate: contactHistory.contactType === 'candidate' ? {
-        path: 'userId',
-        select: 'firstName lastName email customId',
-      } : undefined,
-    });
+    
+    // Populate contactId based on contact type
+    if (contactHistory.contactType === 'candidate') {
+      await contactHistory.populate({
+        path: 'contactId',
+        populate: {
+          path: 'userId',
+          select: 'firstName lastName email customId',
+        },
+      });
+    } else {
+      // For HR contacts, just populate the contactId (User)
+      await contactHistory.populate('contactId', 'firstName lastName email customId');
+    }
 
     logger.info('Contact history created', {
       userId,

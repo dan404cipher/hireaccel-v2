@@ -249,7 +249,6 @@ agentAssignmentSchema.methods['activate'] = function (this: AgentAssignmentDocum
  * Get assignment record for specific agent
  */
 agentAssignmentSchema.statics['getAssignmentForAgent'] = async function (agentId: mongoose.Types.ObjectId) {
-    console.log(`[AgentAssignment] Getting assignment details for agent: ${agentId}`)
     const assignment = await this.findOne({ agentId, status: 'active' })
         .populate('agentId', 'firstName lastName email customId')
         .populate('assignedHRs', 'firstName lastName email customId phoneNumber')
@@ -262,12 +261,6 @@ agentAssignmentSchema.statics['getAssignmentForAgent'] = async function (agentId
             },
         })
         .populate('assignedBy', 'firstName lastName email customId')
-    console.log(`[AgentAssignment] Assignment details:`, {
-        id: assignment?._id,
-        hrCount: assignment?.assignedHRs?.length || 0,
-        candidateCount: assignment?.assignedCandidates?.length || 0,
-        status: assignment?.status,
-    })
     return assignment
 }
 

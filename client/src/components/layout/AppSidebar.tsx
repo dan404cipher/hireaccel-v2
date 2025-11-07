@@ -70,6 +70,13 @@ const navigationItems = [
     roles: ['hr'],
     color: "text-slate-600"
   },
+  { 
+    title: "My Profile", 
+    url: "/dashboard/agent-profile", 
+    icon: Users, 
+    roles: ['agent'],
+    color: "text-green-600"
+  },
 ];
 
 const secondaryItems = [

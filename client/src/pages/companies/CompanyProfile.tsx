@@ -31,6 +31,7 @@ import {
   Calendar,
   Users,
   Edit,
+  Edit2,
   ArrowLeft,
   Briefcase,
   Star,
@@ -41,8 +42,9 @@ import {
 import { useCompanies } from "@/hooks/useApi";
 import { apiClient } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
-import { DashboardBanner } from "@/components/dashboard/Banner";
 import { useAuth } from "@/contexts/AuthContext";
+import { ProfilePhotoUploadModal } from "@/components/candidates/ProfilePhotoUploadModal";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
 export default function CompanyProfile() {
   const { companyId } = useParams<{ companyId: string }>();
@@ -54,6 +56,17 @@ export default function CompanyProfile() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState<any>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+  const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading'>('idle');
+
+  // Use authenticated image hook for company logo
+  // Always use API endpoint when logoFileId exists (for authenticated access)
+  // For companies without logoFileId (old data), we can't use direct S3 URLs due to CSP/403 issues
+  const logoFileId = company?.logoFileId?._id || company?.logoFileId || company?.logoFileId?.toString();
+  const logoUrl = logoFileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${logoFileId}`
+    : null; // Don't use direct S3 URLs - they're not publicly accessible
+  const authenticatedLogoUrl = useAuthenticatedImage(logoUrl);
 
   const { mutate: updateCompany, loading: updateLoading } = useMutation(
     ({ id, data }: any) => apiClient.updateCompany(id, data),
@@ -227,6 +240,46 @@ export default function CompanyProfile() {
     }
   };
 
+  const handleLogoUpload = async (file: File) => {
+    if (!company?.id && !company?._id) return;
+    
+    setPhotoUploadState('uploading');
+    const companyId = company.id || company._id;
+
+    try {
+      // Upload the file as a company logo using apiClient
+      const response = await apiClient.uploadCompanyLogo(file, companyId);
+      const logoFileId = response.data?.file?.id || response.data?.company?.logoFileId;
+      const logoUrl = response.data?.file?.url || response.data?.company?.logoUrl || response.data?.url;
+
+      if (!logoUrl) {
+        throw new Error('No logo URL returned from server');
+      }
+
+      // The backend already updated the company, so just refetch to get the latest data including logoFileId
+      const companyData = await apiClient.getCompany(companyId);
+      if (companyData?.data) {
+        setCompany(companyData.data);
+      }
+
+      toast({
+        title: "Success",
+        description: "Company logo updated successfully"
+      });
+
+      setPhotoUploadState('idle');
+      setShowPhotoUploadModal(false);
+    } catch (error: any) {
+      console.error('Logo upload error:', error);
+      toast({
+        title: "Error",
+        description: error?.detail || error?.message || "Failed to upload logo. Please try again.",
+        variant: "destructive"
+      });
+      setPhotoUploadState('idle');
+    }
+  };
+
   const handleUpdateCompany = async () => {
     if (!company?.id && !company?._id) return;
     
@@ -295,8 +348,7 @@ export default function CompanyProfile() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <DashboardBanner category="hr" />
+      <div className="bg-gray-50">
         <div className="flex justify-center items-center min-h-[400px]">
           <div className="text-muted-foreground">Loading company details...</div>
         </div>
@@ -306,8 +358,7 @@ export default function CompanyProfile() {
 
   if (!company) {
     return (
-      <div className="space-y-6">
-        <DashboardBanner category="hr" />
+      <div className="bg-gray-50">
         <Card>
           <CardContent className="py-12 text-center">
             <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -326,48 +377,111 @@ export default function CompanyProfile() {
   }
 
   return (
-    <div className="space-y-6">
-      <DashboardBanner category="hr" />
-      
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="bg-gray-50">
+      {/* Header Banner */}
+      <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="absolute inset-0 bg-black opacity-20"></div>
+        <div className="absolute top-4 left-4 z-20">
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={() => navigate('/dashboard/companies')}
+            className="text-white hover:bg-white/20 hover:text-white"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
           </Button>
-          {/* Company Logo/Photo */}
-          <div className="relative">
-            <Avatar className="w-20 h-20 border-4 border-white shadow-lg">
-              <AvatarImage 
-                src={company.logoUrl} 
-                alt={`${company.name} logo`}
-                className="object-cover"
-              />
-              <AvatarFallback className="text-2xl font-bold bg-blue-600 text-white">
-                <Building2 className="w-10 h-10" />
-              </AvatarFallback>
-            </Avatar>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{company.name}</h1>
-            <p className="text-muted-foreground">
-              Company ID: <Badge variant="outline" className="font-mono text-xs">{company.companyId || company._id}</Badge>
-            </p>
-          </div>
         </div>
-        {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr') && (
-          <Button onClick={handleEditCompany}>
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Company
-          </Button>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">
+        {/* Profile Header Card */}
+        <Card className="mb-8 shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              {/* Company Logo/Photo */}
+              <div className="relative group">
+                <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+                  <AvatarImage 
+                    src={authenticatedLogoUrl || undefined} 
+                    alt={`${company.name} logo`}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="text-2xl font-bold bg-blue-600 text-white">
+                    <Building2 className="w-16 h-16" />
+                  </AvatarFallback>
+                </Avatar>
+                {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr') && (
+                  <Button 
+                    size="sm" 
+                    className="absolute bottom-2 right-2 rounded-full w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    onClick={() => setShowPhotoUploadModal(true)}
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Basic Info */}
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {company.name}
+                    </h1>
+                    <div className="flex items-center gap-4 mb-4">
+                      <Badge variant="outline" className="text-blue-600 border-blue-200 font-mono">
+                        {company.companyId || company._id}
+                      </Badge>
+                      {company.status && (
+                        <Badge className={getStatusColor(company.status)}>
+                          {company.status}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                      {company.website && (
+                        <div className="flex items-center gap-1">
+                          <Globe className="w-4 h-4" />
+                          <a 
+                            href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                          >
+                            {company.website}
+                          </a>
+                        </div>
+                      )}
+                      {company.address && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          <span>
+                            {company.address.city}{company.address.state ? `, ${company.address.state}` : ''}
+                          </span>
+                        </div>
+                      )}
+                      {company.size && (
+                        <div className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          <span>{company.size} employees</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr') && (
+                    <Button onClick={handleEditCompany}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Company
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Company Information */}
@@ -536,39 +650,59 @@ export default function CompanyProfile() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5" />
+                Jobs ({jobs.length})
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr') && (
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={handleEditCompany}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Company
-                </Button>
-              )}
+            <CardContent>
+              {jobs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No jobs posted for this company yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {jobs.slice(0, 10).map((job: any) => (
+                    <div
+                      key={job._id || job.id}
+                      className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/dashboard/jobs/${job._id || job.id}`)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium mb-1">{job.title}</h4>
+                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              {job.location}
+                            </span>
+                            {job.salaryRange && (
+                              <span className="flex items-center gap-1">
+                                <DollarSign className="w-4 h-4" />
+                                {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}
+                              </span>
+                            )}
+                            <Badge variant="outline" className="text-xs w-fit">
+                              {job.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {jobs.length > 10 && (
               <Button
                 variant="outline"
-                className="w-full justify-start"
+                      className="w-full"
                 onClick={() => navigate(`/dashboard/jobs?companyId=${company._id}`)}
               >
-                <Briefcase className="w-4 h-4 mr-2" />
-                View All Jobs
+                      View All {jobs.length} Jobs
               </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                onClick={() => navigate('/dashboard/companies')}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Companies
-              </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
 
       {/* Edit Company Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -827,6 +961,17 @@ export default function CompanyProfile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Company Logo Upload Modal */}
+      {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'hr') && (
+        <ProfilePhotoUploadModal
+          isOpen={showPhotoUploadModal}
+          onClose={() => setShowPhotoUploadModal(false)}
+          onUpload={handleLogoUpload}
+          isUploading={photoUploadState === 'uploading'}
+        />
+      )}
+      </div>
     </div>
   );
 }

@@ -49,6 +49,9 @@ export function TopBar() {
     } else if (user?.role === 'hr') {
       // Navigate to HR profile route, it will auto-update with customId
       navigate('/dashboard/hr-profile');
+    } else if (user?.role === 'agent') {
+      // Navigate to Agent profile route, it will auto-update with customId
+      navigate('/dashboard/agent-profile');
     } else if (user?.role === 'admin' || user?.role === 'superadmin') {
       navigate('/dashboard/admin-profile');
     } else {

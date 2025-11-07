@@ -33,9 +33,7 @@ import {
   CheckCircle,
   XCircle,
   Info,
-  List
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { apiClient } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
@@ -101,7 +99,6 @@ export default function ActivityPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [activeTab, setActiveTab] = useState<'activity' | 'audit-logs'>('activity');
   const [searchTerm, setSearchTerm] = useState('');
   const [entityTypeFilter, setEntityTypeFilter] = useState<string>('all');
   const [actionFilter, setActionFilter] = useState<string>('all');
@@ -139,29 +136,17 @@ export default function ActivityPage() {
 
   useEffect(() => {
     fetchActivityLogs();
-  }, [page, entityTypeFilter, actionFilter, riskLevelFilter, activeTab]);
+  }, [page, entityTypeFilter, actionFilter, riskLevelFilter]);
 
   const fetchActivityLogs = async () => {
     setLoading(true);
     try {
       const params: any = {
         page: page.toString(),
-        limit: activeTab === 'activity' ? '100' : '50', // Fetch more for activity tab to ensure we get major activities
+        limit: '100', // Fetch more to ensure we get major activities
       };
 
-      // For Activity tab, fetch all logs when filters are "all", then filter on frontend
-      // For Audit Logs tab, apply filters to backend query
-      if (activeTab === 'audit-logs') {
-        // For Audit Logs tab, show everything with all filters
-        if (entityTypeFilter !== 'all') {
-          params.entityType = entityTypeFilter;
-        }
-        if (actionFilter !== 'all') {
-          // Backend expects lowercase enum values (create, update, delete, etc.)
-          params.action = actionFilter.toLowerCase();
-        }
-      }
-      // For Activity tab, we don't filter on backend when "all" is selected
+      // We don't filter on backend when "all" is selected
       // We'll filter on frontend to only show major CRUD operations
 
       if (riskLevelFilter !== 'all') {
@@ -173,51 +158,52 @@ export default function ActivityPage() {
       if (response.data && Array.isArray(response.data)) {
         let filteredData = response.data;
         
-        // For Activity tab, filter to only major CRUD operations on important entities
-        if (activeTab === 'activity') {
-          const majorEntities = ['Job', 'Company', 'Interview', 'Candidate', 'Application', 'User', 'AgentAssignment', 'CandidateAssignment'];
-          const majorActions = ['create', 'update', 'delete']; // Use lowercase to match AuditAction enum values
-          
-          // Apply entity type filter if specified
-          let entityFiltered = filteredData;
-          if (entityTypeFilter !== 'all' && majorEntities.includes(entityTypeFilter)) {
-            entityFiltered = filteredData.filter((log: AuditLog) => log.entityType === entityTypeFilter);
-          } else {
-            entityFiltered = filteredData.filter((log: AuditLog) => majorEntities.includes(log.entityType));
+        // For HR users, filter to only show relevant entity types
+        if (isHRUser) {
+          // HR users should only see: Job, Interview, CandidateAssignment, and Company (if they created it)
+          const allowedEntityTypes = ['Job', 'Interview', 'CandidateAssignment', 'Company'];
+          filteredData = filteredData.filter((log: AuditLog) => 
+            allowedEntityTypes.includes(log.entityType)
+          );
+        }
+        
+        // Filter to only major CRUD operations on important entities
+        const majorEntities = ['Job', 'Company', 'Interview', 'Candidate', 'Application', 'User', 'AgentAssignment', 'CandidateAssignment'];
+        const majorActions = ['create', 'update', 'delete']; // Use lowercase to match AuditAction enum values
+        
+        // Apply entity type filter if specified
+        let entityFiltered = filteredData;
+        if (entityTypeFilter !== 'all' && majorEntities.includes(entityTypeFilter)) {
+          entityFiltered = filteredData.filter((log: AuditLog) => log.entityType === entityTypeFilter);
+        } else {
+          entityFiltered = filteredData.filter((log: AuditLog) => majorEntities.includes(log.entityType));
+        }
+        
+        // For CandidateAssignment, only show when candidate status changed (filter out CREATE and other updates without status change)
+        entityFiltered = entityFiltered.filter((log: AuditLog) => {
+          if (log.entityType === 'CandidateAssignment') {
+            // Only show if candidate status was changed (exclude CREATE and other updates)
+            return log.metadata?.candidateStatusChanged === true;
           }
-          
-          // For CandidateAssignment, only show when candidate status changed (filter out CREATE and other updates without status change)
-          entityFiltered = entityFiltered.filter((log: AuditLog) => {
-            if (log.entityType === 'CandidateAssignment') {
-              // Only show if candidate status was changed (exclude CREATE and other updates)
-              return log.metadata?.candidateStatusChanged === true;
-            }
-            return true;
-          });
-          
-          // Apply action filter if specified (convert to lowercase)
-          if (actionFilter !== 'all') {
-            const actionLower = actionFilter.toLowerCase();
-            filteredData = entityFiltered.filter((log: AuditLog) => log.action?.toLowerCase() === actionLower);
-          } else {
-            filteredData = entityFiltered.filter((log: AuditLog) => 
-              log.action && majorActions.includes(log.action.toLowerCase())
-            );
-          }
+          return true;
+        });
+        
+        // Apply action filter if specified (convert to lowercase)
+        if (actionFilter !== 'all') {
+          const actionLower = actionFilter.toLowerCase();
+          filteredData = entityFiltered.filter((log: AuditLog) => log.action?.toLowerCase() === actionLower);
+        } else {
+          filteredData = entityFiltered.filter((log: AuditLog) => 
+            log.action && majorActions.includes(log.action.toLowerCase())
+          );
         }
         
         setLogs(filteredData);
-        // For activity tab, we need to recalculate pagination based on filtered results
-        // For audit logs, use the meta total from API
-        if (activeTab === 'activity') {
-          // Note: This is approximate since we're filtering client-side
-          // A better solution would be to pass filters to backend for accurate counts
-          setTotalPages(Math.max(1, Math.ceil(filteredData.length / 50)));
-          setTotal(filteredData.length);
-        } else {
-          setTotalPages(response.meta?.page?.total || 1);
-          setTotal(response.meta?.total || 0);
-        }
+        // Recalculate pagination based on filtered results
+        // Note: This is approximate since we're filtering client-side
+        // A better solution would be to pass filters to backend for accurate counts
+        setTotalPages(Math.max(1, Math.ceil(filteredData.length / 50)));
+        setTotal(filteredData.length);
       } else {
         setLogs([]);
         setTotalPages(1);
@@ -749,38 +735,15 @@ export default function ActivityPage() {
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
       <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200">
         <CardContent className="p-0">
-          <Tabs value={activeTab} onValueChange={(value) => {
-            setActiveTab(value as 'activity' | 'audit-logs');
-            setPage(1); // Reset to first page when switching tabs
-          }}>
-            <TabsList className="w-full bg-transparent h-auto p-4 border-b">
-              <TabsTrigger 
-                value="activity" 
-                className="flex-1 data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                Major Activities
-              </TabsTrigger>
-              <TabsTrigger 
-                value="audit-logs" 
-                className="flex-1 data-[state=active]:bg-purple-600 data-[state=active]:text-white"
-              >
-                <List className="h-4 w-4 mr-2" />
-                All Audit Logs
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="activity" className="mt-0">
-              {/* Filters for Activity Tab */}
-              <div className="p-6 border-b bg-gradient-to-r from-slate-100 to-gray-100">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Filter className="h-5 w-5 text-blue-600" />
-                    <h3 className="font-semibold">Filter Major Activities</h3>
-                  </div>
+          {/* Filters */}
+          <div className="p-6 border-b bg-gradient-to-r from-slate-100 to-gray-100">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="h-5 w-5 text-blue-600" />
+                <h3 className="font-semibold">Filter Major Activities</h3>
+              </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="relative">
                       <Search className="absolute left-3 top-3 h-4 w-4 text-blue-600" />
@@ -798,12 +761,12 @@ export default function ActivityPage() {
                       <SelectContent>
                         <SelectItem value="all">All Entity Types</SelectItem>
                         <SelectItem value="Job">Job</SelectItem>
-                        <SelectItem value="User">User</SelectItem>
+                        {!isHRUser && <SelectItem value="User">User</SelectItem>}
                         <SelectItem value="Company">Company</SelectItem>
-                        <SelectItem value="Candidate">Candidate</SelectItem>
-                        <SelectItem value="Application">Application</SelectItem>
+                        {!isHRUser && <SelectItem value="Candidate">Candidate</SelectItem>}
+                        {!isHRUser && <SelectItem value="Application">Application</SelectItem>}
                         <SelectItem value="Interview">Interview</SelectItem>
-                        <SelectItem value="AgentAssignment">Agent Assignment</SelectItem>
+                        {!isHRUser && <SelectItem value="AgentAssignment">Agent Assignment</SelectItem>}
                         <SelectItem value="CandidateAssignment">Candidate Assignment</SelectItem>
                       </SelectContent>
                     </Select>
@@ -841,200 +804,6 @@ export default function ActivityPage() {
 
               {/* Activity Table */}
               <div className="p-6">
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner />
-            </div>
-          ) : (
-            <>
-              <div className="relative overflow-x-auto">
-                <Table className="min-w-full">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Entity</TableHead>
-                      <TableHead>Description</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLogs.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No major activities found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredLogs.map((log) => (
-                        <TableRow key={log._id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{formatTimestamp(log.timestamp)}</span>
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {new Date(log.timestamp).toLocaleString()}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4 text-blue-600" />
-                              <div>
-                                <div className="font-medium">
-                                  {log.actor?.firstName} {log.actor?.lastName}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {log.actor?.email}
-                                </div>
-                                <Badge variant="outline" className="text-xs mt-1">
-                                  {log.actor?.role}
-                                </Badge>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                                <Badge className={actionColors[log.action?.toLowerCase() || ''] || 'bg-gray-100 text-gray-800'}>
-                                  {getActionLabel(log.action)}
-                                </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <EntityIcon entityType={log.entityType} />
-                              <span className="font-medium">{log.entityType}</span>
-                            </div>
-                            {log.businessProcess && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {log.businessProcess}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="max-w-md flex items-center flex-wrap gap-1">
-                              {getFormattedDescription(log)}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1 || loading}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-4">
-                      Page {page} of {totalPages} • Showing {filteredLogs.length} of {total} activities
-                    </span>
-                    <Button
-                      variant="outline"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === totalPages || loading}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="audit-logs" className="mt-0">
-              {/* Filters for Audit Logs Tab */}
-              <div className="p-6 border-b bg-gradient-to-r from-slate-100 to-gray-100">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Filter className="h-5 w-5 text-purple-600" />
-                    <h3 className="font-semibold">Filter Audit Logs</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 h-4 w-4 text-purple-600" />
-                      <Input
-                        placeholder="Search audit logs..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 border-purple-200 focus:border-purple-400 focus:ring-purple-400"
-                      />
-                    </div>
-                    <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
-                      <SelectTrigger className="border-purple-200 focus:border-purple-400 focus:ring-purple-400">
-                        <SelectValue placeholder="Entity Type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Entity Types</SelectItem>
-                        <SelectItem value="Job">Job</SelectItem>
-                        <SelectItem value="User">User</SelectItem>
-                        <SelectItem value="Company">Company</SelectItem>
-                        <SelectItem value="Candidate">Candidate</SelectItem>
-                        <SelectItem value="Application">Application</SelectItem>
-                        <SelectItem value="Interview">Interview</SelectItem>
-                        <SelectItem value="AgentAssignment">Agent Assignment</SelectItem>
-                        <SelectItem value="CandidateAssignment">Candidate Assignment</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={actionFilter} onValueChange={setActionFilter}>
-                      <SelectTrigger className="border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
-                        <SelectValue placeholder="Action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Actions</SelectItem>
-                        <SelectItem value="create">Create</SelectItem>
-                        <SelectItem value="update">Update</SelectItem>
-                        <SelectItem value="delete">Delete</SelectItem>
-                        <SelectItem value="read">Read</SelectItem>
-                        <SelectItem value="login">Login</SelectItem>
-                        <SelectItem value="logout">Logout</SelectItem>
-                        <SelectItem value="assign">Assign</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={riskLevelFilter} onValueChange={setRiskLevelFilter}>
-                      <SelectTrigger className="border-red-200 focus:border-red-400 focus:ring-red-400">
-                        <SelectValue placeholder="Risk Level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Risk Levels</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setSearchTerm('');
-                        setEntityTypeFilter('all');
-                        setActionFilter('all');
-                        setRiskLevelFilter('all');
-                      }}
-                      className="text-gray-600 hover:bg-gray-100"
-                    >
-                      Clear Filters
-                    </Button>
-                  </div>
-                  <div className="text-sm text-muted-foreground bg-purple-50 p-3 rounded-lg">
-                    <List className="h-4 w-4 inline mr-2" />
-                    {isHRUser 
-                      ? "Showing your audit logs including your job activities, interview scheduling, and related operations."
-                      : "Showing all audit logs including system operations, user activities, and detailed tracking information."}
-                  </div>
-                </div>
-              </div>
-
-              {/* Audit Logs Table */}
-              <div className="p-6">
                 {loading ? (
                   <div className="flex justify-center py-8">
                     <LoadingSpinner />
@@ -1050,14 +819,13 @@ export default function ActivityPage() {
                             <TableHead>Action</TableHead>
                             <TableHead>Entity</TableHead>
                             <TableHead>Description</TableHead>
-                            <TableHead>Risk Level</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {filteredLogs.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                No audit logs found
+                              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                No major activities found
                               </TableCell>
                             </TableRow>
                           ) : (
@@ -1089,9 +857,9 @@ export default function ActivityPage() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                <Badge className={actionColors[log.action?.toLowerCase() || ''] || 'bg-gray-100 text-gray-800'}>
-                                  {getActionLabel(log.action)}
-                                </Badge>
+                                  <Badge className={actionColors[log.action?.toLowerCase() || ''] || 'bg-gray-100 text-gray-800'}>
+                                    {getActionLabel(log.action)}
+                                  </Badge>
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-2">
@@ -1105,27 +873,9 @@ export default function ActivityPage() {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="max-w-md">
-                                    {log.description || `${getActionLabel(log.action)} ${log.entityType}`}
+                                  <div className="max-w-md flex items-center flex-wrap gap-1">
+                                    {getFormattedDescription(log)}
                                   </div>
-                                  {log.metadata && Object.keys(log.metadata).length > 0 && (
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      {Object.entries(log.metadata).slice(0, 2).map(([key, value]) => (
-                                        <span key={key} className="mr-2">
-                                          {key}: {String(value).slice(0, 20)}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  {log.riskLevel ? (
-                                    <Badge className={riskColors[log.riskLevel] || riskColors.low}>
-                                      {log.riskLevel.charAt(0).toUpperCase() + log.riskLevel.slice(1)}
-                                    </Badge>
-                                  ) : (
-                                    <Badge className={riskColors.low}>Low</Badge>
-                                  )}
                                 </TableCell>
                               </TableRow>
                             ))
@@ -1145,7 +895,7 @@ export default function ActivityPage() {
                           Previous
                         </Button>
                         <span className="flex items-center px-4">
-                          Page {page} of {totalPages} • Showing {filteredLogs.length} of {total} audit logs
+                          Page {page} of {totalPages} • Showing {filteredLogs.length} of {total} activities
                         </span>
                         <Button
                           variant="outline"
@@ -1159,8 +909,6 @@ export default function ActivityPage() {
                   </>
                 )}
               </div>
-            </TabsContent>
-          </Tabs>
         </CardContent>
       </Card>
     </div>

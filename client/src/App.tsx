@@ -40,6 +40,7 @@ const BannerManagement = lazy(() => import("./pages/admin/BannerManagement"));
 const Activity = lazy(() => import("./pages/admin/Activity"));
 const RecycleBin = lazy(() => import("./pages/admin/RecycleBin"));
 const HRProfile = lazy(() => import("./pages/hr/HRProfile"));
+const AgentProfile = lazy(() => import("./pages/agents/AgentProfile"));
 const ContactHistory = lazy(() => import("./pages/contact/ContactHistory"));
 const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
 const SignupPage = lazy(() => import("./pages/auth/SignupPage").then(module => ({ default: module.SignupPage })));
@@ -307,6 +308,13 @@ function AppRouter() {
         <Route path="hr-profile/:customId?" element={
           <RoleProtectedRoute allowedRoles={['hr', 'admin', 'superadmin', 'agent']}>
             <HRProfile />
+          </RoleProtectedRoute>
+        } />
+        
+        {/* Agent Routes */}
+        <Route path="agent-profile/:customId?" element={
+          <RoleProtectedRoute allowedRoles={['agent', 'admin', 'superadmin', 'hr']}>
+            <AgentProfile />
           </RoleProtectedRoute>
         } />
         

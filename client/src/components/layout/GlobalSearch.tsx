@@ -13,6 +13,8 @@ import {
 import { apiClient } from "@/services/api";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
+import { Badge } from "@/components/ui/badge";
 
 interface SearchResults {
   jobs: any[];
@@ -20,6 +22,55 @@ interface SearchResults {
   companies: any[];
   users: any[];
 }
+
+// Format customId to remove leading zeros (e.g., CAND00004 -> CAND4)
+const formatCustomId = (customId: string | undefined): string => {
+  if (!customId) return '';
+  
+  // Match pattern like CAND00004, HR00001, COMP001, JOB001, etc.
+  const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    // Remove leading zeros and return formatted ID
+    return `${prefix}${parseInt(number, 10)}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Component to display user avatar with profile picture support
+const UserAvatar = ({ user, className }: { user: any; className?: string }) => {
+  const showProfilePicture = (user?.role === 'hr' || user?.role === 'candidate') && user?.profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  if (showProfilePicture && authenticatedImageUrl) {
+    return (
+      <Avatar className={className || "mr-3 h-9 w-9 flex-shrink-0"}>
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${user.firstName || ''} ${user.lastName || ''}`}
+        />
+        <AvatarFallback className={`text-xs font-semibold text-white ${
+          user.role === 'hr' ? 'bg-blue-600' : 'bg-purple-600'
+        }`}>
+          {user.firstName?.[0] || ''}{user.lastName?.[0] || ''}
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
+  // Fallback to icon
+  return (
+    <div className={`flex items-center justify-center ${className || 'mr-3 h-9 w-9'} rounded-lg bg-purple-100 dark:bg-purple-900/30 flex-shrink-0`}>
+      <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+    </div>
+  );
+};
 
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
@@ -240,7 +291,14 @@ export function GlobalSearch() {
                     <Briefcase className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
                     <span className="font-medium text-sm truncate">{job.title}</span>
+                      {job.jobId && (
+                        <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                          {formatCustomId(job.jobId)}
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground truncate mt-0.5">
                       {job.companyId?.name || job.company} • {job.location}
                       {job.salaryRange && (
@@ -276,9 +334,16 @@ export function GlobalSearch() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
                       <span className="font-medium text-sm truncate">
                         {company.name}
                       </span>
+                        {company.companyId && (
+                          <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                            {formatCustomId(company.companyId)}
+                          </Badge>
+                        )}
+                      </div>
                       <span className="text-xs text-muted-foreground truncate mt-0.5">
                         {company.industry || "No industry"}
                         {company.location && ` • ${company.location}`}
@@ -301,16 +366,20 @@ export function GlobalSearch() {
                     onSelect={() => handleSelect("user", userItem)}
                     className="cursor-pointer"
                   >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 mr-3 flex-shrink-0">
-                      <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    </div>
+                    <UserAvatar user={userItem} />
                     <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
                       <span className="font-medium text-sm truncate">
                         {userItem.firstName} {userItem.lastName}
                       </span>
+                        {userItem.customId && (
+                          <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                            {formatCustomId(userItem.customId)}
+                          </Badge>
+                        )}
+                      </div>
                       <span className="text-xs text-muted-foreground truncate mt-0.5">
                         {userItem.email} • {userItem.role}
-                        {userItem.role === 'candidate' && userItem.customId && ` • ${userItem.customId}`}
                       </span>
                     </div>
                   </CommandItem>

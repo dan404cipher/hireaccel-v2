@@ -108,17 +108,26 @@ class S3Service {
     const key = this.generateS3Key(filename, folder);
 
     try {
-      const command = new PutObjectCommand({
+      // Note: ACL parameter is removed to support buckets with ACLs disabled
+      // Public access should be configured via bucket policies if needed
+      const commandParams: any = {
         Bucket: this.bucketName,
         Key: key,
         Body: fileBuffer,
         ContentType: mimetype,
-        ACL: makePublic ? 'public-read' : 'private',
         Metadata: {
           originalName: filename,
           uploadedAt: new Date().toISOString(),
         },
-      });
+      };
+
+      // Only add ACL if explicitly needed and bucket supports it
+      // For buckets with ACLs disabled, use bucket policies for public access
+      // if (makePublic) {
+      //   commandParams.ACL = 'public-read';
+      // }
+
+      const command = new PutObjectCommand(commandParams);
 
       await this.client.send(command);
 

@@ -46,7 +46,9 @@ import {
   useContactHistoryStats, 
   useCreateContactHistory, 
   useUpdateContactHistory, 
-  useDeleteContactHistory 
+  useDeleteContactHistory,
+  useMyAgentAssignment,
+  useAgentCandidates
 } from '@/hooks/useApi';
 import { apiClient } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -112,6 +114,7 @@ const ContactHistory: React.FC = () => {
   const [contactTypeFilter, setContactTypeFilter] = useState<'all' | 'hr' | 'candidate'>('all');
   const [methodFilter, setMethodFilter] = useState<'all' | 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other'>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | 'positive' | 'neutral' | 'negative' | 'follow_up_required'>('all');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -121,6 +124,8 @@ const ContactHistory: React.FC = () => {
   const [hrUsers, setHrUsers] = useState<any[]>([]);
   const [candidates, setCandidates] = useState<any[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   const [formData, setFormData] = useState({
     contactType: 'hr' as 'hr' | 'candidate',
@@ -129,45 +134,159 @@ const ContactHistory: React.FC = () => {
     subject: '',
     notes: '',
     duration: '',
-    outcome: '' as '' | 'positive' | 'neutral' | 'negative' | 'follow_up_required',
+    outcome: 'none' as 'none' | '' | 'positive' | 'neutral' | 'negative' | 'follow_up_required',
     followUpDate: '',
     followUpNotes: '',
     tags: [] as string[],
     tagInput: '',
-    relatedJobId: '',
+    relatedJobId: 'none',
     relatedCandidateAssignmentId: '',
   });
 
-  // Fetch HR users and candidates for dropdowns
+  // Fetch agent assignment for agents (only if user is an agent)
+  const shouldFetchAgentData = user?.role === 'agent';
+  const { data: agentAssignmentResponse } = useMyAgentAssignment();
+  const agentAssignment = shouldFetchAgentData 
+    ? ((agentAssignmentResponse as any)?.data || agentAssignmentResponse)
+    : null;
+
+  // Fetch agent candidates for agents (only if user is an agent)
+  const { data: agentCandidatesResponse } = useAgentCandidates({ 
+    limit: 100 
+  });
+
+  // Fetch HR users, candidates, jobs, and agents for dropdowns
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoadingData(true);
       try {
-        const [hrResponse, candidatesResponse, jobsResponse] = await Promise.all([
-          apiClient.getUsers({ role: 'hr', limit: 100 }),
-          apiClient.getCandidates({ limit: 100 }),
-          apiClient.getJobs({ limit: 100, status: 'open' }),
-        ]);
-        setHrUsers(Array.isArray(hrResponse.data) ? hrResponse.data : (hrResponse.data as any)?.data || []);
-        setCandidates(Array.isArray(candidatesResponse.data) ? candidatesResponse.data : (candidatesResponse.data as any)?.data || []);
-        setJobs(Array.isArray(jobsResponse.data) ? jobsResponse.data : (jobsResponse.data as any)?.data || []);
+        if (user?.role === 'agent' && shouldFetchAgentData) {
+          // For agents: Get assigned HRs from agent assignment and candidates from agent candidates
+          const assignedHRs = agentAssignment?.assignedHRs || [];
+          const agentCandidates = Array.isArray(agentCandidatesResponse) 
+            ? agentCandidatesResponse 
+            : (agentCandidatesResponse as any)?.data || [];
+          
+          // For candidates, we need to keep the candidate document structure
+          // The contactId should be the Candidate document ID (_id), not the user ID
+          const candidatesList = agentCandidates.map((candidate: any) => {
+            // Log candidate structure for debugging
+            console.log('Agent candidate structure:', {
+              _id: candidate._id,
+              candidateId: candidate._id,
+              userId: candidate.userId?._id,
+              hasUserId: !!candidate.userId,
+            });
+            
+            // Keep the candidate structure with userId for display
+            return {
+              ...candidate,
+              // _id is the Candidate document ID, which is what the API expects for contactId
+              userId: candidate.userId || {
+                _id: candidate._id,
+                firstName: candidate.firstName,
+                lastName: candidate.lastName,
+                email: candidate.email,
+                customId: candidate.customId,
+              }
+            };
+          });
+          
+          console.log('Formatted candidates list:', candidatesList.map((c: any) => ({
+            _id: c._id,
+            userId: c.userId?._id,
+            name: `${c.userId?.firstName} ${c.userId?.lastName}`
+          })));
+
+          setHrUsers(assignedHRs);
+          setCandidates(candidatesList);
+          
+          // Fetch jobs for agents (from assigned HRs)
+          try {
+            const jobsResponse = await apiClient.getAgentJobs({ limit: 100, status: 'open' });
+            const jobs = Array.isArray(jobsResponse.data) ? jobsResponse.data : (jobsResponse.data as any)?.data || [];
+            setJobs(jobs);
+          } catch (error) {
+            console.error('Failed to fetch jobs:', error);
+            setJobs([]);
+          }
+        } else {
+          // For admin/superadmin: Fetch all data
+          const promises = [
+            apiClient.getUsers({ role: 'hr', limit: 100 }),
+            apiClient.getAgentCandidates({ limit: 100 }).catch(() => ({ data: [] })),
+            apiClient.getJobs({ limit: 100, status: 'open' }),
+          ];
+
+          // Only fetch agents if user is admin or superadmin
+          if (user?.role === 'admin' || user?.role === 'superadmin') {
+            promises.push(apiClient.getUsers({ role: 'agent', limit: 100 }));
+          }
+
+          const results = await Promise.all(promises);
+          const hrUsersList = Array.isArray(results[0].data) ? results[0].data : (results[0].data as any)?.data || [];
+          const candidatesList = Array.isArray(results[1].data) ? results[1].data : (results[1].data as any)?.data || [];
+          const jobsList = Array.isArray(results[2].data) ? results[2].data : (results[2].data as any)?.data || [];
+          
+          // Ensure candidates have the correct structure (Candidate document with _id)
+          // The API returns Candidate documents, so _id should be the Candidate document ID
+          const formattedCandidates = candidatesList.map((candidate: any) => {
+            // Ensure we have the Candidate document structure
+            return {
+              ...candidate,
+              // _id is the Candidate document ID (what the API expects)
+              // userId is populated User data for display
+              userId: candidate.userId || candidate,
+            };
+          });
+          
+          setHrUsers(hrUsersList);
+          setCandidates(formattedCandidates);
+          setJobs(jobsList);
+          
+          if (user?.role === 'admin' || user?.role === 'superadmin') {
+            setAgents(Array.isArray(results[3].data) ? results[3].data : (results[3].data as any)?.data || []);
+          }
+        }
       } catch (error) {
         console.error('Failed to fetch dropdown data:', error);
+        setHrUsers([]);
+        setCandidates([]);
+        setJobs([]);
+        setAgents([]);
+      } finally {
+        setIsLoadingData(false);
       }
     };
     fetchData();
-  }, []);
+  }, [user?.role, agentAssignment, agentCandidatesResponse, shouldFetchAgentData]);
 
   // API calls
   const { data: contactHistoryData, loading, refetch } = useContactHistory({
     page: currentPage,
     limit: 20,
     contactType: contactTypeFilter !== 'all' ? contactTypeFilter : undefined,
+    agentId: agentFilter !== 'all' ? agentFilter : undefined,
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
 
   const { data: statsData } = useContactHistoryStats();
-  const createContactHistory = useCreateContactHistory({ onSuccess: () => { setIsCreateDialogOpen(false); refetch(); } });
+  const createContactHistory = useCreateContactHistory({ 
+    onSuccess: () => { 
+      setIsCreateDialogOpen(false); 
+      refetch(); 
+    },
+    onError: (error: any) => {
+      console.error('Contact history creation error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to create contact history';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  });
   const updateContactHistory = useUpdateContactHistory({ onSuccess: () => { setIsEditDialogOpen(false); refetch(); } });
   const deleteContactHistory = useDeleteContactHistory({ onSuccess: () => { setIsDeleteDialogOpen(false); refetch(); } });
 
@@ -217,12 +336,12 @@ const ContactHistory: React.FC = () => {
       subject: '',
       notes: '',
       duration: '',
-      outcome: '',
+      outcome: 'none',
       followUpDate: '',
       followUpNotes: '',
       tags: [],
       tagInput: '',
-      relatedJobId: '',
+      relatedJobId: 'none',
       relatedCandidateAssignmentId: '',
     });
     setSelectedEntry(null);
@@ -243,12 +362,12 @@ const ContactHistory: React.FC = () => {
       subject: entry.subject,
       notes: entry.notes,
       duration: entry.duration?.toString() || '',
-      outcome: entry.outcome || '',
+      outcome: entry.outcome || 'none',
       followUpDate: entry.followUpDate ? format(new Date(entry.followUpDate), "yyyy-MM-dd'T'HH:mm") : '',
       followUpNotes: entry.followUpNotes || '',
       tags: entry.tags || [],
       tagInput: '',
-      relatedJobId: entry.relatedJobId?._id.toString() || '',
+      relatedJobId: entry.relatedJobId?._id.toString() || 'none',
       relatedCandidateAssignmentId: entry.relatedCandidateAssignmentId?._id.toString() || '',
     });
     setIsEditDialogOpen(true);
@@ -269,20 +388,78 @@ const ContactHistory: React.FC = () => {
       return;
     }
 
-    await createContactHistory.execute({
+    // Convert datetime-local to ISO datetime format
+    let followUpDateISO: string | undefined;
+    if (formData.followUpDate && formData.followUpDate.trim()) {
+      // datetime-local format is "YYYY-MM-DDTHH:mm", convert to ISO format
+      const date = new Date(formData.followUpDate);
+      if (!isNaN(date.getTime())) {
+        followUpDateISO = date.toISOString();
+      }
+    }
+
+    // Log the data being sent for debugging
+    console.log('Creating contact history with:', {
       contactType: formData.contactType,
       contactId: formData.contactId,
       contactMethod: formData.contactMethod,
-      subject: formData.subject,
-      notes: formData.notes,
-      duration: formData.duration ? parseInt(formData.duration) : undefined,
-      outcome: formData.outcome || undefined,
-      followUpDate: formData.followUpDate || undefined,
-      followUpNotes: formData.followUpNotes || undefined,
-      tags: formData.tags.length > 0 ? formData.tags : undefined,
-      relatedJobId: formData.relatedJobId || undefined,
-      relatedCandidateAssignmentId: formData.relatedCandidateAssignmentId || undefined,
     });
+    
+    // Verify the selected candidate exists in our candidates list
+    if (formData.contactType === 'candidate') {
+      const selectedCandidate = candidates.find((c: any) => String(c._id) === formData.contactId);
+      console.log('Selected candidate:', selectedCandidate);
+      if (!selectedCandidate) {
+        console.error('Selected candidate not found in candidates list!', {
+          contactId: formData.contactId,
+          availableIds: candidates.map((c: any) => c._id),
+        });
+        toast({
+          title: 'Error',
+          description: 'Selected candidate not found. Please try selecting again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Validate MongoDB ObjectId format for candidate contactId
+    if (formData.contactType === 'candidate') {
+      // MongoDB ObjectId is 24 hex characters
+      const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+      if (!objectIdRegex.test(formData.contactId)) {
+        console.error('Invalid candidate ID format:', formData.contactId);
+        toast({
+          title: 'Error',
+          description: 'Invalid candidate ID format. Please try selecting the candidate again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    try {
+      const payload = {
+        contactType: formData.contactType,
+        contactId: formData.contactId,
+        contactMethod: formData.contactMethod,
+        subject: formData.subject,
+        notes: formData.notes,
+        duration: formData.duration ? parseInt(formData.duration) : undefined,
+        outcome: (formData.outcome && formData.outcome !== 'none' && formData.outcome.trim()) ? formData.outcome : undefined,
+        followUpDate: followUpDateISO,
+        followUpNotes: (formData.followUpNotes && formData.followUpNotes.trim()) ? formData.followUpNotes : undefined,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
+        relatedJobId: (formData.relatedJobId && formData.relatedJobId !== 'none' && formData.relatedJobId.trim()) ? formData.relatedJobId : undefined,
+        relatedCandidateAssignmentId: (formData.relatedCandidateAssignmentId && formData.relatedCandidateAssignmentId.trim()) ? formData.relatedCandidateAssignmentId : undefined,
+      };
+      
+      console.log('Sending payload to API:', payload);
+      
+      await createContactHistory.mutate(payload);
+    } catch (error) {
+      console.error('Error creating contact history:', error);
+    }
   };
 
   const handleSubmitEdit = async () => {
@@ -295,26 +472,36 @@ const ContactHistory: React.FC = () => {
       return;
     }
 
-    await updateContactHistory.execute({
+    // Convert datetime-local to ISO datetime format
+    let followUpDateISO: string | undefined;
+    if (formData.followUpDate && formData.followUpDate.trim()) {
+      // datetime-local format is "YYYY-MM-DDTHH:mm", convert to ISO format
+      const date = new Date(formData.followUpDate);
+      if (!isNaN(date.getTime())) {
+        followUpDateISO = date.toISOString();
+      }
+    }
+
+    await updateContactHistory.mutate({
       id: selectedEntry._id,
       data: {
         contactMethod: formData.contactMethod,
         subject: formData.subject,
         notes: formData.notes,
         duration: formData.duration ? parseInt(formData.duration) : undefined,
-        outcome: formData.outcome || undefined,
-        followUpDate: formData.followUpDate || undefined,
-        followUpNotes: formData.followUpNotes || undefined,
+        outcome: (formData.outcome && formData.outcome !== 'none' && formData.outcome.trim()) ? formData.outcome : undefined,
+        followUpDate: followUpDateISO,
+        followUpNotes: (formData.followUpNotes && formData.followUpNotes.trim()) ? formData.followUpNotes : undefined,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
-        relatedJobId: formData.relatedJobId || undefined,
-        relatedCandidateAssignmentId: formData.relatedCandidateAssignmentId || undefined,
+        relatedJobId: (formData.relatedJobId && formData.relatedJobId !== 'none' && formData.relatedJobId.trim()) ? formData.relatedJobId : undefined,
+        relatedCandidateAssignmentId: (formData.relatedCandidateAssignmentId && formData.relatedCandidateAssignmentId.trim()) ? formData.relatedCandidateAssignmentId : undefined,
       },
     });
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedEntry) return;
-    await deleteContactHistory.execute(selectedEntry._id);
+    await deleteContactHistory.mutate(selectedEntry._id);
   };
 
   const addTag = () => {
@@ -420,7 +607,7 @@ const ContactHistory: React.FC = () => {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-5">
             <div className="space-y-2">
               <Label>Search</Label>
               <div className="relative">
@@ -446,6 +633,28 @@ const ContactHistory: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+            {(user?.role === 'admin' || user?.role === 'superadmin') && (
+              <div className="space-y-2">
+                <Label>Agent</Label>
+                <Select value={agentFilter} onValueChange={(value: any) => setAgentFilter(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Agents</SelectItem>
+                    {agents.map((agent) => {
+                      const agentId = String(agent.id || agent._id || '');
+                      if (!agentId || agentId === 'undefined' || agentId === 'null') return null;
+                      return (
+                        <SelectItem key={agentId} value={agentId}>
+                          {agent.firstName || ''} {agent.lastName || ''} {agent.email ? `(${agent.email})` : ''}
+                        </SelectItem>
+                      );
+                    }).filter(Boolean)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Contact Method</Label>
               <Select value={methodFilter} onValueChange={(value: any) => setMethodFilter(value)}>
@@ -506,6 +715,7 @@ const ContactHistory: React.FC = () => {
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
+                        <h3 className="font-semibold text-lg">{entry.subject}</h3>
                         <div className="flex items-center gap-2">
                           <Badge variant={entry.contactType === 'hr' ? 'default' : 'secondary'}>
                             {entry.contactType === 'hr' ? 'HR' : 'Candidate'}
@@ -521,16 +731,15 @@ const ContactHistory: React.FC = () => {
                             </Badge>
                           )}
                         </div>
-                        <h3 className="font-semibold text-lg">{entry.subject}</h3>
                         <p className="text-sm text-muted-foreground line-clamp-2">{entry.notes}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                           <div className="flex items-center gap-1">
                             <User className="w-4 h-4" />
                             <span>Agent: {entry.agentId?.firstName} {entry.agentId?.lastName}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <User className="w-4 h-4" />
-                            <span>Contact: {getContactName(entry)}</span>
+                            <span>Contact: {getContactName(entry)} ({entry.contactType === 'hr' ? 'HR' : 'Candidate'})</span>
                           </div>
                           {entry.duration && (
                             <div className="flex items-center gap-1">
@@ -543,13 +752,6 @@ const ContactHistory: React.FC = () => {
                             <span>{formatDistanceToNow(new Date(entry.createdAt), { addSuffix: true })}</span>
                           </div>
                         </div>
-                        {entry.tags && entry.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {entry.tags.map((tag, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs">{tag}</Badge>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -648,23 +850,75 @@ const ContactHistory: React.FC = () => {
                 <Label>Contact *</Label>
                 <Select
                   value={formData.contactId}
-                  onValueChange={(value) => setFormData({ ...formData, contactId: value })}
+                  onValueChange={(value) => {
+                    console.log('Contact selected:', value);
+                    console.log('Available candidates:', candidates.map((c: any) => ({
+                      _id: c._id,
+                      id: c.id,
+                      value: String(c._id || c.id)
+                    })));
+                    setFormData({ ...formData, contactId: value });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select contact" />
                   </SelectTrigger>
                   <SelectContent>
-                    {formData.contactType === 'hr'
-                      ? hrUsers.map((hr) => (
-                          <SelectItem key={hr.id} value={hr.id}>
-                            {hr.firstName} {hr.lastName} ({hr.email})
-                          </SelectItem>
-                        ))
-                      : candidates.map((candidate) => (
-                          <SelectItem key={candidate._id} value={candidate._id}>
-                            {candidate.userId?.firstName} {candidate.userId?.lastName} ({candidate.userId?.email})
-                          </SelectItem>
-                        ))}
+                    {isLoadingData ? (
+                      <SelectItem value="loading" disabled>Loading contacts...</SelectItem>
+                    ) : formData.contactType === 'hr' ? (
+                      <>
+                        {(hrUsers || []).filter(hr => hr && (hr.id || hr._id)).map((hr) => {
+                          const hrId = String(hr.id || hr._id || '');
+                          if (!hrId || hrId === 'undefined' || hrId === 'null') return null;
+                          return (
+                            <SelectItem key={hrId} value={hrId}>
+                              {hr.firstName || ''} {hr.lastName || ''} {hr.email ? `(${hr.email})` : ''}
+                            </SelectItem>
+                          );
+                        }).filter(Boolean)}
+                        {(!hrUsers || hrUsers.length === 0 || hrUsers.filter(hr => hr && (hr.id || hr._id)).length === 0) && (
+                          <SelectItem value="no-options" disabled>No HR users available</SelectItem>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {(candidates || []).filter(candidate => {
+                          // For candidates, we need the Candidate document ID (_id), not the user ID
+                          // The API expects Candidate.findById(contactId) to work
+                          const candidateId = String(candidate._id || candidate.id || '');
+                          const isValid = candidate && candidateId && candidateId !== 'undefined' && candidateId !== 'null';
+                          if (!isValid) {
+                            console.warn('Invalid candidate in dropdown:', candidate);
+                          }
+                          return isValid;
+                        }).map((candidate) => {
+                          // Use candidate._id (Candidate document ID) for the contactId (this is what the API expects)
+                          const candidateId = String(candidate._id || candidate.id || '');
+                          if (!candidateId || candidateId === 'undefined' || candidateId === 'null') {
+                            console.warn('Skipping candidate with invalid ID:', candidate);
+                            return null;
+                          }
+                          const userId = candidate.userId || candidate;
+                          console.log('Rendering candidate dropdown item:', {
+                            candidateId,
+                            userId: userId?._id,
+                            name: `${userId?.firstName} ${userId?.lastName}`
+                          });
+                          return (
+                            <SelectItem key={candidateId} value={candidateId}>
+                              {userId?.firstName || ''} {userId?.lastName || ''} {userId?.email ? `(${userId.email})` : ''}
+                            </SelectItem>
+                          );
+                        }).filter(Boolean)}
+                        {(!candidates || candidates.length === 0 || candidates.filter(c => {
+                          const candidateId = String(c?._id || c?.id || '');
+                          return c && candidateId && candidateId !== 'undefined' && candidateId !== 'null';
+                        }).length === 0) && (
+                          <SelectItem value="no-options" disabled>No candidates available</SelectItem>
+                        )}
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -692,8 +946,16 @@ const ContactHistory: React.FC = () => {
                 <Label>Duration (minutes)</Label>
                 <Input
                   type="number"
+                  min="0"
+                  step="1"
                   value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow numbers (including empty string for clearing)
+                    if (value === '' || /^\d+$/.test(value)) {
+                      setFormData({ ...formData, duration: value });
+                    }
+                  }}
                   placeholder="Optional"
                 />
               </div>
@@ -719,14 +981,14 @@ const ContactHistory: React.FC = () => {
               <div className="space-y-2">
                 <Label>Outcome</Label>
                 <Select
-                  value={formData.outcome}
-                  onValueChange={(value: any) => setFormData({ ...formData, outcome: value })}
+                  value={formData.outcome || 'none'}
+                  onValueChange={(value: any) => setFormData({ ...formData, outcome: value === 'none' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select outcome" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="positive">Positive</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
                     <SelectItem value="negative">Negative</SelectItem>
@@ -780,19 +1042,22 @@ const ContactHistory: React.FC = () => {
               <div className="space-y-2">
                 <Label>Related Job</Label>
                 <Select
-                  value={formData.relatedJobId}
-                  onValueChange={(value) => setFormData({ ...formData, relatedJobId: value })}
+                  value={formData.relatedJobId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, relatedJobId: value === 'none' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select job (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {jobs.map((job) => (
-                      <SelectItem key={job.id || job._id} value={job.id || job._id}>
-                        {job.title}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="none">None</SelectItem>
+                    {(jobs || []).filter(job => job?.id || job?._id).map((job) => {
+                      const jobId = job.id || job._id;
+                      return (
+                        <SelectItem key={jobId} value={String(jobId)}>
+                          {job.title || 'Untitled Job'}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -947,8 +1212,16 @@ const ContactHistory: React.FC = () => {
                 <Label>Duration (minutes)</Label>
                 <Input
                   type="number"
+                  min="0"
+                  step="1"
                   value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Only allow numbers (including empty string for clearing)
+                    if (value === '' || /^\d+$/.test(value)) {
+                      setFormData({ ...formData, duration: value });
+                    }
+                  }}
                   placeholder="Optional"
                 />
               </div>
@@ -972,14 +1245,14 @@ const ContactHistory: React.FC = () => {
               <div className="space-y-2">
                 <Label>Outcome</Label>
                 <Select
-                  value={formData.outcome}
-                  onValueChange={(value: any) => setFormData({ ...formData, outcome: value })}
+                  value={formData.outcome || 'none'}
+                  onValueChange={(value: any) => setFormData({ ...formData, outcome: value === 'none' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select outcome" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="positive">Positive</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
                     <SelectItem value="negative">Negative</SelectItem>

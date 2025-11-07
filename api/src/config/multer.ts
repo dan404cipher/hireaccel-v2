@@ -246,6 +246,18 @@ export const uploadProfilePhoto = multer({
 })
 
 /**
+ * Memory storage for company logos (to enable S3 upload)
+ */
+export const uploadCompanyLogo = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.image.mimeTypes, ALLOWED_FILE_TYPES.image.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.image.maxSize,
+        files: 1,
+    },
+})
+
+/**
  * General upload middleware with dynamic validation
  */
 // General upload uses dynamic fileType from request but sanitized/clamped to known categories

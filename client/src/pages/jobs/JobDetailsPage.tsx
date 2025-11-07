@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   ArrowLeft,
   MapPin,
@@ -27,6 +28,7 @@ import {
 import { useJob, useDeleteJob, useUpdateJob, useCompanies } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 import {
   Dialog,
   DialogContent,
@@ -78,6 +80,13 @@ export default function JobDetailsPage() {
 
   const { data: jobResponse, loading, error, refetch: refetchJob } = useJob(jobId!);
   const job = jobResponse?.data || jobResponse;
+
+  // Use authenticated image hook for company logo
+  const companyLogoFileId = job?.companyId?.logoFileId?._id || job?.companyId?.logoFileId || job?.companyId?.logoFileId?.toString();
+  const companyLogoUrl = companyLogoFileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${companyLogoFileId}`
+    : job?.companyId?.logoUrl || null;
+  const authenticatedCompanyLogoUrl = useAuthenticatedImage(companyLogoUrl);
 
   const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob({
     onSuccess: () => {
@@ -285,70 +294,115 @@ export default function JobDetailsPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <div className="border-b bg-gradient-to-r from-slate-50 to-gray-50">
-          <div className="container mx-auto px-2 py-3 mb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  {job.companyId?.logoUrl ? (
-                    <img 
-                      src={job.companyId.logoUrl} 
-                      alt={`${job.companyId.name} logo`}
-                      className="w-16 h-16 rounded-lg object-cover border-2 border-slate-200"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
-                  ) : null}
-                  <Building2 className={`w-16 h-16 text-blue-600 p-3 rounded-lg border-2 border-slate-200 bg-slate-50 ${job.companyId?.logoUrl ? 'hidden' : ''}`} />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-slate-800">{job.title}</h1>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/dashboard/jobs")}
-                  className="hover:bg-blue-50 text-blue-600"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Jobs
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="border-blue-200 hover:bg-blue-50 hover:border-blue-300">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={openEditDialog}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Job
-                    </DropdownMenuItem>
-                    {user?.role === 'hr' && (
-                      <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Job
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+      <div className="bg-gray-50">
+        {/* Header Banner */}
+        <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="absolute inset-0 bg-black opacity-20"></div>
+          <div className="absolute top-4 left-4 z-20">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/dashboard/jobs")}
+              className="text-white hover:bg-white/20 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+        <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">
+          {/* Profile Header Card */}
+          <Card className="mb-8 shadow-lg">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                {/* Company Logo */}
+                <div className="relative">
+                  <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
+                    <AvatarImage 
+                      src={authenticatedCompanyLogoUrl || undefined} 
+                      alt={`${job.companyId?.name || 'Company'} logo`}
+                      className="object-cover"
+                    />
+                    <AvatarFallback className="text-2xl font-bold bg-blue-600 text-white">
+                      <Building2 className="w-16 h-16" />
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+
+                {/* Basic Info */}
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        {job.title}
+                      </h1>
+                      <div className="flex items-center gap-4 mb-4">
+                        {job.jobId && (
+                          <Badge variant="outline" className="text-blue-600 border-blue-200 font-mono">
+                            {job.jobId}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className={
+                          job.workType === 'remote' ? "bg-green-100 text-green-800 border-green-200" :
+                          job.workType === 'wfh' ? "bg-blue-100 text-blue-800 border-blue-200" :
+                          "bg-orange-100 text-orange-800 border-orange-200"
+                        }>
+                          {job.workType === 'wfo' ? 'Onsite' : job.workType === 'wfh' ? 'Hybrid' : job.workType === 'remote' ? 'Remote' : job.workType || 'N/A'}
+                        </Badge>
+                        <Badge variant="outline" className="capitalize">
+                          {job.type}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        {job.companyId?.name && (
+                          <div className="flex items-center gap-1">
+                            <Building2 className="w-4 h-4" />
+                            <span>{job.companyId.name}</span>
+                          </div>
+                        )}
+                        {job.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{job.location}</span>
+                          </div>
+                        )}
+                        {job.salaryRange && (
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-4 h-4" />
+                            <span>{formatSalary(job)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="border-blue-200 hover:bg-blue-50 hover:border-blue-300">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={openEditDialog}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit Job
+                        </DropdownMenuItem>
+                        {user?.role === 'hr' && (
+                          <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Job
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
               {/* Job Overview */}
               <Card className="shadow-lg bg-white border-slate-200">
                 <CardHeader>

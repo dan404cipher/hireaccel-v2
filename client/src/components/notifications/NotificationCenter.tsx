@@ -131,8 +131,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         navigate(`/dashboard/hr-profile/${userId}`);
         break;
       case 'agent':
-        // Agent profile route doesn't exist, navigate to agent dashboard
-        navigate(`/dashboard/agent-dashboard`);
+        // Agent profile route has customId parameter - both agent and admin can access
+        navigate(`/dashboard/agent-profile/${userId}`);
         break;
       case 'candidate':
         // Use different routes based on current user role

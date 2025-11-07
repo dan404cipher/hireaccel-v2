@@ -906,8 +906,15 @@ export class UserController {
         ...assignment.assignedCandidates,
         ...newCandidates.map(id => new mongoose.Types.ObjectId(id))
       ];
+      // Update notes if provided (including empty string to clear notes)
       if (validatedData.notes !== undefined) {
-        assignment.notes = validatedData.notes;
+        const trimmedNotes = validatedData.notes.trim();
+        if (trimmedNotes) {
+          assignment.notes = trimmedNotes;
+        } else {
+          // Clear notes by deleting the field
+          assignment.set('notes', undefined);
+        }
       }
       assignment.status = 'active';
       
@@ -1031,7 +1038,7 @@ export class UserController {
         assignedHRs: validatedData.hrIds.map(id => new mongoose.Types.ObjectId(id)),
         assignedCandidates: candidateDocumentIds.map(id => new mongoose.Types.ObjectId(id)),
         assignedBy: req.user!._id,
-        notes: validatedData.notes,
+        notes: validatedData.notes || undefined, // Save as undefined if empty string
         status: 'active',
       });
 

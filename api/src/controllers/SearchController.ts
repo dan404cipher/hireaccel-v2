@@ -141,7 +141,12 @@ export class SearchController {
 
       // Only proceed with search if conditions are met
       if (shouldSearch) {
-        // Escape special regex characters in search term
+        // Check if search term looks like an ID (starts with letters followed by numbers)
+        // This check should happen before escaping, using the original searchTerm
+        const idPattern = /^([A-Z]+)(\d+)$/i;
+        const idMatch = searchTerm.trim().match(idPattern);
+        
+        // Escape special regex characters in search term for text searches
         const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         
         // Text search - build $or conditions for flexible searching
@@ -155,8 +160,22 @@ export class SearchController {
         // Regex on array elements - MongoDB will match if any element matches
         searchConditions.push({ 'requirements.skills': { $regex: escapedSearchTerm, $options: 'i' } });
 
-        // Also search in jobId field if it exists
+        // Search in jobId field - handle both exact match and formatted versions
+        if (idMatch) {
+          // If search term matches ID pattern (e.g., "JOB1", "JOB001"), search for variations
+          const [, prefix, number] = idMatch;
+          const prefixUpper = prefix.toUpperCase();
+          
+          // Escape the prefix for regex (though it should only contain letters)
+          const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          
+          // Match jobId with optional leading zeros (e.g., JOB1 matches JOB0001, JOB1, etc.)
+          // Pattern: ^JOB0*1$ matches JOB1, JOB01, JOB001, JOB0001, etc.
+          searchConditions.push({ jobId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+        } else {
+          // General regex search for jobId (for partial matches)
         searchConditions.push({ jobId: { $regex: escapedSearchTerm, $options: 'i' } });
+        }
 
         // Build final query: base filters AND (any of the search conditions)
         const jobQuery: any = {
@@ -247,14 +266,30 @@ export class SearchController {
 
     // Search Candidates - Admin, HR, and Agent can search candidates
     if (types.includes('candidates') && ['admin', 'superadmin', 'hr', 'agent'].includes(userRole || '')) {
-      // First, find users that match the search term by name or email
+      // Build customId search conditions with ID pattern matching
+      const idPattern = /^([A-Z]+)(\d+)$/i;
+      const idMatch = searchTerm.trim().match(idPattern);
+      const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      const userSearchConditions: any[] = [
+        { firstName: { $regex: escapedSearchTerm, $options: 'i' } },
+        { lastName: { $regex: escapedSearchTerm, $options: 'i' } },
+        { email: { $regex: escapedSearchTerm, $options: 'i' } },
+      ];
+      
+      // Handle customId search with ID pattern matching
+      if (idMatch) {
+        const [, prefix, number] = idMatch;
+        const prefixUpper = prefix.toUpperCase();
+        const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        userSearchConditions.push({ customId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+      } else {
+        userSearchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
+      }
+      
+      // First, find users that match the search term by name, email, or customId
       const matchingUsers = await User.find({
-        $or: [
-          { firstName: { $regex: searchTerm, $options: 'i' } },
-          { lastName: { $regex: searchTerm, $options: 'i' } },
-          { email: { $regex: searchTerm, $options: 'i' } },
-          { customId: { $regex: searchTerm, $options: 'i' } },
-        ],
+        $or: userSearchConditions,
         role: UserRole.CANDIDATE,
       }).select('_id').lean();
 
@@ -287,11 +322,11 @@ export class SearchController {
       if (shouldSearchCandidates) {
         // Text search - include user name/email search
         const searchConditions: any[] = [
-          { 'profile.summary': { $regex: searchTerm, $options: 'i' } },
-          { 'profile.skills': { $regex: searchTerm, $options: 'i' } },
-          { 'profile.location': { $regex: searchTerm, $options: 'i' } },
-          { 'profile.experience.position': { $regex: searchTerm, $options: 'i' } },
-          { 'profile.experience.company': { $regex: searchTerm, $options: 'i' } },
+          { 'profile.summary': { $regex: escapedSearchTerm, $options: 'i' } },
+          { 'profile.skills': { $regex: escapedSearchTerm, $options: 'i' } },
+          { 'profile.location': { $regex: escapedSearchTerm, $options: 'i' } },
+          { 'profile.experience.position': { $regex: escapedSearchTerm, $options: 'i' } },
+          { 'profile.experience.company': { $regex: escapedSearchTerm, $options: 'i' } },
         ];
 
         // If we found matching users, also search by userId
@@ -312,7 +347,7 @@ export class SearchController {
         }
 
         const candidates = await Candidate.find(candidateQuery)
-          .populate('userId', 'firstName lastName email customId _id')
+          .populate('userId', 'firstName lastName email customId _id profilePhotoFileId')
           .select('profile.skills profile.location profile.summary profile.experience userId')
           .limit(limit)
           .lean();
@@ -326,6 +361,7 @@ export class SearchController {
             firstName: candidate.userId.firstName,
             lastName: candidate.userId.lastName,
             email: candidate.userId.email,
+            profilePhotoFileId: candidate.userId.profilePhotoFileId,
           } : null,
           name: candidate.userId ? `${candidate.userId.firstName} ${candidate.userId.lastName}` : 'Unknown',
           skills: candidate.profile?.skills || [],
@@ -341,14 +377,35 @@ export class SearchController {
         deleted: { $ne: true },
       };
 
+      // Build company search conditions with ID pattern matching
+      const idPattern = /^([A-Z]+)(\d+)$/i;
+      const idMatch = searchTerm.trim().match(idPattern);
+      const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      const buildCompanySearchConditions = () => {
+        const conditions: any[] = [
+          { name: { $regex: escapedSearchTerm, $options: 'i' } },
+          { industry: { $regex: escapedSearchTerm, $options: 'i' } },
+          { description: { $regex: escapedSearchTerm, $options: 'i' } },
+          { location: { $regex: escapedSearchTerm, $options: 'i' } },
+        ];
+        
+        // Handle companyId search with ID pattern matching
+        if (idMatch) {
+          const [, prefix, number] = idMatch;
+          const prefixUpper = prefix.toUpperCase();
+          const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          conditions.push({ companyId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+        } else {
+          conditions.push({ companyId: { $regex: escapedSearchTerm, $options: 'i' } });
+        }
+        
+        return conditions;
+      };
+
       if (userRole === 'admin' || userRole === 'superadmin') {
         // Admins can see all companies
-        companyQuery.$or = [
-          { name: { $regex: searchTerm, $options: 'i' } },
-          { industry: { $regex: searchTerm, $options: 'i' } },
-          { description: { $regex: searchTerm, $options: 'i' } },
-          { location: { $regex: searchTerm, $options: 'i' } },
-        ];
+        companyQuery.$or = buildCompanySearchConditions();
       } else if (userRole === 'hr') {
         // HR can see companies they created or posted jobs for
         const jobCompanyIds = await Job.find({
@@ -363,12 +420,7 @@ export class SearchController {
         
         if (allAccessibleCompanyIds.length > 0) {
           companyQuery._id = { $in: allAccessibleCompanyIds };
-          companyQuery.$or = [
-            { name: { $regex: searchTerm, $options: 'i' } },
-            { industry: { $regex: searchTerm, $options: 'i' } },
-            { description: { $regex: searchTerm, $options: 'i' } },
-            { location: { $regex: searchTerm, $options: 'i' } },
-          ];
+          companyQuery.$or = buildCompanySearchConditions();
         } else {
           results.companies = [];
           companyQuery.$or = null; // Prevent query execution
@@ -389,12 +441,7 @@ export class SearchController {
           
           if (jobCompanyIds.length > 0) {
             companyQuery._id = { $in: jobCompanyIds };
-            companyQuery.$or = [
-              { name: { $regex: searchTerm, $options: 'i' } },
-              { industry: { $regex: searchTerm, $options: 'i' } },
-              { description: { $regex: searchTerm, $options: 'i' } },
-              { location: { $regex: searchTerm, $options: 'i' } },
-            ];
+            companyQuery.$or = buildCompanySearchConditions();
           } else {
             results.companies = [];
             companyQuery.$or = null;
@@ -411,24 +458,14 @@ export class SearchController {
         
         if (openJobCompanyIds.length > 0) {
           companyQuery._id = { $in: openJobCompanyIds };
-          companyQuery.$or = [
-            { name: { $regex: searchTerm, $options: 'i' } },
-            { industry: { $regex: searchTerm, $options: 'i' } },
-            { description: { $regex: searchTerm, $options: 'i' } },
-            { location: { $regex: searchTerm, $options: 'i' } },
-          ];
+          companyQuery.$or = buildCompanySearchConditions();
         } else {
           results.companies = [];
           companyQuery.$or = null;
         }
       } else {
         // Default: all companies
-        companyQuery.$or = [
-          { name: { $regex: searchTerm, $options: 'i' } },
-          { industry: { $regex: searchTerm, $options: 'i' } },
-          { description: { $regex: searchTerm, $options: 'i' } },
-          { location: { $regex: searchTerm, $options: 'i' } },
-        ];
+        companyQuery.$or = buildCompanySearchConditions();
       }
 
       if (companyQuery.$or) {
@@ -454,17 +491,33 @@ export class SearchController {
 
     // Search Users - Only Admin and Superadmin can search users
     if (types.includes('users') && ['admin', 'superadmin'].includes(userRole || '')) {
+      // Build customId search conditions with ID pattern matching
+      const idPattern = /^([A-Z]+)(\d+)$/i;
+      const idMatch = searchTerm.trim().match(idPattern);
+      const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      const userSearchConditions: any[] = [
+        { firstName: { $regex: escapedSearchTerm, $options: 'i' } },
+        { lastName: { $regex: escapedSearchTerm, $options: 'i' } },
+        { email: { $regex: escapedSearchTerm, $options: 'i' } },
+      ];
+      
+      // Handle customId search with ID pattern matching
+      if (idMatch) {
+        const [, prefix, number] = idMatch;
+        const prefixUpper = prefix.toUpperCase();
+        const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        userSearchConditions.push({ customId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+      } else {
+        userSearchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
+      }
+      
       const userQuery: any = {
-        $or: [
-          { firstName: { $regex: searchTerm, $options: 'i' } },
-          { lastName: { $regex: searchTerm, $options: 'i' } },
-          { email: { $regex: searchTerm, $options: 'i' } },
-          { customId: { $regex: searchTerm, $options: 'i' } },
-        ],
+        $or: userSearchConditions,
       };
 
       results.users = await User.find(userQuery)
-        .select('firstName lastName email role customId status')
+        .select('firstName lastName email role customId status profilePhotoFileId')
         .sort({ createdAt: -1 })
         .limit(limit)
         .lean();

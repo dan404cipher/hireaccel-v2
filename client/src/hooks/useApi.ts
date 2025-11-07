@@ -248,8 +248,22 @@ export function useCompanyStats() {
 
 // Users
 export function useUsers(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getUsers(params), [JSON.stringify(params)]);
-  return useApi(memoizedCall, { immediate: true });
+  const { user } = useAuth();
+  const memoizedCall = useCallback(() => {
+    // Check if role filter requires admin/HR access
+    const role = (params as any)?.role;
+    if (role === 'hr' || role === 'agent') {
+      // These roles require HR/Admin access
+      if (user?.role !== 'hr' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+        return Promise.resolve({ data: [] });
+      }
+    }
+    return apiClient.getUsers(params);
+  }, [JSON.stringify(params), user?.role]);
+  return useApi(memoizedCall, { 
+    immediate: true,
+    showToast: false // Suppress error toasts for permission errors
+  });
 }
 
 export function useUser(id: string) {
@@ -334,8 +348,18 @@ export function useAgentCandidates(params = {}) {
 
 // Agent Assignments (Admin/HR assigning resources to agents)
 export function useAgentAssignmentsList() {
-  const memoizedCall = useCallback(() => apiClient.getAgentAssignmentsList(), []);
-  return useApi(memoizedCall, { immediate: true });
+  const { user } = useAuth();
+  const memoizedCall = useCallback(() => {
+    // Only fetch if user has permission (Admin or SuperAdmin)
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+      return Promise.resolve({ data: [] });
+    }
+    return apiClient.getAgentAssignmentsList();
+  }, [user?.role]);
+  return useApi(memoizedCall, { 
+    immediate: user?.role === 'admin' || user?.role === 'superadmin',
+    showToast: false // Suppress error toasts
+  });
 }
 
 export function useCreateAgentAssignment() {
@@ -504,23 +528,38 @@ export function useCandidateAssignmentStats() {
 
 // Additional hooks for interview scheduling
 export function useAvailableInterviewers() {
+  const { user } = useAuth();
   const memoizedCall = useCallback(async () => {
+    // Only fetch if user has permission (HR, Admin, or SuperAdmin)
+    if (user?.role !== 'hr' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+      return { data: [] };
+    }
+    
     // Fetch HR and Admin users separately since the API doesn't support multiple roles
-    const [hrResponse, adminResponse] = await Promise.all([
-      apiClient.getUsers({ role: 'hr', status: 'active' }),
-      apiClient.getUsers({ role: 'admin', status: 'active' })
-    ]);
-    
-    // Extract data arrays and combine them
-    const hrUsers = Array.isArray(hrResponse) ? hrResponse : (hrResponse as any)?.data || [];
-    const adminUsers = Array.isArray(adminResponse) ? adminResponse : (adminResponse as any)?.data || [];
-    
-    // Combine and return in the same format as other API calls
-    const combinedUsers = [...hrUsers, ...adminUsers];
-    return { data: combinedUsers };
-  }, []);
+    try {
+      const [hrResponse, adminResponse] = await Promise.all([
+        apiClient.getUsers({ role: 'hr', status: 'active' }),
+        apiClient.getUsers({ role: 'admin', status: 'active' })
+      ]);
+      
+      // Extract data arrays and combine them
+      const hrUsers = Array.isArray(hrResponse) ? hrResponse : (hrResponse as any)?.data || [];
+      const adminUsers = Array.isArray(adminResponse) ? adminResponse : (adminResponse as any)?.data || [];
+      
+      // Combine and return in the same format as other API calls
+      const combinedUsers = [...hrUsers, ...adminUsers];
+      return { data: combinedUsers };
+    } catch (error) {
+      // Silently fail if user doesn't have permission
+      console.log('Available interviewers not accessible:', error);
+      return { data: [] };
+    }
+  }, [user?.role]);
   
-  return useApi(memoizedCall, { immediate: true });
+  return useApi(memoizedCall, { 
+    immediate: user?.role === 'hr' || user?.role === 'admin' || user?.role === 'superadmin',
+    showToast: false // Suppress error toasts
+  });
 }
 
 // Agent Interview Management

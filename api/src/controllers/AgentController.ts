@@ -106,7 +106,7 @@ export class AgentController {
 
         const jobs = await Job.find(filter)
             .populate('companyId', 'name industry location')
-            .populate('createdBy', 'firstName lastName email customId')
+            .populate('createdBy', 'firstName lastName email customId profilePhotoFileId')
             .populate('assignedAgentId', 'firstName lastName email')
             .sort(sort)
             .skip(skip)
@@ -179,14 +179,6 @@ export class AgentController {
             assignedCandidateIds = []
         }
 
-        console.log('🔍 Agent getMyCandidates debug:', {
-            agentId: req.user!._id,
-            agentEmail: req.user!.email,
-            role: req.user!.role,
-            assignedCandidateIds: assignedCandidateIds,
-            candidateCount: assignedCandidateIds.length,
-        })
-
         // For agents, check if they have assigned candidates
         if (req.user!.role === UserRole.AGENT && assignedCandidateIds.length === 0) {
             return res.json({
@@ -225,14 +217,9 @@ export class AgentController {
         const sort: any = {}
         sort[sortBy === 'createdAt' ? 'createdAt' : 'updatedAt'] = sortOrder === 'asc' ? 1 : -1
 
-        console.log('[AgentController] Finding candidates with filter:', {
-            filter,
-            assignedCandidateIds: assignedCandidateIds.map((id) => id.toString()),
-        })
-
         // First get all candidates that match the filter
         const allCandidates = await Candidate.find(filter)
-            .populate('userId', 'firstName lastName email customId') // Add customId to the populated fields
+            .populate('userId', 'firstName lastName email customId profilePhotoFileId') // Add customId and profilePhotoFileId to the populated fields
             .sort(sort)
             .skip(skip)
             .limit(limit)
@@ -245,15 +232,6 @@ export class AgentController {
                 (candidate.userId as any).lastName &&
                 (candidate.userId as any).customId, // Ensure customId exists
         )
-
-        console.log('[AgentController] Found candidates:', {
-            count: candidates.length,
-            candidates: candidates.map((c) => ({
-                id: c._id.toString(),
-                userId: c.userId ? (c.userId as any)._id.toString() : null,
-                name: c.userId ? `${(c.userId as any).firstName} ${(c.userId as any).lastName}` : 'No User',
-            })),
-        })
 
         // Get total count for pagination
         // For agents, use assigned count; for admins/superadmins, get actual count from database
@@ -359,40 +337,11 @@ export class AgentController {
 
         assignment.assignedHRs = assignedHRsWithCounts
 
-        // Debug logging
-        console.log('Debug Info:', {
-            agentId: req.user!._id.toString(),
-            hrAssignmentCounts: hrAssignmentCounts.map((count) => ({
-                hrId: count._id.toString(),
-                count: count.assignedCandidatesCount,
-                hrName: `${count.hrDetails.firstName} ${count.hrDetails.lastName}`,
-            })),
-            assignedHRs: assignment.assignedHRs.map((hr: any) => ({
-                id: hr._id.toString(),
-                name: `${hr.firstName} ${hr.lastName}`,
-            })),
-            finalCounts: assignedHRsWithCounts.map((hr) => ({
-                id: hr._id.toString(),
-                name: `${hr.firstName} ${hr.lastName}`,
-                count: hr.assignedCandidatesCount,
-            })),
-        })
-
-        // Additional debug query to check actual assignments
+        // Additional query to check actual assignments
         const actualAssignments = await CandidateAssignment.find({
             assignedBy: req.user!._id,
             status: { $in: ['active', 'completed', 'pending'] },
         }).populate('assignedTo', 'firstName lastName')
-
-        console.log(
-            'Actual Assignments:',
-            actualAssignments.map((a) => ({
-                id: a._id,
-                status: a.status,
-                assignedTo: `${(a.assignedTo as any).firstName} ${(a.assignedTo as any).lastName}`,
-                assignedToId: a.assignedTo,
-            })),
-        )
 
         // Log audit trail
         await AuditLog.createLog({
@@ -422,20 +371,10 @@ export class AgentController {
         const validatedData = assignCandidateSchema.parse(req.body)
 
         // Verify agent has access to this candidate
-        console.log(
-            `[AgentController] Verifying agent ${req.user!._id} access to candidate ${validatedData.candidateId}`,
-        )
         const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id)
         const candidateObjectId = new mongoose.Types.ObjectId(validatedData.candidateId)
 
         const hasAccess = assignedCandidateIds.some((id) => id.equals(candidateObjectId))
-        console.log(`[AgentController] Agent access check:`, {
-            agentId: req.user!._id,
-            candidateId: validatedData.candidateId,
-            hasAccess,
-            totalAssignedCandidates: assignedCandidateIds.length,
-        })
-
         if (!hasAccess) {
             throw createForbiddenError('You do not have access to this candidate')
         }
@@ -470,14 +409,6 @@ export class AgentController {
         }
 
         // Create candidate assignment
-        console.log(`[AgentController] Creating candidate assignment:`, {
-            candidateId: validatedData.candidateId,
-            jobId: validatedData.jobId,
-            assignedBy: req.user!._id,
-            assignedTo: job.createdBy,
-            priority: validatedData.priority,
-        })
-
         const assignment = await CandidateAssignment.create({
             candidateId: validatedData.candidateId,
             assignedTo: job.createdBy, // HR user who posted the job
@@ -487,8 +418,6 @@ export class AgentController {
             notes: validatedData.notes,
             dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
         })
-
-        console.log(`[AgentController] Created candidate assignment: ${assignment._id}`)
 
         // Populate the created assignment
         const populatedAssignment = await CandidateAssignment.findById(assignment._id)

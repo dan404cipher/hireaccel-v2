@@ -4,7 +4,7 @@ import { File } from '@/models/File';
 import { Candidate } from '@/models/Candidate';
 import { Job } from '@/models/Job';
 import { User } from '@/models/User';
-import { FileCategory, CandidateProfile } from '@/types';
+import { FileCategory, CandidateProfile, UserRole } from '@/types';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
 import { logger } from '@/config/logger';
 import path from 'path';
@@ -1432,6 +1432,211 @@ export class FileController {
       res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
       res.setHeader('Content-Type', file.mimetype);
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); // Allow cross-origin access
+
+      // Stream the file
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    }
+  });
+
+  /**
+   * Upload company logo
+   * POST /files/company-logo
+   */
+  static uploadCompanyLogo = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    if (!req.file) {
+      throw createBadRequestError('No file uploaded');
+    }
+
+    const userId = req.user!._id;
+    const companyId = req.body.companyId;
+    
+    if (!companyId) {
+      throw createBadRequestError('Company ID is required');
+    }
+
+    // Import Company model
+    const { Company } = await import('@/models/Company');
+    
+    // Verify company exists and user has access
+    const company = await Company.findById(companyId);
+    if (!company) {
+      throw createNotFoundError('Company', companyId);
+    }
+
+    // HR-specific access control: Only allow updates to companies they created or posted jobs for
+    if (req.user!.role === UserRole.HR) {
+      const { Job } = await import('@/models/Job');
+      const hasAccess = company.createdBy.toString() === userId.toString() ||
+        await Job.exists({
+          createdBy: userId,
+          companyId: company._id
+        });
+
+      if (!hasAccess) {
+        throw createNotFoundError('Company', companyId);
+      }
+    }
+    
+    try {
+      // Read file buffer (memory storage provides buffer directly)
+      const fileBuffer = req.file.buffer;
+      if (!fileBuffer) {
+        throw createBadRequestError('File buffer is required');
+      }
+
+      // Generate filename if not provided
+      const filename = req.file.filename || req.file.originalname || `company-logo-${Date.now()}.${path.extname(req.file.originalname || '.jpg')}`;
+      
+      let fileData: any = {
+        filename: filename,
+        originalName: req.file.originalname || filename,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        category: FileCategory.COMPANY_LOGO,
+        uploadedBy: userId,
+        relatedEntity: {
+          type: 'company',
+          id: companyId,
+        },
+      };
+
+      // Upload to S3 only (no local storage fallback)
+      if (!s3Service.isS3Enabled()) {
+        throw createBadRequestError('S3 storage is required for company logo uploads');
+      }
+
+      const s3Result = await s3Service.uploadFile({
+        fileBuffer,
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype,
+        folder: 'company-logos',
+        makePublic: true, // Company logos should be public
+      });
+
+      // Calculate checksum
+      const checksum = s3Service.calculateChecksum(fileBuffer);
+
+      fileData = {
+        ...fileData,
+        path: s3Result.key,
+        url: s3Result.url,
+        storageProvider: 'aws_s3',
+        checksum,
+      };
+
+      // Create file record
+      const fileRecord = new File(fileData);
+      await fileRecord.save();
+
+      // Update company with new logo URL and file ID
+      // Store both the URL (for direct access if public) and file ID (for authenticated access)
+      await Company.findByIdAndUpdate(companyId, {
+        logoUrl: fileData.url,
+        logoFileId: fileRecord._id, // Store file ID for authenticated access
+      });
+
+      logger.info('Company logo uploaded successfully', {
+        userId,
+        companyId,
+        fileId: fileRecord._id,
+        filename: fileRecord.originalName,
+        storageProvider: fileRecord.storageProvider,
+        businessProcess: 'company_logo_upload',
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Company logo uploaded successfully',
+        data: {
+          file: {
+            id: fileRecord._id,
+            filename: fileRecord.originalName,
+            url: fileData.url,
+            size: fileRecord.size,
+            mimetype: fileRecord.mimetype,
+            storageProvider: fileRecord.storageProvider,
+          },
+          company: {
+            logoFileId: fileRecord._id,
+            logoUrl: fileData.url,
+          },
+        },
+      });
+    } catch (error) {
+      logger.error('Failed to upload company logo', {
+        userId,
+        companyId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        businessProcess: 'company_logo_upload',
+      });
+      throw error;
+    }
+  });
+
+  /**
+   * View company logo inline
+   * GET /files/company-logo/:fileId
+   */
+  static viewCompanyLogo = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { fileId } = req.params;
+
+    const file = await File.findById(fileId);
+    if (!file) {
+      throw createNotFoundError('File not found');
+    }
+
+    // Verify it's a company logo file
+    if (file.category !== FileCategory.COMPANY_LOGO) {
+      throw createNotFoundError('Company logo not found');
+    }
+
+    logger.info('Company logo viewed', {
+      fileId,
+      filename: file.originalName,
+      businessProcess: 'file_management',
+    });
+
+    // Get file content based on storage provider
+    if (file.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
+      // Download from S3 and stream to client
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const s3Client = s3Service.getClient();
+      const bucketName = s3Service.bucketName;
+      
+      if (!s3Client) {
+        throw createBadRequestError('S3 client is not available');
+      }
+      
+      const command = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: file.path,
+      });
+
+      const response = await s3Client.send(command);
+      
+      // Set headers for inline viewing
+      res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+      res.setHeader('Content-Type', file.mimetype);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      
+      // Stream the file from S3 to client
+      if (response.Body) {
+        (response.Body as any).pipe(res);
+      } else {
+        throw createBadRequestError('Failed to download file from S3');
+      }
+    } else {
+      // Local storage (shouldn't happen for company logos, but handle it)
+      const filePath = path.join(env.UPLOADS_PATH, file.path);
+      if (!fs.existsSync(filePath)) {
+        throw createNotFoundError('File not found on server');
+      }
+
+      // Set headers for inline viewing
+      res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+      res.setHeader('Content-Type', file.mimetype);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
       // Stream the file
       const fileStream = fs.createReadStream(filePath);

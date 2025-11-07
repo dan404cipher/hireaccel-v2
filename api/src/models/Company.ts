@@ -207,6 +207,12 @@ const companySchema = new Schema<CompanyDocument>({
     ],
   },
   
+  logoFileId: {
+    type: Schema.Types.ObjectId,
+    ref: 'File',
+    required: false,
+  },
+  
   contacts: {
     type: [companyContactSchema],
     default: [],

@@ -90,19 +90,19 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email customId profilePhotoFileId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location createdBy',
+        select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       })
@@ -173,19 +173,19 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
         select: 'title description companyId createdBy',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       });
@@ -327,19 +327,19 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location createdBy',
+        select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       });
@@ -426,19 +426,19 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
         select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       });
@@ -626,11 +626,11 @@ export class CandidateAssignmentController {
             select: 'firstName lastName email customId profilePhotoFileId'
           }
         })
-        .populate('assignedBy', 'firstName lastName email customId')
-        .populate('assignedTo', 'firstName lastName email customId')
+        .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+        .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
         .populate({
           path: 'jobId',
-          select: 'title companyId location createdBy',
+          select: 'title companyId location createdBy jobId',
           populate: [
             {
               path: 'companyId',

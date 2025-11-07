@@ -7,6 +7,7 @@ export interface ContactHistoryDocument extends Document {
   _id: mongoose.Types.ObjectId;
   agentId: mongoose.Types.ObjectId;
   contactType: 'hr' | 'candidate';
+  contactModel?: 'User' | 'Candidate';
   contactId: mongoose.Types.ObjectId; // HR User ID or Candidate ID
   contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
   subject: string;
@@ -50,12 +51,17 @@ const contactHistorySchema = new Schema<ContactHistoryDocument>(
       required: [true, 'Contact type is required'],
       index: true,
     },
+    contactModel: {
+      type: String,
+      enum: ['User', 'Candidate'],
+      default: function(this: ContactHistoryDocument) {
+        return this.contactType === 'hr' ? 'User' : 'Candidate';
+      },
+    },
     contactId: {
       type: Schema.Types.ObjectId,
       required: [true, 'Contact ID is required'],
-      refPath: function(this: ContactHistoryDocument) {
-        return this.contactType === 'hr' ? 'User' : 'Candidate';
-      },
+      refPath: 'contactModel',
       index: true,
     },
     contactMethod: {
@@ -132,6 +138,14 @@ const contactHistorySchema = new Schema<ContactHistoryDocument>(
     },
   }
 );
+
+// Pre-save hook to ensure contactModel is set based on contactType
+contactHistorySchema.pre('save', function(next) {
+  if (this.contactType) {
+    this.contactModel = this.contactType === 'hr' ? 'User' : 'Candidate';
+  }
+  next();
+});
 
 // Indexes for efficient queries
 contactHistorySchema.index({ agentId: 1, createdAt: -1 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,125 @@ import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, use
 import { apiClient } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { DashboardBanner } from "@/components/dashboard/Banner";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Format customId to remove leading zeros (e.g., HR00001 -> HR1, ADMIN00001 -> ADMIN1)
+const formatCustomId = (customId: string | undefined): string => {
+  if (!customId) return 'N/A';
+  
+  // Match pattern like CAND00004, HR00001, ADMIN00001, etc.
+  const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    // Remove leading zeros and return formatted ID
+    return `${prefix}${parseInt(number, 10)}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Company Avatar Component
+const CompanyAvatar: React.FC<{
+  logoFileId?: string | { _id: string } | any;
+  companyName: string;
+}> = React.memo(({ logoFileId, companyName }) => {
+  // Extract file ID from various formats
+  const fileId = logoFileId?._id || logoFileId?.toString() || logoFileId;
+  
+  // Construct authenticated API endpoint URL
+  const logoUrl = fileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${fileId}`
+    : null;
+  
+  const authenticatedImageUrl = useAuthenticatedImage(logoUrl);
+  
+  // Memoize initials calculation
+  const initials = useMemo(() => {
+    return companyName
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [companyName]);
+  
+  return (
+    <Avatar className="h-10 w-10 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={companyName} 
+      />
+      <AvatarFallback className="text-xs text-white font-semibold bg-purple-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  const prevFileId = prevProps.logoFileId?._id || prevProps.logoFileId?.toString() || prevProps.logoFileId;
+  const nextFileId = nextProps.logoFileId?._id || nextProps.logoFileId?.toString() || nextProps.logoFileId;
+  return prevFileId === nextFileId && prevProps.companyName === nextProps.companyName;
+});
+
+CompanyAvatar.displayName = 'CompanyAvatar';
+
+// HR Avatar Component (similar to JobManagementIntegrated.tsx)
+const HRAvatar: React.FC<{
+  hr: any;
+  onClick?: () => void;
+}> = React.memo(({ hr, onClick }) => {
+  const profilePhotoFileId = hr?.profilePhotoFileId;
+  const showProfilePicture = !!profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      {showProfilePicture && authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${hr?.firstName || ''} ${hr?.lastName || ''}`}
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-blue-600">
+        {hr?.firstName?.[0] || ''}{hr?.lastName?.[0] || ''}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  const prevFileId = prevProps.hr?.profilePhotoFileId?._id || prevProps.hr?.profilePhotoFileId?.toString() || prevProps.hr?.profilePhotoFileId;
+  const nextFileId = nextProps.hr?.profilePhotoFileId?._id || nextProps.hr?.profilePhotoFileId?.toString() || nextProps.hr?.profilePhotoFileId;
+  const prevName = `${prevProps.hr?.firstName || ''} ${prevProps.hr?.lastName || ''}`;
+  const nextName = `${nextProps.hr?.firstName || ''} ${nextProps.hr?.lastName || ''}`;
+  return prevFileId === nextFileId && prevName === nextName;
+});
+
+HRAvatar.displayName = 'HRAvatar';
 
 export default function CompanyManagement() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -919,7 +1033,7 @@ export default function CompanyManagement() {
                   <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
                   <TableHead>Size</TableHead>
-                    <TableHead>HR ID</TableHead>
+                    <TableHead>{user?.role === 'hr' ? 'Total Jobs' : 'HR'}</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -933,11 +1047,17 @@ export default function CompanyManagement() {
                       </TableCell>
                       <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-primary" />
-                        </div>
+                        <CompanyAvatar 
+                          logoFileId={company.logoFileId}
+                          companyName={company.name}
+                        />
                         <div>
-                          <div className="font-medium text-base">{company.name}</div>
+                          <div 
+                            className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                            onClick={() => navigate(`/dashboard/companies/${company.companyId || company.id || company._id}`)}
+                          >
+                            {company.name}
+                          </div>
                           <div className="text-base text-muted-foreground">
                             {company.website && (
                             <span className="flex items-center gap-1">
@@ -950,15 +1070,12 @@ export default function CompanyManagement() {
                       </div>
                     </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 text-base">
-                        <MapPin className="w-4 h-4 text-emerald-600" />
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-foreground">
                           {company.address ? (
                             [company.address.city, company.address.state].filter(Boolean).join(', ') || 'No location'
                           ) : (
                             company.location || 'No address provided'
                           )}
-                        </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -975,9 +1092,41 @@ export default function CompanyManagement() {
                       </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {company.createdBy?.customId || 'N/A'}
-                        </Badge>
+                        {user?.role === 'hr' ? (
+                          // For HR users, show Total Jobs
+                          <div className="flex items-center justify-center gap-2">
+                            <Briefcase className="w-4 h-4 text-blue-600" />
+                            <Badge variant="outline" className="text-xs font-semibold">
+                              {company.totalJobs || 0}
+                            </Badge>
+                          </div>
+                        ) : (
+                          // For other users, show HR details
+                          <div className="flex items-center gap-3">
+                            {company.createdBy && (
+                              <HRAvatar 
+                                hr={company.createdBy}
+                                onClick={() => {
+                                  if (company.createdBy?.customId) {
+                                    navigate(`/dashboard/hr-profile/${company.createdBy.customId}`);
+                                  }
+                                }}
+                              />
+                            )}
+                            <div>
+                              <p 
+                                className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                                onClick={() => {
+                                  if (company.createdBy?.customId) {
+                                    navigate(`/dashboard/hr-profile/${company.createdBy.customId}`);
+                                  }
+                                }}
+                              >
+                                {company.createdBy?.firstName} {company.createdBy?.lastName}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

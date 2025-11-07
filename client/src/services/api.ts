@@ -733,6 +733,32 @@ class ApiClient {
     return data;
   }
 
+  async uploadCompanyLogo(file: File, companyId: string) {
+    const formData = new FormData();
+    formData.append('logo', file);
+    formData.append('companyId', companyId);
+
+    const url = `${this.baseURL}/api/v1/files/company-logo`;
+    const headers: Record<string, string> = {};
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers,
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw data;
+    }
+    return data;
+  }
+
   async downloadResume(fileId: string) {
     const url = `${this.baseURL}/api/v1/files/resume/${fileId}`;
     const headers: HeadersInit = {};
@@ -1488,6 +1514,8 @@ class ApiClient {
     if (params?.dateTo) queryParams.append('dateTo', params.dateTo);
     const queryString = queryParams.toString();
     return this.request(`/api/v1/contact-history/stats${queryString ? `?${queryString}` : ''}`);
+  }
+
   // Global Search method
   async globalSearch(params: {
     q: string;

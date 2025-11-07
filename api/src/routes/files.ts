@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { FileController } from '@/controllers/FileController'
 import { authenticate, requireRole, requireHR } from '@/middleware/auth'
 import { UserRole } from '@/types'
-import { uploadResume, uploadDocument, uploadJD, uploadProfilePhoto, handleMulterError } from '@/config/multer'
+import { uploadResume, uploadDocument, uploadJD, uploadProfilePhoto, uploadCompanyLogo, handleMulterError } from '@/config/multer'
 import { heavyProcessLimiter } from '@/config/rateLimit'
 
 const router = Router()
@@ -126,5 +126,25 @@ router.post(
  * @access  Private (Authenticated users)
  */
 router.get('/profile-photo/:fileId', FileController.viewProfilePhoto)
+
+/**
+ * @route   POST /files/company-logo
+ * @desc    Upload company logo
+ * @access  Private (HR/Admin/SuperAdmin only)
+ */
+router.post(
+    '/company-logo',
+    requireHR,
+    uploadCompanyLogo.single('logo'),
+    handleMulterError,
+    FileController.uploadCompanyLogo,
+)
+
+/**
+ * @route   GET /files/company-logo/:fileId
+ * @desc    View company logo inline (for display)
+ * @access  Private (Authenticated users)
+ */
+router.get('/company-logo/:fileId', FileController.viewCompanyLogo)
 
 export default router
