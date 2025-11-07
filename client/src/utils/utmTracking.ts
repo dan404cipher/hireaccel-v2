@@ -31,27 +31,74 @@ export const captureUTMParams = (): UTMParams => {
 };
 
 /**
- * Store UTM params in sessionStorage (persist during signup flow)
+ * Store UTM params in localStorage (persist across sessions for 30 days)
  */
 export const storeUTMParams = (params: UTMParams): void => {
     // Only store if there's at least one UTM parameter
     if (params.utm_source || params.utm_medium || params.utm_campaign) {
-        sessionStorage.setItem('utm_params', JSON.stringify(params));
-        sessionStorage.setItem('utm_captured_at', new Date().toISOString());
+        const existingParams = getStoredUTMParams();
+
+        // Merge with existing params (new params take precedence)
+        const mergedParams = { ...existingParams, ...params };
+
+        localStorage.setItem('utm_params', JSON.stringify(mergedParams));
+        localStorage.setItem('utm_timestamp', new Date().toISOString());
+
+        // Also store in sessionStorage for immediate access
+        sessionStorage.setItem('utm_params', JSON.stringify(mergedParams));
     }
 };
 
 /**
- * Retrieve stored UTM params from sessionStorage
+ * Retrieve stored UTM params from localStorage
+ * Returns null if expired (>30 days) or not found
  */
 export const getStoredUTMParams = (): UTMParams | null => {
-    const stored = sessionStorage.getItem('utm_params');
+    // Check if expired first
+    if (areUTMParamsExpired()) {
+        clearUTMParams();
+        return null;
+    }
+
+    // Try localStorage first (persists across sessions)
+    let stored = localStorage.getItem('utm_params');
+
+    // Fallback to sessionStorage
+    if (!stored) {
+        stored = sessionStorage.getItem('utm_params');
+    }
+
     if (!stored) return null;
 
     try {
         return JSON.parse(stored);
     } catch {
         return null;
+    }
+};
+
+/**
+ * Get UTM timestamp
+ */
+export const getUTMTimestamp = (): string | null => {
+    return localStorage.getItem('utm_timestamp');
+};
+
+/**
+ * Check if UTM params are expired (older than 30 days)
+ */
+export const areUTMParamsExpired = (): boolean => {
+    const timestamp = getUTMTimestamp();
+    if (!timestamp) return true;
+
+    try {
+        const capturedDate = new Date(timestamp);
+        const now = new Date();
+        const daysDiff = (now.getTime() - capturedDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        return daysDiff > 30;
+    } catch {
+        return true;
     }
 };
 
@@ -79,8 +126,33 @@ export const getUTMParams = (): UTMParams => {
  * Clear stored UTM params (e.g., after successful signup)
  */
 export const clearUTMParams = (): void => {
+    localStorage.removeItem('utm_params');
+    localStorage.removeItem('utm_timestamp');
     sessionStorage.removeItem('utm_params');
     sessionStorage.removeItem('utm_captured_at');
+};
+
+/**
+ * Store referrer URL separately
+ */
+export const storeReferrer = (): void => {
+    if (document.referrer && !localStorage.getItem('referrer_url')) {
+        localStorage.setItem('referrer_url', document.referrer);
+    }
+};
+
+/**
+ * Get stored referrer URL
+ */
+export const getStoredReferrer = (): string | null => {
+    return localStorage.getItem('referrer_url');
+};
+
+/**
+ * Clear referrer URL
+ */
+export const clearReferrer = (): void => {
+    localStorage.removeItem('referrer_url');
 };
 
 /**

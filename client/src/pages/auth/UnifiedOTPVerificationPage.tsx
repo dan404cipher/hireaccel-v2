@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Smartphone, Mail, RefreshCw, ArrowLeft } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { clearUTMParams, clearReferrer } from '@/utils/utmTracking';
 
 export const UnifiedOTPVerificationPage: React.FC = () => {
     const navigate = useNavigate();
@@ -113,6 +114,10 @@ export const UnifiedOTPVerificationPage: React.FC = () => {
 
                 // Clear verification data
                 sessionStorage.removeItem('unified_verification_data');
+
+                // Clear UTM tracking data after successful registration
+                clearUTMParams();
+                clearReferrer();
 
                 // Update auth context
                 updateAuth(user);
