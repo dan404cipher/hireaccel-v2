@@ -4,6 +4,7 @@ import { AuthenticatedRequest } from '../types';
 import { asyncHandler, createBadRequestError, createNotFoundError } from '../middleware/errorHandler';
 import { s3Service } from '../services/S3Service';
 import { logger } from '../config/logger';
+import crypto from 'crypto';
 
 export class BannerController {
   // Upload a new banner
@@ -400,6 +401,23 @@ export class BannerController {
       throw createBadRequestError('Banner media not found or not stored in S3');
     }
 
+    // Generate ETag based on banner ID and update time for caching
+    const etag = crypto
+      .createHash('md5')
+      .update(`${banner._id}-${banner.updatedAt}`)
+      .digest('hex');
+
+    // Check if client has cached version
+    const clientETag = req.headers['if-none-match'];
+    if (clientETag === etag) {
+      logger.info('💾 Client has cached version, returning 304', {
+        bannerId,
+        etag,
+      });
+      res.status(304).end();
+      return;
+    }
+
     if (!banner.storageLocation) {
       throw createBadRequestError('Banner storage location not found');
     }
@@ -435,23 +453,67 @@ export class BannerController {
       contentType = 'image/jpeg'; // Default for images
     }
 
-    // Set headers for inline viewing
-    res.setHeader('Content-Disposition', `inline; filename="${banner.originalName || 'banner'}"`);
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    const contentLength = response.ContentLength || 0;
 
-    logger.info('📤 Headers set, piping response', {
-      bannerId,
-      contentType,
-    });
+    // Handle range requests for Safari video playback
+    const range = req.headers.range;
+    if (range && contentLength) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
+      const chunkSize = end - start + 1;
 
-    // Stream the file from S3 to client
-    if (response.Body) {
-      (response.Body as any).pipe(res);
+      logger.info('📍 Range request detected', {
+        bannerId,
+        range: `${start}-${end}/${contentLength}`,
+      });
+
+      // For range requests, need to fetch the specific range from S3
+      const { GetObjectCommand: GetObjectCommandRange } = await import('@aws-sdk/client-s3');
+      const rangeCommand = new GetObjectCommandRange({
+        Bucket: bucketName,
+        Key: banner.storageLocation,
+        Range: `bytes=${start}-${end}`,
+      });
+
+      const rangeResponse = await s3Client.send(rangeCommand);
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${contentLength}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${banner.originalName || 'banner'}"`,
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'Cache-Control': 'public, max-age=604800, immutable', // 7 days, immutable for better caching
+        'ETag': etag,
+      });
+
+      if (rangeResponse.Body) {
+        (rangeResponse.Body as any).pipe(res);
+      }
     } else {
-      logger.error('❌ No response body from S3', { bannerId });
-      throw createBadRequestError('Failed to retrieve banner media from S3');
+      // No range request - send full file
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', contentLength.toString());
+      res.setHeader('Content-Disposition', `inline; filename="${banner.originalName || 'banner'}"`);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable'); // 7 days, immutable for better caching
+      res.setHeader('ETag', etag);
+
+      logger.info('📤 Headers set, piping response', {
+        bannerId,
+        contentType,
+        contentLength,
+      });
+
+      if (response.Body) {
+        (response.Body as any).pipe(res);
+      } else {
+        logger.error('❌ No response body from S3', { bannerId });
+        throw createBadRequestError('Failed to retrieve banner media from S3');
+      }
     }
   });
 
@@ -481,6 +543,23 @@ export class BannerController {
       throw createBadRequestError('Banner background media not found or not stored in S3');
     }
 
+    // Generate ETag based on banner ID and update time for caching
+    const etag = crypto
+      .createHash('md5')
+      .update(`${banner._id}-${banner.updatedAt}-background`)
+      .digest('hex');
+
+    // Check if client has cached version
+    const clientETag = req.headers['if-none-match'];
+    if (clientETag === etag) {
+      logger.info('💾 Client has cached background version, returning 304', {
+        bannerId,
+        etag,
+      });
+      res.status(304).end();
+      return;
+    }
+
     if (!banner.backgroundStorageLocation) {
       throw createBadRequestError('Banner background storage location not found');
     }
@@ -501,6 +580,11 @@ export class BannerController {
 
     const response = await s3Client.send(command);
 
+    logger.info('📥 Retrieved background from S3, streaming to client', {
+      bannerId,
+      contentLength: response.ContentLength,
+    });
+
     // Determine content type from media type
     let contentType = 'application/octet-stream';
     if (banner.backgroundMediaType === 'video') {
@@ -511,17 +595,67 @@ export class BannerController {
       contentType = 'image/jpeg'; // Default for images
     }
 
-    // Set headers for inline viewing
-    res.setHeader('Content-Disposition', `inline; filename="${banner.backgroundOriginalName || 'banner-background'}"`);
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    const contentLength = response.ContentLength || 0;
 
-    // Stream the file from S3 to client
-    if (response.Body) {
-      (response.Body as any).pipe(res);
+    // Handle range requests for Safari video playback
+    const range = req.headers.range;
+    if (range && contentLength) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : contentLength - 1;
+      const chunkSize = end - start + 1;
+
+      logger.info('📍 Range request detected for background', {
+        bannerId,
+        range: `${start}-${end}/${contentLength}`,
+      });
+
+      // For range requests, need to fetch the specific range from S3
+      const { GetObjectCommand: GetObjectCommandRange } = await import('@aws-sdk/client-s3');
+      const rangeCommand = new GetObjectCommandRange({
+        Bucket: bucketName,
+        Key: banner.backgroundStorageLocation,
+        Range: `bytes=${start}-${end}`,
+      });
+
+      const rangeResponse = await s3Client.send(rangeCommand);
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${contentLength}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${banner.backgroundOriginalName || 'banner-background'}"`,
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'Cache-Control': 'public, max-age=604800, immutable', // 7 days, immutable
+        'ETag': etag,
+      });
+
+      if (rangeResponse.Body) {
+        (rangeResponse.Body as any).pipe(res);
+      }
     } else {
-      throw createBadRequestError('Failed to retrieve banner background media from S3');
+      // No range request - send full file
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Content-Length', contentLength.toString());
+      res.setHeader('Content-Disposition', `inline; filename="${banner.backgroundOriginalName || 'banner-background'}"`);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable'); // 7 days, immutable
+      res.setHeader('ETag', etag);
+
+      logger.info('📤 Background headers set, piping response', {
+        bannerId,
+        contentType,
+        contentLength,
+      });
+
+      if (response.Body) {
+        (response.Body as any).pipe(res);
+      } else {
+        logger.error('❌ No response body from S3', { bannerId });
+        throw createBadRequestError('Failed to retrieve banner background media from S3');
+      }
     }
   });
 }

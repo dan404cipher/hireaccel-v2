@@ -518,6 +518,20 @@ export function useDeleteCandidateAssignment(options?: { onSuccess?: () => void;
   });
 }
 
+// Agent-specific assignment hook (for agents assigning candidates to jobs)
+export function useAssignCandidateToJob(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: {
+    candidateId: string;
+    jobId: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    notes?: string;
+    dueDate?: string;
+  }) => apiClient.assignCandidateToJob(data), {
+    showToast: true,
+    ...options
+  });
+}
+
 export function useCandidateAssignmentStats() {
   const memoizedCall = useCallback(() => apiClient.getCandidateAssignmentStats(), []);
   return useApi(memoizedCall, { 

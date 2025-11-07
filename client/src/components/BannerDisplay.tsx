@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { TextAdDisplay } from './TextAdDisplay';
 
 interface Banner {
@@ -30,7 +30,11 @@ interface BannerDisplayProps {
   className?: string;
 }
 
-export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
+/**
+ * Memoized Banner Display Component
+ * Only re-renders when banner ID or className changes
+ */
+export const BannerDisplay = memo(function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
   // Get API URL from environment
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
   
@@ -80,12 +84,15 @@ export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
     <div className={`w-full flex items-center justify-center overflow-hidden ${className}`} style={{ minHeight: '120px' }}>
       {banner.mediaType === 'video' ? (
         <video
+          key={banner._id}
           src={proxiedMediaUrl}
           className="w-full h-full object-cover"
           muted
           loop
           autoPlay
           playsInline
+          preload="auto"
+          {...({ 'webkit-playsinline': 'true' } as any)}
         />
       ) : (
         <img
@@ -96,4 +103,8 @@ export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function - only re-render if banner ID or className changes
+  return prevProps.banner._id === nextProps.banner._id && 
+         prevProps.className === nextProps.className;
+});

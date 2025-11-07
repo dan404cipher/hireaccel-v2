@@ -369,6 +369,7 @@ export default function AgentAssignmentDashboard() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [refetchAgentAssignment]);
 
+  // Use the general endpoint for all roles (it now has proper validation for candidate-job combinations)
   const { mutate: createAssignment, loading: createLoading } = useCreateCandidateAssignment({
     onSuccess: () => {
       setIsAssignDialogOpen(false);
@@ -376,13 +377,15 @@ export default function AgentAssignmentDashboard() {
       setSelectedJob(null);
       setAssignmentNotes('');
       setAssignmentPriority('medium');
-      setCandidateDialogSearch(''); // Reset search when dialog closes
+      setCandidateDialogSearch('');
       setCandidatePopoverOpen(false);
       setIsCandidateSearchActive(false);
       toast({
         title: "Success",
         description: "Candidate assigned successfully"
       });
+      refetchJobs();
+      refetchCandidates();
     }
   });
 
@@ -673,12 +676,12 @@ export default function AgentAssignmentDashboard() {
       return;
     }
 
-    // When a job is selected, the backend will automatically determine the HR user
-    // from the job's createdBy field, so we don't need to specify assignedTo
+    // The backend automatically determines the HR user from the job's createdBy field
+    // and properly validates that the same candidate can be assigned to different jobs
     createAssignment({
       candidateId: selectedCandidate,
       jobId: selectedJob,
-      priority: assignmentPriority,
+      priority: assignmentPriority as 'low' | 'medium' | 'high' | 'urgent',
       notes: assignmentNotes,
     });
   };

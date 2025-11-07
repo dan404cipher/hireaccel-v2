@@ -904,7 +904,7 @@ class ApiClient {
 
   async createCandidateAssignment(assignmentData: {
     candidateId: string;
-    assignedTo: string;
+    assignedTo?: string; // Optional - will be auto-determined from jobId if not provided
     jobId?: string;
     priority?: string;
     notes?: string;

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { BannerProvider } from "./contexts/BannerContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PageLoadingSpinner } from "./components/ui/LoadingSpinner";
 import { useRoutePreloader } from "./hooks/useRoutePreloader";
@@ -241,7 +242,7 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="jobs/:jobId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent', 'candidate']}>
             <JobDetailsPage />
           </RoleProtectedRoute>
         } />
@@ -271,12 +272,12 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="companies" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'candidate']}>
             <CompanyManagement />
           </RoleProtectedRoute>
         } />
         <Route path="companies/:companyId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'candidate']}>
             <CompanyProfile />
           </RoleProtectedRoute>
         } />
@@ -373,9 +374,11 @@ const App = () => {
             <Suspense fallback={<PageLoadingSpinner text="Loading application..." />}>
               <AuthProvider>
                 <NotificationProvider>
-                  <AnalyticsTrackerWrapper />
-                  <PerformanceMonitor />
-                  <AppRouter />
+                  <BannerProvider>
+                    <AnalyticsTrackerWrapper />
+                    <PerformanceMonitor />
+                    <AppRouter />
+                  </BannerProvider>
                 </NotificationProvider>
               </AuthProvider>
             </Suspense>

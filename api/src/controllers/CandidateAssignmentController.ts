@@ -299,15 +299,30 @@ export class CandidateAssignmentController {
       }
     }
 
-    // Check if assignment already exists for this candidate-HR pair
-    const existingAssignment = await CandidateAssignment.findOne({
-      candidateId: validatedData.candidateId,
-      assignedTo: finalAssignedTo,
-      status: 'active',
-    });
+    // Check if assignment already exists for this candidate-job combination
+    // Only block if trying to assign the same candidate to the same specific job
+    if (validatedData.jobId) {
+      const existingAssignment = await CandidateAssignment.findOne({
+        candidateId: validatedData.candidateId,
+        jobId: validatedData.jobId,
+        status: 'active',
+      });
 
-    if (existingAssignment) {
-      throw createBadRequestError('This candidate is already assigned to this HR user');
+      if (existingAssignment) {
+        throw createBadRequestError('This candidate is already assigned to this specific job');
+      }
+    } else {
+      // If no specific job, check for existing assignment to the same HR (legacy behavior)
+      const existingAssignment = await CandidateAssignment.findOne({
+        candidateId: validatedData.candidateId,
+        assignedTo: finalAssignedTo,
+        jobId: { $exists: false }, // Only check assignments without a specific job
+        status: 'active',
+      });
+
+      if (existingAssignment) {
+        throw createBadRequestError('This candidate is already assigned to this HR user without a specific job');
+      }
     }
 
     // Create assignment

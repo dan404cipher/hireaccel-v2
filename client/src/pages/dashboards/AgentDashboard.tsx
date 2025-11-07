@@ -12,16 +12,19 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  FileText,
-  Calendar,
-  Target,
   Award,
-  UserPlus
+  UserPlus,
+  PieChart
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAgentDashboard, useMyAgentAssignment, useMyAgentAssignments, useMyAgentInterviewStats } from "@/hooks/useApi";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, subDays } from 'date-fns';
+import ReactApexChart from "react-apexcharts";
+import type { ApexOptions } from "apexcharts";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
+import { useMemo } from "react";
 
 export default function AgentDashboard() {
   const { user } = useAuth();
@@ -64,15 +67,146 @@ export default function AgentDashboard() {
   const totalAssignments = dashboard.activeAssignments + dashboard.completedAssignments + dashboard.pendingAssignments;
   const successRate = totalAssignments > 0 ? Math.round((dashboard.completedAssignments / totalAssignments) * 100) : 0;
 
-  // Recent assignments
-  const recentAssignments = assignments.slice(0, 5);
+  // Recent assignments (limit to 10, show 3 at a time via scroll)
+  const recentAssignments = assignments.slice(0, 10);
 
-  // Assignment status breakdown
-  const assignmentStats = [
-    { label: 'Active', value: dashboard.activeAssignments, color: 'text-primary' },
-    { label: 'Completed', value: dashboard.completedAssignments, color: 'text-success' },
-    { label: 'Pending', value: dashboard.pendingAssignments, color: 'text-warning' },
+  const assignmentDateCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    assignments.forEach((assignment: any) => {
+      const dateValue = assignment.assignedAt || assignment.createdAt;
+      if (!dateValue) return;
+      const key = format(new Date(dateValue), 'yyyy-MM-dd');
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [assignments]);
+
+  const last7Days = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 7 }, (_, index) => subDays(today, 6 - index));
+  }, [assignments]);
+
+  const assignmentsTrendSeriesData = last7Days.map((day) => {
+    const key = format(day, 'yyyy-MM-dd');
+    return assignmentDateCounts[key] || 0;
+  });
+
+  const assignmentsTrendSeries = [
+    {
+      name: 'Assignments',
+      data: assignmentsTrendSeriesData,
+    },
   ];
+
+  const assignmentsTrendOptions: ApexOptions = {
+    chart: {
+      type: 'area',
+      height: 280,
+      toolbar: { show: false },
+      sparkline: { enabled: false },
+    },
+    stroke: {
+      curve: 'smooth',
+      width: 2,
+    },
+    fill: {
+      type: 'gradient',
+      gradient: {
+        shadeIntensity: 1,
+        opacityFrom: 0.4,
+        opacityTo: 0.1,
+        stops: [0, 90, 100],
+      },
+    },
+    dataLabels: { enabled: false },
+    colors: ['#2563eb'],
+    xaxis: {
+      categories: last7Days.map((day) => format(day, 'MMM d')),
+      labels: {
+        style: {
+          colors: '#94a3b8',
+          fontSize: '12px',
+        },
+      },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: '#94a3b8',
+        },
+      },
+    },
+    tooltip: {
+      y: {
+        formatter: (value: number) => `${value} assignments`,
+      },
+    },
+    grid: {
+      borderColor: '#e2e8f0',
+      strokeDashArray: 4,
+    },
+  };
+
+  const statusCounts = useMemo(() => {
+    return assignments.reduce((acc: Record<string, number>, assignment: any) => {
+      const key = (assignment.status || 'pending').toLowerCase();
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+  }, [assignments]);
+
+  const statusOrder = ['active', 'completed', 'pending', 'rejected', 'withdrawn'];
+  const statusLabels = ['Active', 'Completed', 'Pending', 'Rejected', 'Withdrawn'];
+  const statusColors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#64748b'];
+  const statusSeriesData = statusOrder.map((key) => statusCounts[key] || 0);
+  const statusTotal = statusSeriesData.reduce((total, value) => total + value, 0);
+
+  const assignmentStatusOptions: ApexOptions = {
+    chart: {
+      type: 'donut',
+      height: 280,
+    },
+    labels: statusLabels,
+    colors: statusColors,
+    legend: {
+      position: 'bottom',
+      fontSize: '12px',
+    },
+    stroke: {
+      width: 0,
+    },
+    dataLabels: {
+      enabled: true,
+      formatter: (val: number) => `${val.toFixed(0)}%`,
+      style: {
+        fontSize: '12px',
+        fontWeight: '500',
+      },
+    },
+    plotOptions: {
+      pie: {
+        donut: {
+          size: '70%',
+          labels: {
+            show: true,
+            total: {
+              show: true,
+              label: 'Total',
+              formatter: () => `${statusTotal}`,
+            },
+          },
+        },
+      },
+    },
+  };
+
+  const statusIconMap = {
+    completed: { icon: CheckCircle, color: "text-success" },
+    active: { icon: UserCheck, color: "text-primary" },
+    rejected: { icon: AlertCircle, color: "text-destructive" },
+    pending: { icon: Clock, color: "text-warning" },
+    withdrawn: { icon: Clock, color: "text-muted-foreground" },
+  };
 
   const isLoading = dashboardLoading || assignmentLoading || assignmentsLoading;
 
@@ -113,63 +247,41 @@ export default function AgentDashboard() {
         <MetricCard
           title="Assigned HRs"
           value={dashboard.assignedHRs}
-          icon={<Users className="h-4 w-4" />}
-          description="HR managers assigned to you"
-          color="text-primary"
+          icon={<Users className="h-6 w-6 text-white" />}
+          description="HR managers collaborating with you"
+          color="blue"
+          onClick={() => navigate('/dashboard/assignment-management')}
         />
         <MetricCard
           title="Available Jobs"
           value={dashboard.availableJobs}
-          icon={<Briefcase className="h-4 w-4" />}
-          description="Jobs from assigned HRs"
-          color="text-info"
+          icon={<Briefcase className="h-6 w-6 text-white" />}
+          description="Open roles from your HR partners"
+          color="emerald"
+          onClick={() => {
+            localStorage.setItem('agentAssignmentActiveTab', 'jobs');
+            navigate('/dashboard/assignment-management');
+          }}
         />
         <MetricCard
           title="Active Assignments"
           value={dashboard.activeAssignments}
-          icon={<UserCheck className="h-4 w-4" />}
-          description="Currently working on"
-          color="text-warning"
+          icon={<UserCheck className="h-6 w-6 text-white" />}
+          description="Candidates you are actively supporting"
+          color="purple"
+          onClick={() => navigate('/dashboard/shared-candidates')}
         />
         <MetricCard
           title="Success Rate"
           value={`${successRate}%`}
-          icon={<Award className="h-4 w-4" />}
-          description="Completed assignments"
-          color="text-success"
+          icon={<Award className="h-6 w-6 text-white" />}
+          description="Completed assignments out of total"
+          color="amber"
+          onClick={() => navigate('/dashboard/shared-candidates')}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Assignment Status Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Assignment Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {assignmentStats.map((stat) => (
-                <div key={stat.label} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${stat.color.replace('text-', 'bg-')}`} />
-                    <span className="text-sm font-medium">{stat.label}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold">{stat.value}</span>
-                    <Progress 
-                      value={totalAssignments > 0 ? (stat.value / totalAssignments) * 100 : 0} 
-                      className="w-20" 
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Recent Assignments */}
         <Card>
           <CardHeader>
@@ -179,40 +291,71 @@ export default function AgentDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-64 overflow-y-auto pr-1">
               {recentAssignments.length > 0 ? (
-                recentAssignments.map((assignment: any) => (
-                  <div key={assignment.id} className="flex items-start gap-3 p-3 rounded-lg bg-accent/50">
-                    <div className="flex-shrink-0 mt-1">
-                      {assignment.status === "completed" && (
-                        <CheckCircle className="w-4 h-4 text-success" />
-                      )}
-                      {assignment.status === "active" && (
-                        <UserCheck className="w-4 h-4 text-primary" />
-                      )}
-                      {assignment.status === "rejected" && (
-                        <AlertCircle className="w-4 h-4 text-destructive" />
-                      )}
-                      {assignment.status === "pending" && (
-                        <Clock className="w-4 h-4 text-warning" />
-                      )}
+                recentAssignments.map((assignment: any) => {
+                  const key = assignment._id || assignment.id;
+                  const statusKey = assignment.status?.toLowerCase?.() || "pending";
+                  const statusMeta = statusIconMap[statusKey as keyof typeof statusIconMap] || statusIconMap.pending;
+                  const StatusIcon = statusMeta.icon;
+                  const firstName = assignment.candidateId?.userId?.firstName || "";
+                  const lastName = assignment.candidateId?.userId?.lastName || "";
+                  const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Candidate";
+                  const companyName = assignment.jobId?.companyId?.name || "Unknown Company";
+                  const jobTitle = assignment.jobId?.title || "Job Opportunity";
+                  const assignedAt = assignment.assignedAt || assignment.createdAt;
+                  const statusLabel = assignment.status
+                    ? assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)
+                    : "Pending";
+                  const candidateCustomId = assignment.candidateId?.userId?.customId;
+
+                  const handleNavigate = () => {
+                    if (candidateCustomId) {
+                      navigate(`/dashboard/candidates/${candidateCustomId}`);
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-accent/50 transition-colors hover:bg-accent cursor-pointer"
+                      onClick={handleNavigate}
+                      role={candidateCustomId ? "button" : undefined}
+                      tabIndex={candidateCustomId ? 0 : -1}
+                      onKeyDown={(event) => {
+                        if (candidateCustomId && (event.key === "Enter" || event.key === " ")) {
+                          event.preventDefault();
+                          handleNavigate();
+                        }
+                      }}
+                    >
+                      <div className="relative">
+                        <AssignmentCandidateAvatar
+                          profilePhotoFileId={assignment.candidateId?.userId?.profilePhotoFileId}
+                          firstName={firstName}
+                          lastName={lastName}
+                        />
+                        <StatusIcon className={`absolute -bottom-1 -right-1 h-4 w-4 ${statusMeta.color} drop-shadow`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {fullName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {jobTitle} at {companyName}
+                        </p>
+                        {assignedAt && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(assignedAt), { addSuffix: true })}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="flex-shrink-0 capitalize">
+                        {statusLabel}
+                      </Badge>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">
-                        {assignment.candidateId?.userId?.firstName} {assignment.candidateId?.userId?.lastName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {assignment.jobId?.title} at {assignment.jobId?.companyId?.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatDistanceToNow(new Date(assignment.assignedAt), { addSuffix: true })}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="flex-shrink-0">
-                      {assignment.status}
-                    </Badge>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <UserCheck className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -223,34 +366,86 @@ export default function AgentDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Performance Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Performance Overview
+            </CardTitle>
+            <CardDescription>Your assignment performance and key metrics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{dashboard.completedAssignments}</div>
+                <p className="text-sm text-muted-foreground">Successful Placements</p>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-info">{dashboard.assignedCandidates}</div>
+                <p className="text-sm text-muted-foreground">Total Candidates</p>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-success">{successRate}%</div>
+                <p className="text-sm text-muted-foreground">Success Rate</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Performance Overview */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
-            Performance Overview
-          </CardTitle>
-          <CardDescription>Your assignment performance and key metrics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary">{dashboard.completedAssignments}</div>
-              <p className="text-sm text-muted-foreground">Successful Placements</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-info">{dashboard.assignedCandidates}</div>
-              <p className="text-sm text-muted-foreground">Total Candidates</p>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-success">{successRate}%</div>
-              <p className="text-sm text-muted-foreground">Success Rate</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <Card className="xl:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Assignment Trend
+            </CardTitle>
+            <CardDescription>Assignments created over the last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {assignmentsTrendSeriesData.some((value) => value > 0) ? (
+              <ReactApexChart
+                options={assignmentsTrendOptions}
+                series={assignmentsTrendSeries}
+                type="area"
+                height={280}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <TrendingUp className="w-8 h-8 mb-3 opacity-60" />
+                <p className="text-sm">Not enough assignment activity yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="w-5 h-5" />
+              Status Distribution
+            </CardTitle>
+            <CardDescription>Breakdown of current assignment statuses</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {statusTotal > 0 ? (
+              <ReactApexChart
+                options={assignmentStatusOptions}
+                series={statusSeriesData}
+                type="donut"
+                height={280}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <PieChart className="w-8 h-8 mb-3 opacity-60" />
+                <p className="text-sm">No assignments to visualize yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Quick Actions */}
       <Card>
@@ -297,28 +492,68 @@ function MetricCard({
   value, 
   icon, 
   description, 
-  color = "text-foreground" 
+  color = "blue", 
+  onClick,
 }: {
   title: string;
   value: number | string;
   icon: React.ReactNode;
   description: string;
-  color?: string;
+  color?: "blue" | "emerald" | "purple" | "amber";
+  onClick?: () => void;
 }) {
+  const gradientMap: Record<string, string> = {
+    blue: "from-blue-500 to-blue-600",
+    emerald: "from-emerald-500 to-emerald-600",
+    purple: "from-purple-500 to-purple-600",
+    amber: "from-amber-500 to-amber-600",
+  };
+
+  const gradientClasses = gradientMap[color] || gradientMap.blue;
+
   return (
-    <Card className="relative overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <div className={color}>
-          {icon}
+    <Card
+      className={`bg-gradient-to-br ${gradientClasses} text-white shadow-lg hover:shadow-xl transition-all duration-300 ${onClick ? "cursor-pointer" : ""}`}
+      onClick={onClick}
+    >
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-white/80">{title}</p>
+            <p className="text-3xl font-bold mt-2">{typeof value === "number" ? value.toLocaleString() : value}</p>
+            <p className="text-xs text-white/70 mt-1">{description}</p>
+          </div>
+          <div className="bg-white/20 p-3 rounded-lg backdrop-blur-sm">
+            {icon}
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function AssignmentCandidateAvatar({
+  profilePhotoFileId,
+  firstName,
+  lastName,
+}: {
+  profilePhotoFileId?: string;
+  firstName?: string;
+  lastName?: string;
+}) {
+  const profilePhotoUrl = profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || "http://localhost:3002"}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+  const initials = `${(firstName?.[0] || "").toUpperCase()}${(lastName?.[0] || "").toUpperCase()}` || "NA";
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || "Candidate";
+
+  return (
+    <Avatar className="h-10 w-10 border border-border">
+      <AvatarImage src={authenticatedImageUrl || undefined} alt={fullName} />
+      <AvatarFallback className="text-xs font-medium uppercase">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
   );
 }

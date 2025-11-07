@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1607,44 +1605,40 @@ const SharedCandidates: React.FC = () => {
                 />
               </div>
             </div>
-            {user?.role !== 'agent' && (
-              <>
-                <Select value={candidateStatusFilter} onValueChange={setCandidateStatusFilter}>
-                  <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
-                    <User className="w-4 h-4 mr-2 text-blue-600" />
-                    <SelectValue placeholder="Candidate Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
-                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                    <SelectItem value="interviewed">Interviewed</SelectItem>
-                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
-                    <SelectItem value="hired">Hired</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={jobFilter} onValueChange={setJobFilter}>
-                  <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
-                    <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
-                    <SelectValue placeholder="Job" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Jobs</SelectItem>
-                    {Array.from(new Set(assignments
-                      .filter((a: CandidateAssignment) => a.jobId?.title)
-                      .map((a: CandidateAssignment) => a.jobId!.title)
-                    )).map((jobTitle: string) => (
-                      <SelectItem key={jobTitle} value={jobTitle}>
-                        {jobTitle}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
+            <Select value={candidateStatusFilter} onValueChange={setCandidateStatusFilter}>
+              <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                <User className="w-4 h-4 mr-2 text-blue-600" />
+                <SelectValue placeholder="Candidate Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="reviewed">Reviewed</SelectItem>
+                <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                <SelectItem value="interviewed">Interviewed</SelectItem>
+                <SelectItem value="offer_sent">Offer Sent</SelectItem>
+                <SelectItem value="hired">Hired</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={jobFilter} onValueChange={setJobFilter}>
+              <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
+                <SelectValue placeholder="Job" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Jobs</SelectItem>
+                {Array.from(new Set(assignments
+                  .filter((a: CandidateAssignment) => a.jobId?.title)
+                  .map((a: CandidateAssignment) => a.jobId!.title)
+                )).map((jobTitle: string) => (
+                  <SelectItem key={jobTitle} value={jobTitle}>
+                    {jobTitle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={companyFilter} onValueChange={setCompanyFilter}>
               <SelectTrigger className="w-40 border-amber-200 focus:border-amber-400 focus:ring-amber-400">
                 <Building2 className="w-4 h-4 mr-2 text-amber-600" />

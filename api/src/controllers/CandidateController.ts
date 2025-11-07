@@ -626,14 +626,14 @@ export class CandidateController {
 
     // Get assignments
     const assignments = await CandidateAssignment.find(filter)
-      .populate('assignedBy', 'firstName lastName email')
-      .populate('assignedTo', 'firstName lastName email')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId phoneNumber')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location type salaryRange',
+        select: 'title companyId location type salaryRange jobId',
         populate: {
           path: 'companyId',
-          select: 'name industry location'
+          select: 'name industry location logoFileId companyId'
         }
       })
       .sort(sort)

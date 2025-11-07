@@ -87,6 +87,11 @@ export default function JobDetailsPage() {
     ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${companyLogoFileId}`
     : job?.companyId?.logoUrl || null;
   const authenticatedCompanyLogoUrl = useAuthenticatedImage(companyLogoUrl);
+  const posterPhotoUrl = job?.createdBy?.profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${job.createdBy.profilePhotoFileId}`
+    : null;
+  const posterPhoto = useAuthenticatedImage(posterPhotoUrl);
+  const canViewSalary = user?.role !== 'candidate';
 
   const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob({
     onSuccess: () => {
@@ -283,7 +288,7 @@ export default function JobDetailsPage() {
           <p className="text-muted-foreground mb-4">
             The job you're looking for doesn't exist or has been removed.
           </p>
-          <Button onClick={() => navigate("/dashboard/jobs")}>
+          <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Jobs
           </Button>
@@ -302,7 +307,7 @@ export default function JobDetailsPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/dashboard/jobs")}
+              onClick={() => navigate(-1)}
               className="text-white hover:bg-white/20 hover:text-white"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -367,7 +372,7 @@ export default function JobDetailsPage() {
                             <span>{job.location}</span>
                           </div>
                         )}
-                        {job.salaryRange && (
+                        {canViewSalary && job.salaryRange && (
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
                             <span>{formatSalary(job)}</span>
@@ -437,11 +442,13 @@ export default function JobDetailsPage() {
                       <span className="font-medium text-slate-700">Type:</span>
                       <span className="capitalize text-slate-600">{job.type}</span>
                     </div>
+                    {canViewSalary && (
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-green-600" />
                       <span className="font-medium text-slate-700">Salary:</span>
                       <span className="text-slate-600">{formatSalary(job)}</span>
                     </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-blue-600" />
                       <span className="font-medium text-slate-700">Work Type:</span>
@@ -477,12 +484,30 @@ export default function JobDetailsPage() {
                     <div className="flex items-center gap-2">
                       <UserCheck className="w-4 h-4 text-indigo-600" />
                       <span className="font-medium text-slate-700">Posted by:</span>
-                      <span className="text-slate-600">
+                      <div
+                        className={`flex items-center gap-2 ${job.createdBy?.customId && user?.role && user.role !== 'candidate' ? 'group cursor-pointer transition-colors' : ''}`}
+                        onClick={() => {
+                          if (job.createdBy?.customId && user?.role && user.role !== 'candidate') {
+                            navigate(`/dashboard/hr-profile/${job.createdBy.customId}`);
+                          }
+                        }}
+                      >
+                        <Avatar className={`h-8 w-8 ${job.createdBy?.customId && user?.role && user.role !== 'candidate' ? 'transition-all group-hover:ring-2 group-hover:ring-indigo-500/40 group-hover:ring-offset-1' : ''}`}>
+                          <AvatarImage
+                            src={posterPhoto || undefined}
+                            alt={job.createdBy?.firstName ? `${job.createdBy.firstName} ${job.createdBy.lastName}` : 'HR'}
+                          />
+                          <AvatarFallback className="bg-indigo-600 text-white">
+                            {job.createdBy?.firstName?.charAt(0)}{job.createdBy?.lastName?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className={`text-slate-600 ${job.createdBy?.customId && user?.role && user.role !== 'candidate' ? 'group-hover:text-indigo-600 transition-colors' : ''}`}>
                         {job.createdBy?.firstName && job.createdBy?.lastName 
                           ? `${job.createdBy.firstName} ${job.createdBy.lastName}`
                           : job.createdBy?.email || 'Unknown'
                         }
                       </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

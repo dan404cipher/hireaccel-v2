@@ -580,7 +580,117 @@ const CandidateProfile: React.FC = () => {
   const handleConfirmUpdate = async () => {
     if (parsedProfile) {
       setUploadState('parsing');
-      await updateProfile.mutate({ profile: parsedProfile });
+      
+      console.log('=== PARSED PROFILE FROM OPENAI ===');
+      console.log('Full parsed profile:', JSON.stringify(parsedProfile, null, 2));
+      console.log('Projects before cleaning:', parsedProfile.projects);
+      
+      // Clean up the parsed profile to remove null values for optional fields
+      const cleanedProfile = { ...parsedProfile };
+      
+      // Clean up projects
+      if (cleanedProfile.projects) {
+        console.log('Cleaning projects...');
+        cleanedProfile.projects = cleanedProfile.projects.map((project, index) => {
+          console.log(`Project ${index} before cleaning:`, project);
+          const projectData: any = {
+            title: project.title,
+            description: project.description,
+            technologies: project.technologies || [],
+            startDate: project.startDate instanceof Date ? project.startDate.toISOString() : new Date(project.startDate).toISOString(),
+            current: project.current || false
+          };
+          
+          // Only include endDate if it exists and current is false
+          if (!projectData.current && project.endDate) {
+            projectData.endDate = project.endDate instanceof Date ? project.endDate.toISOString() : new Date(project.endDate).toISOString();
+          }
+          
+          // Only include optional fields if they have valid values
+          if (project.role && typeof project.role === 'string' && project.role.trim()) {
+            projectData.role = project.role.trim();
+          }
+          if (project.projectUrl && typeof project.projectUrl === 'string' && project.projectUrl.trim()) {
+            projectData.projectUrl = project.projectUrl.trim();
+          }
+          if (project.githubUrl && typeof project.githubUrl === 'string' && project.githubUrl.trim()) {
+            projectData.githubUrl = project.githubUrl.trim();
+          }
+          
+          console.log(`Project ${index} after cleaning:`, projectData);
+          return projectData;
+        });
+        console.log('All projects after cleaning:', cleanedProfile.projects);
+      }
+      
+      // Clean up certifications
+      if (cleanedProfile.certifications) {
+        cleanedProfile.certifications = cleanedProfile.certifications.map(cert => {
+          const certData: any = {
+            name: cert.name,
+            issuer: cert.issuer,
+            issueDate: cert.issueDate instanceof Date ? cert.issueDate.toISOString() : new Date(cert.issueDate).toISOString()
+          };
+          
+          // Only include expiryDate if it exists
+          if (cert.expiryDate) {
+            certData.expiryDate = cert.expiryDate instanceof Date ? cert.expiryDate.toISOString() : new Date(cert.expiryDate).toISOString();
+          }
+          
+          // Only include optional fields if they have valid values
+          if (cert.credentialId && typeof cert.credentialId === 'string' && cert.credentialId.trim()) {
+            certData.credentialId = cert.credentialId.trim();
+          }
+          if (cert.credentialUrl && typeof cert.credentialUrl === 'string' && cert.credentialUrl.trim()) {
+            certData.credentialUrl = cert.credentialUrl.trim();
+          }
+          
+          return certData;
+        });
+      }
+      
+      // Clean up experience
+      if (cleanedProfile.experience) {
+        cleanedProfile.experience = cleanedProfile.experience.map(exp => {
+          const expData: any = {
+            company: exp.company,
+            position: exp.position,
+            startDate: exp.startDate instanceof Date ? exp.startDate.toISOString() : new Date(exp.startDate).toISOString(),
+            current: exp.current || false,
+            description: exp.description
+          };
+          
+          // Only include endDate if it exists and current is false
+          if (!expData.current && exp.endDate) {
+            expData.endDate = exp.endDate instanceof Date ? exp.endDate.toISOString() : new Date(exp.endDate).toISOString();
+          }
+          
+          return expData;
+        });
+      }
+      
+      // Clean up optional string fields
+      if (cleanedProfile.linkedinUrl === null || (typeof cleanedProfile.linkedinUrl === 'string' && !cleanedProfile.linkedinUrl.trim())) {
+        delete cleanedProfile.linkedinUrl;
+      }
+      if (cleanedProfile.portfolioUrl === null || (typeof cleanedProfile.portfolioUrl === 'string' && !cleanedProfile.portfolioUrl.trim())) {
+        delete cleanedProfile.portfolioUrl;
+      }
+      
+      // Ensure availability date is valid if present
+      if (cleanedProfile.availability) {
+        cleanedProfile.availability = {
+          startDate: getValidAvailabilityDate(),
+          remote: cleanedProfile.availability.remote || false,
+          relocation: cleanedProfile.availability.relocation || false
+        };
+      }
+      
+      console.log('=== FINAL CLEANED PROFILE ===');
+      console.log('About to send to API:', JSON.stringify({ profile: cleanedProfile }, null, 2));
+      console.log('Projects in final payload:', cleanedProfile.projects);
+      
+      await updateProfile.mutate({ profile: cleanedProfile });
       setUploadState('idle');
       setShowPreviewModal(false);
     }
@@ -1059,6 +1169,20 @@ const CandidateProfile: React.FC = () => {
     }));
   };
 
+  const cancelExperience = () => {
+    if (profileData?.profile) {
+      setProfile(prev => ({
+        ...prev,
+        experience: (profileData.profile.experience || []).map((exp: any) => ({
+          ...exp,
+          startDate: new Date(exp.startDate),
+          endDate: exp.endDate ? new Date(exp.endDate) : undefined
+        }))
+      }));
+    }
+    toggleEdit('experience');
+  };
+
   const addEducation = () => {
     // Enable edit mode and add education entry synchronously
     const newEducation = {
@@ -1097,6 +1221,16 @@ const CandidateProfile: React.FC = () => {
       ...prev,
       education: prev.education.filter((_, i) => i !== index)
     }));
+  };
+
+  const cancelEducation = () => {
+    if (profileData?.profile) {
+      setProfile(prev => ({
+        ...prev,
+        education: profileData.profile.education || []
+      }));
+    }
+    toggleEdit('education');
   };
 
   // Certification management functions
@@ -1139,6 +1273,20 @@ const CandidateProfile: React.FC = () => {
       ...prev,
       certifications: prev.certifications.filter((_, i) => i !== index)
     }));
+  };
+
+  const cancelCertifications = () => {
+    if (profileData?.profile) {
+      setProfile(prev => ({
+        ...prev,
+        certifications: (profileData.profile.certifications || []).map((cert: any) => ({
+          ...cert,
+          issueDate: new Date(cert.issueDate),
+          expiryDate: cert.expiryDate ? new Date(cert.expiryDate) : undefined
+        }))
+      }));
+    }
+    toggleEdit('certifications');
   };
 
   // Project management functions
@@ -1186,6 +1334,21 @@ const CandidateProfile: React.FC = () => {
     }));
   };
 
+  const cancelProjects = () => {
+    if (profileData?.profile) {
+      setProfile(prev => ({
+        ...prev,
+        projects: (profileData.profile.projects || []).map((project: any) => ({
+          ...project,
+          startDate: new Date(project.startDate),
+          endDate: project.endDate ? new Date(project.endDate) : undefined,
+          technologies: project.technologies || []
+        }))
+      }));
+    }
+    toggleEdit('projects');
+  };
+
   const addTechnology = (projectIndex: number) => {
     const tech = newTechnology[projectIndex]?.trim();
     if (tech && !profile.projects[projectIndex].technologies.includes(tech)) {
@@ -1212,7 +1375,7 @@ const CandidateProfile: React.FC = () => {
     }));
   };
 
-  const safeFormatDate = (date: Date | undefined | null, formatStr: string, fallback: string = ''): string => {
+  const safeFormatDate = (date: Date | string | undefined | null, formatStr: string, fallback: string = ''): string => {
     if (!date) return fallback;
     const dateObj = date instanceof Date ? date : new Date(date);
     return isValid(dateObj) ? format(dateObj, formatStr) : fallback;
@@ -2988,7 +3151,6 @@ const CandidateProfile: React.FC = () => {
             parsedProfile={parsedProfile}
             currentProfile={profileData.profile}
             onApplyChanges={handleConfirmUpdate}
-            isLoading={uploadState === 'parsing'}
           />
         )}
 
