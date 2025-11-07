@@ -53,10 +53,16 @@ export class AuthService {
         yearsOfExperience?: string | undefined;
     }): Promise<{ success: boolean; message: string }> {
         try {
-            // Check if user already exists
+            // Check if user already exists - EARLY CHECK before sending OTP
             const existingUser = await User.findByEmail(userData.email);
             if (existingUser) {
-                throw createConflictError('User with this email already exists');
+                logger.warn('Registration attempt with existing email', {
+                    email: userData.email,
+                    existingUserId: existingUser._id,
+                });
+                throw createConflictError(
+                    'An account with this email already exists. Please sign in or use a different email.',
+                );
             }
 
             // Validate password strength
@@ -622,10 +628,14 @@ export class AuthService {
                 throw createBadRequestError('Invalid phone number format');
             }
 
-            // Check if user already exists with this phone number
+            // Check if user already exists with this phone number - EARLY CHECK
             const existingUser = await User.findByPhoneNumber(formattedPhone);
             if (existingUser) {
-                throw createConflictError('An account with this phone number already exists');
+                logger.warn('SMS registration attempt with existing phone', {
+                    phone: formattedPhone,
+                    existingUserId: existingUser._id,
+                });
+                throw createConflictError('An account with this phone number already exists. Please sign in instead.');
             }
 
             // Create or update lead (upsert - allows re-registration if unverified)
@@ -716,17 +726,29 @@ export class AuthService {
         try {
             const { env } = await import('@/config/env');
 
-            // Check if user already exists
+            // Check if user already exists - EARLY CHECK before sending OTP
             const existingUser = await User.findOne({
                 $or: [{ email: userData.email.toLowerCase() }, { phoneNumber: userData.phoneNumber }],
             });
 
             if (existingUser) {
                 if (existingUser.email === userData.email.toLowerCase()) {
-                    throw createConflictError('User with this email already exists');
+                    logger.warn('Registration attempt with existing email', {
+                        email: userData.email,
+                        existingUserId: existingUser._id,
+                    });
+                    throw createConflictError(
+                        'An account with this email already exists. Please sign in or use a different email.',
+                    );
                 }
                 if (existingUser.phoneNumber === userData.phoneNumber) {
-                    throw createConflictError('User with this phone number already exists');
+                    logger.warn('Registration attempt with existing phone', {
+                        phone: userData.phoneNumber,
+                        existingUserId: existingUser._id,
+                    });
+                    throw createConflictError(
+                        'An account with this phone number already exists. Please sign in or use a different number.',
+                    );
                 }
             }
 
@@ -932,13 +954,20 @@ export class AuthService {
             // Ensure lastName has a value (default to firstName if empty)
             const finalLastName = lastName && lastName.trim() ? lastName.trim() : firstName;
 
-            // Check if user already exists (edge case)
+            // Check if user already exists (edge case/race condition protection)
             const existingUser = await User.findOne({
                 $or: [{ email: lead.email }, { phoneNumber: lead.phoneNumber }],
             });
 
             if (existingUser) {
-                throw createConflictError('User account already exists');
+                logger.error('Race condition: User created between OTP send and verify', {
+                    leadId: lead._id,
+                    email: lead.email,
+                    phone: lead.phoneNumber,
+                });
+                throw createConflictError(
+                    'An account with your credentials was just created. Please try signing in instead.',
+                );
             }
 
             // Convert role string to UserRole enum
