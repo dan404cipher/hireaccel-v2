@@ -46,6 +46,9 @@ const createUserSchema = z.object({
                 'Forums',
                 'Google',
                 'Conversational AI (GPT, Gemini etc)',
+                'Direct',
+                'Referral',
+                'Other',
             ],
             { errorMap: () => ({ message: 'Source must be one of the valid options' }) },
         )

@@ -36,6 +36,8 @@ const registerSchema = z.object({
             'Google',
             'Conversational AI (GPT, Gemini etc)',
             'Direct',
+            'Referral',
+            'Other',
         ],
         { errorMap: () => ({ message: 'Source is required and must be one of the valid options' }) },
     ),
@@ -85,6 +87,8 @@ const smsRegisterSchema = z.object({
             'Google',
             'Conversational AI (GPT, Gemini etc)',
             'Direct',
+            'Referral',
+            'Other',
         ])
         .optional(),
     // UTM tracking data

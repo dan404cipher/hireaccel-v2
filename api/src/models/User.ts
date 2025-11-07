@@ -39,6 +39,23 @@ export interface UserModel extends mongoose.Model<UserDocument> {
     searchUsers(searchTerm: string, options?: any): Promise<UserDocument[]>;
 }
 
+const allowedSources = [
+    'Email',
+    'WhatsApp',
+    'Telegram',
+    'Instagram',
+    'Facebook',
+    'Journals',
+    'Posters',
+    'Brochures',
+    'Forums',
+    'Google',
+    'Conversational AI (GPT, Gemini etc)',
+    'Direct',
+    'Referral',
+    'Other',
+];
+
 /**
  * User schema definition
  * Represents all users in the system across different roles
@@ -51,7 +68,13 @@ const userSchema = new Schema<UserDocument>(
             unique: true,
             lowercase: true,
             trim: true,
-            match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address'],
+            // match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address'],
+            validate: {
+                validator: function (value) {
+                    return /^[A-Za-z0-9]{2,}@[A-Za-z0-9]{2,}\.[A-Za-z]{2,}$/.test(value);
+                },
+                message: () => `Please provide a valid email address`,
+            },
         },
 
         customId: {
@@ -116,32 +139,58 @@ const userSchema = new Schema<UserDocument>(
             required: [true, 'Phone number is required'],
             unique: true,
             trim: true,
-            match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
+            // match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
+            validate: {
+                validator: function (value) {
+                    // Must start with + and only digits afterwards
+                    if (!/^\+\d+$/.test(value)) return false;
+
+                    // INDIA RULE: +91 + 10 digits, cannot start with 0
+                    if (value.startsWith('+91')) {
+                        return /^\+91[1-9]\d{9}$/.test(value);
+                    }
+
+                    // OTHER COUNTRIES: E.164 compliant → +{1–3 digit country}{4–14 digits}
+                    // Total length max 15 digits after "+"
+                    return /^\+\d{4,15}$/.test(value);
+                },
+                message: (props: { value: string }) => `${props.value} is not a valid phone number`,
+            },
         },
 
         source: {
             type: String,
-            required: false, // Make optional for existing users
-            enum: {
-                values: [
-                    'Email',
-                    'WhatsApp',
-                    'Telegram',
-                    'Instagram',
-                    'Facebook',
-                    'Journals',
-                    'Posters',
-                    'Brochures',
-                    'Forums',
-                    'Google',
-                    'Conversational AI (GPT, Gemini etc)',
-                    'Direct',
-                ],
-                message:
-                    'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc), Direct',
-            },
+            required: false,
             index: true,
+            set: function (this: UserDocument, value: string): string {
+                if (!value) return 'Direct'; // empty -> Direct
+                return allowedSources.includes(value) ? value : 'Direct';
+            },
         },
+
+        // source: {
+        //     type: String,
+        //     required: false, // Make optional for existing users
+        //     enum: {
+        //         values: [
+        //             'Email',
+        //             'WhatsApp',
+        //             'Telegram',
+        //             'Instagram',
+        //             'Facebook',
+        //             'Journals',
+        //             'Posters',
+        //             'Brochures',
+        //             'Forums',
+        //             'Google',
+        //             'Conversational AI (GPT, Gemini etc)',
+        //             'Direct',
+        //         ],
+        //         message:
+        //             'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc), Direct',
+        //     },
+        //     index: true,
+        // },
 
         // UTM tracking data for detailed campaign attribution
         utmData: {
