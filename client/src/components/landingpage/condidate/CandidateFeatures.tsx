@@ -495,7 +495,7 @@ export function JobCandidates() {
                                         }
                                     }}
                                 >
-                                    <div className='flex flex-col sm:flex-row gap-4 sm:items-start'>
+                                    <div className=' hidden  gap-4 sm:items-start'>
                                         <div className='flex-1 w-full'>
                                             <Label
                                                 htmlFor='name'
@@ -581,19 +581,19 @@ export function JobCandidates() {
                                         </div>
                                     </div>
                                     <div className='flex flex-col sm:flex-row items-stretch sm:items-start space-y-4 sm:space-y-0 sm:space-x-4 mt-4'>
-                                        {/* <Button
+                                        <Button
                       type="submit"
                       size="lg"
                       className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg shadow-2xl w-full sm:w-auto"
                     >
                       Get matched in 2 minutes
                       <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
-                    </Button> */}
+                    </Button>
                                         <Button
                                             type='button'
                                             variant='outline'
                                             size='lg'
-                                            className=' sm:hidden border-2 border-blue-200 text-blue-600 hover:bg-blue-50 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto font-semibold'
+                                            className='  border-2 border-blue-200 text-blue-600 hover:bg-blue-50 px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg w-full sm:w-auto font-semibold'
                                             onClick={() => navigate('/register/candidate')}
                                             data-gtm-cta='candidate_hero_upload_cv_button'
                                             data-gtm-cta-text='Just upload CV'
