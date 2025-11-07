@@ -1180,6 +1180,9 @@ const ForJobSeekersSignup = () => {
                       <SelectItem value="Conversational AI (GPT, Gemini etc)">
                         Conversational AI (GPT, Gemini etc)
                       </SelectItem>
+                      <SelectItem value="Referral">Referral</SelectItem>
+                      <SelectItem value="Direct">Direct</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
