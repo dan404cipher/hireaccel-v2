@@ -31,7 +31,26 @@ interface BannerDisplayProps {
 }
 
 export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
+  // Get API URL from environment
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+  
+  console.log('🎬 BannerDisplay - Banner Data:', {
+    bannerId: banner._id,
+    adType: banner.adType,
+    mediaUrl: banner.mediaUrl,
+    mediaType: banner.mediaType,
+    backgroundMediaUrl: banner.backgroundMediaUrl,
+    apiUrl
+  });
+  
   if (banner.adType === 'text') {
+    // For text ads, we need to proxy the background media URL if it exists
+    const proxiedBackgroundUrl = banner.backgroundMediaUrl 
+      ? `${apiUrl}/api/v1/banners/${banner._id}/background`
+      : undefined;
+    
+    console.log('📄 Text Ad - Proxied Background URL:', proxiedBackgroundUrl);
+      
     return (
       <TextAdDisplay
         title={banner.title!}
@@ -41,7 +60,7 @@ export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
         textColor={banner.textColor}
         titleColor={banner.titleColor}
         subtitleColor={banner.subtitleColor}
-        backgroundMediaUrl={banner.backgroundMediaUrl}
+        backgroundMediaUrl={proxiedBackgroundUrl}
         backgroundMediaType={banner.backgroundMediaType}
         titleSize={banner.titleSize}
         subtitleSize={banner.subtitleSize}
@@ -52,12 +71,16 @@ export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
     );
   }
 
-  // Media banner display
+  // Media banner display - use proxy endpoint instead of direct S3 URL
+  const proxiedMediaUrl = `${apiUrl}/api/v1/banners/${banner._id}/media`;
+  
+  console.log('🎥 Media Banner - Proxied Media URL:', proxiedMediaUrl);
+  
   return (
     <div className={`w-full flex items-center justify-center overflow-hidden ${className}`} style={{ minHeight: '120px' }}>
       {banner.mediaType === 'video' ? (
         <video
-          src={banner.mediaUrl}
+          src={proxiedMediaUrl}
           className="w-full h-full object-cover"
           muted
           loop
@@ -66,7 +89,7 @@ export function BannerDisplay({ banner, className = '' }: BannerDisplayProps) {
         />
       ) : (
         <img
-          src={banner.mediaUrl}
+          src={proxiedMediaUrl}
           alt="Banner"
           className="w-full h-full object-cover"
         />

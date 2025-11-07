@@ -1,6 +1,6 @@
-# AWS S3 Configuration for JD File Storage
+# AWS S3 Configuration for File Storage
 
-This document explains how to configure AWS S3 for storing Job Description (JD) files.
+This document explains how to configure AWS S3 for storing application files including Job Descriptions (JDs), banners, and resumes.
 
 ## Environment Variables
 
@@ -97,7 +97,17 @@ If you want to restrict access further, you can add a bucket policy:
 
 ## File Storage Structure
 
-JD files are stored in S3 with the following structure:
+Files are organized in S3 by type with the following structure:
+
+### Banners
+```
+banners/
+  {YYYY}/
+    {MM}/
+      {filename}-{timestamp}-{random}.{ext}
+```
+
+### Job Descriptions (JDs)
 ```
 jds/
   {YYYY}/
@@ -105,16 +115,44 @@ jds/
       {filename}-{timestamp}-{random}.pdf
 ```
 
+### Resumes
+```
+resumes/
+  {YYYY}/
+    {MM}/
+      {filename}-{timestamp}-{random}.pdf
+```
+
 Example:
 ```
+banners/
+  2025/
+    01/
+      hero-banner-1704067200000-abc123.jpg
+      text-ad-bg-1704067300000-def456.mp4
+
 jds/
   2024/
     01/
       job-description-1704067200000-abc123.pdf
+
+resumes/
+  2024/
+    12/
+      john-doe-resume-1704067200000-xyz789.pdf
 ```
 
 ## How It Works
 
+### Banner Files (S3 Required)
+Banners MUST use S3 storage - local storage is not supported:
+1. **Upload**: Admin uploads banner via admin panel
+2. **Processing**: File is stored in memory buffer
+3. **S3 Upload**: File is uploaded to S3 `banners/` folder
+4. **Database**: Banner record is saved with S3 URL and metadata
+5. **Display**: Banners are served directly from S3 URLs
+
+### Job Description Files (S3 with Local Fallback)
 1. **Upload Flow**:
    - User uploads JD file via the "Post using JD" button or inline upload
    - File is stored in memory (buffer)
@@ -132,18 +170,64 @@ jds/
    - When creating job with `jdFileId`, the JD file reference is stored
    - File remains in S3, accessible via the stored file ID
 
+### Resume Files (S3 Preferred)
+Similar to JD files, with migration available:
+- Use S3 if enabled, fall back to local storage if needed
+- Migration script available: `npm run migrate:resumes-to-s3`
+
 ## Fallback Behavior
 
+### Banners
+**No fallback** - Banners require S3:
+- If S3 is not enabled, banner uploads will fail with an error
+- This ensures consistent banner delivery across all environments
+- To enable banner uploads, S3 must be properly configured
+
+### JDs and Resumes
 If S3 upload fails:
 - System automatically falls back to local storage
 - Error is logged but doesn't block the upload
-- File is stored locally in `./api/uploads/jds/` directory
+- Files are stored locally in respective directories (`./api/uploads/`)
+
+## Migration to S3
+
+If you have existing files stored locally, migration scripts are available:
+
+```bash
+# Migrate banners to S3 (recommended - banners require S3 for new uploads)
+npm run migrate:banners-to-s3
+
+# Migrate resumes to S3 (optional - resumes have local fallback)
+npm run migrate:resumes-to-s3
+
+# Check current storage status
+npm run check:banner-files
+npm run check:resume-files
+```
+
+See `MIGRATE_BANNERS_TO_S3.md` and `MIGRATE_RESUMES_TO_S3.md` for detailed migration guides.
 
 ## Testing
 
-1. Set `AWS_S3_ENABLED=false` to test with local storage
+```bash
+# Test S3 connection and upload
+npm run test:s3
+
+# Test JD upload with S3
+npm run test:jd-upload
+
+# Check banner storage status
+npm run check:banner-files
+
+# Check resume storage status
+npm run check:resume-files
+```
+
+Configuration testing:
+1. Set `AWS_S3_ENABLED=false` to test with local storage (JDs/resumes only)
 2. Set `AWS_S3_ENABLED=true` with valid credentials to test S3 upload
 3. Check logs for S3 upload confirmations or errors
+4. Note: Banners require `AWS_S3_ENABLED=true` to function
 
 ## Security Best Practices
 

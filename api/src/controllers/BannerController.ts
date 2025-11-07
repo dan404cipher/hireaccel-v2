@@ -2,67 +2,90 @@ import { Response } from 'express';
 import { Banner } from '../models/Banner';
 import { AuthenticatedRequest } from '../types';
 import { asyncHandler, createBadRequestError, createNotFoundError } from '../middleware/errorHandler';
+import { s3Service } from '../services/S3Service';
+import { logger } from '../config/logger';
 
 export class BannerController {
   // Upload a new banner
   static uploadBanner = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    console.log('=== BANNER UPLOAD START ===');
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file ? {
-      filename: req.file.filename,
-      mimetype: req.file.mimetype,
-      size: req.file.size
-    } : 'No file');
-    console.log('User:', req.user ? { id: req.user._id, email: req.user.email } : 'No user');
+    logger.info('Banner upload started', {
+      userId: req.user?._id,
+      category: req.body.category,
+      businessProcess: 'banner_upload',
+    });
 
     if (!req.file) {
-      console.log('ERROR: No file uploaded');
       throw createBadRequestError('No file uploaded');
     }
 
     const { category } = req.body;
-    console.log('Category from request:', category);
     
     if (!category || !['hr', 'candidate'].includes(category)) {
-      console.log('ERROR: Invalid category:', category);
       throw createBadRequestError('Invalid or missing category. Must be "hr" or "candidate"');
     }
-
-    // Generate relative URL for the uploaded file
-    const mediaUrl = `/uploads/banners/${req.file.filename}`;
-    console.log('Generated mediaUrl:', mediaUrl);
     
     // Determine media type from mimetype
-    let mediaType = 'image';
+    let mediaType: 'image' | 'gif' | 'video' = 'image';
     if (req.file.mimetype.startsWith('video/')) {
       mediaType = 'video';
     } else if (req.file.mimetype === 'image/gif') {
       mediaType = 'gif';
     }
-    console.log('Determined mediaType:', mediaType);
 
-    // Create banner
-    console.log('Creating banner with data:', {
-      mediaUrl,
+    let bannerData: any = {
       mediaType,
       category,
       createdBy: req.user!._id,
-    });
+      originalName: req.file.originalname,
+    };
+
+    // Upload to S3 (required for new uploads)
+    if (!s3Service.isS3Enabled()) {
+      throw createBadRequestError('S3 service is not enabled. Banner uploads require S3 storage.');
+    }
 
     try {
-      const banner = await Banner.create({
-        mediaUrl,
-        mediaType,
-        category,
-        createdBy: req.user!._id,
+      const s3Result = await s3Service.uploadFile({
+        fileBuffer: req.file.buffer,
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype,
+        folder: 'banners',
+        makePublic: false,
       });
-      console.log('Banner created successfully:', banner);
-      console.log('=== BANNER UPLOAD SUCCESS ===');
-      res.status(201).json(banner);
-    } catch (error) {
-      console.log('ERROR creating banner:', error);
-      throw error;
+
+      bannerData = {
+        ...bannerData,
+        mediaUrl: s3Result.url,
+        storageProvider: 'aws_s3',
+        storageLocation: s3Result.key,
+      };
+
+      logger.info('Banner uploaded to S3', {
+        userId: req.user?._id,
+        s3Key: s3Result.key,
+        bucket: s3Service.bucketName,
+        businessProcess: 'banner_upload',
+      });
+    } catch (s3Error) {
+      logger.error('Failed to upload banner to S3', {
+        error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+        businessProcess: 'banner_upload',
+      });
+      throw createBadRequestError('Failed to upload banner to S3. Please try again.');
     }
+
+    // Create banner
+    const banner = await Banner.create(bannerData);
+
+    logger.info('Banner created successfully', {
+      userId: req.user?._id,
+      bannerId: banner._id,
+      category,
+      s3Key: bannerData.storageLocation,
+      businessProcess: 'banner_upload',
+    });
+
+    res.status(201).json(banner);
   });
 
   // Get active banner by category
@@ -138,9 +161,11 @@ export class BannerController {
 
   // Create text-based ad
   static createTextAd = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    console.log('=== TEXT AD CREATION START ===');
-    console.log('Request body:', req.body);
-    console.log('User:', req.user ? { id: req.user._id, email: req.user.email } : 'No user');
+    logger.info('Text ad creation started', {
+      userId: req.user?._id,
+      category: req.body.category,
+      businessProcess: 'text_ad_creation',
+    });
 
     const { 
       category, 
@@ -165,50 +190,80 @@ export class BannerController {
       throw createBadRequestError('Title is required for text-based ads');
     }
 
+    let bannerData: any = {
+      adType: 'text',
+      category,
+      title: title.trim(),
+      subtitle: subtitle?.trim(),
+      content: content?.trim(),
+      textColor: textColor || '#000000',
+      backgroundColor: backgroundColor || '#ffffff',
+      titleColor: titleColor || '#000000',
+      subtitleColor: subtitleColor || '#666666',
+      titleSize: titleSize || 'large',
+      subtitleSize: subtitleSize || 'medium',
+      contentSize: contentSize || 'small',
+      textAlignment: textAlignment || 'center',
+      createdBy: req.user!._id,
+    };
+
     // Handle background media if provided
-    let backgroundMediaUrl;
-    let backgroundMediaType;
-    
     if (req.file) {
-      backgroundMediaUrl = `/uploads/banners/${req.file.filename}`;
-      
       // Determine media type from mimetype
+      let backgroundMediaType: 'image' | 'gif' | 'video' = 'image';
       if (req.file.mimetype.startsWith('video/')) {
         backgroundMediaType = 'video';
       } else if (req.file.mimetype === 'image/gif') {
         backgroundMediaType = 'gif';
-      } else {
-        backgroundMediaType = 'image';
+      }
+
+      bannerData.backgroundMediaType = backgroundMediaType;
+      bannerData.backgroundOriginalName = req.file.originalname;
+
+      // Upload background media to S3
+      if (!s3Service.isS3Enabled()) {
+        throw createBadRequestError('S3 service is not enabled. Banner uploads require S3 storage.');
+      }
+
+      try {
+        const s3Result = await s3Service.uploadFile({
+          fileBuffer: req.file.buffer,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+          folder: 'banners',
+          makePublic: false,
+        });
+
+        bannerData.backgroundMediaUrl = s3Result.url;
+        bannerData.backgroundStorageProvider = 'aws_s3';
+        bannerData.backgroundStorageLocation = s3Result.key;
+
+        logger.info('Background media uploaded to S3', {
+          userId: req.user?._id,
+          s3Key: s3Result.key,
+          bucket: s3Service.bucketName,
+          businessProcess: 'text_ad_creation',
+        });
+      } catch (s3Error) {
+        logger.error('Failed to upload background media to S3', {
+          error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          businessProcess: 'text_ad_creation',
+        });
+        throw createBadRequestError('Failed to upload background media to S3. Please try again.');
       }
     }
 
-    try {
-      const banner = await Banner.create({
-        adType: 'text',
-        category,
-        title: title.trim(),
-        subtitle: subtitle?.trim(),
-        content: content?.trim(),
-        backgroundMediaUrl,
-        backgroundMediaType,
-        textColor: textColor || '#000000',
-        backgroundColor: backgroundColor || '#ffffff',
-        titleColor: titleColor || '#000000',
-        subtitleColor: subtitleColor || '#666666',
-        titleSize: titleSize || 'large',
-        subtitleSize: subtitleSize || 'medium',
-        contentSize: contentSize || 'small',
-        textAlignment: textAlignment || 'center',
-        createdBy: req.user!._id,
-      });
+    const banner = await Banner.create(bannerData);
 
-      console.log('Text ad created successfully:', banner);
-      console.log('=== TEXT AD CREATION SUCCESS ===');
-      res.status(201).json(banner);
-    } catch (error) {
-      console.log('ERROR creating text ad:', error);
-      throw error;
-    }
+    logger.info('Text ad created successfully', {
+      userId: req.user?._id,
+      bannerId: banner._id,
+      category,
+      hasBackgroundMedia: !!req.file,
+      businessProcess: 'text_ad_creation',
+    });
+
+    res.status(201).json(banner);
   });
 
   // Update text-based ad
@@ -239,15 +294,47 @@ export class BannerController {
 
     // Handle background media update if provided
     if (req.file) {
-      banner.backgroundMediaUrl = `/uploads/banners/${req.file.filename}`;
-      
       // Determine media type from mimetype
+      let backgroundMediaType: 'image' | 'gif' | 'video' = 'image';
       if (req.file.mimetype.startsWith('video/')) {
-        banner.backgroundMediaType = 'video';
+        backgroundMediaType = 'video';
       } else if (req.file.mimetype === 'image/gif') {
-        banner.backgroundMediaType = 'gif';
-      } else {
-        banner.backgroundMediaType = 'image';
+        backgroundMediaType = 'gif';
+      }
+
+      banner.backgroundMediaType = backgroundMediaType;
+      banner.backgroundOriginalName = req.file.originalname;
+
+      // Upload background media to S3
+      if (!s3Service.isS3Enabled()) {
+        throw createBadRequestError('S3 service is not enabled. Banner uploads require S3 storage.');
+      }
+
+      try {
+        const s3Result = await s3Service.uploadFile({
+          fileBuffer: req.file.buffer,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+          folder: 'banners',
+          makePublic: false,
+        });
+
+        banner.backgroundMediaUrl = s3Result.url;
+        banner.backgroundStorageProvider = 'aws_s3';
+        banner.backgroundStorageLocation = s3Result.key;
+
+        logger.info('Background media updated and uploaded to S3', {
+          userId: req.user?._id,
+          bannerId: banner._id,
+          s3Key: s3Result.key,
+          businessProcess: 'text_ad_update',
+        });
+      } catch (s3Error) {
+        logger.error('Failed to upload background media to S3', {
+          error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          businessProcess: 'text_ad_update',
+        });
+        throw createBadRequestError('Failed to upload background media to S3. Please try again.');
       }
     }
 
@@ -265,6 +352,13 @@ export class BannerController {
     if (textAlignment !== undefined) banner.textAlignment = textAlignment;
 
     await banner.save();
+
+    logger.info('Text ad updated successfully', {
+      userId: req.user?._id,
+      bannerId: banner._id,
+      businessProcess: 'text_ad_update',
+    });
+
     res.json(banner);
   });
 
@@ -278,5 +372,156 @@ export class BannerController {
     }
 
     res.json({ message: 'Banner deleted successfully' });
+  });
+
+  // Serve banner media file (proxy from S3)
+  static serveBannerMedia = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { bannerId } = req.params;
+
+    logger.info('🎥 Serving banner media', {
+      bannerId,
+      businessProcess: 'banner_media_proxy',
+    });
+
+    const banner = await Banner.findById(bannerId);
+    if (!banner) {
+      logger.error('❌ Banner not found', { bannerId });
+      throw createNotFoundError('Banner', bannerId);
+    }
+
+    logger.info('✅ Banner found', {
+      bannerId,
+      storageProvider: banner.storageProvider,
+      storageLocation: banner.storageLocation,
+      mediaType: banner.mediaType,
+    });
+
+    if (!banner.mediaUrl || banner.storageProvider !== 'aws_s3') {
+      throw createBadRequestError('Banner media not found or not stored in S3');
+    }
+
+    if (!banner.storageLocation) {
+      throw createBadRequestError('Banner storage location not found');
+    }
+
+    // Get file from S3 and stream to client
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3Client = s3Service.getClient();
+    const bucketName = s3Service.bucketName;
+
+    if (!s3Client) {
+      throw createBadRequestError('S3 client is not available');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: banner.storageLocation,
+    });
+
+    const response = await s3Client.send(command);
+
+    logger.info('📥 Retrieved from S3, streaming to client', {
+      bannerId,
+      contentLength: response.ContentLength,
+    });
+
+    // Determine content type from media type
+    let contentType = 'application/octet-stream';
+    if (banner.mediaType === 'video') {
+      contentType = 'video/mp4';
+    } else if (banner.mediaType === 'gif') {
+      contentType = 'image/gif';
+    } else {
+      contentType = 'image/jpeg'; // Default for images
+    }
+
+    // Set headers for inline viewing
+    res.setHeader('Content-Disposition', `inline; filename="${banner.originalName || 'banner'}"`);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+
+    logger.info('📤 Headers set, piping response', {
+      bannerId,
+      contentType,
+    });
+
+    // Stream the file from S3 to client
+    if (response.Body) {
+      (response.Body as any).pipe(res);
+    } else {
+      logger.error('❌ No response body from S3', { bannerId });
+      throw createBadRequestError('Failed to retrieve banner media from S3');
+    }
+  });
+
+  // Serve banner background media file (for text ads)
+  static serveBannerBackground = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { bannerId } = req.params;
+
+    logger.info('🖼️  Serving banner background media', {
+      bannerId,
+      businessProcess: 'banner_background_proxy',
+    });
+
+    const banner = await Banner.findById(bannerId);
+    if (!banner) {
+      logger.error('❌ Banner not found', { bannerId });
+      throw createNotFoundError('Banner', bannerId);
+    }
+
+    logger.info('✅ Banner found', {
+      bannerId,
+      backgroundStorageProvider: banner.backgroundStorageProvider,
+      backgroundStorageLocation: banner.backgroundStorageLocation,
+      backgroundMediaType: banner.backgroundMediaType,
+    });
+
+    if (!banner.backgroundMediaUrl || banner.backgroundStorageProvider !== 'aws_s3') {
+      throw createBadRequestError('Banner background media not found or not stored in S3');
+    }
+
+    if (!banner.backgroundStorageLocation) {
+      throw createBadRequestError('Banner background storage location not found');
+    }
+
+    // Get file from S3 and stream to client
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    const s3Client = s3Service.getClient();
+    const bucketName = s3Service.bucketName;
+
+    if (!s3Client) {
+      throw createBadRequestError('S3 client is not available');
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketName,
+      Key: banner.backgroundStorageLocation,
+    });
+
+    const response = await s3Client.send(command);
+
+    // Determine content type from media type
+    let contentType = 'application/octet-stream';
+    if (banner.backgroundMediaType === 'video') {
+      contentType = 'video/mp4';
+    } else if (banner.backgroundMediaType === 'gif') {
+      contentType = 'image/gif';
+    } else {
+      contentType = 'image/jpeg'; // Default for images
+    }
+
+    // Set headers for inline viewing
+    res.setHeader('Content-Disposition', `inline; filename="${banner.backgroundOriginalName || 'banner-background'}"`);
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+
+    // Stream the file from S3 to client
+    if (response.Body) {
+      (response.Body as any).pipe(res);
+    } else {
+      throw createBadRequestError('Failed to retrieve banner background media from S3');
+    }
   });
 }

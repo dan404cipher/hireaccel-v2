@@ -79,4 +79,16 @@ router.delete(
   BannerController.deleteBanner as any
 );
 
+// Serve banner media file (public - for display)
+router.get(
+  '/:bannerId/media',
+  BannerController.serveBannerMedia as any
+);
+
+// Serve banner background media file (public - for display)
+router.get(
+  '/:bannerId/background',
+  BannerController.serveBannerBackground as any
+);
+
 export default router;

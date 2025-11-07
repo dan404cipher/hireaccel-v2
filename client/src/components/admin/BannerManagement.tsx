@@ -585,7 +585,7 @@ export function BannerManagement() {
                       contentSize={textAdForm.contentSize}
                       textAlignment={textAdForm.textAlignment}
                       backgroundMedia={textAdForm.backgroundMedia}
-                      backgroundMediaUrl={editingTextAd?.backgroundMediaUrl}
+                      backgroundMediaUrl={editingTextAd?.backgroundMediaUrl ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${editingTextAd._id}/background` : undefined}
                       backgroundMediaType={editingTextAd?.backgroundMediaType}
                     />
                   </div>
@@ -646,7 +646,7 @@ export function BannerManagement() {
                       <div className="w-32 h-20 rounded-lg overflow-hidden">
                         {activeBanner.mediaType === 'video' ? (
                           <video
-                            src={activeBanner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${activeBanner._id}/media`}
                             className="w-full h-full object-cover"
                             muted
                             loop
@@ -654,7 +654,7 @@ export function BannerManagement() {
                           />
                         ) : (
                           <img
-                            src={activeBanner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${activeBanner._id}/media`}
                             alt="Active Banner"
                             className="w-full h-full object-cover"
                           />
@@ -721,13 +721,13 @@ export function BannerManagement() {
                       <>
                         {banner.mediaType === 'video' ? (
                           <video
-                            src={banner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${banner._id}/media`}
                             className="w-full h-full object-cover"
                             muted
                           />
                         ) : (
                           <img
-                            src={banner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${banner._id}/media`}
                             alt="Banner"
                             className="w-full h-full object-cover"
                           />

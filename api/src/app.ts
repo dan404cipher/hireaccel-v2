@@ -55,11 +55,15 @@ app.use(
                 imgSrc: isDevelopment() 
                     ? ["'self'", 'data:', 'https:', 'http://localhost:*', 'http://127.0.0.1:*']
                     : ["'self'", 'data:', 'https:'],
+                // Allow media (videos/audio) from S3 and other HTTPS sources
+                mediaSrc: isDevelopment() 
+                    ? ["'self'", 'https:', 'http://localhost:*', 'http://127.0.0.1:*']
+                    : ["'self'", 'https:'],
             },
         },
         referrerPolicy: { policy: 'no-referrer' },
         crossOriginEmbedderPolicy: isDevelopment() ? false : true,
-        crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin requests for images
+        crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin requests for images/media
     }),
 )
 

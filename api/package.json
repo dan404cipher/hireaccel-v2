@@ -21,7 +21,9 @@
         "test:3-jd-uploads": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/test-3-jd-uploads.ts",
         "test:openai": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/test-openai-key.ts",
         "migrate:resumes-to-s3": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/migrate-resumes-to-s3.ts",
-        "check:resume-files": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/check-resume-files.ts"
+        "migrate:banners-to-s3": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/migrate-banners-to-s3.ts",
+        "check:resume-files": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/check-resume-files.ts",
+        "check:banner-files": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/check-banners.ts"
     },
     "keywords": [
         "recruitment",

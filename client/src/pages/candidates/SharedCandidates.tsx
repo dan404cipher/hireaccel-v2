@@ -437,13 +437,13 @@ const SharedCandidates: React.FC = () => {
         const jobTitle = assignment.jobId?.title || '';
         const jobCustomId = assignment.jobId?.jobId || ''; // Custom ID like JOB00001
         const jobId = assignment.jobId?._id || assignment.jobId?.id || '';
-        const jobIdStr = typeof jobId === 'string' ? jobId : jobId?.toString() || '';
+        const jobIdStr = typeof jobId === 'string' ? jobId : (jobId ? String(jobId) : '');
         
         // Company information
         const companyName = assignment.jobId?.companyId?.name || '';
         const companyCustomId = assignment.jobId?.companyId?.companyId || ''; // Custom ID like COMP00001
         const companyId = assignment.jobId?.companyId?._id || '';
-        const companyIdStr = typeof companyId === 'string' ? companyId : companyId?.toString() || '';
+        const companyIdStr = typeof companyId === 'string' ? companyId : (companyId ? String(companyId) : '');
         
         // Notes
         const notes = assignment.notes || '';
@@ -828,7 +828,7 @@ const SharedCandidates: React.FC = () => {
     
     return (
       <Card key={assignment._id} className="hover:shadow-md transition-shadow relative">
-        <CardContent className="p-4">
+        <CardContent className="p-4 pb-2">
           {/* 3-dots menu in top right corner */}
           <div className="absolute top-2 right-2">
             <DropdownMenu>
@@ -948,193 +948,309 @@ const SharedCandidates: React.FC = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          {/* Row 1: Candidate Info, Job, Candidate Status */}
-          <div className="grid grid-cols-3 gap-4 mb-3">
+          {/* Row 1: Candidate Info, Agent/HR Profile(s), Candidate Status */}
+          <div className={`grid ${user?.role === 'admin' || user?.role === 'superadmin' ? 'grid-cols-4' : 'grid-cols-3'} gap-4 mb-3`}>
             {/* Column 1: Candidate Info */}
-            <div className="flex items-start space-x-3">
-              <CandidateAvatar
-                profilePhotoFileId={candidate?.userId?.profilePhotoFileId}
-                firstName={firstName}
-                lastName={lastName}
-                statusColor={getCandidateStatusColor(assignment.candidateStatus)}
-                initials={initials}
-              />
-              <div className="flex-1 min-w-0">
-                <div 
-                  className="font-semibold text-lg text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
-                  onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
-                >
-                  {fullName}
-                </div>
-                <div className="text-base text-gray-500 truncate">{email}</div>
-                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                  {isAgentView ? (
-                    <>
-                      {candidate?.profile?.phoneNumber && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-blue-600" />
-                          <span className="truncate">{candidate?.profile?.phoneNumber}</span>
-                        </div>
-                      )}
-                      {candidate?.profile?.location ? (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-emerald-600" />
-                          <span className="truncate">{candidate?.profile?.location}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-gray-400" />
-                          <span className="truncate text-gray-400">Location not specified</span>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {candidate?.profile?.phoneNumber && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-blue-600" />
-                          <span className="truncate">{candidate?.profile?.phoneNumber}</span>
-                        </div>
-                      )}
-                      {candidate?.profile?.location ? (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-emerald-600" />
-                          <span className="truncate">{candidate?.profile?.location}</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-gray-400" />
-                          <span className="truncate text-gray-400">Location not specified</span>
-                        </div>
-                      )}
-                    </>
-                  )}
+            <div className="space-y-2">
+              <div className="flex items-start space-x-3">
+                <CandidateAvatar
+                  profilePhotoFileId={candidate?.userId?.profilePhotoFileId}
+                  firstName={firstName}
+                  lastName={lastName}
+                  statusColor={getCandidateStatusColor(assignment.candidateStatus)}
+                  initials={initials}
+                />
+                <div className="flex-1 min-w-0">
+                  <div 
+                    className="font-semibold text-lg text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => navigate(`/dashboard/candidates/${candidate.userId.customId}`)}
+                  >
+                    {fullName}
+                  </div>
+                  <div className="text-base text-gray-500 truncate">{email}</div>
+                  <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                    {candidate?.profile?.phoneNumber && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-blue-600" />
+                        <span className="truncate">{candidate?.profile?.phoneNumber}</span>
+                      </div>
+                    )}
+                    {candidate?.profile?.location ? (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-emerald-600" />
+                        <span className="truncate">{candidate?.profile?.location}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-gray-400" />
+                        <span className="truncate text-gray-400">Location not specified</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* Column 2: HR Profile (for agents) or Agent Profile (for HR) */}
-            <div className="flex items-start space-x-3">
-              {isAgentView ? (
-                // For agents: Show HR details (from assignedTo - the HR the candidate is assigned to)
-                assignment.assignedTo ? (
-                  <>
-                    <HRAvatar
-                      profilePhotoFileId={assignment.assignedTo.profilePhotoFileId}
-                      firstName={assignment.assignedTo.firstName}
-                      lastName={assignment.assignedTo.lastName}
-                      initials={`${assignment.assignedTo.firstName?.charAt(0) || ''}${assignment.assignedTo.lastName?.charAt(0) || ''}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div 
-                        className="text-base font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
-                        onClick={() => {
-                          if (assignment.assignedTo?.customId) {
-                            navigate(`/dashboard/hr-profile/${assignment.assignedTo.customId}`);
-                          }
-                        }}
-                      >
-                        {assignment.assignedTo.firstName} {assignment.assignedTo.lastName}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate mt-0.5">
-                        {assignment.assignedTo.email}
-                      </div>
-                      <div className="text-xs text-gray-500 font-mono mt-0.5">
-                        {assignment.assignedTo.customId}
-                      </div>
+              {/* Experience and Current Role - only for admin/superadmin in Row 1 */}
+              {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-base font-medium text-gray-900">
+                      {formatExperience(candidate?.profile?.experience || [])}
                     </div>
-                  </>
-                ) : (
-                  <div className="h-12 w-12 flex-shrink-0"></div>
-                )
-              ) : (
-                // For HR: Show Agent Profile (assignedBy)
-                assignment.assignedBy ? (
-                  <>
-                    <AgentAvatar
-                      profilePhotoFileId={assignment.assignedBy.profilePhotoFileId}
-                      firstName={assignment.assignedBy.firstName}
-                      lastName={assignment.assignedBy.lastName}
-                      initials={`${assignment.assignedBy.firstName?.charAt(0) || ''}${assignment.assignedBy.lastName?.charAt(0) || ''}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div 
-                        className="text-base font-semibold text-gray-900 cursor-pointer hover:text-emerald-600 transition-colors truncate"
-                        onClick={() => {
-                          if (assignment.assignedBy?.customId) {
-                            navigate(`/dashboard/agent-profile/${assignment.assignedBy.customId}`);
-                          } else {
-                            navigate(`/dashboard/agent-dashboard`);
-                          }
-                        }}
-                      >
-                        {assignment.assignedBy.firstName} {assignment.assignedBy.lastName}
+                    {candidate?.userId?.customId && (
+                      <Badge variant="outline" className="font-mono text-xs px-2 py-0.5 border-0">
+                        <span className="text-gray-400 mr-1">•</span>
+                        {formatCustomId(candidate.userId.customId)}
+                      </Badge>
+                    )}
+                  </div>
+                  {(() => {
+                    const currentPosition = getCurrentPosition(candidate?.profile?.experience || []);
+                    return currentPosition ? (
+                      <div className="text-xs text-gray-600 mt-1">
+                        <span className="font-medium">{currentPosition.position}</span>
+                        {currentPosition.company && (
+                          <span className="text-gray-500"> at {currentPosition.company}</span>
+                        )}
                       </div>
-                      <div className="text-xs text-gray-500 truncate mt-0.5">
-                        {assignment.assignedBy.email}
-                      </div>
-                      <div className="text-xs text-gray-500 font-mono mt-0.5">
-                        {assignment.assignedBy.customId}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="h-12 w-12 flex-shrink-0"></div>
-                )
+                    ) : null;
+                  })()}
+                </div>
               )}
             </div>
 
-            {/* Column 3: Candidate Status */}
-            <div>
-              <div className="text-sm font-medium text-gray-500 mb-1">Candidate Status</div>
-              {isAgentView ? (
-                <Badge variant="outline" className={`capitalize ${getCandidateStatusColor(assignment.candidateStatus)}`}>
-                  {assignment.candidateStatus || 'new'}
-                </Badge>
-              ) : (
-                <Select
-                  value={assignment.candidateStatus || 'new'}
-                  onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
-                >
-                  <SelectTrigger className={`w-48 h-10 text-sm ${getCandidateStatusColor(assignment.candidateStatus || 'new')}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new" className="text-gray-700 hover:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:text-gray-800">
-                      New
-                    </SelectItem>
-                    <SelectItem value="reviewed" className="text-blue-700 hover:bg-blue-50 data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-800">
-                      Reviewed
-                    </SelectItem>
-                    <SelectItem value="shortlisted" className="text-purple-700 hover:bg-purple-50 data-[state=checked]:bg-purple-100 data-[state=checked]:text-purple-800">
-                      Shortlisted
-                    </SelectItem>
-                    <SelectItem value="interview_scheduled" className="text-orange-700 hover:bg-orange-50 data-[state=checked]:bg-orange-100 data-[state=checked]:text-orange-800">
-                      Interview Scheduled
-                    </SelectItem>
-                    <SelectItem value="interviewed" className="text-yellow-700 hover:bg-yellow-50 data-[state=checked]:bg-yellow-100 data-[state=checked]:text-yellow-800">
-                      Interviewed
-                    </SelectItem>
-                    <SelectItem value="offer_sent" className="text-indigo-700 hover:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-800">
-                      Offer Sent
-                    </SelectItem>
-                    <SelectItem value="hired" className="text-green-700 hover:bg-green-50 data-[state=checked]:bg-green-100 data-[state=checked]:text-green-800">
-                      Hired
-                    </SelectItem>
-                    <SelectItem value="rejected" className="text-red-700 hover:bg-red-50 data-[state=checked]:bg-red-100 data-[state=checked]:text-red-800">
-                      Rejected
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+            {/* Column 2: Agent Profile (for admin/superadmin/HR) */}
+            {(user?.role === 'admin' || user?.role === 'superadmin' || !isAgentView) && assignment.assignedBy && (
+              <div className="flex items-start space-x-3">
+                <AgentAvatar
+                  profilePhotoFileId={assignment.assignedBy.profilePhotoFileId}
+                  firstName={assignment.assignedBy.firstName}
+                  lastName={assignment.assignedBy.lastName}
+                  initials={`${assignment.assignedBy.firstName?.charAt(0) || ''}${assignment.assignedBy.lastName?.charAt(0) || ''}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <div 
+                    className="text-base font-semibold text-gray-900 cursor-pointer hover:text-emerald-600 transition-colors truncate"
+                    onClick={() => {
+                      if (assignment.assignedBy?.customId) {
+                        navigate(`/dashboard/agent-profile/${assignment.assignedBy.customId}`);
+                      } else {
+                        navigate(`/dashboard/agent-dashboard`);
+                      }
+                    }}
+                  >
+                    {assignment.assignedBy.firstName} {assignment.assignedBy.lastName}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate mt-0.5">
+                    {assignment.assignedBy.email}
+                  </div>
+                  <div className="text-xs text-emerald-600 font-mono mt-0.5">
+                    {assignment.assignedBy.customId}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Column 3: HR Profile + Job (for admin/superadmin/agents) */}
+            {(user?.role === 'admin' || user?.role === 'superadmin' || isAgentView) && assignment.assignedTo && (
+              <div className="space-y-3">
+                {/* HR Profile */}
+                <div className="flex items-start space-x-3">
+                  <HRAvatar
+                    profilePhotoFileId={assignment.assignedTo.profilePhotoFileId}
+                    firstName={assignment.assignedTo.firstName}
+                    lastName={assignment.assignedTo.lastName}
+                    initials={`${assignment.assignedTo.firstName?.charAt(0) || ''}${assignment.assignedTo.lastName?.charAt(0) || ''}`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div 
+                      className="text-base font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
+                      onClick={() => {
+                        if (assignment.assignedTo?.customId) {
+                          navigate(`/dashboard/hr-profile/${assignment.assignedTo.customId}`);
+                        }
+                      }}
+                    >
+                      {assignment.assignedTo.firstName} {assignment.assignedTo.lastName}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate mt-0.5">
+                      {assignment.assignedTo.email}
+                    </div>
+                    <div className="text-xs text-blue-600 font-mono mt-0.5">
+                      {assignment.assignedTo.customId}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Job Details (for admin/superadmin only) */}
+                {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                  <div className="flex items-start space-x-3">
+                    {assignment.jobId?.companyId ? (
+                      <>
+                        <CompanyAvatar
+                          logoFileId={assignment.jobId.companyId.logoFileId}
+                          companyName={assignment.jobId.companyId.name || 'Unknown Company'}
+                        />
+                        <div className="flex-1 min-w-0">
+                          {assignment.jobId?._id || assignment.jobId?.id ? (
+                            <div 
+                              className="text-base font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
+                              onClick={() => navigate(`/dashboard/jobs/${assignment.jobId._id || assignment.jobId.id}`)}
+                            >
+                              {assignment.jobId.title}
+                            </div>
+                          ) : (
+                            <div className="text-base font-medium text-gray-900">
+                              {assignment.jobId ? assignment.jobId.title : 'General'}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600 mt-0.5">
+                            {assignment.jobId?.companyId?._id ? (
+                              <span 
+                                className="font-medium cursor-pointer hover:text-blue-600 transition-colors"
+                                onClick={() => navigate(`/dashboard/companies/${assignment.jobId.companyId._id}`)}
+                              >
+                                {assignment.jobId?.companyId?.name || 'Unknown Company'}
+                              </span>
+                            ) : (
+                              <span className="font-medium">
+                                {assignment.jobId?.companyId?.name || 'Unknown Company'}
+                              </span>
+                            )}
+                            {assignment.jobId.location && (
+                              <span className="text-gray-400 ml-2">• {assignment.jobId.location}</span>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 min-w-0">
+                        {assignment.jobId?._id || assignment.jobId?.id ? (
+                          <div 
+                            className="text-base font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors truncate"
+                            onClick={() => navigate(`/dashboard/jobs/${assignment.jobId._id || assignment.jobId.id}`)}
+                          >
+                            {assignment.jobId ? assignment.jobId.title : 'General'}
+                          </div>
+                        ) : (
+                          <div className="text-base font-medium text-gray-900">
+                            {assignment.jobId ? assignment.jobId.title : 'General'}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Last Column: Candidate Status + Resume (for admin/superadmin) */}
+            <div className="space-y-3">
+              <div>
+                <div className="text-sm font-medium text-gray-500 mb-1">Candidate Status</div>
+                {isAgentView ? (
+                  <Badge variant="outline" className={`capitalize ${getCandidateStatusColor(assignment.candidateStatus)}`}>
+                    {assignment.candidateStatus || 'new'}
+                  </Badge>
+                ) : (
+                  <Select
+                    value={assignment.candidateStatus || 'new'}
+                    onValueChange={(value) => handleCandidateStatusUpdate(assignment, value)}
+                  >
+                    <SelectTrigger className={`w-48 h-10 text-sm ${getCandidateStatusColor(assignment.candidateStatus || 'new')}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new" className="text-gray-700 hover:bg-gray-100 data-[state=checked]:bg-gray-100 data-[state=checked]:text-gray-800">
+                        New
+                      </SelectItem>
+                      <SelectItem value="reviewed" className="text-blue-700 hover:bg-blue-50 data-[state=checked]:bg-blue-100 data-[state=checked]:text-blue-800">
+                        Reviewed
+                      </SelectItem>
+                      <SelectItem value="shortlisted" className="text-purple-700 hover:bg-purple-50 data-[state=checked]:bg-purple-100 data-[state=checked]:text-purple-800">
+                        Shortlisted
+                      </SelectItem>
+                      <SelectItem value="interview_scheduled" className="text-orange-700 hover:bg-orange-50 data-[state=checked]:bg-orange-100 data-[state=checked]:text-orange-800">
+                        Interview Scheduled
+                      </SelectItem>
+                      <SelectItem value="interviewed" className="text-yellow-700 hover:bg-yellow-50 data-[state=checked]:bg-yellow-100 data-[state=checked]:text-yellow-800">
+                        Interviewed
+                      </SelectItem>
+                      <SelectItem value="offer_sent" className="text-indigo-700 hover:bg-indigo-50 data-[state=checked]:bg-indigo-100 data-[state=checked]:text-indigo-800">
+                        Offer Sent
+                      </SelectItem>
+                      <SelectItem value="hired" className="text-green-700 hover:bg-green-50 data-[state=checked]:bg-green-100 data-[state=checked]:text-green-800">
+                        Hired
+                      </SelectItem>
+                      <SelectItem value="rejected" className="text-red-700 hover:bg-red-50 data-[state=checked]:bg-red-100 data-[state=checked]:text-red-800">
+                        Rejected
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              
+              {/* Resume Button (for admin/superadmin only in Row 1) */}
+              {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <div>
+                  {candidate.resumeFileId ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(getApiUrl(`/api/v1/files/resume/${candidate.resumeFileId}`), {
+                            headers: {
+                              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                            },
+                          });
+                          
+                          if (!response.ok) {
+                            throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+                          }
+
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${candidate?.userId?.firstName || 'candidate'}_${candidate?.userId?.lastName || 'resume'}.pdf`;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+
+                          toast({
+                            title: 'Success',
+                            description: 'Resume downloaded successfully',
+                          });
+                        } catch (error) {
+                          console.error('Download error:', error);
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to download resume',
+                            variant: 'destructive',
+                          });
+                        }
+                      }}
+                    >
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      View Resume
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-gray-500">No resume</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
 
           {/* Row 2: Experience, Job Position, Resume */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            {/* Column 1: Experience */}
+          <div className={`grid ${user?.role === 'admin' || user?.role === 'superadmin' ? 'grid-cols-4' : 'grid-cols-3'} gap-4 mb-4`}>
+            {/* Column 1: Experience (empty for admin/superadmin since it's in Row 1) */}
             <div>
-              <div className="flex items-center gap-2">
+              {!(user?.role === 'admin' || user?.role === 'superadmin') && (
+                <>
+                  <div className="flex items-center gap-2">
                 <div className="text-base font-medium text-gray-900">
                   {formatExperience(candidate?.profile?.experience || [])}
                 </div>
@@ -1156,10 +1272,13 @@ const SharedCandidates: React.FC = () => {
                   </div>
                 ) : null;
               })()}
+                </>
+              )}
             </div>
 
-            {/* Column 2: Job Position */}
-            <div className="flex items-start space-x-3">
+            {/* Column 2: Job Position (only for HR/Agent, empty for admin/superadmin) */}
+            {!(user?.role === 'admin' || user?.role === 'superadmin') ? (
+              <div className="flex items-start space-x-3">
               {assignment.jobId?.companyId ? (
                 <>
                   <CompanyAvatar
@@ -1214,13 +1333,20 @@ const SharedCandidates: React.FC = () => {
                   )}
                 </div>
               )}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div></div> {/* Empty column 2 */}
+                <div></div> {/* Empty column 3 */}
+              </>
+            )}
 
-            {/* Column 3: Resume */}
-            <div>
-              {isAgentView ? (
-                candidate?.resumeFileId ? (
-                  <Button 
+            {/* Last Column: Resume (Column 3 for HR/Agent only, not shown for admin/superadmin in Row 2) */}
+            {!(user?.role === 'admin' || user?.role === 'superadmin') && (
+              <div>
+                {isAgentView ? (
+                  candidate?.resumeFileId ? (
+                    <Button 
                     variant="outline" 
                     size="sm" 
                     className="text-xs h-8 border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-300"
@@ -1315,7 +1441,8 @@ const SharedCandidates: React.FC = () => {
                   <span className="text-xs text-gray-500">No resume</span>
                 )
               )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Row 3: Notes */}
