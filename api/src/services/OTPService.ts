@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { OTP, OTPDocument } from '@/models/OTP';
 import { EmailService } from './EmailService';
-import { SMSService } from './SMSService';
+import { sendOTPSMS } from './SMSProviderService'; // Updated to use new SMS provider service
 import { logger } from '@/config/logger';
 import { env } from '@/config/env';
 
@@ -154,12 +154,21 @@ export class OTPService {
 
             await otpRecord.save();
 
-            // Send OTP via SMS
-            await SMSService.sendOTP(userData.phoneNumber, otp, userData.firstName);
+            // Send OTP via SMS using the new provider service
+            const result = await sendOTPSMS(userData.phoneNumber, otp);
+
+            if (!result.success) {
+                logger.error('Failed to send SMS OTP', {
+                    phoneNumber: userData.phoneNumber,
+                    error: result.error,
+                });
+                throw new Error(result.error || 'Failed to send SMS');
+            }
 
             logger.info('SMS Signup OTP sent successfully', {
                 phoneNumber: userData.phoneNumber,
                 role: userData.role,
+                messageId: result.messageId,
             });
         } catch (error) {
             logger.error('Failed to send SMS signup OTP', {
@@ -437,8 +446,16 @@ export class OTPService {
             existingOTP.expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
             await existingOTP.save();
 
-            // Send new OTP via SMS
-            await SMSService.sendOTP(phoneNumber, newOTP, existingOTP.userData.firstName);
+            // Send new OTP via SMS using the new provider service
+            const result = await sendOTPSMS(phoneNumber, newOTP);
+
+            if (!result.success) {
+                logger.error('Failed to resend SMS OTP', {
+                    phoneNumber: phoneNumber,
+                    error: result.error,
+                });
+                throw new Error(result.error || 'Failed to resend SMS');
+            }
 
             logger.info('SMS OTP resent successfully', {
                 phoneNumber: phoneNumber,
