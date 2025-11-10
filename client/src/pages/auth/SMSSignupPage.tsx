@@ -154,7 +154,7 @@ export function SMSSignupPage({ onSwitchToSignin }: SMSSignupPageProps): React.J
     };
 
     const handleSwitchToEmail = () => {
-        const signupPath = formData.role === 'candidate' ? '/signup/candidate' : '/signup/hr';
+        const signupPath = formData.role === 'candidate' ? '/register/candidate' : '/register/hr';
         navigate(signupPath);
     };
 

@@ -58,7 +58,7 @@ export function Hero() {
                             {/* <Button 
                 size="lg" 
                 className=" bg-blue-600 hover:bg-blue-700 text-white px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold rounded-full w-full sm:w-auto"
-                onClick={() => navigate('/signup/hr')}
+                onClick={() => navigate('/register/hr')}
               >
                 Get Started Free
                 <ArrowRight className="ml-2 w-4 h-4 md:w-5 md:h-5" />
@@ -116,7 +116,7 @@ export function Hero() {
           <Button 
             size="lg" 
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg font-semibold rounded-full w-full"
-            onClick={() => navigate('/signup/hr')}
+            onClick={() => navigate('/register/hr')}
           >
             Get Started Free
             <ArrowRight className="ml-2 w-5 h-5" />

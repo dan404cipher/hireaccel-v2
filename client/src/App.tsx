@@ -180,16 +180,18 @@ function AppRouter() {
             />
             <Route
                 path='/signup'
-                element={isAuthenticated ? <Navigate to='/dashboard' replace /> : <Navigate to='/signup/hr' replace />}
+                element={
+                    isAuthenticated ? <Navigate to='/dashboard' replace /> : <Navigate to='/register/hr' replace />
+                }
             />
             <Route
-                path='/signup/hr'
+                path='/register/hr'
                 element={
                     isAuthenticated ? <Navigate to='/dashboard' replace /> : <SignupPage onSwitchToSignin={() => {}} />
                 }
             />
             <Route
-                path='/signup/candidate'
+                path='/register/candidate'
                 element={
                     isAuthenticated ? <Navigate to='/dashboard' replace /> : <SignupPage onSwitchToSignin={() => {}} />
                 }
