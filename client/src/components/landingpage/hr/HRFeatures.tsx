@@ -42,6 +42,7 @@ import { CompetitorComparison } from '@/components/landingpage/hr/CompetitorComp
 import { Footer } from '@/components/landingpage/Footer';
 import { Header } from '../Header';
 import { useNavigate } from 'react-router-dom';
+import { CTAPopup } from '@/components/landingpage/CTAPopup';
 import heroBackground from '@/assets/Hero-background.jpeg';
 import howItWorksBackground from '@/assets/bg.png';
 import problemBackground from '@/assets/section1.jpg';
@@ -1200,6 +1201,9 @@ export function HRProfessionals() {
             </div>
             {/* Footer */}
             <Footer />
+
+            {/* CTA Popup - appears after 10s, 60s, and 120s */}
+            <CTAPopup role='hr' />
         </div>
     );
 }

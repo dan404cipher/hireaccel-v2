@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Star, Upload, Shield, Clock, CheckCircle2 } from 'lucide-react';
+import { X, Star, Upload, Shield, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -139,13 +139,12 @@ export function CTAPopup({ role, initialDelay = 10 }: CTAPopupProps) {
         },
         hr: {
             title: 'Ready to get started?',
-            description: 'Join 50+ companies that have already streamlined their hiring with our platform.',
-            buttonText: 'Start Hiring Now',
-            buttonIcon: Star,
+            description: 'Join 50+ companies that have already streamlined their hiring with our 48-hour guarantee',
+            buttonText: 'Start Your First Job Post',
+            buttonIcon: ArrowRight,
             stats: [
-                { icon: Shield, text: 'No Setup Fee', color: 'text-green-500' },
-                { icon: Clock, text: '5-minute setup', color: 'text-blue-500' },
-                { icon: CheckCircle2, text: 'Cancel anytime', color: 'text-purple-500' },
+                { icon: Shield, text: 'No credit card required', color: 'text-green-500' },
+                { icon: CheckCircle2, text: '100% Free', color: 'text-blue-500' },
             ],
         },
     };
