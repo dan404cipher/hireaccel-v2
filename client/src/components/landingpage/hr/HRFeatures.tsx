@@ -663,47 +663,47 @@ export function HRProfessionals() {
 
             {/* Signup Form Section - Second Page */}
             <section
-                id="signup"
-                className="relative min-h-screen flex items-center justify-center py-12 sm:py-16 md:py-20 px-4 sm:px-6 overflow-hidden"
+                id='signup'
+                className='relative min-h-screen flex items-center justify-center py-12 sm:py-16 md:py-20 px-4 sm:px-6 overflow-hidden'
                 style={{
                     backgroundImage: `url(${heroBackground})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
                 }}
             >
                 {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/60 to-black/50"></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-transparent"></div>
+                <div className='absolute inset-0 bg-gradient-to-r from-black/70 via-black/60 to-black/50'></div>
+                <div className='absolute inset-0 bg-gradient-to-t from-black/60 via-black/40 to-transparent'></div>
 
                 {/* Background pattern matching other sections */}
-                <div className="absolute inset-0">
-                    <div className="absolute top-0 left-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl"></div>
-                    <div className="absolute top-1/3 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl"></div>
+                <div className='absolute inset-0'>
+                    <div className='absolute top-0 left-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl'></div>
+                    <div className='absolute top-1/3 right-0 w-64 h-64 sm:w-96 sm:h-96 bg-gradient-to-r from-purple-400/10 to-pink-400/10 rounded-full blur-3xl'></div>
                 </div>
 
-                <div className="container mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-8 md:py-10 relative z-10 w-full">
-                    <div className="max-w-4xl mx-auto">
+                <div className='container mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-8 md:py-10 relative z-10 w-full'>
+                    <div className='max-w-4xl mx-auto'>
                         {/* Section Header matching page style */}
-                        <div className="text-center mb-8 sm:mb-10 md:mb-12">
-                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-white leading-tight">
+                        <div className='text-center mb-8 sm:mb-10 md:mb-12'>
+                            <h2 className='text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-white leading-tight'>
                                 Create Your Account
                             </h2>
-                            <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4">
+                            <p className='text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4'>
                                 Join hundreds of HR professionals transforming their hiring process
                             </p>
                         </div>
 
                         {/* Form Card */}
-                        <div className="bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-2xl border border-white/30">
-                            <UnifiedSignupForm role="hr" variant="inline" />
+                        <div className='bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-2xl border border-white/30'>
+                            <UnifiedSignupForm role='hr' variant='inline' />
 
-                            <div className="text-center text-xs sm:text-sm text-gray-600 mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-gray-200">
-                                Already have an account?{" "}
+                            <div className='text-center text-xs sm:text-sm text-gray-600 mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-gray-200'>
+                                Already have an account?{' '}
                                 <button
-                                    type="button"
-                                    onClick={() => navigate("/login")}
-                                    className="text-blue-600 hover:underline font-medium"
+                                    type='button'
+                                    onClick={() => navigate('/login')}
+                                    className='text-blue-600 hover:underline font-medium'
                                 >
                                     Sign in here
                                 </button>
@@ -817,20 +817,22 @@ export function HRProfessionals() {
                                 <div className='bg-black/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 border border-white/80 hover:border-white shadow-xl max-w-4xl mx-auto'>
                                     <div className='flex flex-col items-center space-y-4 sm:space-y-6'>
                                         <div
-                                            className='flex items-center space-x-2 sm:space-x-3'
+                                            className='flex items-center space-x-2 sm:space-x-3 cursor-pointer'
                                             onClick={() => navigate('/register/hr')}
+                                            data-gtm-cta-id='hr_ready_to_start_header'
+                                            data-gtm-cta-text='Ready to get started?'
+                                            data-gtm-cta-location='faq_bottom_section'
+                                            data-gtm-cta-destination='/register/hr'
                                         >
                                             <Clock className='w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-green-600' />
                                             <span className='text-xl sm:text-2xl font-bold text-white'>
                                                 Ready to get started?
                                             </span>
-                                        </div>
-
+                                        </div>{' '}
                                         <p className='text-base sm:text-lg text-white/90 max-w-2xl mx-auto px-4'>
                                             Join 50+ companies that have already streamlined their hiring with our
                                             48-hour guarantee
                                         </p>
-
                                         <div className='flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6 w-full sm:w-auto'>
                                             <Button
                                                 size='lg'

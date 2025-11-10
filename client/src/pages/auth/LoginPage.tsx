@@ -37,19 +37,39 @@ export default function LoginPage() {
         if (!value.trim()) {
             return 'Email or phone number is required';
         }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const phoneRegex = /^\+91[6-9]\d{9}$/;
-        const phoneDigitsOnly = value.replace(/[\s\-()]/g, '');
 
-        if (emailRegex.test(value)) {
+        const trimmed = value.trim();
+        const cleaned = trimmed.replace(/[\s\-()]/g, '');
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+
+        // Indian: 10 digits starting with 6–9
+        const indianTenDigitRegex = /^[6-9]\d{9}$/;
+
+        // Indian: +91 followed by 10 digits
+        const indianPlus91Regex = /^\+91[6-9]\d{9}$/;
+
+        // Indian: 0 + 10 digits
+        const indianZeroPrefixRegex = /^0[6-9]\d{9}$/;
+
+        // International: + followed by 7–15 digits, NOT starting +91
+        const internationalRegex = /^\+(?!91)\d{7,15}$/;
+
+        if (emailRegex.test(trimmed)) return '';
+
+        // Indian validations
+        if (
+            indianTenDigitRegex.test(cleaned) ||
+            indianPlus91Regex.test(cleaned) ||
+            indianZeroPrefixRegex.test(cleaned)
+        ) {
             return '';
-        } else if (phoneRegex.test(phoneDigitsOnly)) {
-            return '';
-        } else if (/^\+?[0-9]/.test(phoneDigitsOnly)) {
-            return 'Please enter a valid 10-digit Indian mobile number';
-        } else {
-            return 'Please enter a valid email or phone number';
         }
+
+        // International validations
+        if (internationalRegex.test(cleaned)) return '';
+
+        return 'Please enter a valid email or phone number';
     };
 
     const validatePassword = (value: string): string => {

@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { apiClient } from '@/services/api';
 import { getUTMParams, mapUTMToSource } from '@/utils/utmTracking';
+import { CTAPopup } from '@/components/landingpage/CTAPopup';
 import condidate from '@/assets/candidate.png';
 import heroBackground from '@/assets/Hero-background.jpeg';
 import howItWorksBackground from '@/assets/section1.jpg';
@@ -839,6 +840,10 @@ export function JobCandidates() {
                                     size='lg'
                                     className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-10 py-4 text-sm md:text-md lg:text-xl shadow-xl'
                                     onClick={() => navigate('/register/candidate')}
+                                    data-gtm-cta='candidate_ai_magic_cta_button'
+                                    data-gtm-cta-text='Experience the Magic'
+                                    data-gtm-cta-position='ai_section'
+                                    data-gtm-cta-destination='/register/candidate'
                                 >
                                     Experience the Magic
                                     <ArrowRight className='w-5 h-5 ml-2' />
@@ -1239,6 +1244,35 @@ export function JobCandidates() {
                 }}
             >
                 <div className='absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/10'></div>
+                <div className='container mx-auto px-4 sm:px-5 md:px-6 lg:px-8 py-8 md:py-10 relative z-10 w-full'>
+                    <div className='max-w-4xl mx-auto'>
+                        {/* Section Header matching page style */}
+                        <div className='text-center mb-8 sm:mb-10 md:mb-12'>
+                            <h2 className='text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 text-white leading-tight'>
+                                Create Your Account
+                            </h2>
+                            <p className='text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4'>
+                                Join thousands of job seekers finding their dream opportunities
+                            </p>
+                        </div>
+
+                        {/* Form Card */}
+                        <div className='bg-white/95 backdrop-blur-xl rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 lg:p-10 shadow-2xl border border-white/30'>
+                            <UnifiedSignupForm role='candidate' variant='inline' />
+
+                            <div className='text-center text-xs sm:text-sm text-gray-600 mt-5 sm:mt-6 pt-5 sm:pt-6 border-t border-gray-200'>
+                                Already have an account?{' '}
+                                <button
+                                    type='button'
+                                    onClick={() => navigate('/login')}
+                                    className='text-blue-600 hover:underline font-medium'
+                                >
+                                    Sign in here
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div className='container mx-auto px-5 md:px-4 py-8 md:py-10 relative z-10 h-full'>
                     <div className='max-w-5xl mx-auto px-4 sm:px-6 lg:px-8'>
                         {/* Section Header */}
@@ -1382,12 +1416,15 @@ export function JobCandidates() {
                             size='lg'
                             className='bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold shadow-xl'
                             onClick={() => navigate('/register/candidate')}
+                            data-gtm-cta-id='candidate_final_cta'
+                            data-gtm-cta-text='Create Your Profile Now'
+                            data-gtm-cta-location='final_section'
+                            data-gtm-cta-destination='/register/candidate'
                         >
                             Create Your Profile Now
                             <ArrowRight className='w-5 h-5 ml-2' />
                         </Button>
-                    </div>
-
+                    </div>{' '}
                     {/* Bottom CTA */}
                     {/* <divdiv
             initial={{ opacity: 0, y: 20 }}
@@ -1546,6 +1583,9 @@ export function JobCandidates() {
 
             {/* Footer */}
             <Footer />
+
+            {/* CTA Popup - appears after 5 seconds */}
+            <CTAPopup role='candidate' />
         </div>
     );
 }
