@@ -87,7 +87,13 @@ const envSchema = z.object({
         .describe('Method for OTP verification: sms (via phone) or email'),
 
     // SMS Service Configuration
-    SMS_PROVIDER: z.enum(['twilio', 'aws-sns']).optional().default('twilio'),
+    SMS_PROVIDER: z.enum(['fast2sms', 'twilio', 'aws-sns']).optional().default('fast2sms'),
+
+    // Fast2SMS Configuration (optional - required if SMS_PROVIDER=fast2sms)
+    FAST2SMS_API_KEY: z.string().optional(),
+    FAST2SMS_SENDER_ID: z.string().optional().default('HIREAC'),
+    FAST2SMS_ROUTE: z.enum(['otp', 'transactional', 'promotional']).optional().default('otp'),
+    FAST2SMS_OTP_TEMPLATE_ID: z.string().optional(),
 
     // Twilio Configuration (optional - required if SMS_PROVIDER=twilio)
     TWILIO_ACCOUNT_SID: z.string().optional(),
