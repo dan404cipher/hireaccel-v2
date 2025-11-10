@@ -6,7 +6,10 @@ import { User } from '@/models/User';
 import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
 import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
+import { NotificationType, NotificationPriority } from '@/types/notifications';
+import { NotificationService } from '@/services/NotificationService';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
+import { logger } from '@/config/logger';
 import mongoose from 'mongoose';
 
 /**
@@ -49,6 +52,17 @@ const querySchema = z.object({
   sortBy: z.enum(['assignedAt', 'priority', 'status', 'dueDate']).default('assignedAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
+
+const candidateStatusLabels: Record<string, string> = {
+  new: 'New',
+  reviewed: 'Reviewed',
+  shortlisted: 'Shortlisted',
+  interview_scheduled: 'Interview Scheduled',
+  interviewed: 'Interviewed',
+  offer_sent: 'Offer Sent',
+  hired: 'Hired',
+  rejected: 'Rejected',
+};
 
 export class CandidateAssignmentController {
   /**
@@ -359,6 +373,49 @@ export class CandidateAssignmentController {
         ]
       });
 
+    const candidateDoc = populatedAssignment?.candidateId as any;
+    const candidateUser = candidateDoc?.userId as any;
+    const job = populatedAssignment?.jobId as any;
+    const jobTitle = job?.title || 'a new job';
+    const companyName = job?.companyId?.name;
+    const assignedBy = populatedAssignment?.assignedBy as any;
+    const assignedByName = assignedBy
+      ? `${assignedBy.firstName || ''} ${assignedBy.lastName || ''}`.trim()
+      : 'your recruiter';
+
+    if (candidateUser?._id) {
+      try {
+        const notificationService = NotificationService.getInstance();
+        await notificationService.createNotification({
+          type: NotificationType.CANDIDATE_ASSIGN,
+          title: 'New Assignment Received',
+          message: companyName
+            ? `You've been assigned to ${jobTitle} at ${companyName}.`
+            : `You've been assigned to ${jobTitle}.`,
+          recipientId: candidateUser._id.toString(),
+          recipientRole: UserRole.CANDIDATE,
+          entityType: 'CandidateAssignment',
+          entityId: assignment._id.toString(),
+          metadata: {
+            assignmentId: assignment._id.toString(),
+            jobId: job?._id?.toString(),
+            jobTitle,
+            companyName,
+            assignedById: assignment.assignedBy.toString(),
+            assignedByName,
+          },
+          priority: NotificationPriority.HIGH,
+          actionUrl: '/dashboard/candidate-applications',
+        });
+      } catch (error) {
+        logger.warn('Failed to send candidate assignment notification', {
+          candidateId: candidateUser._id?.toString(),
+          assignmentId: assignment._id.toString(),
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
+
     // Log audit trail
     await AuditLog.createLog({
       actor: req.user!._id,
@@ -476,6 +533,41 @@ export class CandidateAssignmentController {
     const newStatus = assignment.status;
     const candidateStatusChanged = newCandidateStatus !== oldCandidateStatus;
     const statusChanged = newStatus !== oldStatus;
+
+    if (candidateStatusChanged && candidateUser?._id) {
+      try {
+        const notificationService = NotificationService.getInstance();
+        const statusLabel = candidateStatusLabels[newCandidateStatus] || newCandidateStatus;
+        await notificationService.createNotification({
+          type: NotificationType.CANDIDATE_STATUS_CHANGE,
+          title: 'Application Status Updated',
+          message: jobTitle && jobTitle !== 'N/A'
+            ? `Your application for ${jobTitle} is now ${statusLabel}.`
+            : `Your application status is now ${statusLabel}.`,
+          recipientId: candidateUser._id.toString(),
+          recipientRole: UserRole.CANDIDATE,
+          entityType: 'CandidateAssignment',
+          entityId: assignment._id.toString(),
+          metadata: {
+            assignmentId: assignment._id.toString(),
+            jobId: job?._id?.toString(),
+            jobTitle,
+            oldStatus: oldCandidateStatus,
+            newStatus: newCandidateStatus,
+          },
+          priority: NotificationPriority.MEDIUM,
+          actionUrl: '/dashboard/candidate-applications',
+        });
+      } catch (error) {
+        logger.warn('Failed to send candidate status change notification', {
+          candidateId: candidateUser._id?.toString(),
+          assignmentId: assignment._id.toString(),
+          oldStatus: oldCandidateStatus,
+          newStatus: newCandidateStatus,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
 
     // Build description based on what changed
     let description = '';

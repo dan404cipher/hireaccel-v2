@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AgentAssignment } from '@/models/AgentAssignment'
 import { Job } from '@/models/Job'
 import { Candidate } from '@/models/Candidate'
+import { User } from '@/models/User'
 import { CandidateAssignment } from '@/models/CandidateAssignment'
 import { Interview } from '@/models/Interview'
 import { Application } from '@/models/Application'
@@ -204,13 +205,74 @@ export class AgentController {
             filter._id = { $in: assignedCandidateIds }
         }
 
+        // If search is provided, we need to search in both Candidate and User fields
+        let candidateQuery: any = filter
+        
         if (search) {
-            // Search in candidate profile and user details
-            filter.$or = [
-                { 'profile.skills': { $regex: search, $options: 'i' } },
-                { 'profile.summary': { $regex: search, $options: 'i' } },
-                { 'profile.location': { $regex: search, $options: 'i' } },
-            ]
+            // Check if search term looks like an ID (starts with letters followed by numbers)
+            const idPattern = /^([A-Z]+)(\d+)$/i;
+            const idMatch = search.trim().match(idPattern);
+            const escapedSearchTerm = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
+            // First, find users that match the search term
+            const userSearchConditions: any[] = [
+                { firstName: { $regex: escapedSearchTerm, $options: 'i' } },
+                { lastName: { $regex: escapedSearchTerm, $options: 'i' } },
+                { email: { $regex: escapedSearchTerm, $options: 'i' } },
+            ];
+            
+            // Handle customId search with ID pattern matching
+            if (idMatch) {
+                const [, prefix, number] = idMatch;
+                const prefixUpper = prefix.toUpperCase();
+                const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                userSearchConditions.push({ customId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+            } else {
+                userSearchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
+            }
+            
+            // Get all candidate users first, then filter by full name in memory
+            const allCandidateUsers = await User.find({
+                role: UserRole.CANDIDATE,
+            }).select('_id firstName lastName email customId').lean();
+            
+            // Filter users that match the search term (including full name search)
+            const searchLower = search.toLowerCase().trim();
+            const matchingUsers = allCandidateUsers.filter((user: any) => {
+                const firstName = (user.firstName || '').toLowerCase();
+                const lastName = (user.lastName || '').toLowerCase();
+                const fullName = `${firstName} ${lastName}`.trim();
+                const email = (user.email || '').toLowerCase();
+                const customId = (user.customId || '').toLowerCase();
+                
+                // Check if search matches firstName, lastName, full name, email, or customId
+                return (
+                    firstName.includes(searchLower) ||
+                    lastName.includes(searchLower) ||
+                    fullName.includes(searchLower) ||
+                    email.includes(searchLower) ||
+                    customId.includes(searchLower)
+                );
+            });
+            
+            const matchingUserIds = matchingUsers.map((u: any) => u._id);
+            
+            // Combine user search with candidate profile search
+            const searchConditions: any[] = [
+                { 'profile.skills': { $regex: escapedSearchTerm, $options: 'i' } },
+                { 'profile.summary': { $regex: escapedSearchTerm, $options: 'i' } },
+                { 'profile.location': { $regex: escapedSearchTerm, $options: 'i' } },
+            ];
+            
+            // If we found matching users, include them in the search
+            if (matchingUserIds.length > 0) {
+                searchConditions.push({ userId: { $in: matchingUserIds } });
+            }
+            
+            candidateQuery = {
+                ...filter,
+                $or: searchConditions,
+            };
         }
 
         const skip = (page - 1) * limit
@@ -218,7 +280,7 @@ export class AgentController {
         sort[sortBy === 'createdAt' ? 'createdAt' : 'updatedAt'] = sortOrder === 'asc' ? 1 : -1
 
         // First get all candidates that match the filter
-        const allCandidates = await Candidate.find(filter)
+        const allCandidates = await Candidate.find(candidateQuery)
             .populate('userId', 'firstName lastName email customId profilePhotoFileId') // Add customId and profilePhotoFileId to the populated fields
             .sort(sort)
             .skip(skip)
@@ -234,22 +296,19 @@ export class AgentController {
         )
 
         // Get total count for pagination
-        // For agents, use assigned count; for admins/superadmins, get actual count from database
+        // If search is active, count the matching results; otherwise use full count
         let total: number
-        if (req.user!.role === UserRole.AGENT) {
+        if (search) {
+            // When searching, count documents matching the search query
+            total = await Candidate.countDocuments(candidateQuery)
+        } else if (req.user!.role === UserRole.AGENT) {
+            // For agents without search, use assigned count
             total = assignedCandidateIds.length
         } else {
-            // Get actual count from database for admins/superadmins
+            // For admins/superadmins without search, get actual count from database
             const countFilter: any = {
                 userId: { $exists: true, $ne: null },
                 status: 'active',
-            }
-            if (search) {
-                countFilter.$or = [
-                    { 'profile.skills': { $regex: search, $options: 'i' } },
-                    { 'profile.summary': { $regex: search, $options: 'i' } },
-                    { 'profile.location': { $regex: search, $options: 'i' } },
-                ]
             }
             total = await Candidate.countDocuments(countFilter)
         }

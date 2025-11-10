@@ -211,7 +211,7 @@ export class SearchController {
           }
 
           const foundJobs = await Job.find(jobQuery)
-            .populate('companyId', 'name industry')
+            .populate('companyId', 'name industry logoFileId logoUrl')
             .select('title location type salaryRange urgency postedAt companyId jobId _id status')
             .sort({ urgency: -1, postedAt: -1 })
             .limit(limit)
@@ -255,6 +255,8 @@ export class SearchController {
             postedAt: job.postedAt,
             companyId: job.companyId,
             company: job.companyId?.name || 'Unknown Company',
+            companyLogoFileId: job.companyId?.logoFileId || null,
+            companyLogoUrl: job.companyId?.logoUrl || null,
             status: job.status, // Include status for debugging
           }));
         } catch (error) {
@@ -287,11 +289,29 @@ export class SearchController {
         userSearchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
       }
       
-      // First, find users that match the search term by name, email, or customId
-      const matchingUsers = await User.find({
-        $or: userSearchConditions,
+      // Get all candidate users first, then filter by full name in memory
+      const allCandidateUsers = await User.find({
         role: UserRole.CANDIDATE,
-      }).select('_id').lean();
+      }).select('_id firstName lastName email customId').lean();
+      
+      // Filter users that match the search term (including full name search)
+      const searchLower = searchTerm.toLowerCase().trim();
+      const matchingUsers = allCandidateUsers.filter((user: any) => {
+        const firstName = (user.firstName || '').toLowerCase();
+        const lastName = (user.lastName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const email = (user.email || '').toLowerCase();
+        const customId = (user.customId || '').toLowerCase();
+        
+        // Check if search matches firstName, lastName, full name, email, or customId
+        return (
+          firstName.includes(searchLower) ||
+          lastName.includes(searchLower) ||
+          fullName.includes(searchLower) ||
+          email.includes(searchLower) ||
+          customId.includes(searchLower)
+        );
+      });
 
       const matchingUserIds = matchingUsers.map((u: any) => u._id);
 
@@ -299,8 +319,8 @@ export class SearchController {
         status: 'active',
       };
 
-      // Agent-specific filtering: only candidates assigned to them
-      let agentCandidateFilter: any = null;
+      // Role-specific filtering: only candidates assigned to them
+      let candidateFilter: any = null;
       let shouldSearchCandidates = true;
       
       if (userRole === 'agent') {
@@ -311,7 +331,21 @@ export class SearchController {
         });
         
         if (agentAssignment?.assignedCandidates?.length) {
-          agentCandidateFilter = { _id: { $in: agentAssignment.assignedCandidates } };
+          candidateFilter = { _id: { $in: agentAssignment.assignedCandidates } };
+        } else {
+          // No candidates assigned, return empty
+          shouldSearchCandidates = false;
+          results.candidates = [];
+        }
+      } else if (userRole === 'hr') {
+        // HR can only search candidates assigned to them
+        const { CandidateAssignment } = await import('@/models/CandidateAssignment');
+        const assignments = await CandidateAssignment.find({
+          assignedTo: req.user._id,
+        }).distinct('candidateId');
+        
+        if (assignments?.length) {
+          candidateFilter = { _id: { $in: assignments } };
         } else {
           // No candidates assigned, return empty
           shouldSearchCandidates = false;
@@ -336,11 +370,11 @@ export class SearchController {
 
         candidateQuery.$or = searchConditions;
 
-        // If agent filter exists, combine with $and
-        if (agentCandidateFilter) {
+        // If role filter exists (agent or HR), combine with $and
+        if (candidateFilter) {
           candidateQuery = {
             $and: [
-              agentCandidateFilter,
+              candidateFilter,
               candidateQuery
             ]
           };
@@ -470,7 +504,7 @@ export class SearchController {
 
       if (companyQuery.$or) {
         const foundCompanies = await Company.find(companyQuery)
-          .select('name industry description location companyId rating logoUrl _id')
+          .select('name industry description location companyId rating logoUrl logoFileId _id')
           .sort({ rating: -1, totalHires: -1 })
           .limit(limit)
           .lean();
@@ -485,42 +519,167 @@ export class SearchController {
           location: company.location,
           rating: company.rating,
           logoUrl: company.logoUrl,
+          logoFileId: company.logoFileId,
         }));
       }
     }
 
-    // Search Users - Only Admin and Superadmin can search users
-    if (types.includes('users') && ['admin', 'superadmin'].includes(userRole || '')) {
-      // Build customId search conditions with ID pattern matching
-      const idPattern = /^([A-Z]+)(\d+)$/i;
-      const idMatch = searchTerm.trim().match(idPattern);
-      const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      
-      const userSearchConditions: any[] = [
-        { firstName: { $regex: escapedSearchTerm, $options: 'i' } },
-        { lastName: { $regex: escapedSearchTerm, $options: 'i' } },
-        { email: { $regex: escapedSearchTerm, $options: 'i' } },
-      ];
-      
-      // Handle customId search with ID pattern matching
-      if (idMatch) {
-        const [, prefix, number] = idMatch;
-        const prefixUpper = prefix.toUpperCase();
-        const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        userSearchConditions.push({ customId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
-      } else {
-        userSearchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
-      }
-      
-      const userQuery: any = {
-        $or: userSearchConditions,
-      };
+    // Search Users / HRs
+    if (types.includes('users') && (['admin', 'superadmin'].includes(userRole || '') || userRole === 'candidate' || userRole === 'agent')) {
+      if (['admin', 'superadmin'].includes(userRole || '')) {
+        // Get all users first, then filter by full name in memory
+        const allUsers = await User.find({})
+          .select('firstName lastName email role customId status profilePhotoFileId')
+          .lean();
+        
+        // Filter users that match the search term (including full name search)
+        const searchLower = searchTerm.toLowerCase().trim();
+        const matchingUsers = allUsers.filter((user: any) => {
+          const firstName = (user.firstName || '').toLowerCase();
+          const lastName = (user.lastName || '').toLowerCase();
+          const fullName = `${firstName} ${lastName}`.trim();
+          const email = (user.email || '').toLowerCase();
+          const customId = (user.customId || '').toLowerCase();
+          
+          // Check if search matches firstName, lastName, full name, email, or customId
+          return (
+            firstName.includes(searchLower) ||
+            lastName.includes(searchLower) ||
+            fullName.includes(searchLower) ||
+            email.includes(searchLower) ||
+            customId.includes(searchLower)
+          );
+        });
 
-      results.users = await User.find(userQuery)
-        .select('firstName lastName email role customId status profilePhotoFileId')
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .lean();
+        results.users = matchingUsers
+          .sort((a: any, b: any) => {
+            // Sort by creation date (most recent first)
+            return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          })
+          .slice(0, limit);
+      } else if (userRole === 'agent') {
+        // For agents, search only their assigned HR users
+        try {
+          const { AgentAssignment } = await import('@/models/AgentAssignment');
+          const agentAssignment = await AgentAssignment.findOne({
+            agentId: req.user._id,
+            status: 'active',
+          });
+          
+          if (!agentAssignment?.assignedHRs?.length) {
+            results.users = [];
+          } else {
+            // Get the assigned HR users and populate their details
+            const assignedHRIds = agentAssignment.assignedHRs;
+            
+            // Fetch all assigned HRs first
+            const allAssignedHRs = await User.find({
+              _id: { $in: assignedHRIds },
+            })
+              .select('firstName lastName email role customId status profilePhotoFileId')
+              .lean();
+            
+            // Filter HRs that match the search term (including full name search)
+            const searchLower = searchTerm.toLowerCase().trim();
+            const matchingHRs = allAssignedHRs.filter((hr: any) => {
+              const firstName = (hr.firstName || '').toLowerCase();
+              const lastName = (hr.lastName || '').toLowerCase();
+              const fullName = `${firstName} ${lastName}`.trim();
+              const email = (hr.email || '').toLowerCase();
+              const customId = (hr.customId || '').toLowerCase();
+              
+              // Check if search matches firstName, lastName, full name, email, or customId
+              return (
+                firstName.includes(searchLower) ||
+                lastName.includes(searchLower) ||
+                fullName.includes(searchLower) ||
+                email.includes(searchLower) ||
+                customId.includes(searchLower)
+              );
+            });
+            
+            results.users = matchingHRs.slice(0, limit).map((hr: any) => ({
+              _id: hr._id,
+              id: hr._id,
+              firstName: hr.firstName,
+              lastName: hr.lastName,
+              email: hr.email,
+              role: hr.role || 'hr',
+              customId: hr.customId,
+              profilePhotoFileId: hr.profilePhotoFileId || null,
+              status: hr.status,
+            }));
+          }
+        } catch (error) {
+          console.error('Error searching HRs for agent:', error);
+          results.users = [];
+        }
+      } else if (userRole === 'candidate') {
+        try {
+          const candidateDoc = await Candidate.findOne({ userId: req.user!._id }).select('_id').lean();
+
+          if (!candidateDoc) {
+            results.users = [];
+          } else {
+            const { CandidateAssignment } = await import('@/models/CandidateAssignment');
+            const assignments = await CandidateAssignment.find({
+              candidateId: candidateDoc._id,
+            })
+              .populate('assignedTo', 'firstName lastName email role customId profilePhotoFileId status')
+              .select('assignedTo')
+              .lean();
+
+            const hrMap = new Map<string, any>();
+
+            assignments.forEach((assignment: any) => {
+              const hr = assignment.assignedTo as any;
+              if (!hr?._id) return;
+              const hrId = hr._id.toString();
+              if (!hrMap.has(hrId)) {
+                hrMap.set(hrId, hr);
+              }
+            });
+
+            if (hrMap.size === 0) {
+              results.users = [];
+            } else {
+              // Filter HRs that match the search term (including full name search)
+              const searchLower = searchTerm.toLowerCase().trim();
+              const hrResults = Array.from(hrMap.values()).filter((hr: any) => {
+                const firstName = (hr.firstName || '').toLowerCase();
+                const lastName = (hr.lastName || '').toLowerCase();
+                const fullName = `${firstName} ${lastName}`.trim();
+                const email = (hr.email || '').toLowerCase();
+                const customId = (hr.customId || '').toLowerCase();
+                
+                // Check if search matches firstName, lastName, full name, email, or customId
+                return (
+                  firstName.includes(searchLower) ||
+                  lastName.includes(searchLower) ||
+                  fullName.includes(searchLower) ||
+                  email.includes(searchLower) ||
+                  customId.includes(searchLower)
+                );
+              });
+
+              results.users = hrResults.slice(0, limit).map((hr: any) => ({
+                _id: hr._id,
+                id: hr._id,
+                firstName: hr.firstName,
+                lastName: hr.lastName,
+                email: hr.email,
+                role: hr.role || 'hr',
+                customId: hr.customId,
+                profilePhotoFileId: hr.profilePhotoFileId || null,
+                status: hr.status,
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Error searching HRs for candidate:', error);
+          results.users = [];
+        }
+      }
     }
 
     console.log('=== SEARCH RESULTS SUMMARY ===');

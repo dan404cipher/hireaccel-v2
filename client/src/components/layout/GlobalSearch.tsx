@@ -72,6 +72,65 @@ const UserAvatar = ({ user, className }: { user: any; className?: string }) => {
   );
 };
 
+// Component to display candidate avatar with profile picture support
+const CandidateAvatar = ({ candidate }: { candidate: any }) => {
+  const profilePhotoFileId = candidate.userId?.profilePhotoFileId;
+  const showProfilePicture = !!profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  return (
+    <Avatar className="mr-3 h-9 w-9 flex-shrink-0">
+      {showProfilePicture && authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${candidate.userId?.firstName} ${candidate.userId?.lastName}`}
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-purple-600">
+        {candidate.userId?.firstName?.[0] || ''}{candidate.userId?.lastName?.[0] || ''}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
+// Component to display company avatar with logo support
+const CompanyAvatar = ({ company }: { company: any }) => {
+  const logoFileId = company.logoFileId?._id || company.logoFileId?.toString() || company.logoFileId;
+  const showLogo = !!logoFileId;
+  
+  const logoUrl = showLogo
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${logoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(logoUrl);
+
+  // Get company initials
+  const initials = company.name
+    ?.split(' ')
+    .map((word: string) => word.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) || 'CO';
+
+  return (
+    <Avatar className="mr-3 h-9 w-9 flex-shrink-0">
+      {showLogo && authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={company.name}
+          className="object-cover"
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-blue-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+};
+
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -120,9 +179,14 @@ export function GlobalSearch() {
         // Determine which types to search based on user role
         const searchTypes: ('jobs' | 'candidates' | 'companies' | 'users')[] = ['jobs', 'companies'];
         
-        // Include users search - candidates are included in users
-        if (user?.role === 'admin' || user?.role === 'superadmin') {
+        // Include users search for agents (to search HR users), admin, and superadmin
+        if (user?.role === 'agent' || user?.role === 'admin' || user?.role === 'superadmin') {
           searchTypes.push('users');
+        }
+        
+        // Include candidates search for agents, HR, admin, and superadmin
+        if (user?.role === 'agent' || user?.role === 'hr' || user?.role === 'admin' || user?.role === 'superadmin') {
+          searchTypes.push('candidates');
         }
 
         console.log('[GlobalSearch] Search types:', searchTypes);
@@ -198,8 +262,21 @@ export function GlobalSearch() {
           navigate(`/dashboard/companies/${companyId}`);
         }
         break;
+      case "candidate":
+        // Navigate to candidate profile using customId from userId
+        const candidateCustomId = item.userId?.customId || item.customId;
+        if (candidateCustomId) {
+          navigate(`/dashboard/candidates/${candidateCustomId}`);
+        }
+        break;
       case "user":
-        if (user?.role === 'admin' || user?.role === 'superadmin') {
+        if (user?.role === 'agent') {
+          // For agents, they can navigate to HR profiles
+          if (item.role === 'hr') {
+            const hrId = item.customId || item._id || item.id;
+            navigate(`/dashboard/hr-profile/${hrId}`);
+          }
+        } else if (user?.role === 'admin' || user?.role === 'superadmin') {
           // If it's a candidate, navigate to candidates page using customId
           if (item.role === 'candidate') {
             const candidateId = item.customId || item._id || item.id;
@@ -280,37 +357,84 @@ export function GlobalSearch() {
 
           {!loading && debouncedQuery.length >= 2 && results.jobs.length > 0 && (
             <CommandGroup heading="Jobs">
-              {results.jobs.map((job) => (
-                <CommandItem
-                  key={job._id || job.id}
-                  value={`job-${job._id || job.id}`}
-                  onSelect={() => handleSelect("job", job)}
-                  className="cursor-pointer"
-                >
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 mr-3 flex-shrink-0">
-                    <Briefcase className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm truncate">{job.title}</span>
-                      {job.jobId && (
-                        <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
-                          {formatCustomId(job.jobId)}
-                        </Badge>
-                      )}
+              {results.jobs.map((job) => {
+                const company = job.companyId;
+                return (
+                  <CommandItem
+                    key={job._id || job.id}
+                    value={`job-${job._id || job.id}`}
+                    onSelect={() => handleSelect("job", job)}
+                    className="cursor-pointer"
+                  >
+                    {company ? (
+                      <CompanyAvatar company={company} />
+                    ) : (
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 mr-3 flex-shrink-0">
+                        <Briefcase className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    )}
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm truncate">{job.title}</span>
+                        {job.jobId && (
+                          <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                            {formatCustomId(job.jobId)}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground truncate mt-0.5">
+                        {job.companyId?.name || job.company} • {job.location}
+                        {job.salaryRange && (
+                          <> • {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}</>
+                        )}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground truncate mt-0.5">
-                      {job.companyId?.name || job.company} • {job.location}
-                      {job.salaryRange && (
-                        <> • {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}</>
-                      )}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           )}
 
+
+          {!loading &&
+            debouncedQuery.length >= 2 &&
+            results.candidates.length > 0 && 
+            (user?.role === 'agent' || user?.role === 'admin' || user?.role === 'superadmin') && (
+              <CommandGroup heading="Candidates">
+                {results.candidates.map((candidate) => {
+                  const profilePhotoFileId = candidate.userId?.profilePhotoFileId;
+                  const profilePhotoUrl = profilePhotoFileId
+                    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+                    : null;
+                  
+                  return (
+                    <CommandItem
+                      key={candidate._id || candidate.id}
+                      value={`candidate-${candidate._id || candidate.id}`}
+                      onSelect={() => handleSelect("candidate", candidate)}
+                      className="cursor-pointer"
+                    >
+                      <CandidateAvatar candidate={candidate} />
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">
+                            {candidate.userId?.firstName} {candidate.userId?.lastName}
+                          </span>
+                          {candidate.userId?.customId && (
+                            <Badge variant="outline" className="font-mono text-xs px-1.5 py-0">
+                              {formatCustomId(candidate.userId.customId)}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground truncate mt-0.5">
+                          {candidate.userId?.email}
+                        </span>
+                      </div>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
 
           {!loading &&
             debouncedQuery.length >= 2 &&
@@ -323,16 +447,7 @@ export function GlobalSearch() {
                     onSelect={() => handleSelect("company", company)}
                     className="cursor-pointer"
                   >
-                    <Avatar className="mr-3 h-9 w-9 flex-shrink-0">
-                      <AvatarImage 
-                        src={company.logoUrl} 
-                        alt={company.name}
-                        className="object-cover"
-                      />
-                      <AvatarFallback className="bg-blue-600 text-white">
-                        <Building2 className="h-5 w-5" />
-                      </AvatarFallback>
-                    </Avatar>
+                    <CompanyAvatar company={company} />
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                       <span className="font-medium text-sm truncate">
@@ -357,8 +472,8 @@ export function GlobalSearch() {
           {!loading &&
             debouncedQuery.length >= 2 &&
             results.users.length > 0 &&
-            (user?.role === 'admin' || user?.role === 'superadmin') && (
-              <CommandGroup heading="Users">
+            (user?.role === 'agent' || user?.role === 'admin' || user?.role === 'superadmin') && (
+              <CommandGroup heading={user?.role === 'agent' ? 'HR Users' : 'Users'}>
                 {results.users.map((userItem) => (
                   <CommandItem
                     key={userItem._id || userItem.id}

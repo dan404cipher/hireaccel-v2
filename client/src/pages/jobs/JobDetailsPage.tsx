@@ -79,7 +79,7 @@ export default function JobDetailsPage() {
   ];
 
   const { data: jobResponse, loading, error, refetch: refetchJob } = useJob(jobId!);
-  const job = jobResponse?.data || jobResponse;
+  const job = (jobResponse as any)?.data || jobResponse;
 
   // Use authenticated image hook for company logo
   const companyLogoFileId = job?.companyId?.logoFileId?._id || job?.companyId?.logoFileId || job?.companyId?.logoFileId?.toString();
@@ -93,29 +93,9 @@ export default function JobDetailsPage() {
   const posterPhoto = useAuthenticatedImage(posterPhotoUrl);
   const canViewSalary = user?.role !== 'candidate';
 
-  const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob({
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Job deleted successfully"
-      });
-      navigate("/dashboard/jobs");
-    }
-  });
+  const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob();
 
-  const { mutate: updateJob, loading: updateLoading } = useUpdateJob({
-    onSuccess: async () => {
-      console.log('Update job onSuccess called');
-      toast({ title: "Success", description: "Job updated successfully" });
-      setIsEditDialogOpen(false);
-      // Refetch job data to show updated information
-      refetchJob();
-    },
-    onError: (error) => {
-      console.error('Update job onError called:', error);
-      // Dialog stays open on error so user can fix issues
-    }
-  });
+  const { mutate: updateJob, loading: updateLoading } = useUpdateJob();
 
   // Companies for selection and autofill location
   const { data: companiesResp } = useCompanies({ page: 1, limit: 50 });
@@ -150,16 +130,73 @@ export default function JobDetailsPage() {
     return "Salary TBD";
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const normalizeDate = (value?: unknown): Date | null => {
+    try {
+      if (!value) {
+        return null;
+      }
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+
+      if (typeof value === 'string' || typeof value === 'number') {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        if ('toDate' in value && typeof (value as { toDate?: () => Date }).toDate === 'function') {
+          try {
+            const parsed = (value as { toDate: () => Date }).toDate();
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+          } catch {
+            return null;
+          }
+        }
+
+        if ('seconds' in value && typeof (value as { seconds?: number }).seconds === 'number') {
+          const parsed = new Date((value as { seconds: number }).seconds * 1000);
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        if ('$date' in value) {
+          return normalizeDate((value as { $date?: unknown }).$date);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error normalizing date:', error, 'Value:', value);
+      return null;
+    }
+  };
+
+  const formatDate = (value?: unknown) => {
+    if (!value) {
+      return "N/A";
+    }
+
+    try {
+      const parsedDate = normalizeDate(value);
+
+      if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+        return "N/A";
+      }
+
+      return parsedDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
   const openEditDialog = () => {
     if (!job) return;
+    const applicationDeadlineDate = normalizeDate(job.applicationDeadline);
     const salaryMin = job.salaryRange?.min ? String(job.salaryRange.min) : '';
     const salaryMax = job.salaryRange?.max ? String(job.salaryRange.max) : '';
     const currency = job.salaryRange?.currency || 'INR';
@@ -182,7 +219,7 @@ export default function JobDetailsPage() {
       experienceMin,
       experienceMax,
       benefits,
-      applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
+      applicationDeadline: applicationDeadlineDate ? applicationDeadlineDate.toISOString().split('T')[0] : '',
       interviewRounds,
       estimatedDuration,
       duration: job.duration || '',
@@ -246,7 +283,7 @@ export default function JobDetailsPage() {
         experienceMax: parseInt(editFormData.experienceMax) || 0,
       },
       benefits: editFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
-      applicationDeadline: editFormData.applicationDeadline ? new Date(editFormData.applicationDeadline).toISOString() : undefined,
+      applicationDeadline: normalizeDate(editFormData.applicationDeadline)?.toISOString(),
       interviewProcess: editFormData.interviewRounds || editFormData.estimatedDuration ? {
         rounds: editFormData.interviewRounds,
         estimatedDuration: editFormData.estimatedDuration
@@ -258,13 +295,16 @@ export default function JobDetailsPage() {
       const result = await updateJob({ id: job._id || job.id, data });
       console.log('updateJob result:', result);
       
-      // Manually handle success since mutation hook's onSuccess isn't firing
       toast({ title: "Success", description: "Job updated successfully" });
       setIsEditDialogOpen(false);
       refetchJob();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Update job error in catch:', e);
-      // Error toast is handled by the mutation hook
+      toast({ 
+        title: "Error", 
+        description: e?.message || "Failed to update job", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -323,16 +363,37 @@ export default function JobDetailsPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
                 {/* Company Logo */}
                 <div className="relative">
-                  <Avatar className="w-32 h-32 border-4 border-white shadow-lg">
-                    <AvatarImage 
-                      src={authenticatedCompanyLogoUrl || undefined} 
-                      alt={`${job.companyId?.name || 'Company'} logo`}
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="text-2xl font-bold bg-blue-600 text-white">
-                      <Building2 className="w-16 h-16" />
-                    </AvatarFallback>
-                  </Avatar>
+                  {(() => {
+                    const companyIdValue =
+                      typeof job?.companyId === 'string'
+                        ? job.companyId
+                        : job?.companyId?._id || job?.companyId?.companyId || job?.companyId?.id;
+                    const companyProfilePath = companyIdValue ? `/dashboard/companies/${companyIdValue}` : null;
+                    
+                    const avatar = (
+                      <Avatar className="w-32 h-32 border-4 border-white shadow-lg transition-transform duration-150">
+                        <AvatarImage 
+                          src={authenticatedCompanyLogoUrl || undefined} 
+                          alt={`${job?.companyId?.name || 'Company'} logo`}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="text-2xl font-bold bg-blue-600 text-white">
+                          <Building2 className="w-16 h-16" />
+                        </AvatarFallback>
+                      </Avatar>
+                    );
+
+                    return companyProfilePath ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(companyProfilePath)}
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 group cursor-pointer"
+                        aria-label={`View ${job?.companyId?.name || 'company'} profile`}
+                      >
+                        <div className="group-hover:scale-105 group-hover:opacity-90 transition-all duration-150">{avatar}</div>
+                      </button>
+                    ) : avatar;
+                  })()}
                 </div>
 
                 {/* Basic Info */}
@@ -360,12 +421,52 @@ export default function JobDetailsPage() {
                         </Badge>
                       </div>
                       <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                        {job.companyId?.name && (
-                          <div className="flex items-center gap-1">
-                            <Building2 className="w-4 h-4" />
-                            <span>{job.companyId.name}</span>
-                          </div>
-                        )}
+                        {job.companyId?.name && (() => {
+                          const companyIdValue =
+                            typeof job?.companyId === 'string'
+                              ? job.companyId
+                              : job?.companyId?._id || job?.companyId?.companyId || job?.companyId?.id;
+                          const companyProfilePath = companyIdValue ? `/dashboard/companies/${companyIdValue}` : null;
+                          const companyName = job.companyId.name;
+                          
+                          const content = (
+                            <div className="flex items-center gap-1.5">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage 
+                                  src={authenticatedCompanyLogoUrl || undefined} 
+                                  alt={`${companyName} logo`}
+                                  className="object-cover"
+                                />
+                                <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                  <Building2 className="w-3 h-3" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{companyName}</span>
+                            </div>
+                          );
+                          
+                          return companyProfilePath ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(companyProfilePath)}
+                              className="hover:text-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded group"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <Avatar className="h-5 w-5 group-hover:ring-2 group-hover:ring-blue-500/40 transition-all">
+                                  <AvatarImage 
+                                    src={authenticatedCompanyLogoUrl || undefined} 
+                                    alt={`${companyName} logo`}
+                                    className="object-cover"
+                                  />
+                                  <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                    <Building2 className="w-3 h-3" />
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="group-hover:underline">{companyName}</span>
+                              </div>
+                            </button>
+                          ) : content;
+                        })()}
                         {job.location && (
                           <div className="flex items-center gap-1">
                             <MapPin className="w-4 h-4" />
@@ -380,25 +481,27 @@ export default function JobDetailsPage() {
                         )}
                       </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="border-blue-200 hover:bg-blue-50 hover:border-blue-300">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={openEditDialog}>
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit Job
-                        </DropdownMenuItem>
-                        {user?.role === 'hr' && (
-                          <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Job
+                    {(user?.role === 'hr' || user?.role === 'admin' || user?.role === 'superadmin') && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon" className="border-blue-200 hover:bg-blue-50 hover:border-blue-300">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={openEditDialog}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Job
                           </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          {user?.role === 'hr' && (
+                            <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Job
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
               </div>
@@ -428,9 +531,53 @@ export default function JobDetailsPage() {
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-blue-600" />
                       <span className="font-medium text-slate-700">Company:</span>
-                      <span className="text-slate-600">{job.companyId?.name || 'N/A'}</span>
+                      {(() => {
+                        const companyIdValue =
+                          typeof job?.companyId === 'string'
+                            ? job.companyId
+                            : job?.companyId?._id || job?.companyId?.companyId || job?.companyId?.id;
+                        const companyProfilePath = companyIdValue ? `/dashboard/companies/${companyIdValue}` : null;
+                        const companyName = job.companyId?.name || 'N/A';
+                        
+                        const content = (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage 
+                                src={authenticatedCompanyLogoUrl || undefined} 
+                                alt={`${companyName} logo`}
+                                className="object-cover"
+                              />
+                              <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                <Building2 className="w-3 h-3" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-slate-600">{companyName}</span>
+                          </div>
+                        );
+                        
+                        return companyProfilePath ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate(companyProfilePath)}
+                            className="hover:text-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded group"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6 group-hover:ring-2 group-hover:ring-blue-500/40 transition-all">
+                                <AvatarImage 
+                                  src={authenticatedCompanyLogoUrl || undefined} 
+                                  alt={`${companyName} logo`}
+                                  className="object-cover"
+                                />
+                                <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                  <Building2 className="w-3 h-3" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-slate-600 group-hover:text-blue-600 group-hover:underline">{companyName}</span>
+                            </div>
+                          </button>
+                        ) : content;
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-emerald-600" />
@@ -724,9 +871,23 @@ export default function JobDetailsPage() {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  deleteJob(jobId!);
-                  setShowDeleteDialog(false);
+                onClick={async () => {
+                  try {
+                    await deleteJob(jobId!);
+                    toast({
+                      title: "Success",
+                      description: "Job deleted successfully"
+                    });
+                    setShowDeleteDialog(false);
+                    navigate("/dashboard/jobs");
+                  } catch (e: any) {
+                    console.error('Delete job error:', e);
+                    toast({
+                      title: "Error",
+                      description: e?.message || "Failed to delete job",
+                      variant: "destructive"
+                    });
+                  }
                 }}
                 disabled={deleteLoading}
               >

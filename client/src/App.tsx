@@ -272,12 +272,12 @@ function AppRouter() {
           </RoleProtectedRoute>
         } />
         <Route path="companies" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'candidate']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent', 'candidate']}>
             <CompanyManagement />
           </RoleProtectedRoute>
         } />
         <Route path="companies/:companyId" element={
-          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'candidate']}>
+          <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent', 'candidate']}>
             <CompanyProfile />
           </RoleProtectedRoute>
         } />

@@ -1,5 +1,5 @@
 // 🔥 FORCE REFRESH - UPDATED CODE VERSION 🔥
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,9 @@ import {
   Save,
   Trash2,
   MoreHorizontal,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -72,6 +74,8 @@ const formatCustomId = (customId: string | undefined): string => {
   // If pattern doesn't match, return as is
   return customId;
 };
+
+const PAGE_SIZE = 20;
 
 // Component to display user avatar with profile picture support
 const UserAvatar = ({ user, onClick }: { user: ExtendedUser; onClick?: () => void }) => {
@@ -195,6 +199,7 @@ export default function AgentAllocation(): React.JSX.Element {
   const navigate = useNavigate();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'hr' | 'candidate'>('all');
   const [sortOption, setSortOption] = useState<SortOption>('name-asc');
   const [allocationTab, setAllocationTab] = useState<'allocated' | 'not-allocated'>('not-allocated');
@@ -205,8 +210,28 @@ export default function AgentAllocation(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [page, setPage] = useState(1);
 
   const { toast } = useToast();
+
+  const sortParams = useMemo(() => {
+    switch (sortOption) {
+      case 'name-asc':
+        return { sortBy: 'firstName', sortOrder: 'asc' as const };
+      case 'name-desc':
+        return { sortBy: 'firstName', sortOrder: 'desc' as const };
+      case 'email-asc':
+        return { sortBy: 'email', sortOrder: 'asc' as const };
+      case 'email-desc':
+        return { sortBy: 'email', sortOrder: 'desc' as const };
+      case 'login-newest':
+        return { sortBy: 'lastLoginAt', sortOrder: 'desc' as const };
+      case 'login-oldest':
+        return { sortBy: 'lastLoginAt', sortOrder: 'asc' as const };
+      default:
+        return { sortBy: 'createdAt', sortOrder: 'desc' as const };
+    }
+  }, [sortOption]);
 
   // Fetch users data - only active users
   const { 
@@ -215,8 +240,25 @@ export default function AgentAllocation(): React.JSX.Element {
     error: usersError,
     refetch: refetchUsers 
   } = useUsers({
-    limit: 100,
+    page,
+    limit: PAGE_SIZE,
     status: 'active', // Only fetch active users
+    ...(debouncedSearchTerm ? { search: debouncedSearchTerm } : {}),
+    sortBy: sortParams.sortBy,
+    sortOrder: sortParams.sortOrder,
+  });
+
+  const {
+    data: agentsResponse,
+    loading: agentsLoading,
+    error: agentsError,
+    refetch: refetchAgents,
+  } = useUsers({
+    status: 'active',
+    role: 'agent',
+    limit: 200,
+    sortBy: 'firstName',
+    sortOrder: 'asc',
   });
 
   // Fetch agent assignments
@@ -236,9 +278,14 @@ export default function AgentAllocation(): React.JSX.Element {
   // Handle response format
   const users = Array.isArray(usersResponse) ? usersResponse : ((usersResponse as any)?.data || []);
   const assignments = Array.isArray(assignmentsResponse) ? assignmentsResponse : ((assignmentsResponse as any)?.data || []);
+  const meta = Array.isArray(usersResponse) ? null : (usersResponse as any)?.meta;
 
   // Filter users by role - cast to ExtendedUser[] since users from API have _id
-  const agents = sortResources((users.filter(user => user.role === 'agent' && user.status === 'active') as ExtendedUser[]));
+  const agentsList = Array.isArray(agentsResponse) 
+    ? (agentsResponse as ExtendedUser[])
+    : ((agentsResponse as any)?.data || []) as ExtendedUser[];
+
+  const agents = sortResources(agentsList);
   const hrUsers = users.filter(user => user.role === 'hr' && user.status === 'active') as ExtendedUser[];
   const candidates = users.filter(user => user.role === 'candidate' && user.status === 'active') as ExtendedUser[];
   
@@ -249,7 +296,30 @@ export default function AgentAllocation(): React.JSX.Element {
   useEffect(() => {
     setSelectedResources(new Set());
     setSelectAll(false);
+    setPage(1);
   }, [allocationTab]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(1);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [roleFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [sortOption]);
+
+  useEffect(() => {
+    setSelectedResources(new Set());
+    setSelectAll(false);
+  }, [page]);
 
   // Get current agent assignment for a resource
   const getCurrentAgent = (resourceId: string, resourceType: 'hr' | 'candidate') => {
@@ -323,6 +393,17 @@ export default function AgentAllocation(): React.JSX.Element {
       return !getCurrentAgent(resource._id, resourceType);
     }).length;
   };
+
+  const tabTotal = allocationTab === 'allocated' ? getAllocatedCount() : getUnallocatedCount();
+  const tabLabel = allocationTab === 'allocated' ? 'allocated' : 'not allocated';
+  const totalRecords = tabTotal ?? (meta?.total ?? filteredResources.length);
+  const hasRecords = totalRecords > 0 && filteredResources.length > 0;
+  const hasMore = meta?.page?.hasMore ?? (users.length === PAGE_SIZE);
+  const rawStart = ((page - 1) * PAGE_SIZE) + 1;
+  const rawEnd = ((page - 1) * PAGE_SIZE) + filteredResources.length;
+  const displayStart = totalRecords === 0 ? 0 : Math.min(rawStart, totalRecords);
+  const displayEnd = totalRecords === 0 ? 0 : Math.min(rawEnd, totalRecords);
+  const totalPages = meta?.page?.total ?? null;
 
   const openAllocationDialog = (resource: User) => {
     setSelectedResource(resource as ExtendedUser);
@@ -415,6 +496,7 @@ export default function AgentAllocation(): React.JSX.Element {
       // Refresh the data
       await refetchAssignments();
       await refetchUsers();
+      await refetchAgents();
       
       const agentName = agents.find(a => a._id === selectedAgent);
       const totalAssigned = selectedHRIds.length + selectedCandidateIds.length;
@@ -487,6 +569,7 @@ export default function AgentAllocation(): React.JSX.Element {
       // Explicitly refresh data to show immediate update
       await refetchAssignments();
       await refetchUsers();
+      await refetchAgents();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -529,6 +612,7 @@ export default function AgentAllocation(): React.JSX.Element {
       // Explicitly refresh data to show immediate update
       await refetchAssignments();
       await refetchUsers();
+      await refetchAgents();
       
       toast({
         title: "Success",
@@ -593,6 +677,7 @@ export default function AgentAllocation(): React.JSX.Element {
       // Refresh the data
       await refetchAssignments();
       await refetchUsers();
+      await refetchAgents();
       
       const agentName = agents.find(a => a._id === selectedAgent);
       toast({
@@ -698,16 +783,33 @@ export default function AgentAllocation(): React.JSX.Element {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                        <SelectTrigger className="w-48 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                      <Select 
+                        value={selectedAgent} 
+                        onValueChange={setSelectedAgent}
+                        disabled={agentsLoading || agents.length === 0}
+                      >
+                        <SelectTrigger 
+                          className="w-48 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
+                          disabled={agentsLoading || agents.length === 0}
+                        >
                           <SelectValue placeholder="Select agent..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {agents.map((agent) => (
-                            <SelectItem key={agent._id} value={agent._id}>
-                              {agent.firstName} {agent.lastName}
+                          {agents.length > 0 ? (
+                            agents.map((agent) => (
+                              <SelectItem key={agent._id} value={agent._id}>
+                                {agent.firstName} {agent.lastName}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-agents" disabled>
+                              {agentsLoading
+                                ? 'Loading agents...'
+                                : agentsError
+                                  ? 'Failed to load agents'
+                                  : 'No active agents found'}
                             </SelectItem>
-                          ))}
+                          )}
                         </SelectContent>
                       </Select>
                       <Button 
@@ -736,7 +838,11 @@ export default function AgentAllocation(): React.JSX.Element {
                 </div>
               )}
 
-              {usersLoading ? (
+              {usersError ? (
+                <div className="py-8 text-center text-sm text-destructive">
+                  {usersError.detail || 'Failed to load resources.'}
+                </div>
+              ) : usersLoading ? (
                 <div className="flex justify-center py-8">
                   <LoadingSpinner />
                 </div>
@@ -882,7 +988,11 @@ export default function AgentAllocation(): React.JSX.Element {
                 </div>
               )}
 
-              {usersLoading ? (
+              {usersError ? (
+                <div className="py-8 text-center text-sm text-destructive">
+                  {usersError.detail || 'Failed to load resources.'}
+                </div>
+              ) : usersLoading ? (
                 <div className="flex justify-center py-8">
                   <LoadingSpinner />
                 </div>
@@ -1014,6 +1124,80 @@ export default function AgentAllocation(): React.JSX.Element {
                 </Table>
               )}
                         </TabsContent>
+          
+          {/* Pagination Controls */}
+          {!usersLoading && !usersError && hasRecords && (
+            <div className="flex items-center justify-between px-4 py-4 border-t">
+              <div className="text-sm text-muted-foreground">
+                <>
+                  Showing <span className="font-medium">{displayStart}</span> to{' '}
+                  <span className="font-medium">{displayEnd}</span> of{' '}
+                  <span className="font-medium">{totalRecords}</span> {tabLabel}
+                </>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  disabled={page === 1 || usersLoading}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {totalPages ? (
+                    <>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={page === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(pageNum)}
+                            className="w-9"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                      {totalPages > 5 && (
+                        <>
+                          <span className="px-2">...</span>
+                          <Button
+                            variant={page === totalPages ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(totalPages)}
+                            className="w-9"
+                          >
+                            {totalPages}
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-9"
+                    >
+                      {page}
+                    </Button>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(prev => prev + 1)}
+                  disabled={!hasMore || usersLoading}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
               </CardContent>
         </Tabs>
             </Card>
@@ -1033,16 +1217,30 @@ export default function AgentAllocation(): React.JSX.Element {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="agent-select">Select Agent</Label>
-              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                <SelectTrigger>
+              <Select 
+                value={selectedAgent} 
+                onValueChange={setSelectedAgent}
+                disabled={agentsLoading || agents.length === 0}
+              >
+                <SelectTrigger disabled={agentsLoading || agents.length === 0}>
                   <SelectValue placeholder="Choose an agent..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {agents.map((agent) => (
-                    <SelectItem key={agent._id} value={agent._id}>
-                      {agent.firstName} {agent.lastName} ({agent.email})
+                  {agents.length > 0 ? (
+                    agents.map((agent) => (
+                      <SelectItem key={agent._id} value={agent._id}>
+                        {agent.firstName} {agent.lastName} ({agent.email})
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no-agents" disabled>
+                      {agentsLoading
+                        ? 'Loading agents...'
+                        : agentsError
+                          ? 'Failed to load agents'
+                          : 'No active agents found'}
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>

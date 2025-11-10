@@ -1,3 +1,21 @@
+  const handleMetricClick = (status: AssignmentStatus) => {
+    switch (status) {
+      case 'active':
+        setStatusFilter('in_progress');
+        break;
+      case 'completed':
+        setStatusFilter('hired');
+        break;
+      case 'rejected':
+        setStatusFilter('rejected');
+        break;
+      case 'withdrawn':
+        setStatusFilter('withdrawn');
+        break;
+      default:
+        setStatusFilter('all' as StatusFilter);
+    }
+  };
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import type { LucideIcon } from 'lucide-react';
 import { 
   Search, 
   Filter, 
@@ -27,7 +46,8 @@ import {
   ExternalLink,
   User,
   Phone,
-  MoreHorizontal
+  MoreHorizontal,
+  ArrowUpRight
 } from 'lucide-react';
 import { 
   DropdownMenu,
@@ -130,6 +150,68 @@ interface CandidateAssignment {
   priority: 'low' | 'medium' | 'high' | 'urgent';
 }
 
+type AssignmentStatus = CandidateAssignment['status'];
+type CandidateFlowStatus = NonNullable<CandidateAssignment['candidateStatus']>;
+
+const ASSIGNMENT_STATUS_ORDER: AssignmentStatus[] = ['active', 'completed', 'rejected', 'withdrawn'];
+
+const CANDIDATE_STATUS_ORDER: CandidateFlowStatus[] = [
+  'new',
+  'reviewed',
+  'shortlisted',
+  'interview_scheduled',
+  'interviewed',
+  'offer_sent',
+  'hired',
+  'rejected',
+];
+
+const STATUS_CARD_CONFIG: Record<AssignmentStatus, {
+  title: string;
+  subtitle: string;
+  color: 'blue' | 'emerald' | 'purple' | 'amber';
+  icon: LucideIcon;
+}> = {
+  active: {
+    title: 'Active Assignments',
+    subtitle: 'In progress',
+    color: 'blue',
+    icon: Clock
+  },
+  completed: {
+    title: 'Completed',
+    subtitle: 'Successfully closed',
+    color: 'emerald',
+    icon: CheckCircle
+  },
+  rejected: {
+    title: 'Rejected',
+    subtitle: 'Closed out',
+    color: 'purple',
+    icon: XCircle
+  },
+  withdrawn: {
+    title: 'Withdrawn',
+    subtitle: 'Paused or on hold',
+    color: 'amber',
+    icon: AlertTriangle
+  }
+};
+
+type StatusFilter = 'all' | CandidateFlowStatus | 'in_progress' | 'withdrawn';
+type SortOption = 'recent' | 'oldest' | 'company' | 'status';
+
+const CANDIDATE_STATUS_RANK: Record<CandidateFlowStatus, number> = {
+  new: 0,
+  reviewed: 1,
+  shortlisted: 2,
+  interview_scheduled: 3,
+  interviewed: 4,
+  offer_sent: 5,
+  hired: 6,
+  rejected: 7,
+};
+
 // Component for Agent avatar with profile photo
 const AgentAvatar: React.FC<{
   profilePhotoFileId?: string;
@@ -229,8 +311,51 @@ const CompanyAvatar: React.FC<{
   );
 };
 
+const StatusMetricCard: React.FC<{
+  status: AssignmentStatus;
+  count: number;
+  onClick?: () => void;
+  isActive?: boolean;
+}> = ({ status, count, onClick, isActive }) => {
+  const config = STATUS_CARD_CONFIG[status];
+  const Icon = config.icon;
+  const safeCount = typeof count === 'number' && Number.isFinite(count) ? count : 0;
+
+  const colorClasses: Record<typeof config.color, string> = {
+    blue: 'from-blue-500 to-blue-600',
+    emerald: 'from-emerald-500 to-emerald-600',
+    purple: 'from-purple-500 to-purple-600',
+    amber: 'from-amber-500 to-amber-600',
+  };
+
+  return (
+    <Card
+      className={`bg-gradient-to-br ${colorClasses[config.color]} text-white shadow-lg hover:shadow-xl transition-all duration-300 ${
+        onClick ? 'cursor-pointer' : ''
+      } ${isActive ? 'ring-2 ring-white/70 ring-offset-2 ring-offset-transparent' : ''}`}
+      onClick={onClick}
+    >
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-sm font-medium text-white/80">{config.subtitle}</p>
+            <h3 className="text-3xl font-bold mt-1">{safeCount.toLocaleString()}</h3>
+            <p className="text-xs text-white/70 mt-1 uppercase tracking-wide">{config.title}</p>
+          </div>
+          <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const CandidateApplications: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [companyFilter, setCompanyFilter] = useState<string>('all');
+  const [sortOption, setSortOption] = useState<SortOption>('recent');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -251,27 +376,190 @@ const CandidateApplications: React.FC = () => {
   const { data: assignmentsData, loading, refetch } = useMyCandidateAssignments(params);
 
   // Handle both possible response formats
-  const assignments = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData as any)?.data || [];
+  const assignments: CandidateAssignment[] = Array.isArray(assignmentsData)
+    ? (assignmentsData as CandidateAssignment[])
+    : ((assignmentsData as { data?: CandidateAssignment[] })?.data || []);
   const meta = Array.isArray(assignmentsData) ? {} : (assignmentsData as any)?.meta || {};
 
-  // Filter assignments based on search term
+  const companyOptions = useMemo(() => {
+    const names = new Set<string>();
+    assignments.forEach((assignment) => {
+      const name = assignment.jobId?.companyId?.name;
+      if (name) {
+        names.add(name);
+      }
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [assignments]);
+
+  // Filter & sort assignments based on search term, status/company filters and sort option
   const filteredAssignments = useMemo(() => {
-    if (!searchTerm) return assignments;
-    
-    return assignments.filter((assignment: CandidateAssignment) => {
+    const term = searchTerm.trim().toLowerCase();
+    const companyFilterLower = companyFilter === 'all' ? 'all' : companyFilter.toLowerCase();
+
+    const filtered = assignments.filter((assignment: CandidateAssignment) => {
       const jobTitle = assignment.jobId?.title?.toLowerCase() || '';
       const companyName = assignment.jobId?.companyId?.name?.toLowerCase() || '';
-      const hrName = assignment.assignedTo 
+      const hrName = assignment.assignedTo
         ? `${assignment.assignedTo.firstName} ${assignment.assignedTo.lastName}`.toLowerCase()
         : '';
       const agentName = `${assignment.assignedBy.firstName} ${assignment.assignedBy.lastName}`.toLowerCase();
-      
-      return jobTitle.includes(searchTerm.toLowerCase()) ||
-        companyName.includes(searchTerm.toLowerCase()) ||
-        hrName.includes(searchTerm.toLowerCase()) ||
-        agentName.includes(searchTerm.toLowerCase());
+      const jobIdentifier = assignment.jobId?.jobId || assignment.jobId?.id || assignment.jobId?._id;
+
+      const jobIdMatchesSearch = (() => {
+        if (!term) return true;
+        if (!jobIdentifier) return false;
+
+        const rawId = String(jobIdentifier).toLowerCase();
+        const normalizedTerm = term.replace(/\s+/g, '').toLowerCase();
+
+        if (!normalizedTerm.startsWith('job')) {
+          return rawId.includes(normalizedTerm);
+        }
+
+        const rawIdNormalized = rawId.replace(/\s+/g, '');
+        const termNumeric = normalizedTerm.slice(3);
+        const rawNumeric = rawIdNormalized.startsWith('job') ? rawIdNormalized.slice(3) : rawIdNormalized;
+
+        if (!termNumeric) {
+          return rawIdNormalized.startsWith('job');
+        }
+
+        if (rawNumeric === termNumeric) return true;
+        if (rawNumeric.replace(/^0+/, '') === termNumeric.replace(/^0+/, '')) return true;
+        if (rawNumeric.includes(termNumeric) || termNumeric.includes(rawNumeric)) return true;
+
+        const variations = [
+          `job${termNumeric}`,
+          `job${termNumeric.replace(/^0+/, '')}`,
+          `job${termNumeric.padStart(rawNumeric.length, '0')}`,
+        ];
+
+        return variations.some((variant) => rawIdNormalized.includes(variant));
+      })();
+
+      const matchesSearch = term
+        ? jobTitle.includes(term) ||
+          companyName.includes(term) ||
+          hrName.includes(term) ||
+          agentName.includes(term) ||
+          jobIdMatchesSearch
+        : true;
+
+      const matchesStatus = (() => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'in_progress') {
+          const activeCandidateStatuses: CandidateFlowStatus[] = [
+            'new',
+            'reviewed',
+            'shortlisted',
+            'interview_scheduled',
+            'interviewed',
+            'offer_sent',
+          ];
+          return (
+            assignment.status === 'active' &&
+            activeCandidateStatuses.includes(
+              (assignment.candidateStatus || 'new') as CandidateFlowStatus
+            )
+          );
+        }
+        if (statusFilter === 'withdrawn') {
+          return assignment.status === 'withdrawn';
+        }
+        return assignment.candidateStatus === statusFilter;
+      })();
+
+      const matchesCompany =
+        companyFilterLower === 'all' || companyName === companyFilterLower;
+
+      return matchesSearch && matchesStatus && matchesCompany;
     });
-  }, [assignments, searchTerm]);
+
+    const sorted = [...filtered].sort((a, b) => {
+      const getTime = (value?: string) => {
+        const time = value ? new Date(value).getTime() : NaN;
+        return Number.isFinite(time) ? time : 0;
+      };
+
+      switch (sortOption) {
+        case 'recent':
+          return getTime(b.assignedAt) - getTime(a.assignedAt);
+        case 'oldest':
+          return getTime(a.assignedAt) - getTime(b.assignedAt);
+        case 'company': {
+          const aName = a.jobId?.companyId?.name || '';
+          const bName = b.jobId?.companyId?.name || '';
+          return aName.localeCompare(bName);
+        }
+        case 'status': {
+          const aStatus = a.candidateStatus;
+          const bStatus = b.candidateStatus;
+          const aRank =
+            aStatus && aStatus in CANDIDATE_STATUS_RANK
+              ? CANDIDATE_STATUS_RANK[aStatus as CandidateFlowStatus]
+              : Number.MAX_SAFE_INTEGER;
+          const bRank =
+            bStatus && bStatus in CANDIDATE_STATUS_RANK
+              ? CANDIDATE_STATUS_RANK[bStatus as CandidateFlowStatus]
+              : Number.MAX_SAFE_INTEGER;
+          return aRank - bRank;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [assignments, searchTerm, statusFilter, companyFilter, sortOption]);
+
+  const statusCounts = useMemo(() => {
+    const baseCounts: Record<AssignmentStatus, number> = {
+      active: 0,
+      completed: 0,
+      rejected: 0,
+      withdrawn: 0,
+    };
+
+    for (const assignment of assignments) {
+      const status = assignment?.status as AssignmentStatus | undefined;
+      if (status && status in baseCounts) {
+        baseCounts[status] += 1;
+      }
+
+      if (assignment.candidateStatus === 'rejected' && status !== 'rejected') {
+        baseCounts.rejected += 1;
+        if (status === 'active' && baseCounts.active > 0) {
+          baseCounts.active -= 1;
+        }
+      }
+
+      if (assignment.candidateStatus === 'hired') {
+        if (status !== 'completed') {
+          baseCounts.completed += 1;
+        }
+        if (status === 'active' && baseCounts.active > 0) {
+          baseCounts.active -= 1;
+        }
+      }
+    }
+
+    return baseCounts;
+  }, [assignments]);
+
+  const summaryStatusFilterMap: Record<AssignmentStatus, StatusFilter> = {
+    active: 'in_progress',
+    completed: 'hired',
+    rejected: 'rejected',
+    withdrawn: 'withdrawn',
+  };
+
+  const handleMetricClick = (status: AssignmentStatus) => {
+    const mappedFilter = summaryStatusFilterMap[status];
+    setStatusFilter((prev) => (prev === mappedFilter ? 'all' : mappedFilter));
+    setCompanyFilter('all');
+    setCurrentPage(1);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -609,39 +897,86 @@ const CandidateApplications: React.FC = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {['active', 'completed', 'rejected', 'withdrawn'].map((status) => {
-          const count = assignments.filter((assignment: CandidateAssignment) => 
-            assignment.status === status
-          ).length;
-          return (
-            <Card key={status}>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full ${getStatusColor(status).split(' ')[0]}`}></div>
-                  <div>
-                    <p className="text-sm font-medium capitalize">{status.replace('_', ' ')}</p>
-                    <p className="text-2xl font-bold">{count}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {ASSIGNMENT_STATUS_ORDER.map((statusKey) => (
+          <StatusMetricCard
+            key={statusKey}
+            status={statusKey}
+            count={statusCounts[statusKey] ?? 0}
+            onClick={() => handleMetricClick(statusKey)}
+            isActive={statusFilter === summaryStatusFilterMap[statusKey]}
+          />
+        ))}
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 placeholder="Search assignments..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => {
+                  setStatusFilter(value as StatusFilter);
+                  setCurrentPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[190px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  {CANDIDATE_STATUS_ORDER.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {formatCandidateStatus(status)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={companyFilter}
+                onValueChange={(value) => setCompanyFilter(value)}
+              >
+                <SelectTrigger className="w-[190px]">
+                  <SelectValue placeholder="Company" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Companies</SelectItem>
+                  {companyOptions.map((company) => (
+                    <SelectItem key={company} value={company}>
+                      {company}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={sortOption}
+                onValueChange={(value) => setSortOption(value as SortOption)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Most Recent</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="company">Company A–Z</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>

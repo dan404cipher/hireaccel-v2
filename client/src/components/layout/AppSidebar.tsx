@@ -172,8 +172,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Secondary Navigation - Only show for admin, superadmin and agent */}
-        {(user?.role === 'admin' || user?.role === 'superadmin' || user?.role === 'agent') && (
+        {/* Secondary Navigation - Only show for admin and superadmin */}
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <SidebarGroup>
             <SidebarGroupLabel>Tools & Reports</SidebarGroupLabel>
             <SidebarGroupContent>

@@ -46,7 +46,9 @@ import {
   Eye,
   Edit,
   Trash2,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -173,6 +175,8 @@ const HRAvatar: React.FC<{
 
 HRAvatar.displayName = 'HRAvatar';
 
+const PAGE_SIZE = 20;
+
 export default function CompanyManagement() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -218,7 +222,7 @@ export default function CompanyManagement() {
   const companiesParams = useMemo(() => {
     const params: any = {
       page, 
-      limit: 50
+      limit: PAGE_SIZE
     };
     
     if (debouncedSearchTerm) {
@@ -249,6 +253,18 @@ export default function CompanyManagement() {
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const companies = Array.isArray(companiesResponse) ? companiesResponse : ((companiesResponse as any)?.data || []);
   const meta = Array.isArray(companiesResponse) ? null : (companiesResponse as any)?.meta;
+
+  useEffect(() => {
+    if (meta?.totalPages && page > meta.totalPages) {
+      setPage(Math.max(meta.totalPages, 1));
+    }
+  }, [meta?.totalPages, page]);
+
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    }
+  }, [debouncedSearchTerm, statusFilter, sortBy]);
 
   // Check for edit company from navigation state
   useEffect(() => {
@@ -296,6 +312,36 @@ export default function CompanyManagement() {
 
     return filtered;
   }, [companies, searchTerm, sortBy]);
+
+  const canGoNext = meta ? page < (meta.totalPages || 1) : filteredCompanies.length === PAGE_SIZE;
+  const startItem = filteredCompanies.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endItem = filteredCompanies.length === 0 ? 0 : (page - 1) * PAGE_SIZE + filteredCompanies.length;
+  const totalCompanies = meta?.total ?? endItem;
+  const totalPages = meta?.totalPages ?? (filteredCompanies.length === 0 ? 1 : page + (canGoNext ? 1 : 0));
+  const pageIndicators = useMemo(() => {
+    if (meta?.totalPages) {
+      const total = Math.max(meta.totalPages, 1);
+      if (total <= 5) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+      }
+
+      const pages = new Set<number>();
+      pages.add(1);
+      pages.add(total);
+      pages.add(page);
+      pages.add(page - 1);
+      pages.add(page + 1);
+
+      if (page - 2 > 1) pages.add(page - 2);
+      if (page + 2 < total) pages.add(page + 2);
+
+      return Array.from(pages)
+        .filter((p) => p >= 1 && p <= total)
+        .sort((a, b) => a - b);
+    }
+
+    return [page];
+  }, [meta?.totalPages, page]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -1159,6 +1205,75 @@ export default function CompanyManagement() {
                 </TableBody>
               </Table>
               </div>
+          )}
+          {!companiesLoading && !companiesError && filteredCompanies.length > 0 && (
+            <div className="flex flex-col gap-2 border-t pt-4 mt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-2">
+                <div className="text-sm text-muted-foreground">
+                  {totalCompanies > 0 ? (
+                    <>
+                      Showing <span className="font-medium">{startItem}</span> to{" "}
+                      <span className="font-medium">{endItem}</span> of{" "}
+                      <span className="font-medium">{totalCompanies}</span> companies
+                    </>
+                  ) : (
+                    <>No companies to display</>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {meta?.totalPages ? (
+                      pageIndicators.map((pageNumber, index) => {
+                        const prevNumber = pageIndicators[index - 1];
+                        const showEllipsis = index > 0 && prevNumber !== undefined && pageNumber - prevNumber > 1;
+                        return (
+                          <React.Fragment key={pageNumber}>
+                            {showEllipsis && (
+                              <span className="px-2 text-sm text-muted-foreground">...</span>
+                            )}
+                            <Button
+                              variant={page === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              className="w-9"
+                              onClick={() => setPage(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Button>
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <Button variant="default" size="sm" className="w-9">
+                        {page}
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((prev) => prev + 1)}
+                    disabled={!canGoNext}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+              {meta?.totalPages && (
+                <div className="text-xs text-muted-foreground px-2">
+                  Page {page} of {meta.totalPages}
+                </div>
+              )}
+            </div>
           )}
             </CardContent>
           </Card>

@@ -593,119 +593,119 @@ export default function CompanyProfile() {
 
           {/* Jobs */}
           {user?.role !== 'candidate' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="w-5 h-5" />
-                  Jobs ({jobs.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {jobs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No jobs posted for this company yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {jobs.slice(0, 10).map((job: any) => (
-                      <div
-                        key={job._id || job.id}
-                        className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/dashboard/jobs/${job._id || job.id}`)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium mb-1">{job.title}</h4>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5" />
+                Jobs ({jobs.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {jobs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No jobs posted for this company yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {jobs.slice(0, 10).map((job: any) => (
+                    <div
+                      key={job._id || job.id}
+                      className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/dashboard/jobs/${job._id || job.id}`)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium mb-1">{job.title}</h4>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              {job.location}
+                            </span>
+                            {job.salaryRange && (
                               <span className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                {job.location}
+                                <DollarSign className="w-4 h-4" />
+                                {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}
                               </span>
-                              {job.salaryRange && (
-                                <span className="flex items-center gap-1">
-                                  <DollarSign className="w-4 h-4" />
-                                  {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}
-                                </span>
-                              )}
-                              <Badge variant="outline" className="text-xs">
-                                {job.status}
-                              </Badge>
-                            </div>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              {job.status}
+                            </Badge>
                           </div>
                         </div>
                       </div>
-                    ))}
-                    {jobs.length > 10 && (
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => navigate(`/dashboard/jobs?companyId=${company._id}`)}
-                      >
-                        View All {jobs.length} Jobs
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                    </div>
+                  ))}
+                  {jobs.length > 10 && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => navigate(`/dashboard/jobs?companyId=${company._id}`)}
+                    >
+                      View All {jobs.length} Jobs
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
           )}
         </div>
 
         {/* Sidebar */}
         {!isCandidate && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="w-5 h-5" />
-                  Jobs ({jobs.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {jobs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No jobs posted for this company yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {jobs.slice(0, 10).map((job: any) => (
-                      <div
-                        key={job._id || job.id}
-                        className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => navigate(`/dashboard/jobs/${job._id || job.id}`)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium mb-1">{job.title}</h4>
-                            <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5" />
+                Jobs ({jobs.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {jobs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No jobs posted for this company yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {jobs.slice(0, 10).map((job: any) => (
+                    <div
+                      key={job._id || job.id}
+                      className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/dashboard/jobs/${job._id || job.id}`)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium mb-1">{job.title}</h4>
+                          <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              {job.location}
+                            </span>
+                            {job.salaryRange && (
                               <span className="flex items-center gap-1">
-                                <MapPin className="w-4 h-4" />
-                                {job.location}
+                                <DollarSign className="w-4 h-4" />
+                                {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}
                               </span>
-                              {job.salaryRange && (
-                                <span className="flex items-center gap-1">
-                                  <DollarSign className="w-4 h-4" />
-                                  {job.salaryRange.currency} {job.salaryRange.min}-{job.salaryRange.max}
-                                </span>
-                              )}
-                              <Badge variant="outline" className="text-xs w-fit">
-                                {job.status}
-                              </Badge>
-                            </div>
+                            )}
+                            <Badge variant="outline" className="text-xs w-fit">
+                              {job.status}
+                            </Badge>
                           </div>
                         </div>
                       </div>
-                    ))}
-                    {jobs.length > 10 && (
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => navigate(`/dashboard/jobs?companyId=${company._id}`)}
-                      >
-                        View All {jobs.length} Jobs
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                    </div>
+                  ))}
+                  {jobs.length > 10 && (
+              <Button
+                variant="outline"
+                      className="w-full"
+                onClick={() => navigate(`/dashboard/jobs?companyId=${company._id}`)}
+              >
+                      View All {jobs.length} Jobs
+              </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
         )}
         </div>
 

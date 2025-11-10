@@ -38,9 +38,11 @@ export function useApi<T>(
     
     try {
       const response = await apiCall();
-      
-      // The API client returns the full response object, so we need to access response.data
-      const actualData = response.data || response;
+
+      const actualData =
+        response && typeof response === 'object' && response !== null && 'meta' in response
+          ? response
+          : (response as any).data ?? response;
       
       setState(prev => {
         return { ...prev, data: actualData, loading: false };

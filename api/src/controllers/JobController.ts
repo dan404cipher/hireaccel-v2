@@ -154,12 +154,33 @@ export class JobController {
     if (filters.createdBy) searchQuery.createdBy = filters.createdBy;
     if (filters.remote !== undefined) searchQuery.isRemote = filters.remote;
     
-    if (filters.location) {
-      searchQuery.location = { $regex: filters.location, $options: 'i' };
-    }
-    
     if (filters.search) {
-      searchQuery.$text = { $search: filters.search };
+      // Check if search term looks like an ID (starts with letters followed by numbers)
+      const idPattern = /^([A-Z]+)(\d+)$/i;
+      const idMatch = filters.search.trim().match(idPattern);
+      const escapedSearchTerm = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      const searchConditions: any[] = [
+        { title: { $regex: escapedSearchTerm, $options: 'i' } },
+        { description: { $regex: escapedSearchTerm, $options: 'i' } },
+        { location: { $regex: escapedSearchTerm, $options: 'i' } },
+        { 'requirements.skills': { $regex: escapedSearchTerm, $options: 'i' } },
+      ];
+      
+      // Handle jobId search with ID pattern matching
+      if (idMatch) {
+        const [, prefix, number] = idMatch;
+        const prefixUpper = prefix.toUpperCase();
+        const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        searchConditions.push({ jobId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+      } else {
+        searchConditions.push({ jobId: { $regex: escapedSearchTerm, $options: 'i' } });
+      }
+      
+      searchQuery.$or = searchConditions;
+    } else if (filters.location) {
+      // Only apply location filter if there's no general search
+      searchQuery.location = { $regex: filters.location, $options: 'i' };
     }
     
     if (filters.skills) {

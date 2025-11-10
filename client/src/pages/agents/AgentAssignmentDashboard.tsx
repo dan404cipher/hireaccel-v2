@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,6 +60,8 @@ import {
   UserCheck,
   FileText,
   MessageSquare,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -94,6 +96,76 @@ const formatCustomId = (customId: string | undefined): string => {
   
   // If pattern doesn't match, return as is
   return customId;
+};
+
+const PAGE_SIZE = 20;
+
+const buildPaginationInfo = (
+  currentPage: number,
+  totalCountForPage: number,
+  meta?: {
+    total?: number;
+    limit?: number;
+    page?: {
+      current: number;
+      total: number;
+      hasMore: boolean;
+    };
+  }
+) => {
+  if (meta && typeof meta.total === 'number') {
+    const pageLimit = meta.limit ?? PAGE_SIZE;
+    const total = meta.total;
+    const totalPages = meta.page?.total ?? Math.max(1, Math.ceil(total / pageLimit));
+    const start = total === 0 ? 0 : ((currentPage - 1) * pageLimit) + 1;
+    const end = total === 0 ? 0 : Math.min(currentPage * pageLimit, total);
+    const hasMore = meta.page?.hasMore ?? (currentPage < totalPages);
+    return { total, start, end, totalPages, hasMore, pageLimit };
+  }
+
+  const total = totalCountForPage;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = total === 0 ? 0 : ((currentPage - 1) * PAGE_SIZE) + 1;
+  const end = total === 0 ? 0 : Math.min(currentPage * PAGE_SIZE, total);
+  const hasMore = currentPage < totalPages;
+  return { total, start, end, totalPages, hasMore, pageLimit: PAGE_SIZE };
+};
+
+type PageIndicator = number | 'ellipsis';
+
+const generatePageIndicators = (currentPage: number, totalPages: number): PageIndicator[] => {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(totalPages);
+  pages.add(currentPage);
+  pages.add(currentPage - 1);
+  pages.add(currentPage + 1);
+  pages.add(currentPage - 2);
+  pages.add(currentPage + 2);
+
+  const sortedPages = Array.from(pages)
+    .filter(page => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+
+  const indicators: PageIndicator[] = [];
+  sortedPages.forEach((page, index) => {
+    if (index === 0) {
+      indicators.push(page);
+      return;
+    }
+
+    const previous = sortedPages[index - 1];
+    if (page - previous > 1) {
+      indicators.push('ellipsis');
+    }
+    indicators.push(page);
+  });
+
+  return indicators;
 };
 
 // Component for candidate dropdown item with avatar and ID
@@ -273,8 +345,8 @@ export default function AgentAssignmentDashboard() {
   const [jobSearchTerm, setJobSearchTerm] = useState('');
   const [candidateSearchTerm, setCandidateSearchTerm] = useState('');
   const [hrSearchTerm, setHrSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [urgencyFilter, setUrgencyFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [jobSort, setJobSort] = useState('createdAt-desc');
   const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [assignmentNotes, setAssignmentNotes] = useState('');
@@ -286,8 +358,9 @@ export default function AgentAssignmentDashboard() {
   const [isViewNotesDialogOpen, setIsViewNotesDialogOpen] = useState(false);
   const [selectedAgentForNotes, setSelectedAgentForNotes] = useState<string>('');
   const [selectedCandidateForNotes, setSelectedCandidateForNotes] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  const [jobsPage, setJobsPage] = useState(1);
+  const [candidatesPage, setCandidatesPage] = useState(1);
+  const [hrPage, setHrPage] = useState(1);
   
   // Save tab to localStorage when it changes
   const handleTabChange = (value: string) => {
@@ -295,18 +368,26 @@ export default function AgentAssignmentDashboard() {
     localStorage.setItem('agentAssignmentActiveTab', value);
   };
 
-  // API hooks
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  // Parse job sort into sortBy and sortOrder
+  const [jobSortBy, jobSortOrder] = useMemo(() => {
+    const [field, order] = jobSort.split('-');
+    return [field, order as 'asc' | 'desc'];
+  }, [jobSort]);
+
+  // API hooks - Fetch jobs without company filter (will filter client-side)
   const { 
     data: jobsResponse, 
     loading: jobsLoading, 
     error: jobsError, 
     refetch: refetchJobs 
   } = useJobs({
-    page,
-    limit,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
+    page: jobsPage,
+    limit: PAGE_SIZE,
+    sortBy: jobSortBy,
+    sortOrder: jobSortOrder,
+    search: jobSearchTerm ? jobSearchTerm : undefined,
   });
 
   // Get agent's assignment details to see assigned HRs
@@ -327,13 +408,29 @@ export default function AgentAssignmentDashboard() {
   });
 
   // For admin/superadmin: Get all HR users
+  const hrParams = useMemo(() => {
+    if (isAdmin) {
+      return {
+        role: 'hr',
+        status: 'active',
+        page: hrPage,
+        limit: PAGE_SIZE,
+        sortBy: 'firstName',
+        sortOrder: 'asc',
+        ...(hrSearchTerm ? { search: hrSearchTerm } : {}),
+      };
+    }
+    return {
+      role: 'hr',
+      status: 'active',
+      limit: 100,
+    };
+  }, [isAdmin, hrPage, hrSearchTerm]);
+
   const {
     data: allHRsResponse,
-  } = useUsers({
-    role: 'hr',
-    limit: 100,
-    status: 'active',
-  });
+    loading: hrLoading,
+  } = useUsers(hrParams);
 
   // For admin/superadmin: Get all agent assignments to find candidate's assignment
   const {
@@ -354,8 +451,8 @@ export default function AgentAssignmentDashboard() {
     error: candidatesError,
     refetch: refetchCandidates
   } = useAgentCandidates({
-    page,
-    limit,
+    page: candidatesPage,
+    limit: PAGE_SIZE,
     search: candidateSearchTerm || undefined,
   });
 
@@ -368,6 +465,18 @@ export default function AgentAssignmentDashboard() {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [refetchAgentAssignment]);
+
+  useEffect(() => {
+    setJobsPage(1);
+  }, [jobSearchTerm, companyFilter, jobSort]);
+
+  useEffect(() => {
+    setCandidatesPage(1);
+  }, [candidateSearchTerm]);
+
+  useEffect(() => {
+    setHrPage(1);
+  }, [hrSearchTerm, isAdmin]);
 
   // Use the general endpoint for all roles (it now has proper validation for candidate-job combinations)
   const { mutate: createAssignment, loading: createLoading } = useCreateCandidateAssignment({
@@ -390,9 +499,13 @@ export default function AgentAssignmentDashboard() {
   });
 
   // Extract data from API responses
-  const jobs = jobsResponse || [];
+  const jobsMeta = Array.isArray(jobsResponse) ? null : (jobsResponse as any)?.meta;
+  const jobs = Array.isArray(jobsResponse) ? jobsResponse : ((jobsResponse as any)?.data || []);
   const agentAssignment = (agentAssignmentResponse as any)?.data || agentAssignmentResponse;
-  const candidates = ((candidatesResponse as any)?.data || candidatesResponse || []); // Handle both response formats
+  const candidatesMeta = Array.isArray(candidatesResponse) ? null : (candidatesResponse as any)?.meta;
+  const candidates = Array.isArray(candidatesResponse)
+    ? candidatesResponse
+    : (((candidatesResponse as any)?.data) || candidatesResponse || []);
 
   // Get selected candidate display info
   const selectedCandidateDisplay = selectedCandidate 
@@ -401,6 +514,9 @@ export default function AgentAssignmentDashboard() {
   const agents = Array.isArray(agentsResponse) 
     ? agentsResponse 
     : (agentsResponse as any)?.data || [];
+  const hrMeta = isAdmin
+    ? (Array.isArray(allHRsResponse) ? null : (allHRsResponse as any)?.meta || null)
+    : null;
   const allHRsFromAPI = Array.isArray(allHRsResponse) 
     ? allHRsResponse 
     : (allHRsResponse as any)?.data || [];
@@ -495,78 +611,99 @@ export default function AgentAssignmentDashboard() {
     return false;
   };
 
-  const filteredJobs = jobs.filter((job: any) => {
-    if (!jobSearchTerm) {
-      const matchesUrgency = urgencyFilter === 'all' || job.urgency === urgencyFilter;
-      return matchesUrgency;
+  // Apply company filter client-side (like JobManagementIntegrated)
+  const filteredJobs = useMemo(() => {
+    if (companyFilter === 'all') {
+      return jobs;
     }
-    
-    const searchLower = jobSearchTerm.toLowerCase();
-    const jobId = job.jobId || '';
-    
-    // Check title and company name
-    const nameMatches = (
-      job.title.toLowerCase().includes(searchLower) ||
-      (job.companyId?.name && job.companyId.name.toLowerCase().includes(searchLower))
+    return jobs.filter(job => 
+      (job.companyId?._id === companyFilter) || 
+      (job.companyId?.id === companyFilter)
     );
-    
-    // Check jobId with flexible matching
-    const idMatches = matchesId(jobSearchTerm, jobId);
-    
-    const matchesSearch = nameMatches || idMatches;
-    const matchesUrgency = urgencyFilter === 'all' || job.urgency === urgencyFilter;
-    return matchesSearch && matchesUrgency;
-  });
+  }, [jobs, companyFilter]);
+
+  // Extract unique companies from jobs for the filter dropdown
+  const uniqueCompanies = useMemo(() => {
+    const companiesMap = new Map<string, { id: string; name: string }>();
+    jobs.forEach((job: any) => {
+      if (job.companyId?._id && job.companyId?.name) {
+        companiesMap.set(job.companyId._id, {
+          id: job.companyId._id,
+          name: job.companyId.name,
+        });
+      }
+    });
+    return Array.from(companiesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [jobs]);
 
   // Determine which HRs to show
   // For admin/superadmin: show ALL HR users in the system
   // For agents: show only HRs assigned to them
-  const allHRs = (user?.role === 'admin' || user?.role === 'superadmin') 
+  const allHRs = isAdmin 
     ? allHRsFromAPI 
     : (agentAssignment?.assignedHRs || []);
 
   // Determine which candidates to show
   // useAgentCandidates already returns all candidates for admin/superadmin, so use it directly
-  const allCandidatesForDisplay = candidates;
-
-  const filteredCandidates = allCandidatesForDisplay.filter((candidate: any) => {
-    if (!candidateSearchTerm) return true;
-    
-    const searchLower = candidateSearchTerm.toLowerCase();
-    const customId = candidate.userId?.customId || '';
-    
-    // Check firstName, lastName, and email
-    const nameMatches = (
-      candidate.userId?.firstName?.toLowerCase().includes(searchLower) ||
-      candidate.userId?.lastName?.toLowerCase().includes(searchLower) ||
-      candidate.userId?.email?.toLowerCase().includes(searchLower)
-    );
-    
-    // Check customId with flexible matching
-    const idMatches = matchesId(candidateSearchTerm, customId);
-    
-    return nameMatches || idMatches;
-  });
+  // Backend now handles search filtering, so no need to filter on frontend
+  const filteredCandidates = candidates;
 
   // Filter HR users based on search term
-  const filteredHRs = allHRs.filter((hr: any) => {
-    if (!hrSearchTerm) return true;
-    
-    const searchLower = hrSearchTerm.toLowerCase();
-    const customId = hr.customId || '';
-    
-    // Check firstName, lastName, and email
-    const nameMatches = (
-      hr.firstName?.toLowerCase().includes(searchLower) ||
-      hr.lastName?.toLowerCase().includes(searchLower) ||
-      hr.email?.toLowerCase().includes(searchLower)
-    );
-    
-    // Check customId with flexible matching
-    const idMatches = matchesId(hrSearchTerm, customId);
-    
-    return nameMatches || idMatches;
-  });
+  const filteredHRs = isAdmin
+    ? allHRs
+    : allHRs.filter((hr: any) => {
+        if (!hrSearchTerm) return true;
+        
+        const searchLower = hrSearchTerm.toLowerCase();
+        const customId = hr.customId || '';
+        
+        // Check firstName, lastName, full name, and email
+        const firstName = (hr.firstName || '').toLowerCase();
+        const lastName = (hr.lastName || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const email = (hr.email || '').toLowerCase();
+        
+        const nameMatches = (
+          firstName.includes(searchLower) ||
+          lastName.includes(searchLower) ||
+          fullName.includes(searchLower) ||
+          email.includes(searchLower)
+        );
+        
+        // Check customId with flexible matching
+        const idMatches = matchesId(hrSearchTerm, customId);
+        
+        return nameMatches || idMatches;
+      });
+
+  useEffect(() => {
+    if (!isAdmin) {
+      const totalPages = Math.max(1, Math.ceil(filteredHRs.length / PAGE_SIZE));
+      if (hrPage > totalPages) {
+        setHrPage(totalPages);
+      }
+    }
+  }, [filteredHRs.length, hrPage, isAdmin]);
+
+  const displayedHRs = isAdmin
+    ? filteredHRs
+    : filteredHRs.slice((hrPage - 1) * PAGE_SIZE, hrPage * PAGE_SIZE);
+
+  const jobsPagination = buildPaginationInfo(jobsPage, filteredJobs.length, jobsMeta);
+  const candidatesPagination = buildPaginationInfo(candidatesPage, filteredCandidates.length, candidatesMeta);
+  const hrPagination = buildPaginationInfo(hrPage, filteredHRs.length, isAdmin ? hrMeta : undefined);
+  const jobsPageIndicators = useMemo(
+    () => generatePageIndicators(jobsPage, jobsPagination.totalPages),
+    [jobsPage, jobsPagination.totalPages]
+  );
+  const candidatesPageIndicators = useMemo(
+    () => generatePageIndicators(candidatesPage, candidatesPagination.totalPages),
+    [candidatesPage, candidatesPagination.totalPages]
+  );
+  const hrPageIndicators = useMemo(
+    () => generatePageIndicators(hrPage, hrPagination.totalPages),
+    [hrPage, hrPagination.totalPages]
+  );
 
   const getUrgencyColor = (urgency: string) => {
     switch (urgency) {
@@ -911,15 +1048,15 @@ export default function AgentAssignmentDashboard() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="jobs" className="flex items-center gap-2">
             <Briefcase className="w-4 h-4" />
-            My Jobs ({filteredJobs.length})
+            My Jobs ({jobsPagination.total})
           </TabsTrigger>
         <TabsTrigger value="candidates" className="flex items-center gap-2">
           <Users className="w-4 h-4" />
-          My Candidates ({allCandidatesForDisplay.length})
+          My Candidates ({candidatesPagination.total})
         </TabsTrigger>
           <TabsTrigger value="hrs" className="flex items-center gap-2">
             <UserCheck className="w-4 h-4" />
-            My HRs ({allHRs.length})
+            My HRs ({hrPagination.total})
           </TabsTrigger>
         </TabsList>
 
@@ -943,27 +1080,32 @@ export default function AgentAssignmentDashboard() {
                       className="w-64"
                     />
                   </div>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Status" />
+                  <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="All Companies" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="assigned">Assigned</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="all">All Companies</SelectItem>
+                      {uniqueCompanies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                  <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue placeholder="Urgency" />
+                  <Select value={jobSort} onValueChange={setJobSort}>
+                    <SelectTrigger className="w-56">
+                      <SelectValue placeholder="Sort By" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Urgency</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
+                      <SelectItem value="createdAt-desc">Newest First</SelectItem>
+                      <SelectItem value="createdAt-asc">Oldest First</SelectItem>
+                      <SelectItem value="title-asc">Job Title (A-Z)</SelectItem>
+                      <SelectItem value="title-desc">Job Title (Z-A)</SelectItem>
+                      <SelectItem value="urgency-desc">Urgency (High to Low)</SelectItem>
+                      <SelectItem value="urgency-asc">Urgency (Low to High)</SelectItem>
+                      <SelectItem value="salaryRange.max-desc">Salary (High to Low)</SelectItem>
+                      <SelectItem value="salaryRange.max-asc">Salary (Low to High)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1035,9 +1177,20 @@ export default function AgentAssignmentDashboard() {
                           <p 
                             className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors"
                             onClick={() => {
-                              if (job.companyId?._id) {
-                                navigate(`/dashboard/companies/${job.companyId._id}`);
+                              if (!job.companyId?._id) {
+                                return;
                               }
+
+                              if (user?.role === 'candidate') {
+                                toast({
+                                  title: "Access denied",
+                                  description: "Company profiles are not available for candidates.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+
+                              navigate(`/dashboard/companies/${job.companyId._id}`);
                             }}
                           >
                             {job.companyId?.name || 'Unknown Company'}
@@ -1112,6 +1265,55 @@ export default function AgentAssignmentDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+              {!jobsLoading && filteredJobs.length > 0 && jobsPagination.total > 0 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{jobsPagination.start}</span> to{' '}
+                    <span className="font-medium">{jobsPagination.end}</span> of{' '}
+                    <span className="font-medium">{jobsPagination.total}</span> jobs
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setJobsPage(prev => Math.max(1, prev - 1))}
+                      disabled={jobsPage === 1 || jobsLoading}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {jobsPagination.totalPages > 1 &&
+                        jobsPageIndicators.map((indicator, index) =>
+                          indicator === 'ellipsis' ? (
+                            <span key={`jobs-ellipsis-${index}`} className="px-2">
+                              ...
+                            </span>
+                          ) : (
+                            <Button
+                              key={`jobs-page-${indicator}`}
+                              variant={jobsPage === indicator ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setJobsPage(indicator)}
+                              className="w-9"
+                            >
+                              {indicator}
+                            </Button>
+                          )
+                        )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setJobsPage(prev => prev + 1)}
+                      disabled={!jobsPagination.hasMore || jobsLoading}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1264,6 +1466,55 @@ export default function AgentAssignmentDashboard() {
                   </TableBody>
                 </Table>
               )}
+              {!candidatesLoading && filteredCandidates.length > 0 && candidatesPagination.total > 0 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{candidatesPagination.start}</span> to{' '}
+                    <span className="font-medium">{candidatesPagination.end}</span> of{' '}
+                    <span className="font-medium">{candidatesPagination.total}</span> candidates
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCandidatesPage(prev => Math.max(1, prev - 1))}
+                      disabled={candidatesPage === 1 || candidatesLoading}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {candidatesPagination.totalPages > 1 &&
+                        candidatesPageIndicators.map((indicator, index) =>
+                          indicator === 'ellipsis' ? (
+                            <span key={`candidates-ellipsis-${index}`} className="px-2">
+                              ...
+                            </span>
+                          ) : (
+                            <Button
+                              key={`candidates-page-${indicator}`}
+                              variant={candidatesPage === indicator ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setCandidatesPage(indicator)}
+                              className="w-9"
+                            >
+                              {indicator}
+                            </Button>
+                          )
+                        )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCandidatesPage(prev => prev + 1)}
+                      disabled={!candidatesPagination.hasMore || candidatesLoading}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1307,8 +1558,6 @@ export default function AgentAssignmentDashboard() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Contact</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Assigned Candidates</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -1316,13 +1565,13 @@ export default function AgentAssignmentDashboard() {
                   <TableBody>
                     {agentAssignmentLoading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={4} className="text-center py-8">
                           <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin" />
                           <p>Loading HR users...</p>
                         </TableCell>
                       </TableRow>
-                    ) : filteredHRs && filteredHRs.length > 0 ? (
-                      filteredHRs.map((hr: any) => (
+                    ) : displayedHRs && displayedHRs.length > 0 ? (
+                      displayedHRs.map((hr: any) => (
                         <TableRow key={hr._id}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-3">
@@ -1362,18 +1611,6 @@ export default function AgentAssignmentDashboard() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm text-muted-foreground">
-                              {hr.companyName || 'N/A'}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary">
-                                {hr.assignedCandidatesCount ?? 0} candidates
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell>
                             <Badge variant="outline" className="bg-green-100 text-green-800">
                               Active
                             </Badge>
@@ -1402,7 +1639,7 @@ export default function AgentAssignmentDashboard() {
                       ))
                     ) : hrSearchTerm ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                           <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           <p>No HR users found</p>
                           <p className="text-sm">No HR users match your search criteria</p>
@@ -1410,7 +1647,7 @@ export default function AgentAssignmentDashboard() {
                       </TableRow>
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                           <UserCheck className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           <p>No HR users assigned</p>
                           <p className="text-sm">Contact admin to get HR users assigned to you</p>
@@ -1419,6 +1656,55 @@ export default function AgentAssignmentDashboard() {
                     )}
                   </TableBody>
                 </Table>
+              )}
+              {hrPagination.total > 0 && displayedHRs.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-4 border-t mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{hrPagination.start}</span> to{' '}
+                    <span className="font-medium">{Math.min(hrPagination.end, hrPagination.total)}</span> of{' '}
+                    <span className="font-medium">{hrPagination.total}</span> HR users
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHrPage(prev => Math.max(1, prev - 1))}
+                      disabled={hrPage === 1 || hrLoading}
+                    >
+                      <ChevronLeft className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {hrPagination.totalPages > 1 &&
+                        hrPageIndicators.map((indicator, index) =>
+                          indicator === 'ellipsis' ? (
+                            <span key={`hr-ellipsis-${index}`} className="px-2">
+                              ...
+                            </span>
+                          ) : (
+                            <Button
+                              key={`hr-page-${indicator}`}
+                              variant={hrPage === indicator ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => setHrPage(indicator)}
+                              className="w-9"
+                            >
+                              {indicator}
+                            </Button>
+                          )
+                        )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHrPage(prev => prev + 1)}
+                      disabled={!hrPagination.hasMore || hrLoading}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

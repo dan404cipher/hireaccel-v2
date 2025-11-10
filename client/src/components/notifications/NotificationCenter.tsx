@@ -13,6 +13,28 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, Notification } from '@/contexts/NotificationContext';
 import { cn } from '@/lib/utils';
 
+const candidateStatusLabels: Record<string, string> = {
+  new: 'New',
+  reviewed: 'Reviewed',
+  shortlisted: 'Shortlisted',
+  interview_scheduled: 'Interview Scheduled',
+  interviewed: 'Interviewed',
+  offer_sent: 'Offer Sent',
+  hired: 'Hired',
+  rejected: 'Rejected',
+};
+
+const candidateStatusClasses: Record<string, string> = {
+  new: 'bg-gray-100 text-gray-800',
+  reviewed: 'bg-blue-100 text-blue-800',
+  shortlisted: 'bg-purple-100 text-purple-800',
+  interview_scheduled: 'bg-orange-100 text-orange-800',
+  interviewed: 'bg-yellow-100 text-yellow-800',
+  offer_sent: 'bg-indigo-100 text-indigo-800',
+  hired: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
+};
+
 interface NotificationCenterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -106,6 +128,73 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           >
             {metadata.creatorName}
           </span>
+        </div>
+      );
+    }
+
+    if (notification.type === 'candidate_assign') {
+      const jobTitle = metadata?.jobTitle || 'a new job';
+      const companyName = metadata?.companyName;
+      const jobId = metadata?.jobId || notification.entityId;
+
+      return (
+        <div>
+          You have been assigned to{' '}
+          <span
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (jobId) {
+                navigate(`/dashboard/jobs/${jobId}`);
+                onOpenChange(false);
+              } else {
+                navigate('/dashboard/candidate-applications');
+                onOpenChange(false);
+              }
+            }}
+          >
+            {jobTitle}
+          </span>
+          {companyName ? ` at ${companyName}.` : '.'}
+        </div>
+      );
+    }
+
+    if (notification.type === 'candidate_status_change') {
+      const jobTitle = metadata?.jobTitle || 'your application';
+      const jobId = metadata?.jobId || notification.entityId;
+      const statusKey = (metadata?.newStatus || '').toLowerCase();
+      const statusLabel = candidateStatusLabels[statusKey] || metadata?.newStatus || 'updated';
+      const statusClass = candidateStatusClasses[statusKey] || 'bg-gray-100 text-gray-800';
+
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          <span>Your application for</span>
+          <span
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (jobId) {
+                navigate(`/dashboard/jobs/${jobId}`);
+                onOpenChange(false);
+              } else {
+                navigate('/dashboard/candidate-applications');
+                onOpenChange(false);
+              }
+            }}
+          >
+            {jobTitle}
+          </span>
+          <span>is now</span>
+          <span
+            className={cn(
+              'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+              statusClass
+            )}
+          >
+            {statusLabel}
+          </span>
+          <span>.</span>
         </div>
       );
     }

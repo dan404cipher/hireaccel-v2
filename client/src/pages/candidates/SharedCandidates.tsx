@@ -33,7 +33,9 @@ import {
   MapPin,
   Phone,
   MoreHorizontal,
-  Building2
+  Building2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats, useCandidateAssignments } from '@/hooks/useApi';
 import { apiClient } from '@/services/api';
@@ -120,6 +122,43 @@ interface CandidateAssignment {
   isDueSoon?: boolean;
   daysSinceAssigned?: number;
 }
+
+const PAGE_SIZE = 20;
+
+type PageIndicator = number | 'ellipsis';
+
+const generatePageIndicators = (currentPage: number, totalPages: number): PageIndicator[] => {
+  if (!totalPages || totalPages <= 5) {
+    return Array.from({ length: Math.max(totalPages, 0) }, (_, i) => i + 1);
+  }
+
+  const pages = new Set<number>();
+  pages.add(1);
+  pages.add(totalPages);
+  pages.add(currentPage);
+  pages.add(currentPage - 1);
+  pages.add(currentPage + 1);
+
+  const sortedPages = Array.from(pages)
+    .filter(page => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+
+  const indicators: PageIndicator[] = [];
+  sortedPages.forEach((page, index) => {
+    if (index === 0) {
+      indicators.push(page);
+      return;
+    }
+
+    const previous = sortedPages[index - 1];
+    if (page - previous > 1) {
+      indicators.push('ellipsis');
+    }
+    indicators.push(page);
+  });
+
+  return indicators;
+};
 
 // Component for candidate avatar with profile photo (moved outside to prevent re-creation)
 const CandidateAvatar: React.FC<{
@@ -334,25 +373,59 @@ const SharedCandidates: React.FC = () => {
   }, [searchParams]);
 
   // API calls - Always call hooks unconditionally (React Rules of Hooks)
-  const { data: assignmentsData, loading, refetch } = useCandidateAssignments({
-    page: currentPage,
-    limit: 20,
-    ...(user?.role === 'agent' 
-      ? { assignedBy: user?.id }
-      : (user?.role === 'admin' || user?.role === 'superadmin')
-      ? {}
-      : { assignedTo: user?.id }),
-    sortBy: 'assignedAt',
-    sortOrder: 'desc'
-  });
+  const candidateAssignmentParams = useMemo(
+    () => ({
+      page: 1,
+      limit: 1000, // Fetch all assignments at once for client-side pagination
+      ...(user?.role === 'agent'
+        ? { assignedBy: user?.id }
+        : user?.role === 'admin' || user?.role === 'superadmin'
+        ? {}
+        : { assignedTo: user?.id }),
+      sortBy: 'assignedAt',
+      sortOrder: 'desc',
+    }),
+    [user?.role, user?.id]
+  );
+
+  const { data: assignmentsData, loading, refetch } = useCandidateAssignments(
+    candidateAssignmentParams
+  );
 
   const { data: statsData } = useCandidateAssignmentStats();
   const updateAssignment = useUpdateCandidateAssignment();
 
   // Handle both possible response formats
-  const assignments = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData as any)?.data || [];
-  const meta = Array.isArray(assignmentsData) ? {} : (assignmentsData as any)?.meta || {};
-  const stats = (statsData as any)?.data || {};
+  const assignments = useMemo(() => {
+    if (Array.isArray(assignmentsData)) {
+      return assignmentsData;
+    }
+    if (Array.isArray((assignmentsData as any)?.data)) {
+      return (assignmentsData as any).data;
+    }
+    if (Array.isArray((assignmentsData as any)?.data?.data)) {
+      return (assignmentsData as any).data.data;
+    }
+    return [];
+  }, [assignmentsData]);
+
+  const meta = useMemo(() => {
+    if (Array.isArray(assignmentsData)) {
+      return null;
+    }
+    if ((assignmentsData as any)?.meta) {
+      return (assignmentsData as any).meta;
+    }
+    if ((assignmentsData as any)?.data?.meta) {
+      return (assignmentsData as any).data.meta;
+    }
+    return null;
+  }, [assignmentsData]);
+  
+  const stats = useMemo(() => {
+    // Stats data is already at the top level, not nested in .data
+    return statsData || {};
+  }, [statsData]);
 
   // Update job filter when jobId is provided in URL
   useEffect(() => {
@@ -373,6 +446,15 @@ const SharedCandidates: React.FC = () => {
       }
     }
   }, [searchParams, assignments]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, candidateStatusFilter, jobFilter, companyFilter]);
+
+  // Scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
 
   // Normalize ID for flexible matching (CAND0001, CAND1, CAND01 all match)
   const normalizeIdForSearch = (id: string | undefined): string => {
@@ -520,6 +602,82 @@ const SharedCandidates: React.FC = () => {
     
     return filtered;
   }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter, searchParams]);
+
+  const totalFromStats = useMemo(() => {
+    if (stats?.byStatus && Array.isArray(stats.byStatus)) {
+      // Handle agent format: [{_id: "active", count: 43}]
+      if (stats.byStatus[0]?.count !== undefined) {
+        return stats.byStatus.reduce((sum: number, stat: any) => sum + (stat?.count ?? 0), 0);
+      }
+      
+      // Handle admin format: [{_id: null, statusCounts: [...], totalAssignments: 51}]
+      if (stats.byStatus[0]?.totalAssignments !== undefined) {
+        return stats.byStatus.reduce((sum: number, stat: any) => sum + (stat?.totalAssignments ?? 0), 0);
+      }
+      
+      // Handle admin format alternative: sum from statusCounts
+      if (stats.byStatus[0]?.statusCounts && Array.isArray(stats.byStatus[0].statusCounts)) {
+        return stats.byStatus.reduce((sum: number, stat: any) => {
+          if (stat.statusCounts && Array.isArray(stat.statusCounts)) {
+            return sum + stat.statusCounts.reduce((innerSum: number, sc: any) => innerSum + (sc?.count ?? 0), 0);
+          }
+          return sum;
+        }, 0);
+      }
+    }
+    
+    if (typeof stats?.overdue === 'number' || typeof stats?.dueSoon === 'number') {
+      // Sum known numeric fields when byStatus is unavailable
+      const numericValues = Object.values(stats).filter(value => typeof value === 'number') as number[];
+      if (numericValues.length > 0) {
+        return numericValues.reduce((sum, value) => sum + value, 0);
+      }
+    }
+    return null;
+  }, [stats]);
+
+  const pageOffset = useMemo(
+    () => Math.max(0, (currentPage - 1) * PAGE_SIZE),
+    [currentPage]
+  );
+
+  const paginatedAssignments = useMemo(
+    () => filteredAssignments.slice(pageOffset, pageOffset + PAGE_SIZE),
+    [filteredAssignments, pageOffset]
+  );
+
+  const totalAssignments = useMemo(() => {
+    if (typeof totalFromStats === 'number') {
+      return totalFromStats;
+    }
+    if (typeof meta?.total === 'number' && meta.total > 0) {
+      return Math.max(meta.total, filteredAssignments.length);
+    }
+    return filteredAssignments.length;
+  }, [totalFromStats, meta, filteredAssignments.length]);
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(totalAssignments / PAGE_SIZE)),
+    [totalAssignments]
+  );
+
+  const pageIndicators = useMemo(
+    () => generatePageIndicators(currentPage, totalPages),
+    [currentPage, totalPages]
+  );
+
+  const hasMore = currentPage < totalPages;
+  const rangeStart = totalAssignments === 0 ? 0 : Math.min(totalAssignments, pageOffset + 1);
+  const rangeEnd =
+    totalAssignments === 0
+      ? 0
+      : Math.min(totalAssignments, pageOffset + paginatedAssignments.length);
+
+  useEffect(() => {
+    if (!loading && totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage, loading]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -1484,109 +1642,56 @@ const SharedCandidates: React.FC = () => {
 
 
       {/* Stats Cards */}
-      {user?.role !== 'agent' ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {stats.byStatus && stats.byStatus.map((stat: any, index: number) => {
-            const gradients = [
-              "from-blue-500 to-blue-600",
-              "from-emerald-500 to-emerald-600", 
-              "from-amber-500 to-amber-600",
-              "from-purple-500 to-purple-600"
-            ];
-            const iconColors = [
-              "text-blue-100",
-              "text-emerald-100",
-              "text-amber-100", 
-              "text-purple-100"
-            ];
-            const gradient = gradients[index % gradients.length];
-            const iconColor = iconColors[index % iconColors.length];
-            
-            return (
-              <Card key={stat._id} className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-                <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-90`}></div>
-                <CardContent className="relative p-4">
-                  <div className="flex items-center space-x-2">
-                    <div className={`${iconColor} bg-white/20 p-2 rounded-lg backdrop-blur-sm`}>
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white/90 capitalize">{stat._id}</p>
-                      <p className="text-2xl font-bold text-white">{stat.count}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-          
-          {stats.overdue > 0 && (
-            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-red-600 opacity-90"></div>
-              <CardContent className="relative p-4">
-                <div className="flex items-center space-x-2">
-                  <div className="text-red-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                    <AlertTriangle className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white/90">Overdue</p>
-                    <p className="text-2xl font-bold text-white">{stats.overdue}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90"></div>
-            <CardContent className="relative p-4">
-              <div className="flex items-center space-x-2">
-                <div className="text-blue-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                  <User className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/90">Total Assigned Candidates</p>
-                  <p className="text-2xl font-bold text-white">{assignments.length}</p>
-                </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90"></div>
+          <CardContent className="relative p-4">
+            <div className="flex items-center space-x-2">
+              <div className="text-blue-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <User className="w-4 h-4" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90"></div>
-            <CardContent className="relative p-4">
-              <div className="flex items-center space-x-2">
-                <div className="text-emerald-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                  <Briefcase className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/90">Active HRs</p>
-                  <p className="text-2xl font-bold text-white">
-                    {Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length}
-                  </p>
-                </div>
+              <div>
+                <p className="text-sm font-medium text-white/90">Total Assigned Candidates</p>
+                <p className="text-2xl font-bold text-white">{totalAssignments}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90"></div>
-            <CardContent className="relative p-4">
-              <div className="flex items-center space-x-2">
-                <div className="text-purple-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white/90">Companies</p>
-                  <p className="text-2xl font-bold text-white">
-                    {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
-                  </p>
-                </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90"></div>
+          <CardContent className="relative p-4">
+            <div className="flex items-center space-x-2">
+              <div className="text-emerald-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Briefcase className="w-4 h-4" />
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              <div>
+                <p className="text-sm font-medium text-white/90">{user?.role === 'agent' ? 'Active HRs' : 'Active Agents'}</p>
+                <p className="text-2xl font-bold text-white">
+                  {user?.role === 'agent' 
+                    ? Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length
+                    : Array.from(new Set(assignments.map((a: any) => a.assignedBy?.id))).length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90"></div>
+          <CardContent className="relative p-4">
+            <div className="flex items-center space-x-2">
+              <div className="text-purple-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white/90">Companies</p>
+                <p className="text-2xl font-bold text-white">
+                  {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
 
 
@@ -1678,30 +1783,59 @@ const SharedCandidates: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {filteredAssignments.map(renderAssignmentCard).filter(Boolean)}
+          {paginatedAssignments.map(renderAssignmentCard).filter(Boolean)}
         </div>
       )}
 
       {/* Pagination */}
-      {meta && typeof meta.totalPages === 'number' && meta.totalPages > 1 && (
-        <div className="flex justify-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <span className="flex items-center px-4 py-2 text-sm">
-            Page {currentPage} of {meta.totalPages}
-          </span>
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={currentPage === meta.totalPages}
-          >
-            Next
-          </Button>
+      {!loading && filteredAssignments.length > 0 && (
+        <div className="mt-6 flex flex-col gap-4 rounded-lg border bg-white px-4 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing <span className="font-medium">{rangeStart}</span> to{' '}
+            <span className="font-medium">{rangeEnd}</span> of{' '}
+            <span className="font-medium">{totalAssignments}</span> shared candidates
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1 || loading}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" />
+              Previous
+            </Button>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                {pageIndicators.map((indicator, index) =>
+                  indicator === 'ellipsis' ? (
+                    <span key={`shared-ellipsis-${index}`} className="px-2 text-muted-foreground">
+                      ...
+                    </span>
+                  ) : (
+                    <Button
+                      key={`shared-page-${indicator}`}
+                      variant={currentPage === indicator ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setCurrentPage(indicator)}
+                      className="w-9"
+                    >
+                      {indicator}
+                    </Button>
+                  )
+                )}
+              </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={!hasMore || loading}
+            >
+              Next
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
