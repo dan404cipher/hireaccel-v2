@@ -59,7 +59,9 @@ import {
   Clock,
   Download,
   CheckSquare,
-  Square
+  Square,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -90,6 +92,8 @@ interface User {
   profilePhotoFileId?: string;
   createdAt: string;
 }
+
+const PAGE_SIZE = 25;
 
 const roleColors = {
   superadmin: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-600',
@@ -260,7 +264,7 @@ export default function UserManagement() {
     refetch: refetchUsers 
   } = useUsers({
     page,
-    limit: 200, // Increased to show all users without pagination
+    limit: PAGE_SIZE,
     search: searchTerm || undefined,
     role: roleFilter === 'all' ? undefined : roleFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -281,8 +285,14 @@ export default function UserManagement() {
   }, [allUsers]);
   
   const meta = Array.isArray(usersResponse) ? null : (usersResponse as any)?.meta;
-  const totalPages = meta?.page?.total || 1;
-  const totalUsers = meta?.total || users.length;
+  const totalUsers = meta?.total ?? users.length;
+  const totalPagesRaw = meta?.page?.total ?? (totalUsers > 0 ? Math.ceil(totalUsers / PAGE_SIZE) : 1);
+  const totalPages = Math.max(totalPagesRaw, 1);
+  const currentPageDisplay = meta?.page?.current ?? page;
+  const hasMore = meta?.page?.hasMore ?? (currentPageDisplay < totalPages);
+  const pageRangeStart = totalUsers === 0 ? 0 : ((currentPageDisplay - 1) * PAGE_SIZE) + 1;
+  const pageRangeEnd = totalUsers === 0 ? 0 : Math.min(pageRangeStart + users.length - 1, totalUsers);
+  const showPagination = totalUsers > 0;
 
   // Reset page when filters change
   useEffect(() => {
@@ -293,7 +303,7 @@ export default function UserManagement() {
   useEffect(() => {
     setSelectedUsers(new Set());
     setSelectAll(false);
-  }, [users.length]);
+  }, [users.length, page]);
 
   // Cleanup to ensure navigation works properly
   useEffect(() => {
@@ -710,8 +720,17 @@ export default function UserManagement() {
       <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-blue-600" />
-            Users ({users.length}{totalUsers > users.length ? ` of ${totalUsers}` : ''})
+          <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <span className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              Users
+            </span>
+            <span className="text-sm font-normal text-muted-foreground">
+              {totalUsers === 0
+                ? 'No users found'
+                : `Showing ${pageRangeStart}-${pageRangeEnd} of ${totalUsers} users`}
+            </span>
+          </div>
           </CardTitle>
         </CardHeader>
         
@@ -982,25 +1001,39 @@ export default function UserManagement() {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage(page - 1)}
-                    disabled={page === 1}
-                  >
-                    Previous
-                  </Button>
-                  <span className="flex items-center px-4">
-                    Page {page} of {totalPages} • Showing {users.length} of {totalUsers} users
-                  </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage(page + 1)}
-                    disabled={page === totalPages}
-                  >
-                    Next
-                  </Button>
+              {showPagination && (
+                <div className="mt-4 flex flex-col items-center gap-3 border-t border-slate-200 pt-4 md:flex-row md:justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{pageRangeStart}</span> to{' '}
+                    <span className="font-medium">{pageRangeEnd}</span> of{' '}
+                    <span className="font-medium">{totalUsers}</span> users
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      disabled={page === 1 || usersLoading}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page <span className="font-medium">{currentPageDisplay}</span> of{' '}
+                      <span className="font-medium">{totalPages}</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => prev + 1)}
+                      disabled={!hasMore || usersLoading}
+                      className="flex items-center gap-1"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

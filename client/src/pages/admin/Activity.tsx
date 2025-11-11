@@ -70,6 +70,11 @@ const actionColors: Record<string, string> = {
   login: 'bg-purple-100 text-purple-800 border-purple-200',
   logout: 'bg-orange-100 text-orange-800 border-orange-200',
   assign: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+  upload: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  download: 'bg-teal-100 text-teal-800 border-teal-200',
+  approve: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  reject: 'bg-rose-100 text-rose-800 border-rose-200',
+  advance: 'bg-amber-100 text-amber-800 border-amber-200',
 };
 
 const entityIcons: Record<string, any> = {
@@ -105,6 +110,7 @@ export default function ActivityPage() {
   const [riskLevelFilter, setRiskLevelFilter] = useState<string>('all');
   
   const isHRUser = user?.role === 'hr';
+  const isSuperAdmin = user?.role === 'superadmin';
 
   const navigateToUserProfile = (actorId: string, actorRole: string, customId?: string) => {
     switch (actorRole?.toLowerCase()) {
@@ -167,35 +173,51 @@ export default function ActivityPage() {
           );
         }
         
-        // Filter to only major CRUD operations on important entities
-        const majorEntities = ['Job', 'Company', 'Interview', 'Candidate', 'Application', 'User', 'AgentAssignment', 'CandidateAssignment'];
-        const majorActions = ['create', 'update', 'delete']; // Use lowercase to match AuditAction enum values
-        
-        // Apply entity type filter if specified
-        let entityFiltered = filteredData;
-        if (entityTypeFilter !== 'all' && majorEntities.includes(entityTypeFilter)) {
-          entityFiltered = filteredData.filter((log: AuditLog) => log.entityType === entityTypeFilter);
-        } else {
-          entityFiltered = filteredData.filter((log: AuditLog) => majorEntities.includes(log.entityType));
-        }
-        
-        // For CandidateAssignment, only show when candidate status changed (filter out CREATE and other updates without status change)
-        entityFiltered = entityFiltered.filter((log: AuditLog) => {
-          if (log.entityType === 'CandidateAssignment') {
-            // Only show if candidate status was changed (exclude CREATE and other updates)
-            return log.metadata?.candidateStatusChanged === true;
+        // For superadmin, show all activities without restrictive filtering
+        if (isSuperAdmin) {
+          // Apply entity type filter if specified
+          if (entityTypeFilter !== 'all') {
+            filteredData = filteredData.filter((log: AuditLog) => log.entityType === entityTypeFilter);
           }
-          return true;
-        });
-        
-        // Apply action filter if specified (convert to lowercase)
-        if (actionFilter !== 'all') {
-          const actionLower = actionFilter.toLowerCase();
-          filteredData = entityFiltered.filter((log: AuditLog) => log.action?.toLowerCase() === actionLower);
+          
+          // Apply action filter if specified
+          if (actionFilter !== 'all') {
+            const actionLower = actionFilter.toLowerCase();
+            filteredData = filteredData.filter((log: AuditLog) => log.action?.toLowerCase() === actionLower);
+          }
+          
+          // Superadmin sees all activities, no further filtering needed
         } else {
-          filteredData = entityFiltered.filter((log: AuditLog) => 
-            log.action && majorActions.includes(log.action.toLowerCase())
-          );
+          // For admin and other roles, filter to only major CRUD operations on important entities
+          const majorEntities = ['Job', 'Company', 'Interview', 'Candidate', 'Application', 'User', 'AgentAssignment', 'CandidateAssignment'];
+          const majorActions = ['create', 'update', 'delete']; // Use lowercase to match AuditAction enum values
+          
+          // Apply entity type filter if specified
+          let entityFiltered = filteredData;
+          if (entityTypeFilter !== 'all' && majorEntities.includes(entityTypeFilter)) {
+            entityFiltered = filteredData.filter((log: AuditLog) => log.entityType === entityTypeFilter);
+          } else {
+            entityFiltered = filteredData.filter((log: AuditLog) => majorEntities.includes(log.entityType));
+          }
+          
+          // For CandidateAssignment, only show when candidate status changed (filter out CREATE and other updates without status change)
+          entityFiltered = entityFiltered.filter((log: AuditLog) => {
+            if (log.entityType === 'CandidateAssignment') {
+              // Only show if candidate status was changed (exclude CREATE and other updates)
+              return log.metadata?.candidateStatusChanged === true;
+            }
+            return true;
+          });
+          
+          // Apply action filter if specified (convert to lowercase)
+          if (actionFilter !== 'all') {
+            const actionLower = actionFilter.toLowerCase();
+            filteredData = entityFiltered.filter((log: AuditLog) => log.action?.toLowerCase() === actionLower);
+          } else {
+            filteredData = entityFiltered.filter((log: AuditLog) => 
+              log.action && majorActions.includes(log.action.toLowerCase())
+            );
+          }
         }
         
         setLogs(filteredData);
@@ -742,7 +764,7 @@ export default function ActivityPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
                 <Filter className="h-5 w-5 text-blue-600" />
-                <h3 className="font-semibold">Filter Major Activities</h3>
+                <h3 className="font-semibold">{isSuperAdmin ? "Filter Activities" : "Filter Major Activities"}</h3>
               </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="relative">
@@ -779,6 +801,19 @@ export default function ActivityPage() {
                         <SelectItem value="create">Create</SelectItem>
                         <SelectItem value="update">Update</SelectItem>
                         <SelectItem value="delete">Delete</SelectItem>
+                        {isSuperAdmin && (
+                          <>
+                            <SelectItem value="read">Read</SelectItem>
+                            <SelectItem value="login">Login</SelectItem>
+                            <SelectItem value="logout">Logout</SelectItem>
+                            <SelectItem value="upload">Upload</SelectItem>
+                            <SelectItem value="download">Download</SelectItem>
+                            <SelectItem value="approve">Approve</SelectItem>
+                            <SelectItem value="reject">Reject</SelectItem>
+                            <SelectItem value="assign">Assign</SelectItem>
+                            <SelectItem value="advance">Advance</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                     <Button 
@@ -797,6 +832,8 @@ export default function ActivityPage() {
                     <Info className="h-4 w-4 inline mr-2" />
                     {isHRUser 
                       ? "Showing your major activities: Jobs you created/updated, Interviews you scheduled, and related activities."
+                      : isSuperAdmin
+                      ? "Showing all activities: Complete audit trail of all system activities including all entity types and actions."
                       : "Showing major activities: Job creation/updates, Interview scheduling, User management, Company changes, and Application updates."}
                   </div>
                 </div>

@@ -36,6 +36,7 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useMyCandidateAssignments, useUpdateCandidateAssignment, useCandidateAssignmentStats, useCandidateAssignments } from '@/hooks/useApi';
 import { apiClient } from '@/services/api';
@@ -349,6 +350,7 @@ const SharedCandidates: React.FC = () => {
   const [candidateStatusFilter, setCandidateStatusFilter] = useState(searchParams.get('candidateStatus') || 'all');
   const [jobFilter, setJobFilter] = useState(searchParams.get('jobId') ? 'all' : 'all'); // Will be set from jobId if provided
   const [companyFilter, setCompanyFilter] = useState('all');
+  const [candidateSort, setCandidateSort] = useState('assignedAt-desc');
   const [selectedAssignment, setSelectedAssignment] = useState<CandidateAssignment | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -449,7 +451,7 @@ const SharedCandidates: React.FC = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, candidateStatusFilter, jobFilter, companyFilter]);
+  }, [searchTerm, candidateStatusFilter, jobFilter, companyFilter, candidateSort]);
 
   // Scroll to top when page changes
   useEffect(() => {
@@ -600,8 +602,47 @@ const SharedCandidates: React.FC = () => {
       );
     }
     
-    return filtered;
-  }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter, searchParams]);
+    // Apply sorting
+    const sorted = [...filtered];
+    const [sortField, sortDirection] = candidateSort.split('-');
+    const directionMultiplier = sortDirection === 'desc' ? -1 : 1;
+    const priorityOrder = ['urgent', 'high', 'medium', 'low'];
+
+    sorted.sort((a: CandidateAssignment, b: CandidateAssignment) => {
+      if (!a || !b) return 0;
+
+      switch (sortField) {
+        case 'candidate': {
+          const nameA = `${a.candidateId?.userId?.firstName || ''} ${a.candidateId?.userId?.lastName || ''}`.trim().toLowerCase();
+          const nameB = `${b.candidateId?.userId?.firstName || ''} ${b.candidateId?.userId?.lastName || ''}`.trim().toLowerCase();
+          return directionMultiplier * nameA.localeCompare(nameB);
+        }
+        case 'job': {
+          const jobA = (a.jobId?.title || '').toLowerCase();
+          const jobB = (b.jobId?.title || '').toLowerCase();
+          return directionMultiplier * jobA.localeCompare(jobB);
+        }
+        case 'priority': {
+          const priorityA = priorityOrder.indexOf((a.priority || 'medium').toLowerCase());
+          const priorityB = priorityOrder.indexOf((b.priority || 'medium').toLowerCase());
+          const safePriorityA = priorityA === -1 ? priorityOrder.length : priorityA;
+          const safePriorityB = priorityB === -1 ? priorityOrder.length : priorityB;
+          if (sortDirection === 'desc') {
+            return safePriorityA - safePriorityB;
+          }
+          return safePriorityB - safePriorityA;
+        }
+        case 'assignedAt':
+        default: {
+          const dateA = new Date(a.assignedAt || 0).getTime();
+          const dateB = new Date(b.assignedAt || 0).getTime();
+          return directionMultiplier * (dateA - dateB);
+        }
+      }
+    });
+
+    return sorted;
+  }, [assignments, searchTerm, companyFilter, jobFilter, candidateStatusFilter, candidateSort, searchParams]);
 
   const totalFromStats = useMemo(() => {
     if (stats?.byStatus && Array.isArray(stats.byStatus)) {
@@ -1759,6 +1800,22 @@ const SharedCandidates: React.FC = () => {
                     {companyName}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={candidateSort} onValueChange={setCandidateSort}>
+              <SelectTrigger className="w-48 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
+                <ArrowUpDown className="w-4 h-4 mr-2 text-emerald-600" />
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="assignedAt-desc">Newest Assigned</SelectItem>
+                <SelectItem value="assignedAt-asc">Oldest Assigned</SelectItem>
+                <SelectItem value="candidate-asc">Candidate (A-Z)</SelectItem>
+                <SelectItem value="candidate-desc">Candidate (Z-A)</SelectItem>
+                <SelectItem value="job-asc">Job Title (A-Z)</SelectItem>
+                <SelectItem value="job-desc">Job Title (Z-A)</SelectItem>
+                <SelectItem value="priority-desc">Priority (High to Low)</SelectItem>
+                <SelectItem value="priority-asc">Priority (Low to High)</SelectItem>
               </SelectContent>
             </Select>
           </div>

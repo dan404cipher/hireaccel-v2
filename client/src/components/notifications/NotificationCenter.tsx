@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, Notification } from '@/contexts/NotificationContext';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const candidateStatusLabels: Record<string, string> = {
   new: 'New',
@@ -45,6 +46,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onOpenChange,
 }) => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const currentUserRole = currentUser?.role;
   const {
     notifications,
     loading,
@@ -75,6 +78,87 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const renderNotificationMessage = (notification: Notification) => {
     const { message, metadata } = notification;
+    
+    // Handle candidate status change notifications with role-specific messaging
+    if (notification.type === 'candidate_status_change') {
+      // Candidates should continue to see the original message from the backend
+      if (currentUserRole === 'candidate') {
+        return message;
+      }
+
+      const candidateName = metadata?.candidateName || 'candidate';
+      const candidateRouteId = metadata?.candidateCustomId || metadata?.candidateId;
+      const newStatusRaw = (metadata?.newStatus || '').toString().toLowerCase();
+      const statusLabel =
+        candidateStatusLabels[newStatusRaw] || (metadata?.newStatus || 'Updated');
+      const statusClass =
+        candidateStatusClasses[newStatusRaw] || 'bg-blue-100 text-blue-800';
+      const jobTitle = metadata?.jobTitle;
+      const jobRouteId = metadata?.jobCustomId || metadata?.jobId;
+
+      const candidateLink = (
+        <span
+          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (candidateRouteId) {
+              navigate(`/dashboard/candidates/${candidateRouteId}`);
+              onOpenChange(false);
+            }
+          }}
+        >
+          {candidateName}
+        </span>
+      );
+
+      const statusBadge = (
+        <span
+          className={cn(
+            'ml-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize',
+            statusClass
+          )}
+        >
+          {statusLabel}
+        </span>
+      );
+
+      const jobLink = jobTitle ? (
+        <>
+          {' '}
+          for{' '}
+          <span
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (jobRouteId) {
+                navigate(`/dashboard/jobs/${jobRouteId}`);
+                onOpenChange(false);
+              }
+            }}
+          >
+            {jobTitle}
+          </span>
+        </>
+      ) : null;
+
+      if (currentUserRole === 'hr') {
+        return (
+          <div>
+            You changed {candidateLink} to
+            {statusBadge}
+            {jobLink}.
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          Candidate {candidateLink} status changed to
+          {statusBadge}
+          {jobLink}.
+        </div>
+      );
+    }
     
     // Handle company creation notifications
     if (notification.type === 'company_create' && metadata?.companyName && metadata?.creatorName) {
