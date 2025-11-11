@@ -189,15 +189,19 @@ function AppRouter() {
                 }
             />
             <Route
-                path='/register/hr'
+                path='/signup/hr'
                 element={
-                    isAuthenticated ? <Navigate to='/dashboard' replace /> : <SignupPage onSwitchToSignin={() => {}} />
+                    isAuthenticated ? <Navigate to='/dashboard' replace /> : <Navigate to='/register/hr' replace /> //<SignupPage onSwitchToSignin={() => {}} />
                 }
             />
             <Route
-                path='/register/candidate'
+                path='/signup/candidate'
                 element={
-                    isAuthenticated ? <Navigate to='/dashboard' replace /> : <SignupPage onSwitchToSignin={() => {}} />
+                    isAuthenticated ? (
+                        <Navigate to='/dashboard' replace />
+                    ) : (
+                        <Navigate to='/register/candidate' replace />
+                    ) // <SignupPage onSwitchToSignin={() => {}} />
                 }
             />
             <Route
