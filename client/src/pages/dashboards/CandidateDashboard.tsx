@@ -1,25 +1,28 @@
-import { useState, useMemo, useEffect } from "react";
+import { useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   FileText, 
   Calendar, 
   MapPin, 
   Clock, 
   CheckCircle,
-  AlertCircle,
   Upload,
   User,
   Briefcase,
-  Star
+  Star,
+  ArrowUpRight
 } from "lucide-react";
 import { useMyCandidateAssignments, useCandidateProfile, useInterviews } from "@/hooks/useApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { DashboardBanner } from "@/components/dashboard/Banner";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
 export default function CandidateDashboard() {
   const { user } = useAuth();
@@ -103,28 +106,51 @@ export default function CandidateDashboard() {
   // Process assignments data
   
   const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
-  const recentAssignments = assignments.slice(0, 5);
+  const recentAssignments = assignments.slice(0, 10);
   
 
   // Calculate assignment stats
   const assignmentStats = useMemo(() => {
     const total = assignments.length;
-    const activeCount = assignments.filter((app: any) => 
-      app.status === 'active' || 
-      app.status === 'in_progress' || 
-      app.status === 'interviewing'
+
+    const hiredCount = assignments.filter(
+      (app: any) => app.candidateStatus === 'hired'
     ).length;
-    const completedCount = assignments.filter((app: any) => 
-      app.status === 'completed' || 
-      app.status === 'hired'
+
+    const rejectedCount = assignments.filter(
+      (app: any) => app.candidateStatus === 'rejected'
     ).length;
-    const rejectedCount = assignments.filter((app: any) => 
-      app.status === 'rejected' || 
-      app.status === 'withdrawn'
-    ).length;
-    const responseRate = total > 0 ? Math.round(((activeCount + completedCount) / total) * 100) : 0;
-    
-    return { total, activeCount, completedCount, rejectedCount, responseRate };
+
+    const activeCount = assignments.filter((app: any) => {
+      const activeStatuses = [
+        'new',
+        'reviewed',
+        'shortlisted',
+        'interview_scheduled',
+        'interviewed',
+        'offer_sent',
+      ];
+      return (
+        activeStatuses.includes(app.candidateStatus) &&
+        app.status !== 'withdrawn'
+      );
+    }).length;
+
+    const interviewsTodayCount = assignments.filter((app: any) => {
+      if (!Array.isArray(app.interviews)) return false;
+      return app.interviews.some((interview: any) => {
+        if (!interview?.scheduledAt) return false;
+        const interviewDate = new Date(interview.scheduledAt);
+        const today = new Date();
+        return (
+          interviewDate.getFullYear() === today.getFullYear() &&
+          interviewDate.getMonth() === today.getMonth() &&
+          interviewDate.getDate() === today.getDate()
+        );
+      });
+    }).length;
+
+    return { total, activeCount, hiredCount, rejectedCount, interviewsTodayCount };
   }, [assignments]);
 
   // Get upcoming interviews
@@ -186,7 +212,10 @@ export default function CandidateDashboard() {
       </div>
 
       {/* Profile Completion */}
-      <Card>
+      <Card
+        className="hover:shadow-lg transition-shadow cursor-pointer"
+        onClick={() => navigate(`/dashboard/candidate-profile/${user?.customId}`)}
+      >
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -195,7 +224,10 @@ export default function CandidateDashboard() {
             </div>
             <Button 
               variant="outline"
-              onClick={() => navigate(`/dashboard/candidate-profile/${user?.customId}`)}
+              onClick={(event) => {
+                event.stopPropagation();
+                navigate(`/dashboard/candidate-profile/${user?.customId}`);
+              }}
             >
               <User className="h-4 w-4 mr-2" />
               Edit Profile
@@ -212,20 +244,24 @@ export default function CandidateDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <ProfileItem
                 title="Resume"
-                completed={true}
-                description="CV uploaded"
+                completed={!!profileData?.resumeFileId}
+                description={profileData?.resumeFileId ? "CV uploaded" : "Upload CV"}
                 icon={<FileText className="h-4 w-4" />}
               />
               <ProfileItem
                 title="Skills"
-                completed={true}
-                description="5 skills added"
+                completed={(profileData?.profile?.skills?.length || 0) > 0}
+                description={
+                  (profileData?.profile?.skills?.length || 0) > 0
+                    ? `${profileData.profile.skills.length} skill${profileData.profile.skills.length !== 1 ? 's' : ''} added`
+                    : "Add skills"
+                }
                 icon={<Star className="h-4 w-4" />}
               />
               <ProfileItem
                 title="Portfolio"
-                completed={false}
-                description="Add portfolio"
+                completed={!!profileData?.profile?.portfolioUrl}
+                description={profileData?.profile?.portfolioUrl ? "Portfolio added" : "Add portfolio"}
                 icon={<Briefcase className="h-4 w-4" />}
               />
             </div>
@@ -234,36 +270,47 @@ export default function CandidateDashboard() {
       </Card>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
           title="Assignments"
           value={assignmentStats.total}
-          icon={<FileText className="h-4 w-4" />}
           description="Total assigned"
+          icon={<FileText className="h-5 w-5" />}
+          color="blue"
+          onClick={() => navigate('/dashboard/candidate-applications')}
         />
-        <StatCard
+        <MetricCard
           title="Active Assignments"
           value={assignmentStats.activeCount}
-          icon={<Clock className="h-4 w-4" />}
           description="In progress"
+          icon={<Clock className="h-5 w-5" />}
+          color="emerald"
+          onClick={() => navigate('/dashboard/candidate-applications?status=in_progress')}
         />
-        <StatCard
-          title="Completed"
-          value={assignmentStats.completedCount}
-          icon={<CheckCircle className="h-4 w-4" />}
-          description="Successfully completed"
+        <MetricCard
+          title="Hired"
+          value={assignmentStats.hiredCount}
+          description="Successfully hired"
+          icon={<CheckCircle className="h-5 w-5" />}
+          color="purple"
+          onClick={() => navigate('/dashboard/candidate-applications?status=hired')}
         />
-        <StatCard
-          title="Success Rate"
-          value={`${assignmentStats.responseRate}%`}
-          icon={<Star className="h-4 w-4" />}
-          description="Completion rate"
+        <MetricCard
+          title="Interviews Today"
+          value={assignmentStats.interviewsTodayCount}
+          description="Scheduled for today"
+          icon={<Calendar className="h-5 w-5" />}
+          color="amber"
+          onClick={() => navigate('/dashboard/candidate-interviews')}
         />
       </div>
 
       {/* Assignments Timeline & Upcoming Interviews */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => navigate('/dashboard/candidate-applications')}
+        >
           <CardHeader>
             <CardTitle>Assignment Timeline</CardTitle>
             <CardDescription>Track your job assignments from agents</CardDescription>
@@ -274,13 +321,24 @@ export default function CandidateDashboard() {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               </div>
             ) : recentAssignments.length > 0 ? (
-              <div className="space-y-4">
-                {recentAssignments.map((assignment: any) => (
+              <ScrollArea className="max-h-[420px] pr-2">
+                <div className="space-y-4">
+                {recentAssignments.map((assignment: any) => {
+                  const companyName = assignment.jobId?.companyId?.name || 'Unknown Company';
+                  const companyLogoFileId = assignment.jobId?.companyId?.logoFileId;
+                  const agentFirstName = assignment.assignedBy?.firstName || '';
+                  const agentLastName = assignment.assignedBy?.lastName || '';
+                  const agentInitials = getInitials(`${agentFirstName} ${agentLastName}`) || 'A';
+
+                  return (
                   <div key={assignment._id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-medium">{assignment.jobId?.title || 'Unknown Position'}</h4>
-                        <p className="text-sm text-muted-foreground">{assignment.jobId?.companyId?.name || 'Unknown Company'}</p>
+                      <div className="flex items-start gap-3">
+                        <CompanyAvatar logoFileId={companyLogoFileId} companyName={companyName} />
+                        <div>
+                          <h4 className="font-medium">{assignment.jobId?.title || 'Unknown Position'}</h4>
+                          <p className="text-sm text-muted-foreground">{companyName}</p>
+                        </div>
                       </div>
                       <div className="flex gap-2">
                         <Badge className={getStatusColor(assignment.status)}>
@@ -294,14 +352,22 @@ export default function CandidateDashboard() {
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground mb-2">
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-4">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
                           Assigned {formatDistanceToNow(new Date(assignment.assignedAt))} ago
                         </span>
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {`Agent: ${assignment.assignedBy?.firstName} ${assignment.assignedBy?.lastName}`}
+                        <span className="flex items-center gap-2">
+                          <AgentAvatar
+                            profilePhotoFileId={assignment.assignedBy?.profilePhotoFileId}
+                            firstName={agentFirstName}
+                            lastName={agentLastName}
+                            initials={agentInitials}
+                          />
+                          <span className="text-sm text-foreground font-medium">
+                            <span className="text-muted-foreground font-normal mr-1">Agent:</span>
+                            {`${agentFirstName} ${agentLastName}`.trim() || 'Assigned Agent'}
+                          </span>
                         </span>
                       </div>
                     </div>
@@ -313,8 +379,9 @@ export default function CandidateDashboard() {
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
+                )})}
+                </div>
+              </ScrollArea>
             ) : (
               <div className="text-center py-8">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -327,15 +394,19 @@ export default function CandidateDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => navigate('/dashboard/candidate-interviews')}
+        >
           <CardHeader>
             <CardTitle>Upcoming Interviews</CardTitle>
             <CardDescription>Prepare for your scheduled interviews</CardDescription>
           </CardHeader>
           <CardContent>
             {upcomingInterviews.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingInterviews.map((interview: any) => (
+              <ScrollArea className="max-h-[420px] pr-2">
+                <div className="space-y-4">
+                {upcomingInterviews.slice(0, 10).map((interview: any) => (
                   <div key={interview._id} className="border rounded-lg p-4 bg-blue-50">
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -365,14 +436,18 @@ export default function CandidateDashboard() {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => navigate('/dashboard/candidate-interviews')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate('/dashboard/candidate-interviews');
+                        }}
                       >
                         View Details
                       </Button>
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              </ScrollArea>
             ) : (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -422,30 +497,112 @@ export default function CandidateDashboard() {
 }
 
 // Helper Components
-function StatCard({ 
+function MetricCard({ 
   title, 
   value, 
+  description, 
   icon, 
-  description 
+  color,
+  onClick
 }: { 
   title: string; 
   value: number | string; 
+  description: string; 
   icon: React.ReactNode; 
-  description: string;
+  color: 'blue' | 'emerald' | 'purple' | 'amber';
+  onClick?: () => void;
 }) {
+  const colorClasses = {
+    blue: 'from-blue-500 to-blue-600',
+    emerald: 'from-emerald-500 to-emerald-600',
+    purple: 'from-purple-500 to-purple-600',
+    amber: 'from-amber-500 to-amber-600',
+  }[color];
+
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          {icon}
+    <Card
+      className={`bg-gradient-to-br ${colorClasses} text-white shadow-lg hover:shadow-xl transition-all duration-300 ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm font-medium text-white/80">{title}</div>
+          <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+            {icon}
+          </div>
         </div>
-        <div className="text-2xl font-bold">
-          {typeof value === 'number' ? value.toLocaleString() : value}
+        <div className="flex items-end justify-between">
+          <div>
+            <div className="text-3xl font-bold">
+              {typeof value === 'number' ? value.toLocaleString() : value}
+            </div>
+            <div className="text-xs text-white/80 mt-1">{description}</div>
+          </div>
+          <ArrowUpRight className="h-5 w-5 text-white/70" />
         </div>
-        <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function CompanyAvatar({ logoFileId, companyName }: { logoFileId?: string | { _id?: string; toString?: () => string }; companyName: string }) {
+  const fileId = logoFileId 
+    ? (typeof logoFileId === 'object' && logoFileId !== null && '_id' in logoFileId
+        ? (logoFileId._id?.toString() || logoFileId.toString?.())
+        : typeof logoFileId === 'string'
+        ? logoFileId
+        : null)
+    : null;
+
+  const logoUrl = fileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${fileId}`
+    : null;
+
+  const authenticatedImageUrl = useAuthenticatedImage(logoUrl);
+
+  const initials = useMemo(() => {
+    return companyName
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [companyName]);
+
+  return (
+    <Avatar className="h-10 w-10 flex-shrink-0">
+      {authenticatedImageUrl && (
+        <AvatarImage 
+          src={authenticatedImageUrl} 
+          alt={companyName}
+        />
+      )}
+      <AvatarFallback className="text-xs text-white font-semibold bg-purple-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function AgentAvatar({ profilePhotoFileId, firstName, lastName, initials }: { profilePhotoFileId?: string; firstName: string; lastName: string; initials: string }) {
+  const profilePhotoUrl = profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  return (
+    <Avatar className="h-8 w-8 flex-shrink-0">
+      {authenticatedImageUrl && (
+        <AvatarImage 
+          src={authenticatedImageUrl} 
+          alt={`${firstName} ${lastName}`}
+        />
+      )}
+      <AvatarFallback className="text-xs text-white font-semibold bg-emerald-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -471,4 +628,13 @@ function ProfileItem({
       </div>
     </div>
   );
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map(part => part[0]?.toUpperCase() || '')
+    .join('')
+    .slice(0, 2);
 }

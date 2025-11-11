@@ -10,6 +10,7 @@ import { TextAdPreview } from '@/components/TextAdPreview';
 import { Upload, Trash2, Plus, X, Edit } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { toast } from 'sonner';
+import { useBannerContext } from '@/contexts/BannerContext';
 
 interface Banner {
   _id: string;
@@ -42,6 +43,7 @@ interface Banner {
 }
 
 export function BannerManagement() {
+  const { refreshBanners } = useBannerContext();
   const [hrBanners, setHrBanners] = useState<Banner[]>([]);
   const [candidateBanners, setCandidateBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +118,8 @@ export function BannerManagement() {
       const result = await apiClient.uploadBanner(file, selectedCategory);
       toast.success(`${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} banner uploaded successfully`);
       fetchBanners();
+      // Refresh global banner cache
+      await refreshBanners();
     } catch (error) {
       console.error('Error uploading banner:', error);
       toast.error('Failed to upload banner');
@@ -128,6 +132,8 @@ export function BannerManagement() {
     try {
       await apiClient.updateBannerStatus(bannerId, !currentStatus);
       fetchBanners();
+      // Refresh global banner cache
+      await refreshBanners();
       toast.success('Banner status updated');
     } catch (error) {
       console.error('Error updating banner status:', error);
@@ -143,6 +149,8 @@ export function BannerManagement() {
     try {
       await apiClient.deleteBanner(bannerId);
       fetchBanners();
+      // Refresh global banner cache
+      await refreshBanners();
       toast.success('Banner deleted successfully');
     } catch (error) {
       console.error('Error deleting banner:', error);
@@ -199,6 +207,8 @@ export function BannerManagement() {
         backgroundMedia: null,
       });
       fetchBanners();
+      // Refresh global banner cache
+      await refreshBanners();
     } catch (error) {
       console.error('Error creating text ad:', error);
       toast.error('Failed to create text ad');
@@ -292,6 +302,8 @@ export function BannerManagement() {
         backgroundMedia: null,
       });
       fetchBanners();
+      // Refresh global banner cache
+      await refreshBanners();
     } catch (error) {
       console.error('Error updating text ad:', error);
       toast.error('Failed to update text ad');
@@ -585,7 +597,7 @@ export function BannerManagement() {
                       contentSize={textAdForm.contentSize}
                       textAlignment={textAdForm.textAlignment}
                       backgroundMedia={textAdForm.backgroundMedia}
-                      backgroundMediaUrl={editingTextAd?.backgroundMediaUrl}
+                      backgroundMediaUrl={editingTextAd?.backgroundMediaUrl ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${editingTextAd._id}/background` : undefined}
                       backgroundMediaType={editingTextAd?.backgroundMediaType}
                     />
                   </div>
@@ -646,15 +658,16 @@ export function BannerManagement() {
                       <div className="w-32 h-20 rounded-lg overflow-hidden">
                         {activeBanner.mediaType === 'video' ? (
                           <video
-                            src={activeBanner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${activeBanner._id}/media`}
                             className="w-full h-full object-cover"
                             muted
                             loop
                             autoPlay
+                            playsInline
                           />
                         ) : (
                           <img
-                            src={activeBanner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${activeBanner._id}/media`}
                             alt="Active Banner"
                             className="w-full h-full object-cover"
                           />
@@ -721,13 +734,16 @@ export function BannerManagement() {
                       <>
                         {banner.mediaType === 'video' ? (
                           <video
-                            src={banner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${banner._id}/media`}
                             className="w-full h-full object-cover"
                             muted
+                            loop
+                            autoPlay
+                            playsInline
                           />
                         ) : (
                           <img
-                            src={banner.mediaUrl}
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/banners/${banner._id}/media`}
                             alt="Banner"
                             className="w-full h-full object-cover"
                           />

@@ -59,7 +59,9 @@ import {
   Clock,
   Download,
   CheckSquare,
-  Square
+  Square,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -69,9 +71,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiErrorAlert } from "@/components/ui/error-boundary";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
 interface User {
   _id: string;
@@ -85,8 +89,11 @@ interface User {
   emailVerified?: boolean;
   phoneNumber?: string;
   source?: string;
+  profilePhotoFileId?: string;
   createdAt: string;
 }
+
+const PAGE_SIZE = 25;
 
 const roleColors = {
   superadmin: 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-600',
@@ -123,6 +130,80 @@ const roleLabels = {
   hr: 'HR Manager',
   agent: 'Agent',
   candidate: 'Candidate',
+};
+
+// Format customId to remove leading zeros (e.g., CAND00004 -> CAND4)
+const formatCustomId = (customId: string): string => {
+  if (!customId) return customId;
+  
+  // Match pattern like CAND00004, HR00001, etc.
+  const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    // Remove leading zeros and return formatted ID
+    return `${prefix}${parseInt(number, 10)}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Component to display user avatar with profile picture support
+const UserAvatar = ({ user, onClick }: { user: User; onClick?: () => void }) => {
+  // Only show profile picture for HR and candidate roles
+  const showProfilePicture = (user.role === 'hr' || user.role === 'candidate') && user.profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = showProfilePicture && authenticatedImageUrl ? (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={`${user.firstName} ${user.lastName}`}
+      />
+      <AvatarFallback className={`text-xs font-semibold text-white ${
+        user.role === 'hr' ? 'bg-blue-600' : 'bg-purple-600'
+      }`}>
+        {user.firstName[0]}{user.lastName[0]}
+      </AvatarFallback>
+    </Avatar>
+  ) : (
+    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+      user.role === 'superadmin' ? 'bg-gradient-to-r from-purple-100 to-pink-100' :
+      user.role === 'admin' ? 'bg-red-100' :
+      user.role === 'hr' ? 'bg-blue-100' :
+      user.role === 'agent' ? 'bg-emerald-100' :
+      'bg-purple-100'
+    }`}>
+      {user.role === 'superadmin' || user.role === 'admin' ? (
+        <Shield className={`w-4 h-4 ${
+          user.role === 'superadmin' ? 'text-purple-600' : 'text-red-600'
+        }`} />
+      ) : user.role === 'hr' ? (
+        <UserCheck className="w-4 h-4 text-blue-600" />
+      ) : user.role === 'agent' ? (
+        <UserCheck className="w-4 h-4 text-emerald-600" />
+      ) : (
+        <Users className="w-4 h-4 text-purple-600" />
+      )}
+    </div>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
 };
 
 export default function UserManagement() {
@@ -183,7 +264,7 @@ export default function UserManagement() {
     refetch: refetchUsers 
   } = useUsers({
     page,
-    limit: 200, // Increased to show all users without pagination
+    limit: PAGE_SIZE,
     search: searchTerm || undefined,
     role: roleFilter === 'all' ? undefined : roleFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
@@ -204,8 +285,14 @@ export default function UserManagement() {
   }, [allUsers]);
   
   const meta = Array.isArray(usersResponse) ? null : (usersResponse as any)?.meta;
-  const totalPages = meta?.page?.total || 1;
-  const totalUsers = meta?.total || users.length;
+  const totalUsers = meta?.total ?? users.length;
+  const totalPagesRaw = meta?.page?.total ?? (totalUsers > 0 ? Math.ceil(totalUsers / PAGE_SIZE) : 1);
+  const totalPages = Math.max(totalPagesRaw, 1);
+  const currentPageDisplay = meta?.page?.current ?? page;
+  const hasMore = meta?.page?.hasMore ?? (currentPageDisplay < totalPages);
+  const pageRangeStart = totalUsers === 0 ? 0 : ((currentPageDisplay - 1) * PAGE_SIZE) + 1;
+  const pageRangeEnd = totalUsers === 0 ? 0 : Math.min(pageRangeStart + users.length - 1, totalUsers);
+  const showPagination = totalUsers > 0;
 
   // Reset page when filters change
   useEffect(() => {
@@ -216,7 +303,7 @@ export default function UserManagement() {
   useEffect(() => {
     setSelectedUsers(new Set());
     setSelectAll(false);
-  }, [users.length]);
+  }, [users.length, page]);
 
   // Cleanup to ensure navigation works properly
   useEffect(() => {
@@ -633,8 +720,17 @@ export default function UserManagement() {
       <Card className="shadow-lg bg-gradient-to-r from-slate-50 to-gray-50 border-slate-200 overflow-hidden">
         <CardHeader className="bg-gradient-to-r from-slate-100 to-gray-100">
           <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-blue-600" />
-            Users ({users.length}{totalUsers > users.length ? ` of ${totalUsers}` : ''})
+          <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <span className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              Users
+            </span>
+            <span className="text-sm font-normal text-muted-foreground">
+              {totalUsers === 0
+                ? 'No users found'
+                : `Showing ${pageRangeStart}-${pageRangeEnd} of ${totalUsers} users`}
+            </span>
+          </div>
           </CardTitle>
         </CardHeader>
         
@@ -751,10 +847,9 @@ export default function UserManagement() {
                       />
                     </TableHead>
                     <TableHead>ID</TableHead>
-                    <TableHead>Name</TableHead>
+                    <TableHead className="min-w-[250px]">Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Role</TableHead>
                     <TableHead>Lead Source</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[50px]">Actions</TableHead>
@@ -772,11 +867,45 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
-                          {user.customId}
+                          {formatCustomId(user.customId)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium text-base">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <UserAvatar 
+                            user={user}
+                            onClick={() => {
+                              if (user.role === 'candidate') {
+                                navigate(`/dashboard/candidates/${user.customId || user._id}`);
+                              } else if (user.role === 'hr') {
+                                navigate(`/dashboard/hr-profile/${user.customId || user._id}`);
+                              } else {
+                                // For other roles, open the view details dialog
+                                setViewingUser(user);
+                              }
+                            }}
+                          />
+                          <div>
+                            <p 
+                              className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                              onClick={() => {
+                                if (user.role === 'candidate') {
+                                  navigate(`/dashboard/candidates/${user.customId || user._id}`);
+                                } else if (user.role === 'hr') {
+                                  navigate(`/dashboard/hr-profile/${user.customId || user._id}`);
+                                } else {
+                                  // For other roles, open the view details dialog
+                                  setViewingUser(user);
+                                }
+                              }}
+                            >
                         {user.firstName} {user.lastName}
+                            </p>
+                            <Badge className={`${roleColors[user.role]} text-xs px-1.5 py-0.5 mt-1`}>
+                              {roleLabels[user.role]}
+                            </Badge>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2 text-base">
@@ -789,11 +918,6 @@ export default function UserManagement() {
                           <Phone className="h-4 w-4 text-emerald-600" />
                           {user.phoneNumber || '-'}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={roleColors[user.role]}>
-                          {roleLabels[user.role]}
-                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge className={sourceColors[user.source || 'Not specified']}>
@@ -877,25 +1001,39 @@ export default function UserManagement() {
               </div>
 
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage(page - 1)}
-                    disabled={page === 1}
-                  >
-                    Previous
-                  </Button>
-                  <span className="flex items-center px-4">
-                    Page {page} of {totalPages} • Showing {users.length} of {totalUsers} users
-                  </span>
-                  <Button
-                    variant="outline"
-                    onClick={() => setPage(page + 1)}
-                    disabled={page === totalPages}
-                  >
-                    Next
-                  </Button>
+              {showPagination && (
+                <div className="mt-4 flex flex-col items-center gap-3 border-t border-slate-200 pt-4 md:flex-row md:justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{pageRangeStart}</span> to{' '}
+                    <span className="font-medium">{pageRangeEnd}</span> of{' '}
+                    <span className="font-medium">{totalUsers}</span> users
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      disabled={page === 1 || usersLoading}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page <span className="font-medium">{currentPageDisplay}</span> of{' '}
+                      <span className="font-medium">{totalPages}</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(prev => prev + 1)}
+                      disabled={!hasMore || usersLoading}
+                      className="flex items-center gap-1"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

@@ -4,16 +4,17 @@ import { apiClient } from '@/services/api';
 export type UserRole = 'candidate' | 'agent' | 'hr' | 'partner' | 'admin' | 'superadmin';
 
 export interface User {
-    id: string;
-    customId: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    fullName: string;
-    role: UserRole;
-    status: string;
-    emailVerified: boolean;
-    phoneNumber?: string;
+  id: string;
+  customId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  role: UserRole;
+  status: string;
+  emailVerified: boolean;
+  phoneNumber?: string;
+  profilePhotoFileId?: string;
 }
 
 interface AuthContextType {
@@ -86,17 +87,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updateAuth = (userData: User) => {
         setUser(userData);
     };
+  }, []);
 
-    const value = {
-        user,
-        login,
-        logout,
-        loading,
-        isAuthenticated: !!user,
-        updateAuth,
-    };
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await apiClient.login({ email, password });
+      const { user: userData, accessToken } = response.data!;
+      
+      apiClient.setToken(accessToken);
+      
+      // Fetch full user data to ensure we have all fields including profilePhotoFileId
+      try {
+        const fullUserResponse = await apiClient.getCurrentUser();
+        if (fullUserResponse.data?.user) {
+          setUser(fullUserResponse.data.user);
+        } else {
+          setUser(userData);
+        }
+      } catch (error) {
+        // Fallback to login response if getCurrentUser fails
+        console.warn('Failed to fetch full user data after login, using login response:', error);
+        setUser(userData);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const logout = async () => {
+    try {
+      await apiClient.logout();
+    } catch (error) {
+      // Ignore logout errors
+    } finally {
+      apiClient.clearToken();
+      setUser(null);
+    }
+  };
+
+  const updateAuth = (userData: User) => {
+    setUser(userData);
+  };
+
+  const value = {
+    user,
+    login,
+    logout,
+    loading,
+    isAuthenticated: !!user,
+    updateAuth,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

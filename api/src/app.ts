@@ -51,11 +51,19 @@ app.use(
                 styleSrc: ["'self'", "'unsafe-inline'"],
                 // Allow inline scripts only in development to avoid breaking Swagger UI
                 scriptSrc: isDevelopment() ? ["'self'", "'unsafe-inline'"] : ["'self'"],
-                imgSrc: ["'self'", 'data:', 'https:'],
+                // Allow images from same origin, data URIs, HTTPS, and localhost (for development)
+                imgSrc: isDevelopment() 
+                    ? ["'self'", 'data:', 'https:', 'http://localhost:*', 'http://127.0.0.1:*']
+                    : ["'self'", 'data:', 'https:'],
+                // Allow media (videos/audio) from S3 and other HTTPS sources
+                mediaSrc: isDevelopment() 
+                    ? ["'self'", 'https:', 'http://localhost:*', 'http://127.0.0.1:*']
+                    : ["'self'", 'https:'],
             },
         },
         referrerPolicy: { policy: 'no-referrer' },
         crossOriginEmbedderPolicy: isDevelopment() ? false : true,
+        crossOriginResourcePolicy: { policy: 'cross-origin' }, // Allow cross-origin requests for images/media
     }),
 )
 
@@ -124,7 +132,10 @@ app.use(
 app.use(cookieParser())
 
 // HTTP Parameter Pollution protection
-app.use(hpp())
+// Allow arrays for 'types' parameter (used in search endpoints)
+app.use(hpp({
+  whitelist: ['types'], // Allow multiple 'types' parameters
+}))
 
 // NoSQL injection protection
 app.use(mongoSanitize())

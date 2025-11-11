@@ -137,6 +137,7 @@ export const NOTIFICATION_ACCESS_MAP: Record<UserRole, NotificationType[]> = {
     NotificationType.SYSTEM_UPDATE
   ],
   [UserRole.CANDIDATE]: [
+    NotificationType.CANDIDATE_ASSIGN,
     NotificationType.CANDIDATE_STATUS_CHANGE,
     NotificationType.INTERVIEW_SCHEDULE,
     NotificationType.INTERVIEW_UPDATE,

@@ -47,7 +47,10 @@ import {
   DollarSign,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown
+  ArrowUpDown,
+  FileText,
+  Upload,
+  Sparkles
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -60,6 +63,220 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardBanner } from "@/components/dashboard/Banner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
+
+// Format custom ID to trim leading zeros (e.g., JOB00004 -> JOB4)
+const formatCustomId = (customId: string | undefined): string => {
+  if (!customId) return 'N/A';
+  
+  // Match pattern like JOB00004, HR00001, etc.
+  const match = customId.match(/^([A-Z]+)(0+)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    return `${prefix}${number}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Helper function to check if search term matches ID flexibly (same as AgentAssignmentDashboard)
+const matchesId = (searchTerm: string, customId: string | undefined): boolean => {
+  if (!customId || !searchTerm) return false;
+  
+  const searchUpper = String(searchTerm).toUpperCase().trim();
+  const idUpper = String(customId).toUpperCase().trim();
+  
+  // Only match IDs if search looks like an ID (has letters + numbers), not just text
+  // This prevents "job" from matching all job IDs
+  const searchLooksLikeId = /^[A-Z]+\d+$/.test(searchUpper) || /^\d+$/.test(searchUpper);
+  if (!searchLooksLikeId) {
+    return false; // Don't match IDs for pure text searches
+  }
+  
+  // Direct match (case insensitive substring or exact)
+  if (idUpper.includes(searchUpper) || idUpper === searchUpper) {
+    return true;
+  }
+  
+  // Check formatted ID match (e.g., "JOB1" matches "JOB00001", "job12" matches "JOB00012")
+  const formattedId = formatCustomId(customId).toUpperCase();
+  if (formattedId) {
+    // Exact match: "JOB12" === "JOB12"
+    if (formattedId === searchUpper) {
+      return true;
+    }
+    // Check if formatted ID contains search or search contains formatted ID
+    if (formattedId.includes(searchUpper) || searchUpper.includes(formattedId)) {
+      return true;
+    }
+  }
+  
+  // Extract prefix and number from both search term and ID
+  // Pattern: PREFIX followed by optional leading zeros and digits
+  const idMatch = idUpper.match(/^([A-Z]+)(0*)(\d+)$/);
+  const searchMatch = searchUpper.match(/^([A-Z]+)(0*)(\d+)$/);
+  
+  if (idMatch && searchMatch) {
+    const [, idPrefix, , idNumber] = idMatch;
+    const [, searchPrefix, , searchNumber] = searchMatch;
+    
+    // Match if prefix matches and the numeric part matches
+    // This handles: "JOB2" matches "JOB000002", "JOB002" matches "JOB000002", etc.
+    if (idPrefix === searchPrefix && idNumber === searchNumber) {
+      return true;
+    }
+  }
+  
+  // Also check if search term without leading zeros matches ID with leading zeros
+  // and vice versa (e.g., "JOB12" matches "JOB00012")
+  const idWithoutZeros = idUpper.replace(/^([A-Z]+)0+(\d+)$/, '$1$2');
+  const searchWithoutZeros = searchUpper.replace(/^([A-Z]+)0+(\d+)$/, '$1$2');
+  
+  if (idWithoutZeros === searchWithoutZeros && idWithoutZeros !== idUpper) {
+    return true;
+  }
+  
+  // Additional check: if search is just a number, check if it matches the number part
+  const searchIsNumber = /^\d+$/.test(searchUpper);
+  if (searchIsNumber && idMatch) {
+    const [, , , idNumber] = idMatch;
+    if (idNumber === searchUpper) {
+      return true;
+    }
+  }
+  
+  return false;
+};
+
+// Component to display job avatar (using company logo)
+const JobAvatar = ({ job, onClick }: { job: any; onClick?: () => void }) => {
+  const companyName = job.companyId?.name || 'Unknown Company';
+  
+  // Extract company logo file ID from various formats
+  const logoFileId = job.companyId?.logoFileId?._id || job.companyId?.logoFileId?.toString() || job.companyId?.logoFileId;
+  
+  // Construct authenticated API endpoint URL
+  const logoUrl = logoFileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${logoFileId}`
+    : null;
+  
+  const authenticatedImageUrl = useAuthenticatedImage(logoUrl);
+  
+  // Memoize initials calculation
+  const initials = useMemo(() => {
+    return companyName
+      .split(' ')
+      .map((word: string) => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [companyName]);
+
+  const avatarContent = (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      {authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={companyName} 
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-blue-600">
+        {initials || <Briefcase className="w-4 h-4" />}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
+};
+
+// Component to display HR avatar with profile picture support
+const HRAvatar = ({ hr, onClick }: { hr: any; onClick?: () => void }) => {
+  const profilePhotoFileId = hr.profilePhotoFileId;
+  const showProfilePicture = !!profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      {showProfilePicture && authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${hr.firstName} ${hr.lastName}`}
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-blue-600">
+        {hr.firstName?.[0] || ''}{hr.lastName?.[0] || ''}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
+};
+
+// Component to display Agent avatar with profile picture support
+const AgentAvatar = ({ agent, onClick }: { agent: any; onClick?: () => void }) => {
+  const profilePhotoFileId = agent?.profilePhotoFileId;
+  const showProfilePicture = !!profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      {showProfilePicture && authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${agent?.firstName || ''} ${agent?.lastName || ''}`}
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-emerald-600">
+        {agent?.firstName?.[0] || ''}{agent?.lastName?.[0] || ''}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
+};
 
 export default function JobManagementIntegrated(): React.JSX.Element {
   const { user } = useAuth();
@@ -70,6 +287,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   // Initialize filters from URL parameters
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  
   const [companyFilter, setCompanyFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -110,6 +328,13 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const [skillInputValue, setSkillInputValue] = useState('');
   const [showCitySuggestions, setShowCitySuggestions] = useState(false);
   const [filteredCities, setFilteredCities] = useState<string[]>([]);
+  const [selectedJDFile, setSelectedJDFile] = useState<File | null>(null);
+  const [jdUploadState, setJDUploadState] = useState<'idle' | 'uploading' | 'parsing'>('idle');
+  const [jdFileId, setJDFileId] = useState<string | null>(null);
+  const [editJDFileId, setEditJDFileId] = useState<string | null>(null);
+  const [editJDUploadState, setEditJDUploadState] = useState<'idle' | 'uploading'>('idle');
+  const [selectedEditJDFile, setSelectedEditJDFile] = useState<File | null>(null);
+  const [isPostUsingJDDialogOpen, setIsPostUsingJDDialogOpen] = useState(false);
 
   // Skill suggestions data
   const skillSuggestions = [
@@ -169,14 +394,22 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     setPage(1);
   }, [companyFilter]);
   
+  // Check if search term looks like an ID - if so, don't send to API (let client-side handle it)
+  const isIdSearch = useMemo(() => {
+    if (!debouncedSearchTerm) return false;
+    return /^[a-z]+0*\d+$/i.test(debouncedSearchTerm) || /^\d+$/.test(debouncedSearchTerm);
+  }, [debouncedSearchTerm]);
+  
   // Memoize the API parameters to prevent unnecessary re-renders
+  // Don't send ID searches to API - handle them client-side instead
   const jobsParams = useMemo(() => ({
     page, 
     limit: 20, 
-    search: debouncedSearchTerm || undefined,
+    // Only send text searches to API, not ID searches
+    search: (debouncedSearchTerm && !isIdSearch) ? debouncedSearchTerm : undefined,
     // HR users can only see jobs they posted
     ...(user?.role === 'hr' && { createdBy: user.id })
-  }), [page, debouncedSearchTerm, user?.role, user?.id]);
+  }), [page, debouncedSearchTerm, isIdSearch, user?.role, user?.id]);
   
   // API hooks
   const { 
@@ -309,13 +542,83 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse as any)?.data || [];
   const meta = Array.isArray(jobsResponse) ? null : (jobsResponse as any)?.meta;
-
-  // Filter jobs (additional client-side filtering)
+  
+  // Filter jobs (comprehensive client-side filtering)
   const filteredJobs = useMemo(() => {
     let filtered = jobs.filter(job => {
-      const matchesSearch = !searchTerm || 
-                           job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           job.companyId?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!searchTerm) {
+        // No search term, only apply company filter
+        const matchesCompany = companyFilter === "all" || 
+                              (job.companyId?._id === companyFilter) ||
+                              (job.companyId?.id === companyFilter);
+        return matchesCompany;
+      }
+
+      const searchLower = searchTerm.toLowerCase();
+      
+      // Extract searchable fields
+      const jobTitle = job.title || '';
+      const companyName = job.companyId?.name || '';
+      const location = job.location || '';
+      const jobType = job.type || '';
+      const workType = job.workType || '';
+      const description = job.description || '';
+      
+      // Get job ID from multiple possible fields
+      const jobCustomId = job.jobId || '';
+      const jobMongoId = job._id || job.id || '';
+      const jobIdStr = String(jobMongoId);
+      
+      // HR information
+      const hrFirstName = job.createdBy?.firstName || '';
+      const hrLastName = job.createdBy?.lastName || '';
+      const hrFullName = `${hrFirstName} ${hrLastName}`.trim();
+      const hrId = job.createdBy?.customId || '';
+      
+      // Skills (array)
+      const skills = Array.isArray(job.requirements?.skills) 
+        ? job.requirements.skills.join(' ') 
+        : '';
+      
+      // Company ID
+      const companyId = job.companyId?._id || job.companyId?.id || '';
+      const companyIdStr = String(companyId);
+      const companyCustomId = job.companyId?.companyId || '';
+      
+      // Check if search term looks like an ID (starts with letters, has numbers)
+      // Pattern: letters followed by optional zeros and numbers (e.g., "job1", "JOB15", "job0015")
+      const looksLikeId = /^[a-z]+0*\d+$/i.test(searchTerm);
+      
+      // Check text fields (title, description, etc.)
+      const matchesTextFields = 
+        jobTitle.toLowerCase().includes(searchLower) ||
+        location.toLowerCase().includes(searchLower) ||
+        jobType.toLowerCase().includes(searchLower) ||
+        workType.toLowerCase().includes(searchLower) ||
+        description.toLowerCase().includes(searchLower) ||
+        hrFirstName.toLowerCase().includes(searchLower) ||
+        hrLastName.toLowerCase().includes(searchLower) ||
+        hrFullName.toLowerCase().includes(searchLower) ||
+        skills.toLowerCase().includes(searchLower);
+      
+      // Check ID fields (with flexible matching) - same pattern as AgentAssignmentDashboard
+      const matchesJobId = 
+        // Check custom job ID first (JOB00001, JOB00002, etc.)
+        (jobCustomId && matchesId(searchTerm, jobCustomId)) ||
+        // Also check MongoDB _id as fallback
+        (jobMongoId && matchesId(searchTerm, jobIdStr));
+      
+      const matchesOtherIds = 
+        // HR ID (flexible matching)
+        (hrId && matchesId(searchTerm, hrId));
+      
+      const matchesIds = matchesJobId || matchesOtherIds;
+      
+      // If search looks like an ID, prioritize ID matching but also allow text matches
+      // If search is just text (like "job"), prioritize text matching
+      const matchesSearch = looksLikeId 
+        ? (matchesIds || matchesTextFields)  // ID-like search: try IDs first, but allow text matches
+        : (matchesTextFields || matchesIds);  // Text search: try text first, but allow ID matches
       
       const matchesCompany = companyFilter === "all" || 
                             (job.companyId?._id === companyFilter) ||
@@ -447,13 +750,15 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       interviewProcess: createFormData.interviewRounds || createFormData.estimatedDuration ? {
         rounds: createFormData.interviewRounds,
         estimatedDuration: createFormData.estimatedDuration
-      } : undefined
+      } : undefined,
+      jdFileId: jdFileId || undefined
     };
 
     try {
       const createdJob = await createJob(jobData);
       setIsCreateDialogOpen(false);
       resetCreateForm();
+      setJDFileId(null);
       refetchJobs();
       fetchAllJobsStats(); // Refresh stats
       toast({
@@ -627,6 +932,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   };
 
   const resetCreateForm = () => {
+    setSelectedJDFile(null);
+    setJDFileId(null);
+    setJDUploadState('idle');
     setCreateFormData({
       title: '',
       description: '',
@@ -655,6 +963,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       companyId: ''
     });
     setFormErrors({});
+    setJDFileId(null);
   };
 
   const handleDeleteJob = async (id: string) => {
@@ -713,6 +1022,10 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       numberOfOpenings: String(job.numberOfOpenings || '1'),
       companyId: job.companyId?._id || job.companyId || ''
     });
+    // Initialize JD file ID if job has one
+    setEditJDFileId(job.jdFileId || null);
+    setSelectedEditJDFile(null);
+    setEditJDUploadState('idle');
     setSelectedJobForEdit(job);
     setIsEditDialogOpen(true);
   };
@@ -792,7 +1105,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       interviewProcess: editFormData.interviewRounds || editFormData.estimatedDuration ? {
         rounds: editFormData.interviewRounds,
         estimatedDuration: editFormData.estimatedDuration
-      } : undefined
+      } : undefined,
+      jdFileId: editJDFileId || undefined
     };
 
     try {
@@ -800,6 +1114,9 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       toast({ title: 'Success', description: 'Job updated successfully' });
       setIsEditDialogOpen(false);
       setSelectedJobForEdit(null);
+      setEditJDFileId(null);
+      setSelectedEditJDFile(null);
+      setEditJDUploadState('idle');
       refetchJobs();
       fetchAllJobsStats(); // Refresh stats
     } catch (e) {
@@ -818,17 +1135,176 @@ export default function JobManagementIntegrated(): React.JSX.Element {
           <h1 className="text-3xl font-bold text-foreground">Job Management</h1>
           <p className="text-muted-foreground">Manage job postings and track recruitment progress</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
-              disabled={!hasCompanies}
-              title={!hasCompanies ? "Please add a company first" : ""}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Post New Job
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Dialog open={isPostUsingJDDialogOpen} onOpenChange={setIsPostUsingJDDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline"
+                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 border-0"
+                disabled={!hasCompanies}
+                title={!hasCompanies ? "Please add a company first" : ""}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Post using JD
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Upload Job Description</DialogTitle>
+                <DialogDescription>
+                  Upload a PDF file containing the job description. We'll extract the information automatically.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="jd-upload">Job Description File</Label>
+                  <div className="mt-2">
+                  <input
+                    type="file"
+                    id="jd-upload"
+                    accept=".pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file type - only PDF (check both MIME type and file extension)
+                          const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                          if (!isPDF) {
+                            toast({
+                              title: 'Invalid File Type',
+                              description: 'Please upload a PDF file (.pdf only)',
+                              variant: 'destructive',
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+
+                          // Validate file size (5MB limit)
+                          const maxSize = 5 * 1024 * 1024;
+                          if (file.size > maxSize) {
+                            toast({
+                              title: 'File Too Large',
+                              description: 'Please upload a file smaller than 5MB',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+
+                          setSelectedJDFile(file);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <label htmlFor="jd-upload">
+                      <Button variant="outline" asChild className="w-full">
+                        <span className="cursor-pointer">
+                          <Upload className="w-4 h-4 mr-2" />
+                          {selectedJDFile ? selectedJDFile.name : 'Choose PDF File'}
+                        </span>
+                      </Button>
+                    </label>
+                    {selectedJDFile && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="w-4 h-4" />
+                        <span>{(selectedJDFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedJDFile(null);
+                    setIsPostUsingJDDialogOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    if (!selectedJDFile) {
+                      toast({
+                        title: 'No File Selected',
+                        description: 'Please select a JD file to upload',
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+
+                    try {
+                      setJDUploadState('uploading');
+                      const uploadResponse = await apiClient.uploadJD(selectedJDFile);
+                      
+                      if (uploadResponse.data?.file?.id) {
+                        setJDFileId(uploadResponse.data.file.id);
+                        setJDUploadState('parsing');
+                        
+                        // Parse the JD
+                        const parseResponse = await apiClient.parseJD(uploadResponse.data.file.id);
+                        
+                        if (parseResponse.data?.parsedJD) {
+                          const parsed = parseResponse.data.parsedJD as any;
+                          
+                          // Auto-populate form
+                          setCreateFormData({
+                            ...createFormData,
+                            title: parsed.title || '',
+                            description: parsed.description || '',
+                            location: parsed.location || '',
+                            type: (parsed.type as any) || 'full-time',
+                            workType: (parsed.workType as any) || 'wfo',
+                            salaryMin: parsed.salaryRange?.min?.toString() || '',
+                            salaryMax: parsed.salaryRange?.max?.toString() || '',
+                            currency: parsed.salaryRange?.currency || 'INR',
+                            skills: parsed.requirements?.skills?.join(', ') || '',
+                            experienceMin: parsed.requirements?.experienceMin?.toString() || '',
+                            experienceMax: parsed.requirements?.experienceMax?.toString() || '',
+                            benefits: parsed.benefits?.join(', ') || '',
+                            numberOfOpenings: parsed.numberOfOpenings?.toString() || '1',
+                            duration: parsed.duration || '',
+                            applicationDeadline: parsed.applicationDeadline ? new Date(parsed.applicationDeadline).toISOString().split('T')[0] : '',
+                          });
+                          
+                          toast({
+                            title: 'JD Parsed Successfully',
+                            description: 'Job information has been extracted. Please review and complete the form.',
+                          });
+                          
+                          setIsPostUsingJDDialogOpen(false);
+                          setIsCreateDialogOpen(true);
+                          setSelectedJDFile(null);
+                          setJDUploadState('idle');
+                        }
+                      }
+                    } catch (error: any) {
+                      console.error('JD upload/parse error:', error);
+                      toast({
+                        title: 'Error',
+                        description: error?.detail || error?.message || 'Failed to upload or parse JD. Please try again.',
+                        variant: 'destructive',
+                      });
+                      setJDUploadState('idle');
+                    }
+                  }}
+                  disabled={!selectedJDFile || jdUploadState !== 'idle'}
+                >
+                  {jdUploadState === 'uploading' ? 'Uploading...' : jdUploadState === 'parsing' ? 'Parsing...' : 'Upload & Parse'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+                disabled={!hasCompanies}
+                title={!hasCompanies ? "Please add a company first" : ""}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Post New Job
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Job Posting</DialogTitle>
@@ -977,7 +1453,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       min="0"
                       placeholder="e.g. 2"
                       value={createFormData.experienceMin}
-                      onChange={(e) => setCreateFormData({...createFormData, experienceMin: e.target.value})}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow numbers (including empty string for deletion)
+                        if (value === '' || /^\d+$/.test(value)) {
+                          setCreateFormData({...createFormData, experienceMin: value});
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric keys except backspace, delete, tab, escape, enter, and arrow keys
+                        if (!/[0-9]/.test(e.key) && 
+                            !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) &&
+                            !(e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={formErrors.experienceMin ? "border-red-500" : ""}
                     />
                     {formErrors.experienceMin && (
@@ -992,7 +1482,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       min="0"
                       placeholder="e.g. 5"
                       value={createFormData.experienceMax}
-                      onChange={(e) => setCreateFormData({...createFormData, experienceMax: e.target.value})}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow numbers (including empty string for deletion)
+                        if (value === '' || /^\d+$/.test(value)) {
+                          setCreateFormData({...createFormData, experienceMax: value});
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric keys except backspace, delete, tab, escape, enter, and arrow keys
+                        if (!/[0-9]/.test(e.key) && 
+                            !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) &&
+                            !(e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={formErrors.experienceMax ? "border-red-500" : ""}
                     />
                     {formErrors.experienceMax && (
@@ -1012,7 +1516,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     min="1"
                     placeholder="e.g. 2"
                     value={createFormData.numberOfOpenings}
-                    onChange={(e) => setCreateFormData({...createFormData, numberOfOpenings: e.target.value})}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow numbers (including empty string for deletion)
+                      if (value === '' || /^\d+$/.test(value)) {
+                        setCreateFormData({...createFormData, numberOfOpenings: value});
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Prevent non-numeric keys except backspace, delete, tab, escape, enter, and arrow keys
+                      if (!/[0-9]/.test(e.key) && 
+                          !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) &&
+                          !(e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className={formErrors.numberOfOpenings ? "border-red-500" : ""}
                   />
                   {formErrors.numberOfOpenings && (
@@ -1192,7 +1710,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       type="number"
                       placeholder="e.g. 80000"
                       value={createFormData.salaryMin}
-                      onChange={(e) => setCreateFormData({...createFormData, salaryMin: e.target.value})}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow numbers (including empty string for deletion)
+                        if (value === '' || /^\d+$/.test(value)) {
+                          setCreateFormData({...createFormData, salaryMin: value});
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric keys except backspace, delete, tab, escape, enter, and arrow keys
+                        if (!/[0-9]/.test(e.key) && 
+                            !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) &&
+                            !(e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={formErrors.salaryMin ? "border-red-500" : ""}
                     />
                     {formErrors.salaryMin && (
@@ -1206,7 +1738,21 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                       type="number"
                       placeholder="e.g. 120000"
                       value={createFormData.salaryMax}
-                      onChange={(e) => setCreateFormData({...createFormData, salaryMax: e.target.value})}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Only allow numbers (including empty string for deletion)
+                        if (value === '' || /^\d+$/.test(value)) {
+                          setCreateFormData({...createFormData, salaryMax: value});
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Prevent non-numeric keys except backspace, delete, tab, escape, enter, and arrow keys
+                        if (!/[0-9]/.test(e.key) && 
+                            !['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) &&
+                            !(e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className={formErrors.salaryMax ? "border-red-500" : ""}
                     />
                     {formErrors.salaryMax && (
@@ -1273,6 +1819,93 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                     </Select>
                   </div>
                 </div>
+                
+                {/* Optional JD Upload */}
+                <div className="space-y-2">
+                  <Label htmlFor="jd-upload-create">Job Description PDF (Optional)</Label>
+                  <input
+                    type="file"
+                    id="jd-upload-create"
+                    accept=".pdf"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validate file type - only PDF
+                        if (file.type !== 'application/pdf') {
+                          toast({
+                            title: 'Invalid File Type',
+                            description: 'Please upload a PDF file (.pdf only)',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        // Validate file size (5MB limit)
+                        const maxSize = 5 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          toast({
+                            title: 'File Too Large',
+                            description: 'Please upload a file smaller than 5MB',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        setSelectedJDFile(file);
+                        setJDUploadState('uploading');
+                        
+                        try {
+                          const uploadResponse = await apiClient.uploadJD(file);
+                          if (uploadResponse.data?.file?.id) {
+                            setJDFileId(uploadResponse.data.file.id);
+                            setJDUploadState('idle');
+                            toast({
+                              title: 'JD Uploaded',
+                              description: 'Job Description PDF has been uploaded successfully.',
+                            });
+                          }
+                        } catch (error: any) {
+                          console.error('JD upload error:', error);
+                          const errorMessage = error?.detail || error?.message || 'Failed to upload JD. Please try again.';
+                          toast({
+                            title: 'Upload Failed',
+                            description: errorMessage,
+                            variant: 'destructive',
+                          });
+                          setJDUploadState('idle');
+                          setSelectedJDFile(null);
+                          e.target.value = '';
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label htmlFor="jd-upload-create">
+                    <Button variant="outline" asChild className="w-full">
+                      <span className="cursor-pointer">
+                        <Upload className="w-4 h-4 mr-2" />
+                        {selectedJDFile ? selectedJDFile.name : 'Choose JD File (PDF)'}
+                      </span>
+                    </Button>
+                  </label>
+                  {selectedJDFile && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="w-4 h-4" />
+                      <span>{(selectedJDFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      {jdUploadState === 'uploading' && (
+                        <span className="text-blue-600">Uploading...</span>
+                      )}
+                    </div>
+                  )}
+                  {jdFileId && (
+                    <p className="text-sm text-green-600 mt-1">JD uploaded successfully. It will be attached to this job.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload a PDF file containing the job description. This is optional but recommended.
+                  </p>
+                </div>
               </div>
             </div>
             
@@ -1293,9 +1926,11 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
+        </div>
 
-        {/* Edit Job Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* Edit Job Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Job</DialogTitle>
@@ -1515,6 +2150,127 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                   <Input id="edit-benefits" value={editFormData.benefits} onChange={(e) => setEditFormData({...editFormData, benefits: e.target.value})} />
                 </div>
               </div>
+
+              {/* Additional Details */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Additional Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-application-deadline">Application Deadline</Label>
+                    <Input 
+                      id="edit-application-deadline" 
+                      type="date"
+                      value={editFormData.applicationDeadline}
+                      onChange={(e) => setEditFormData({...editFormData, applicationDeadline: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-interview-rounds">Interview Rounds</Label>
+                    <Select value={editFormData.interviewRounds.toString()} onValueChange={(value) => setEditFormData({...editFormData, interviewRounds: parseInt(value)})}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select rounds" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Round</SelectItem>
+                        <SelectItem value="2">2 Rounds</SelectItem>
+                        <SelectItem value="3">3 Rounds</SelectItem>
+                        <SelectItem value="4">4+ Rounds</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional JD Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="jd-upload-edit">Job Description PDF (Optional)</Label>
+                  <input
+                    type="file"
+                    id="jd-upload-edit"
+                    accept=".pdf"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // Validate file type - only PDF (check both MIME type and file extension)
+                        const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+                        if (!isPDF) {
+                          toast({
+                            title: 'Invalid File Type',
+                            description: 'Please upload a PDF file (.pdf only)',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        // Validate file size (5MB limit)
+                        const maxSize = 5 * 1024 * 1024;
+                        if (file.size > maxSize) {
+                          toast({
+                            title: 'File Too Large',
+                            description: 'Please upload a file smaller than 5MB',
+                            variant: 'destructive',
+                          });
+                          e.target.value = '';
+                          return;
+                        }
+
+                        setSelectedEditJDFile(file);
+                        setEditJDUploadState('uploading');
+                        
+                        try {
+                          const uploadResponse = await apiClient.uploadJD(file);
+                          if (uploadResponse.data?.file?.id) {
+                            setEditJDFileId(uploadResponse.data.file.id);
+                            setEditJDUploadState('idle');
+                            toast({
+                              title: 'JD Uploaded',
+                              description: 'Job Description PDF has been uploaded successfully.',
+                            });
+                          }
+                        } catch (error: any) {
+                          console.error('JD upload error:', error);
+                          const errorMessage = error?.detail || error?.message || 'Failed to upload JD. Please try again.';
+                          toast({
+                            title: 'Upload Failed',
+                            description: errorMessage,
+                            variant: 'destructive',
+                          });
+                          setEditJDUploadState('idle');
+                          setSelectedEditJDFile(null);
+                          e.target.value = '';
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label htmlFor="jd-upload-edit">
+                    <Button variant="outline" asChild className="w-full">
+                      <span className="cursor-pointer">
+                        <Upload className="w-4 h-4 mr-2" />
+                        {selectedEditJDFile ? selectedEditJDFile.name : editJDFileId ? 'Replace JD File (PDF)' : 'Choose JD File (PDF)'}
+                      </span>
+                    </Button>
+                  </label>
+                  {selectedEditJDFile && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="w-4 h-4" />
+                      <span>{(selectedEditJDFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                      {editJDUploadState === 'uploading' && (
+                        <span className="text-blue-600">Uploading...</span>
+                      )}
+                    </div>
+                  )}
+                  {editJDFileId && !selectedEditJDFile && (
+                    <p className="text-sm text-green-600 mt-1">JD file is already attached to this job. Upload a new file to replace it.</p>
+                  )}
+                  {editJDFileId && selectedEditJDFile && (
+                    <p className="text-sm text-green-600 mt-1">New JD uploaded successfully. It will replace the existing one when you save changes.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload a PDF file containing the job description. This is optional but recommended.
+                  </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={updateLoading}>Cancel</Button>
@@ -1522,7 +2278,6 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1595,9 +2350,11 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 w-4 h-4" />
               <Input
-                placeholder="Search jobs by title or company..."
+                placeholder="Search by title, location, skills, job ID, HR name/ID..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                }}
                 className="pl-10 border-blue-200 focus:border-blue-400 focus:ring-blue-400"
               />
             </div>
@@ -1662,14 +2419,13 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Job</TableHead>
+                  <TableHead>Job ID</TableHead>
+                  <TableHead>Job Title</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>HR ID</TableHead>
-                  <TableHead>Applications</TableHead>
-                  <TableHead>Openings</TableHead>
-                  <TableHead>Posted</TableHead>
+                  <TableHead className="w-40">Stats</TableHead>
+                  <TableHead>{user?.role === 'hr' ? 'Agent' : 'Posted By'}</TableHead>
+                  <TableHead>Posted Date</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -1677,52 +2433,162 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                 {filteredJobs.map((job: any) => (
                   <TableRow key={job.id || job._id}>
                     <TableCell>
+                      {job.jobId && (
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {formatCustomId(job.jobId)}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Briefcase className="w-5 h-5 text-primary" />
-                        </div>
+                        <JobAvatar 
+                          job={job}
+                          onClick={() => {
+                            navigate(`/dashboard/jobs/${job.jobId || job._id}`);
+                          }}
+                        />
                         <div>
-                          <div className="font-medium text-base">{job.title}</div>
+                          <p 
+                            className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                            onClick={() => {
+                              navigate(`/dashboard/jobs/${job.jobId || job._id}`);
+                            }}
+                          >
+                            {job.title}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm">{job.companyId?.name || 'N/A'}</span>
+                      <p 
+                        className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                        onClick={() => {
+                          if (job.companyId?._id) {
+                            navigate(`/dashboard/companies/${job.companyId._id}`);
+                          }
+                        }}
+                      >
+                        {job.companyId?.name || 'Unknown Company'}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          {job.location || 'Remote'}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <div className="w-4 h-4 flex-shrink-0" />
+                          <Badge variant="outline" className="text-xs">
+                            {job.type}
+                          </Badge>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="w-40">
+                      <div className="flex flex-col gap-1">
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs w-fit border-0 bg-transparent text-purple-600 cursor-pointer hover:underline"
+                          onClick={() => {
+                            navigate(`/dashboard/shared-candidates?jobId=${job._id || job.id}`);
+                          }}
+                        >
+                          {job.applications || 0} Applicants
+                        </Badge>
+                        <Badge 
+                          variant="secondary" 
+                          className="text-xs w-fit border-0 bg-transparent text-green-600 cursor-pointer hover:underline"
+                          onClick={() => {
+                            navigate(`/dashboard/jobs/${job.jobId || job._id || job.id}`);
+                          }}
+                        >
+                          {job.numberOfOpenings || 1} Openings
+                        </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-emerald-600" />
-                        <span className="text-sm">{job.location}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {job.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {job.createdBy?.customId || 'N/A'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Users className="w-4 h-4 text-purple-600" />
-                        <span className="font-medium">{job.applications || 0}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <UserCheck className="w-4 h-4 text-green-600" />
-                        <span className="font-medium">{job.numberOfOpenings || 1}</span>
-                      </div>
+                      {user?.role === 'hr' ? (
+                        // For HR users, show the assigned agent
+                        (() => {
+                          const agent = job.assignedAgentId;
+                          
+                          // Check if agent exists and is populated (has firstName property)
+                          if (agent && typeof agent === 'object' && agent.firstName) {
+                            return (
+                              <div className="flex items-center gap-3">
+                                <AgentAvatar 
+                                  agent={agent}
+                                  onClick={() => {
+                                    if (agent.customId) {
+                                      navigate(`/dashboard/agent-profile/${agent.customId}`);
+                                    } else if (agent._id || agent.id) {
+                                      // Fallback to MongoDB _id if customId is not available
+                                      navigate(`/dashboard/agent-profile/${agent._id || agent.id}`);
+                                    }
+                                  }}
+                                />
+                                <div>
+                                  <p 
+                                    className="font-medium cursor-pointer hover:text-emerald-600 hover:underline transition-colors"
+                                    onClick={() => {
+                                      if (agent.customId) {
+                                        navigate(`/dashboard/agent-profile/${agent.customId}`);
+                                      } else if (agent._id || agent.id) {
+                                        // Fallback to MongoDB _id if customId is not available
+                                        navigate(`/dashboard/agent-profile/${agent._id || agent.id}`);
+                                      }
+                                    }}
+                                  >
+                                    {agent.firstName} {agent.lastName}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          }
+                          // If agent exists but is not populated (just an ObjectId), still show "No agent assigned"
+                          // This means the API didn't populate it, which shouldn't happen
+                          return <span className="text-muted-foreground text-sm">No agent assigned</span>;
+                        })()
+                      ) : (
+                        // For other users, show who posted the job
+                        <div className="flex items-center gap-3">
+                          {job.createdBy && (
+                            <HRAvatar 
+                              hr={job.createdBy}
+                              onClick={() => {
+                                if (job.createdBy?.customId) {
+                                  navigate(`/dashboard/hr-profile/${job.createdBy.customId}`);
+                                }
+                              }}
+                            />
+                          )}
+                          <div>
+                            <p 
+                              className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                              onClick={() => {
+                                if (job.createdBy?.customId) {
+                                  navigate(`/dashboard/hr-profile/${job.createdBy.customId}`);
+                                }
+                              }}
+                            >
+                              {job.createdBy?.firstName} {job.createdBy?.lastName}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {job.postedAt ? new Date(job.postedAt).toLocaleDateString() : 'N/A'}
+                        {job.postedAt ? new Date(job.postedAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        }) : job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        }) : 'N/A'}
                       </div>
                     </TableCell>
                     <TableCell>

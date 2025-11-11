@@ -193,13 +193,21 @@ const createMulterConfig = (maxSize?: number, filter: multer.Options['fileFilter
 })
 
 /**
+ * Memory storage for S3 uploads
+ * This stores files in memory as buffers for direct S3 upload
+ */
+const memoryStorage = multer.memoryStorage()
+
+/**
  * Multer instances for different upload types
  */
 export const uploadResume = multer({
-    ...createMulterConfig(
-        ALLOWED_FILE_TYPES.resume.maxSize,
-        createFileFilter(ALLOWED_FILE_TYPES.resume.mimeTypes, ALLOWED_FILE_TYPES.resume.extensions),
-    ),
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.resume.mimeTypes, ALLOWED_FILE_TYPES.resume.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.resume.maxSize,
+        files: 1,
+    },
 })
 
 export const uploadImage = multer({
@@ -214,6 +222,39 @@ export const uploadDocument = multer({
         ALLOWED_FILE_TYPES.document.maxSize,
         createFileFilter(ALLOWED_FILE_TYPES.document.mimeTypes, ALLOWED_FILE_TYPES.document.extensions),
     ),
+})
+
+export const uploadJD = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.document.mimeTypes, ALLOWED_FILE_TYPES.document.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.document.maxSize,
+        files: 1,
+    },
+})
+
+/**
+ * Memory storage for profile photos (to enable S3 upload)
+ */
+export const uploadProfilePhoto = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.image.mimeTypes, ALLOWED_FILE_TYPES.image.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.image.maxSize,
+        files: 1,
+    },
+})
+
+/**
+ * Memory storage for company logos (to enable S3 upload)
+ */
+export const uploadCompanyLogo = multer({
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.image.mimeTypes, ALLOWED_FILE_TYPES.image.extensions),
+    limits: {
+        fileSize: ALLOWED_FILE_TYPES.image.maxSize,
+        files: 1,
+    },
 })
 
 /**
@@ -241,70 +282,12 @@ const dynamicFileFilter: multer.Options['fileFilter'] = (req: any, file, cb) => 
 
 export const uploadGeneral = multer(createMulterConfig(undefined, dynamicFileFilter))
 
-// Custom storage for banners
-const bannerStorage = multer.diskStorage({
-    destination: (_req, _file, cb) => {
-        try {
-            const bannerPath = path.join(env.UPLOADS_PATH, 'banners')
-            ensureDirectoryExists(bannerPath)
-            cb(null, bannerPath)
-        } catch (error) {
-            logger.error('Error creating banner upload directory', { error })
-            cb(error as Error, '')
-        }
-    },
-    filename: (_req, file, cb) => {
-        try {
-            const timestamp = Date.now()
-            const randomSuffix = Math.random().toString(36).substring(2, 8)
-            const extension = path.extname(file.originalname)
-            const baseName = path
-                .basename(file.originalname, extension)
-                .replace(/[^a-zA-Z0-9]/g, '-')
-                .replace(/-+/g, '-')
-                .substring(0, 50)
-
-            const sanitizedFilename = `${baseName}-${timestamp}-${randomSuffix}${extension}`
-            cb(null, sanitizedFilename)
-        } catch (error) {
-            logger.error('Error generating banner filename', { error })
-            cb(error as Error, '')
-        }
-    },
-})
-
-// Custom file filter for banners
-const bannerFileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    try {
-        const allowedConfig = ALLOWED_FILE_TYPES.banner
-
-        // Check MIME type
-        if (!allowedConfig.mimeTypes.includes(file.mimetype)) {
-            return cb(new Error(`Invalid file type. Allowed types: ${allowedConfig.mimeTypes.join(', ')}`))
-        }
-
-        // Check file extension
-        const extension = path.extname(file.originalname).toLowerCase()
-        if (!allowedConfig.extensions.includes(extension)) {
-            return cb(new Error(`Invalid file extension. Allowed extensions: ${allowedConfig.extensions.join(', ')}`))
-        }
-
-        logger.info('Banner file validation passed', {
-            filename: file.originalname,
-            mimetype: file.mimetype,
-            size: file.size,
-        })
-
-        cb(null, true)
-    } catch (error) {
-        logger.error('Banner file filter error', { error })
-        cb(error as Error)
-    }
-}
-
+/**
+ * Memory storage for banners (to enable S3 upload)
+ */
 export const uploadBanner = multer({
-    storage: bannerStorage,
-    fileFilter: bannerFileFilter,
+    storage: memoryStorage,
+    fileFilter: createFileFilter(ALLOWED_FILE_TYPES.banner.mimeTypes, ALLOWED_FILE_TYPES.banner.extensions),
     limits: {
         fileSize: ALLOWED_FILE_TYPES.banner.maxSize,
         files: 1, // Only one banner at a time

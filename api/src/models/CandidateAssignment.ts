@@ -253,7 +253,7 @@ candidateAssignmentSchema.statics['getAssignmentsForHR'] = async function(
       path: 'candidateId',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId profilePhotoFileId'
       }
     })
     .populate('assignedBy', 'firstName lastName email')
@@ -290,7 +290,7 @@ candidateAssignmentSchema.statics['getAssignmentsByAgent'] = function(
       path: 'candidateId',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId profilePhotoFileId'
       }
     })
     .populate('assignedTo', 'firstName lastName email')
@@ -318,7 +318,7 @@ candidateAssignmentSchema.statics['getActiveAssignments'] = function(options: an
       path: 'candidateId',
       populate: {
         path: 'userId',
-        select: 'firstName lastName email'
+        select: 'firstName lastName email customId profilePhotoFileId'
       }
     })
     .populate('assignedBy', 'firstName lastName email')
@@ -341,6 +341,45 @@ candidateAssignmentSchema.statics['getActiveAssignments'] = function(options: an
  */
 candidateAssignmentSchema.statics['getAssignmentStats'] = function(dateRange?: { start: Date; end: Date }) {
   const pipeline: any[] = [];
+  
+  // Lookup candidate and user to filter out broken references
+  pipeline.push(
+    {
+      $lookup: {
+        from: 'candidates',
+        localField: 'candidateId',
+        foreignField: '_id',
+        as: 'candidate'
+      }
+    },
+    {
+      $unwind: {
+        path: '$candidate',
+        preserveNullAndEmptyArrays: false // Exclude assignments with no candidate
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'candidate.userId',
+        foreignField: '_id',
+        as: 'candidateUser'
+      }
+    },
+    {
+      $unwind: {
+        path: '$candidateUser',
+        preserveNullAndEmptyArrays: false // Exclude assignments with no candidate user
+      }
+    },
+    {
+      $match: {
+        'candidateUser.firstName': { $exists: true, $ne: null },
+        'candidateUser.lastName': { $exists: true, $ne: null },
+        'candidateUser.customId': { $exists: true, $ne: null }
+      }
+    }
+  );
   
   if (dateRange) {
     pipeline.push({

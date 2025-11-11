@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   ArrowLeft,
   MapPin,
@@ -20,11 +21,14 @@ import {
   UserCheck,
   Edit,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  FileText,
+  Eye
 } from "lucide-react";
 import { useJob, useDeleteJob, useUpdateJob, useCompanies } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +42,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import PDFViewer from "@/components/ui/pdf-viewer";
 
 export default function JobDetailsPage() {
   const { jobId } = useParams<{ jobId: string }>();
@@ -74,31 +79,23 @@ export default function JobDetailsPage() {
   ];
 
   const { data: jobResponse, loading, error, refetch: refetchJob } = useJob(jobId!);
-  const job = jobResponse?.data || jobResponse;
+  const job = (jobResponse as any)?.data || jobResponse;
 
-  const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob({
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Job deleted successfully"
-      });
-      navigate("/dashboard/jobs");
-    }
-  });
+  // Use authenticated image hook for company logo
+  const companyLogoFileId = job?.companyId?.logoFileId?._id || job?.companyId?.logoFileId || job?.companyId?.logoFileId?.toString();
+  const companyLogoUrl = companyLogoFileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${companyLogoFileId}`
+    : job?.companyId?.logoUrl || null;
+  const authenticatedCompanyLogoUrl = useAuthenticatedImage(companyLogoUrl);
+  const posterPhotoUrl = job?.createdBy?.profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${job.createdBy.profilePhotoFileId}`
+    : null;
+  const posterPhoto = useAuthenticatedImage(posterPhotoUrl);
+  const canViewSalary = user?.role !== 'candidate';
 
-  const { mutate: updateJob, loading: updateLoading } = useUpdateJob({
-    onSuccess: async () => {
-      console.log('Update job onSuccess called');
-      toast({ title: "Success", description: "Job updated successfully" });
-      setIsEditDialogOpen(false);
-      // Refetch job data to show updated information
-      refetchJob();
-    },
-    onError: (error) => {
-      console.error('Update job onError called:', error);
-      // Dialog stays open on error so user can fix issues
-    }
-  });
+  const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob();
+
+  const { mutate: updateJob, loading: updateLoading } = useUpdateJob();
 
   // Companies for selection and autofill location
   const { data: companiesResp } = useCompanies({ page: 1, limit: 50 });
@@ -133,16 +130,73 @@ export default function JobDetailsPage() {
     return "Salary TBD";
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const normalizeDate = (value?: unknown): Date | null => {
+    try {
+      if (!value) {
+        return null;
+      }
+
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+
+      if (typeof value === 'string' || typeof value === 'number') {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (typeof value === 'object' && value !== null) {
+        if ('toDate' in value && typeof (value as { toDate?: () => Date }).toDate === 'function') {
+          try {
+            const parsed = (value as { toDate: () => Date }).toDate();
+            return Number.isNaN(parsed.getTime()) ? null : parsed;
+          } catch {
+            return null;
+          }
+        }
+
+        if ('seconds' in value && typeof (value as { seconds?: number }).seconds === 'number') {
+          const parsed = new Date((value as { seconds: number }).seconds * 1000);
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        if ('$date' in value) {
+          return normalizeDate((value as { $date?: unknown }).$date);
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error normalizing date:', error, 'Value:', value);
+      return null;
+    }
+  };
+
+  const formatDate = (value?: unknown) => {
+    if (!value) {
+      return "N/A";
+    }
+
+    try {
+      const parsedDate = normalizeDate(value);
+
+      if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+        return "N/A";
+      }
+
+      return parsedDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return "N/A";
+    }
   };
 
   const openEditDialog = () => {
     if (!job) return;
+    const applicationDeadlineDate = normalizeDate(job.applicationDeadline);
     const salaryMin = job.salaryRange?.min ? String(job.salaryRange.min) : '';
     const salaryMax = job.salaryRange?.max ? String(job.salaryRange.max) : '';
     const currency = job.salaryRange?.currency || 'INR';
@@ -165,7 +219,7 @@ export default function JobDetailsPage() {
       experienceMin,
       experienceMax,
       benefits,
-      applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : '',
+      applicationDeadline: applicationDeadlineDate ? applicationDeadlineDate.toISOString().split('T')[0] : '',
       interviewRounds,
       estimatedDuration,
       duration: job.duration || '',
@@ -229,7 +283,7 @@ export default function JobDetailsPage() {
         experienceMax: parseInt(editFormData.experienceMax) || 0,
       },
       benefits: editFormData.benefits.split(',').map((s: string) => s.trim()).filter(Boolean),
-      applicationDeadline: editFormData.applicationDeadline ? new Date(editFormData.applicationDeadline).toISOString() : undefined,
+      applicationDeadline: normalizeDate(editFormData.applicationDeadline)?.toISOString(),
       interviewProcess: editFormData.interviewRounds || editFormData.estimatedDuration ? {
         rounds: editFormData.interviewRounds,
         estimatedDuration: editFormData.estimatedDuration
@@ -241,13 +295,16 @@ export default function JobDetailsPage() {
       const result = await updateJob({ id: job._id || job.id, data });
       console.log('updateJob result:', result);
       
-      // Manually handle success since mutation hook's onSuccess isn't firing
       toast({ title: "Success", description: "Job updated successfully" });
       setIsEditDialogOpen(false);
       refetchJob();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Update job error in catch:', e);
-      // Error toast is handled by the mutation hook
+      toast({ 
+        title: "Error", 
+        description: e?.message || "Failed to update job", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -271,7 +328,7 @@ export default function JobDetailsPage() {
           <p className="text-muted-foreground mb-4">
             The job you're looking for doesn't exist or has been removed.
           </p>
-          <Button onClick={() => navigate("/dashboard/jobs")}>
+          <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Jobs
           </Button>
@@ -282,70 +339,178 @@ export default function JobDetailsPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <div className="border-b bg-gradient-to-r from-slate-50 to-gray-50">
-          <div className="container mx-auto px-2 py-3 mb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  {job.companyId?.logoUrl ? (
-                    <img 
-                      src={job.companyId.logoUrl} 
-                      alt={`${job.companyId.name} logo`}
-                      className="w-16 h-16 rounded-lg object-cover border-2 border-slate-200"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                      }}
-                    />
-                  ) : null}
-                  <Building2 className={`w-16 h-16 text-blue-600 p-3 rounded-lg border-2 border-slate-200 bg-slate-50 ${job.companyId?.logoUrl ? 'hidden' : ''}`} />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-slate-800">{job.title}</h1>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate("/dashboard/jobs")}
-                  className="hover:bg-blue-50 text-blue-600"
-                >
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Jobs
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="border-blue-200 hover:bg-blue-50 hover:border-blue-300">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={openEditDialog}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Job
-                    </DropdownMenuItem>
-                    {user?.role === 'hr' && (
-                      <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Job
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+      <div className="bg-gray-50">
+        {/* Header Banner */}
+        <div className="relative h-48 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="absolute inset-0 bg-black opacity-20"></div>
+          <div className="absolute top-4 left-4 z-20">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="text-white hover:bg-white/20 hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
+        <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">
+          {/* Profile Header Card */}
+          <Card className="mb-8 shadow-lg">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+                {/* Company Logo */}
+                <div className="relative">
+                  {(() => {
+                    const companyIdValue =
+                      typeof job?.companyId === 'string'
+                        ? job.companyId
+                        : job?.companyId?._id || job?.companyId?.companyId || job?.companyId?.id;
+                    const companyProfilePath = companyIdValue ? `/dashboard/companies/${companyIdValue}` : null;
+                    
+                    const avatar = (
+                      <Avatar className="w-32 h-32 border-4 border-white shadow-lg transition-transform duration-150">
+                        <AvatarImage 
+                          src={authenticatedCompanyLogoUrl || undefined} 
+                          alt={`${job?.companyId?.name || 'Company'} logo`}
+                          className="object-cover"
+                        />
+                        <AvatarFallback className="text-2xl font-bold bg-blue-600 text-white">
+                          <Building2 className="w-16 h-16" />
+                        </AvatarFallback>
+                      </Avatar>
+                    );
+
+                    return companyProfilePath ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(companyProfilePath)}
+                        className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 group cursor-pointer"
+                        aria-label={`View ${job?.companyId?.name || 'company'} profile`}
+                      >
+                        <div className="group-hover:scale-105 group-hover:opacity-90 transition-all duration-150">{avatar}</div>
+                      </button>
+                    ) : avatar;
+                  })()}
+                </div>
+
+                {/* Basic Info */}
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                        {job.title}
+                      </h1>
+                      <div className="flex items-center gap-4 mb-4">
+                        {job.jobId && (
+                          <Badge variant="outline" className="text-blue-600 border-blue-200 font-mono">
+                            {job.jobId}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className={
+                          job.workType === 'remote' ? "bg-green-100 text-green-800 border-green-200" :
+                          job.workType === 'wfh' ? "bg-blue-100 text-blue-800 border-blue-200" :
+                          "bg-orange-100 text-orange-800 border-orange-200"
+                        }>
+                          {job.workType === 'wfo' ? 'Onsite' : job.workType === 'wfh' ? 'Hybrid' : job.workType === 'remote' ? 'Remote' : job.workType || 'N/A'}
+                        </Badge>
+                        <Badge variant="outline" className="capitalize">
+                          {job.type}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        {job.companyId?.name && (() => {
+                          const companyIdValue =
+                            typeof job?.companyId === 'string'
+                              ? job.companyId
+                              : job?.companyId?._id || job?.companyId?.companyId || job?.companyId?.id;
+                          const companyProfilePath = companyIdValue ? `/dashboard/companies/${companyIdValue}` : null;
+                          const companyName = job.companyId.name;
+                          
+                          const content = (
+                            <div className="flex items-center gap-1.5">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage 
+                                  src={authenticatedCompanyLogoUrl || undefined} 
+                                  alt={`${companyName} logo`}
+                                  className="object-cover"
+                                />
+                                <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                  <Building2 className="w-3 h-3" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{companyName}</span>
+                            </div>
+                          );
+                          
+                          return companyProfilePath ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate(companyProfilePath)}
+                              className="hover:text-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded group"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <Avatar className="h-5 w-5 group-hover:ring-2 group-hover:ring-blue-500/40 transition-all">
+                                  <AvatarImage 
+                                    src={authenticatedCompanyLogoUrl || undefined} 
+                                    alt={`${companyName} logo`}
+                                    className="object-cover"
+                                  />
+                                  <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                    <Building2 className="w-3 h-3" />
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="group-hover:underline">{companyName}</span>
+                              </div>
+                            </button>
+                          ) : content;
+                        })()}
+                        {job.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{job.location}</span>
+                          </div>
+                        )}
+                        {canViewSalary && job.salaryRange && (
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-4 h-4" />
+                            <span>{formatSalary(job)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {(user?.role === 'hr' || user?.role === 'admin' || user?.role === 'superadmin') && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="icon" className="border-blue-200 hover:bg-blue-50 hover:border-blue-300">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={openEditDialog}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit Job
+                          </DropdownMenuItem>
+                          {user?.role === 'hr' && (
+                            <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-red-600">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Job
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
               {/* Job Overview */}
               <Card className="shadow-lg bg-white border-slate-200">
                 <CardHeader>
@@ -366,9 +531,53 @@ export default function JobDetailsPage() {
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-blue-600" />
                       <span className="font-medium text-slate-700">Company:</span>
-                      <span className="text-slate-600">{job.companyId?.name || 'N/A'}</span>
+                      {(() => {
+                        const companyIdValue =
+                          typeof job?.companyId === 'string'
+                            ? job.companyId
+                            : job?.companyId?._id || job?.companyId?.companyId || job?.companyId?.id;
+                        const companyProfilePath = companyIdValue ? `/dashboard/companies/${companyIdValue}` : null;
+                        const companyName = job.companyId?.name || 'N/A';
+                        
+                        const content = (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage 
+                                src={authenticatedCompanyLogoUrl || undefined} 
+                                alt={`${companyName} logo`}
+                                className="object-cover"
+                              />
+                              <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                <Building2 className="w-3 h-3" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-slate-600">{companyName}</span>
+                          </div>
+                        );
+                        
+                        return companyProfilePath ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate(companyProfilePath)}
+                            className="hover:text-blue-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded group"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6 group-hover:ring-2 group-hover:ring-blue-500/40 transition-all">
+                                <AvatarImage 
+                                  src={authenticatedCompanyLogoUrl || undefined} 
+                                  alt={`${companyName} logo`}
+                                  className="object-cover"
+                                />
+                                <AvatarFallback className="bg-blue-600 text-white text-xs">
+                                  <Building2 className="w-3 h-3" />
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-slate-600 group-hover:text-blue-600 group-hover:underline">{companyName}</span>
+                            </div>
+                          </button>
+                        ) : content;
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-emerald-600" />
@@ -380,11 +589,13 @@ export default function JobDetailsPage() {
                       <span className="font-medium text-slate-700">Type:</span>
                       <span className="capitalize text-slate-600">{job.type}</span>
                     </div>
+                    {canViewSalary && (
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-green-600" />
                       <span className="font-medium text-slate-700">Salary:</span>
                       <span className="text-slate-600">{formatSalary(job)}</span>
                     </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-blue-600" />
                       <span className="font-medium text-slate-700">Work Type:</span>
@@ -396,6 +607,20 @@ export default function JobDetailsPage() {
                         {job.workType === 'wfo' ? 'Onsite' : job.workType === 'wfh' ? 'Hybrid' : job.workType === 'remote' ? 'Remote' : job.workType || 'N/A'}
                       </Badge>
                     </div>
+                    {job.jdFileId && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-purple-600" />
+                        <PDFViewer
+                          fileId={job.jdFileId}
+                          fileName="job-description.pdf"
+                        >
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-2" />
+                            View JD PDF
+                          </Button>
+                        </PDFViewer>
+                      </div>
+                    )}
                     {job.applicationDeadline && (
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-red-600" />
@@ -406,12 +631,30 @@ export default function JobDetailsPage() {
                     <div className="flex items-center gap-2">
                       <UserCheck className="w-4 h-4 text-indigo-600" />
                       <span className="font-medium text-slate-700">Posted by:</span>
-                      <span className="text-slate-600">
+                      <div
+                        className={`flex items-center gap-2 ${job.createdBy?.customId && user?.role && user.role !== 'candidate' ? 'group cursor-pointer transition-colors' : ''}`}
+                        onClick={() => {
+                          if (job.createdBy?.customId && user?.role && user.role !== 'candidate') {
+                            navigate(`/dashboard/hr-profile/${job.createdBy.customId}`);
+                          }
+                        }}
+                      >
+                        <Avatar className={`h-8 w-8 ${job.createdBy?.customId && user?.role && user.role !== 'candidate' ? 'transition-all group-hover:ring-2 group-hover:ring-indigo-500/40 group-hover:ring-offset-1' : ''}`}>
+                          <AvatarImage
+                            src={posterPhoto || undefined}
+                            alt={job.createdBy?.firstName ? `${job.createdBy.firstName} ${job.createdBy.lastName}` : 'HR'}
+                          />
+                          <AvatarFallback className="bg-indigo-600 text-white">
+                            {job.createdBy?.firstName?.charAt(0)}{job.createdBy?.lastName?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className={`text-slate-600 ${job.createdBy?.customId && user?.role && user.role !== 'candidate' ? 'group-hover:text-indigo-600 transition-colors' : ''}`}>
                         {job.createdBy?.firstName && job.createdBy?.lastName 
                           ? `${job.createdBy.firstName} ${job.createdBy.lastName}`
                           : job.createdBy?.email || 'Unknown'
                         }
                       </span>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -628,9 +871,23 @@ export default function JobDetailsPage() {
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  deleteJob(jobId!);
-                  setShowDeleteDialog(false);
+                onClick={async () => {
+                  try {
+                    await deleteJob(jobId!);
+                    toast({
+                      title: "Success",
+                      description: "Job deleted successfully"
+                    });
+                    setShowDeleteDialog(false);
+                    navigate("/dashboard/jobs");
+                  } catch (e: any) {
+                    console.error('Delete job error:', e);
+                    toast({
+                      title: "Error",
+                      description: e?.message || "Failed to delete job",
+                      variant: "destructive"
+                    });
+                  }
                 }}
                 disabled={deleteLoading}
               >

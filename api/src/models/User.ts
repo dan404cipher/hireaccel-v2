@@ -158,6 +158,12 @@ const userSchema = new Schema<UserDocument>(
             // },
         },
 
+        profilePhotoFileId: {
+            type: Schema.Types.ObjectId,
+            ref: 'File',
+            index: true,
+        },
+
         source: {
             type: String,
             required: false,

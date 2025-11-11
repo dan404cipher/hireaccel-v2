@@ -28,8 +28,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     setLoading(true);
     setError(null);
     
+    // Determine endpoint based on fileName (JD files vs resume files)
+    const endpoint = fileName?.toLowerCase().includes('job-description') || fileName?.toLowerCase().includes('jd')
+      ? `/api/v1/files/jd/${fileId}`
+      : `/api/v1/files/resume/${fileId}`;
+    
     try {
-      const response = await fetch(getApiUrl(`/api/v1/files/resume/${fileId}`), {
+      const response = await fetch(getApiUrl(endpoint), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
@@ -51,8 +56,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   };
 
   const handleDownload = async () => {
+    // Determine endpoint based on fileName (JD files vs resume files)
+    const endpoint = fileName?.toLowerCase().includes('job-description') || fileName?.toLowerCase().includes('jd')
+      ? `/api/v1/files/jd/${fileId}/download`
+      : `/api/v1/files/resume/${fileId}/download`;
+    
     try {
-      const response = await fetch(getApiUrl(`/api/v1/files/resume/${fileId}`), {
+      const response = await fetch(getApiUrl(endpoint), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
@@ -72,15 +82,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
+      const isJD = fileName?.toLowerCase().includes('job-description') || fileName?.toLowerCase().includes('jd');
       toast({
         title: 'Download Started',
-        description: 'Your resume download has started.',
+        description: isJD ? 'Job Description PDF download has started.' : 'Your resume download has started.',
       });
     } catch (error) {
       console.error('Download error:', error);
+      const isJD = fileName?.toLowerCase().includes('job-description') || fileName?.toLowerCase().includes('jd');
       toast({
         title: 'Download Failed',
-        description: 'Failed to download resume. Please try again.',
+        description: isJD ? 'Failed to download Job Description PDF. Please try again.' : 'Failed to download resume. Please try again.',
         variant: 'destructive',
       });
     }

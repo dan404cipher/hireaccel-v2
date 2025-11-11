@@ -1,6 +1,5 @@
-import { Search, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -10,16 +9,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth, User } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { GlobalSearch } from "./GlobalSearch";
 import { useState } from "react";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
 
 export function TopBar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  
+  // Get authenticated profile photo URL
+  const profilePhotoUrl = user?.profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
 
   const handleLogout = async () => {
     try {
@@ -41,6 +49,9 @@ export function TopBar() {
     } else if (user?.role === 'hr') {
       // Navigate to HR profile route, it will auto-update with customId
       navigate('/dashboard/hr-profile');
+    } else if (user?.role === 'agent') {
+      // Navigate to Agent profile route, it will auto-update with customId
+      navigate('/dashboard/agent-profile');
     } else if (user?.role === 'admin' || user?.role === 'superadmin') {
       navigate('/dashboard/admin-profile');
     } else {
@@ -79,13 +90,7 @@ export function TopBar() {
     <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-4">
         <SidebarTrigger />
-        <div className="relative w-96">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search jobs, candidates, companies..." 
-            className="pl-10 bg-background"
-          />
-        </div>
+        <GlobalSearch />
       </div>
 
       <div className="flex items-center gap-4">
@@ -99,9 +104,15 @@ export function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${getRoleColor(user?.role || 'default')}`}>
-                {getUserInitials(user)}
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage 
+                  src={authenticatedImageUrl || ''} 
+                  alt={user ? `${user.firstName} ${user.lastName}` : 'User'} 
+                />
+                <AvatarFallback className={`font-semibold text-sm ${getRoleColor(user?.role || 'default')}`}>
+                  {getUserInitials(user)}
+                </AvatarFallback>
+              </Avatar>
               <div className="text-left">
                 <p className="text-sm font-medium">
                   {user ? `${user.firstName} ${user.lastName}` : 'User'}

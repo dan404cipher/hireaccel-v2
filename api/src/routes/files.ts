@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { FileController } from '@/controllers/FileController'
-import { authenticate, requireRole } from '@/middleware/auth'
+import { authenticate, requireRole, requireHR } from '@/middleware/auth'
 import { UserRole } from '@/types'
-import { uploadResume, handleMulterError } from '@/config/multer'
+import { uploadResume, uploadDocument, uploadJD, uploadProfilePhoto, uploadCompanyLogo, handleMulterError } from '@/config/multer'
 import { heavyProcessLimiter } from '@/config/rateLimit'
 
 const router = Router()
@@ -68,5 +68,83 @@ router.delete('/resume', requireRole(UserRole.CANDIDATE), FileController.deleteR
  * @access  Private (Candidate only)
  */
 router.post('/resume/parse', heavyProcessLimiter, requireRole(UserRole.CANDIDATE), FileController.parseResume)
+
+/**
+ * @route   POST /files/jd
+ * @desc    Upload JD (Job Description) file
+ * @access  Private (HR/Admin/SuperAdmin only)
+ */
+router.post(
+    '/jd',
+    requireHR,
+    uploadJD.single('jd'),
+    handleMulterError,
+    FileController.uploadJD,
+)
+
+/**
+ * @route   POST /files/jd/parse
+ * @desc    Parse JD file and extract job information
+ * @access  Private (HR/Admin/SuperAdmin only)
+ */
+router.post(
+    '/jd/parse',
+    heavyProcessLimiter,
+    requireHR,
+    FileController.parseJD,
+)
+
+/**
+ * @route   GET /files/jd/:fileId
+ * @desc    View JD file inline (for preview)
+ * @access  Private (Authenticated users)
+ */
+router.get('/jd/:fileId', FileController.viewJD)
+
+/**
+ * @route   GET /files/jd/:fileId/download
+ * @desc    Download JD file (forces download)
+ * @access  Private (Authenticated users)
+ */
+router.get('/jd/:fileId/download', FileController.downloadJD)
+
+/**
+ * @route   POST /files/profile-photo
+ * @desc    Upload profile photo for current user
+ * @access  Private (Authenticated users)
+ */
+router.post(
+    '/profile-photo',
+    uploadProfilePhoto.single('photo'),
+    handleMulterError,
+    FileController.uploadProfilePhoto,
+)
+
+/**
+ * @route   GET /files/profile-photo/:fileId
+ * @desc    View profile photo inline (for display)
+ * @access  Private (Authenticated users)
+ */
+router.get('/profile-photo/:fileId', FileController.viewProfilePhoto)
+
+/**
+ * @route   POST /files/company-logo
+ * @desc    Upload company logo
+ * @access  Private (HR/Admin/SuperAdmin only)
+ */
+router.post(
+    '/company-logo',
+    requireHR,
+    uploadCompanyLogo.single('logo'),
+    handleMulterError,
+    FileController.uploadCompanyLogo,
+)
+
+/**
+ * @route   GET /files/company-logo/:fileId
+ * @desc    View company logo inline (for display)
+ * @access  Private (Authenticated users)
+ */
+router.get('/company-logo/:fileId', FileController.viewCompanyLogo)
 
 export default router

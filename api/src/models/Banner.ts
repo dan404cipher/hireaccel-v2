@@ -25,6 +25,13 @@ export interface IBanner {
   contentSize?: 'small' | 'medium' | 'large';
   // Text alignment
   textAlignment?: 'left' | 'center' | 'right';
+  // Storage provider tracking
+  storageProvider?: 'local' | 'aws_s3';
+  storageLocation?: string; // S3 key or local path
+  backgroundStorageProvider?: 'local' | 'aws_s3';
+  backgroundStorageLocation?: string; // S3 key or local path for background media
+  originalName?: string;
+  backgroundOriginalName?: string;
 }
 
 const bannerSchema = new Schema<IBanner>(
@@ -119,6 +126,29 @@ const bannerSchema = new Schema<IBanner>(
       type: String,
       enum: ['left', 'center', 'right'],
       default: 'center',
+    },
+    // Storage provider tracking
+    storageProvider: {
+      type: String,
+      enum: ['local', 'aws_s3'],
+      default: 'local',
+    },
+    storageLocation: {
+      type: String,
+    },
+    backgroundStorageProvider: {
+      type: String,
+      enum: ['local', 'aws_s3'],
+      default: 'local',
+    },
+    backgroundStorageLocation: {
+      type: String,
+    },
+    originalName: {
+      type: String,
+    },
+    backgroundOriginalName: {
+      type: String,
     },
   },
   {

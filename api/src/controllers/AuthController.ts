@@ -789,43 +789,45 @@ export class AuthController {
             message: 'Verification email sent',
         });
     });
+  });
 
-    /**
-     * Get current user
-     * GET /auth/me
-     */
-    static getCurrentUser = asyncHandler(async (req: AuthenticatedRequest, res: Response, _next: NextFunction) => {
-        const userId = req.user?._id.toString();
-
-        if (!userId) {
-            return res.status(401).json({
-                type: 'https://httpstatuses.com/401',
-                title: 'Unauthorized',
-                status: 401,
-                detail: 'User not authenticated',
-            });
-        }
-
-        const user = await AuthService.getCurrentUser(userId);
-
-        return res.json({
-            success: true,
-            data: {
-                user: {
-                    id: user._id,
-                    customId: user.customId,
-                    email: user.email,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    fullName: `${user.firstName} ${user.lastName}`,
-                    role: user.role,
-                    status: user.status,
-                    emailVerified: user.emailVerified,
-                    lastLoginAt: user.lastLoginAt,
-                    createdAt: user.createdAt,
-                    updatedAt: user.updatedAt,
-                },
-            },
-        });
+  /**
+   * Get current user
+   * GET /auth/me
+   */
+  static getCurrentUser = asyncHandler(async (req: AuthenticatedRequest, res: Response, _next: NextFunction) => {
+    const userId = req.user?._id.toString();
+    
+    if (!userId) {
+      return res.status(401).json({
+        type: 'https://httpstatuses.com/401',
+        title: 'Unauthorized',
+        status: 401,
+        detail: 'User not authenticated',
+      });
+    }
+    
+    const user = await AuthService.getCurrentUser(userId);
+    
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          customId: user.customId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          fullName: `${user.firstName} ${user.lastName}`,
+          role: user.role,
+          status: user.status,
+          emailVerified: user.emailVerified,
+          phoneNumber: user.phoneNumber,
+          profilePhotoFileId: user.profilePhotoFileId?.toString(),
+          lastLoginAt: user.lastLoginAt,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+      },
     });
 }

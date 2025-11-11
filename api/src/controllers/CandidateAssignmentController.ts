@@ -6,7 +6,10 @@ import { User } from '@/models/User';
 import { Job } from '@/models/Job';
 import { AuditLog } from '@/models/AuditLog';
 import { AuthenticatedRequest, UserRole, UserStatus, AuditAction } from '@/types';
+import { NotificationType, NotificationPriority } from '@/types/notifications';
+import { NotificationService } from '@/services/NotificationService';
 import { asyncHandler, createNotFoundError, createBadRequestError } from '@/middleware/errorHandler';
+import { logger } from '@/config/logger';
 import mongoose from 'mongoose';
 
 /**
@@ -50,6 +53,17 @@ const querySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 
+const candidateStatusLabels: Record<string, string> = {
+  new: 'New',
+  reviewed: 'Reviewed',
+  shortlisted: 'Shortlisted',
+  interview_scheduled: 'Interview Scheduled',
+  interviewed: 'Interviewed',
+  offer_sent: 'Offer Sent',
+  hired: 'Hired',
+  rejected: 'Rejected',
+};
+
 export class CandidateAssignmentController {
   /**
    * Get assignments with filtering and pagination
@@ -87,22 +101,22 @@ export class CandidateAssignmentController {
         path: 'candidateId',
         populate: {
           path: 'userId',
-          select: 'firstName lastName email customId'
+          select: 'firstName lastName email customId profilePhotoFileId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location createdBy',
+        select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       })
@@ -173,19 +187,19 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
         select: 'title description companyId createdBy',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       });
@@ -299,15 +313,30 @@ export class CandidateAssignmentController {
       }
     }
 
-    // Check if assignment already exists for this candidate-HR pair
-    const existingAssignment = await CandidateAssignment.findOne({
-      candidateId: validatedData.candidateId,
-      assignedTo: finalAssignedTo,
-      status: 'active',
-    });
+    // Check if assignment already exists for this candidate-job combination
+    // Only block if trying to assign the same candidate to the same specific job
+    if (validatedData.jobId) {
+      const existingAssignment = await CandidateAssignment.findOne({
+        candidateId: validatedData.candidateId,
+        jobId: validatedData.jobId,
+        status: 'active',
+      });
 
-    if (existingAssignment) {
-      throw createBadRequestError('This candidate is already assigned to this HR user');
+      if (existingAssignment) {
+        throw createBadRequestError('This candidate is already assigned to this specific job');
+      }
+    } else {
+      // If no specific job, check for existing assignment to the same HR (legacy behavior)
+      const existingAssignment = await CandidateAssignment.findOne({
+        candidateId: validatedData.candidateId,
+        assignedTo: finalAssignedTo,
+        jobId: { $exists: false }, // Only check assignments without a specific job
+        status: 'active',
+      });
+
+      if (existingAssignment) {
+        throw createBadRequestError('This candidate is already assigned to this HR user without a specific job');
+      }
     }
 
     // Create assignment
@@ -327,22 +356,65 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
-        select: 'title companyId location createdBy',
+        select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       });
+
+    const candidateDoc = populatedAssignment?.candidateId as any;
+    const candidateUser = candidateDoc?.userId as any;
+    const job = populatedAssignment?.jobId as any;
+    const jobTitle = job?.title || 'a new job';
+    const companyName = job?.companyId?.name;
+    const assignedBy = populatedAssignment?.assignedBy as any;
+    const assignedByName = assignedBy
+      ? `${assignedBy.firstName || ''} ${assignedBy.lastName || ''}`.trim()
+      : 'your recruiter';
+
+    if (candidateUser?._id) {
+      try {
+        const notificationService = NotificationService.getInstance();
+        await notificationService.createNotification({
+          type: NotificationType.CANDIDATE_ASSIGN,
+          title: 'New Assignment Received',
+          message: companyName
+            ? `You've been assigned to ${jobTitle} at ${companyName}.`
+            : `You've been assigned to ${jobTitle}.`,
+          recipientId: candidateUser._id.toString(),
+          recipientRole: UserRole.CANDIDATE,
+          entityType: 'CandidateAssignment',
+          entityId: assignment._id.toString(),
+          metadata: {
+            assignmentId: assignment._id.toString(),
+            jobId: job?._id?.toString(),
+            jobTitle,
+            companyName,
+            assignedById: assignment.assignedBy.toString(),
+            assignedByName,
+          },
+          priority: NotificationPriority.HIGH,
+          actionUrl: '/dashboard/candidate-applications',
+        });
+      } catch (error) {
+        logger.warn('Failed to send candidate assignment notification', {
+          candidateId: candidateUser._id?.toString(),
+          assignmentId: assignment._id.toString(),
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
 
     // Log audit trail
     await AuditLog.createLog({
@@ -426,19 +498,19 @@ export class CandidateAssignmentController {
           select: 'firstName lastName email customId'
         }
       })
-      .populate('assignedBy', 'firstName lastName email customId')
-      .populate('assignedTo', 'firstName lastName email customId')
+      .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+      .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
       .populate({
         path: 'jobId',
         select: 'title companyId location createdBy jobId',
         populate: [
           {
             path: 'companyId',
-            select: 'name industry location'
+            select: 'name industry location logoFileId companyId'
           },
           {
             path: 'createdBy',
-            select: 'firstName lastName customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         ]
       });
@@ -461,6 +533,41 @@ export class CandidateAssignmentController {
     const newStatus = assignment.status;
     const candidateStatusChanged = newCandidateStatus !== oldCandidateStatus;
     const statusChanged = newStatus !== oldStatus;
+
+    if (candidateStatusChanged && candidateUser?._id) {
+      try {
+        const notificationService = NotificationService.getInstance();
+        const statusLabel = candidateStatusLabels[newCandidateStatus] || newCandidateStatus;
+        await notificationService.createNotification({
+          type: NotificationType.CANDIDATE_STATUS_CHANGE,
+          title: 'Application Status Updated',
+          message: jobTitle && jobTitle !== 'N/A'
+            ? `Your application for ${jobTitle} is now ${statusLabel}.`
+            : `Your application status is now ${statusLabel}.`,
+          recipientId: candidateUser._id.toString(),
+          recipientRole: UserRole.CANDIDATE,
+          entityType: 'CandidateAssignment',
+          entityId: assignment._id.toString(),
+          metadata: {
+            assignmentId: assignment._id.toString(),
+            jobId: job?._id?.toString(),
+            jobTitle,
+            oldStatus: oldCandidateStatus,
+            newStatus: newCandidateStatus,
+          },
+          priority: NotificationPriority.MEDIUM,
+          actionUrl: '/dashboard/candidate-applications',
+        });
+      } catch (error) {
+        logger.warn('Failed to send candidate status change notification', {
+          candidateId: candidateUser._id?.toString(),
+          assignmentId: assignment._id.toString(),
+          oldStatus: oldCandidateStatus,
+          newStatus: newCandidateStatus,
+          error: error instanceof Error ? error.message : error,
+        });
+      }
+    }
 
     // Build description based on what changed
     let description = '';
@@ -623,14 +730,14 @@ export class CandidateAssignmentController {
           path: 'candidateId',
           populate: {
             path: 'userId',
-            select: 'firstName lastName email customId'
+            select: 'firstName lastName email customId profilePhotoFileId'
           }
         })
-        .populate('assignedBy', 'firstName lastName email customId')
-        .populate('assignedTo', 'firstName lastName email customId')
+        .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId')
+        .populate('assignedTo', 'firstName lastName email customId profilePhotoFileId')
         .populate({
           path: 'jobId',
-          select: 'title companyId location createdBy',
+          select: 'title companyId location createdBy jobId',
           populate: [
             {
               path: 'companyId',

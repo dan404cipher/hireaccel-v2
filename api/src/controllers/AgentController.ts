@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AgentAssignment } from '@/models/AgentAssignment'
 import { Job } from '@/models/Job'
 import { Candidate } from '@/models/Candidate'
+import { User } from '@/models/User'
 import { CandidateAssignment } from '@/models/CandidateAssignment'
 import { Interview } from '@/models/Interview'
 import { Application } from '@/models/Application'
@@ -106,7 +107,7 @@ export class AgentController {
 
         const jobs = await Job.find(filter)
             .populate('companyId', 'name industry location')
-            .populate('createdBy', 'firstName lastName email customId')
+            .populate('createdBy', 'firstName lastName email customId profilePhotoFileId')
             .populate('assignedAgentId', 'firstName lastName email')
             .sort(sort)
             .skip(skip)
@@ -160,25 +161,27 @@ export class AgentController {
      * @route GET /agents/me/candidates
      */
     static getMyCandidates = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-        // Only agents can access this endpoint
-        if (req.user!.role !== UserRole.AGENT) {
-            throw createForbiddenError('Only agents can access this endpoint')
+        // Only agents, admins, and superadmins can access this endpoint
+        if (![UserRole.AGENT, UserRole.ADMIN, UserRole.SUPERADMIN].includes(req.user!.role)) {
+            throw createForbiddenError('Only agents, admins, and superadmins can access this endpoint')
         }
 
         const query = querySchema.parse(req.query)
         const { page, limit, search, sortBy, sortOrder } = query
 
-        // Get candidates assigned to this agent
-        const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id)
+        // Get candidates based on user role
+        let assignedCandidateIds: mongoose.Types.ObjectId[] = []
+        
+        if (req.user!.role === UserRole.AGENT) {
+            // For agents, only get candidates assigned to them
+            assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id)
+        } else {
+            // For admins and superadmins, get all candidates (will be handled differently in filter)
+            assignedCandidateIds = []
+        }
 
-        console.log('🔍 Agent getMyCandidates debug:', {
-            agentId: req.user!._id,
-            agentEmail: req.user!.email,
-            assignedCandidateIds: assignedCandidateIds,
-            candidateCount: assignedCandidateIds.length,
-        })
-
-        if (assignedCandidateIds.length === 0) {
+        // For agents, check if they have assigned candidates
+        if (req.user!.role === UserRole.AGENT && assignedCandidateIds.length === 0) {
             return res.json({
                 data: [],
                 meta: {
@@ -190,34 +193,95 @@ export class AgentController {
             })
         }
 
-        // Build filter for assigned candidates
-        // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
+        // Build filter for candidates based on user role
         const filter: any = {
-            _id: { $in: assignedCandidateIds },
             userId: { $exists: true, $ne: null }, // Only include candidates that have a valid userId
+            status: 'active', // Only active candidates
         }
 
+        // For agents, filter by assigned candidates; for admins/superadmins, show all
+        if (req.user!.role === UserRole.AGENT) {
+            // assignedCandidateIds contains Candidate document IDs, so we filter by _id directly
+            filter._id = { $in: assignedCandidateIds }
+        }
+
+        // If search is provided, we need to search in both Candidate and User fields
+        let candidateQuery: any = filter
+        
         if (search) {
-            // Search in candidate profile and user details
-            filter.$or = [
-                { 'profile.skills': { $regex: search, $options: 'i' } },
-                { 'profile.summary': { $regex: search, $options: 'i' } },
-                { 'profile.location': { $regex: search, $options: 'i' } },
-            ]
+            // Check if search term looks like an ID (starts with letters followed by numbers)
+            const idPattern = /^([A-Z]+)(\d+)$/i;
+            const idMatch = search.trim().match(idPattern);
+            const escapedSearchTerm = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
+            // First, find users that match the search term
+            const userSearchConditions: any[] = [
+                { firstName: { $regex: escapedSearchTerm, $options: 'i' } },
+                { lastName: { $regex: escapedSearchTerm, $options: 'i' } },
+                { email: { $regex: escapedSearchTerm, $options: 'i' } },
+            ];
+            
+            // Handle customId search with ID pattern matching
+            if (idMatch) {
+                const [, prefix, number] = idMatch;
+                const prefixUpper = prefix.toUpperCase();
+                const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                userSearchConditions.push({ customId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+            } else {
+                userSearchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
+            }
+            
+            // Get all candidate users first, then filter by full name in memory
+            const allCandidateUsers = await User.find({
+                role: UserRole.CANDIDATE,
+            }).select('_id firstName lastName email customId').lean();
+            
+            // Filter users that match the search term (including full name search)
+            const searchLower = search.toLowerCase().trim();
+            const matchingUsers = allCandidateUsers.filter((user: any) => {
+                const firstName = (user.firstName || '').toLowerCase();
+                const lastName = (user.lastName || '').toLowerCase();
+                const fullName = `${firstName} ${lastName}`.trim();
+                const email = (user.email || '').toLowerCase();
+                const customId = (user.customId || '').toLowerCase();
+                
+                // Check if search matches firstName, lastName, full name, email, or customId
+                return (
+                    firstName.includes(searchLower) ||
+                    lastName.includes(searchLower) ||
+                    fullName.includes(searchLower) ||
+                    email.includes(searchLower) ||
+                    customId.includes(searchLower)
+                );
+            });
+            
+            const matchingUserIds = matchingUsers.map((u: any) => u._id);
+            
+            // Combine user search with candidate profile search
+            const searchConditions: any[] = [
+                { 'profile.skills': { $regex: escapedSearchTerm, $options: 'i' } },
+                { 'profile.summary': { $regex: escapedSearchTerm, $options: 'i' } },
+                { 'profile.location': { $regex: escapedSearchTerm, $options: 'i' } },
+            ];
+            
+            // If we found matching users, include them in the search
+            if (matchingUserIds.length > 0) {
+                searchConditions.push({ userId: { $in: matchingUserIds } });
+            }
+            
+            candidateQuery = {
+                ...filter,
+                $or: searchConditions,
+            };
         }
 
         const skip = (page - 1) * limit
         const sort: any = {}
         sort[sortBy === 'createdAt' ? 'createdAt' : 'updatedAt'] = sortOrder === 'asc' ? 1 : -1
 
-        console.log('[AgentController] Finding candidates with filter:', {
-            filter,
-            assignedCandidateIds: assignedCandidateIds.map((id) => id.toString()),
-        })
-
         // First get all candidates that match the filter
-        const allCandidates = await Candidate.find(filter)
-            .populate('userId', 'firstName lastName email customId') // Add customId to the populated fields
+        const allCandidates = await Candidate.find(candidateQuery)
+            .populate('userId', 'firstName lastName email customId profilePhotoFileId') // Add customId and profilePhotoFileId to the populated fields
             .sort(sort)
             .skip(skip)
             .limit(limit)
@@ -231,16 +295,23 @@ export class AgentController {
                 (candidate.userId as any).customId, // Ensure customId exists
         )
 
-        console.log('[AgentController] Found candidates:', {
-            count: candidates.length,
-            candidates: candidates.map((c) => ({
-                id: c._id.toString(),
-                userId: c.userId ? (c.userId as any)._id.toString() : null,
-                name: c.userId ? `${(c.userId as any).firstName} ${(c.userId as any).lastName}` : 'No User',
-            })),
-        })
-
-        const total = candidates.length // Use the filtered count instead of querying again
+        // Get total count for pagination
+        // If search is active, count the matching results; otherwise use full count
+        let total: number
+        if (search) {
+            // When searching, count documents matching the search query
+            total = await Candidate.countDocuments(candidateQuery)
+        } else if (req.user!.role === UserRole.AGENT) {
+            // For agents without search, use assigned count
+            total = assignedCandidateIds.length
+        } else {
+            // For admins/superadmins without search, get actual count from database
+            const countFilter: any = {
+                userId: { $exists: true, $ne: null },
+                status: 'active',
+            }
+            total = await Candidate.countDocuments(countFilter)
+        }
 
         // Log audit trail
         await AuditLog.createLog({
@@ -257,7 +328,7 @@ export class AgentController {
             ipAddress: req.ip,
             userAgent: req.get('User-Agent'),
             businessProcess: 'agent_management',
-            description: `Agent retrieved ${candidates.length} assigned candidates`,
+            description: `${req.user!.role === UserRole.AGENT ? 'Agent' : 'Admin/Superadmin'} retrieved ${candidates.length} candidates`,
         })
 
         res.json({
@@ -325,40 +396,11 @@ export class AgentController {
 
         assignment.assignedHRs = assignedHRsWithCounts
 
-        // Debug logging
-        console.log('Debug Info:', {
-            agentId: req.user!._id.toString(),
-            hrAssignmentCounts: hrAssignmentCounts.map((count) => ({
-                hrId: count._id.toString(),
-                count: count.assignedCandidatesCount,
-                hrName: `${count.hrDetails.firstName} ${count.hrDetails.lastName}`,
-            })),
-            assignedHRs: assignment.assignedHRs.map((hr: any) => ({
-                id: hr._id.toString(),
-                name: `${hr.firstName} ${hr.lastName}`,
-            })),
-            finalCounts: assignedHRsWithCounts.map((hr) => ({
-                id: hr._id.toString(),
-                name: `${hr.firstName} ${hr.lastName}`,
-                count: hr.assignedCandidatesCount,
-            })),
-        })
-
-        // Additional debug query to check actual assignments
+        // Additional query to check actual assignments
         const actualAssignments = await CandidateAssignment.find({
             assignedBy: req.user!._id,
             status: { $in: ['active', 'completed', 'pending'] },
         }).populate('assignedTo', 'firstName lastName')
-
-        console.log(
-            'Actual Assignments:',
-            actualAssignments.map((a) => ({
-                id: a._id,
-                status: a.status,
-                assignedTo: `${(a.assignedTo as any).firstName} ${(a.assignedTo as any).lastName}`,
-                assignedToId: a.assignedTo,
-            })),
-        )
 
         // Log audit trail
         await AuditLog.createLog({
@@ -388,20 +430,10 @@ export class AgentController {
         const validatedData = assignCandidateSchema.parse(req.body)
 
         // Verify agent has access to this candidate
-        console.log(
-            `[AgentController] Verifying agent ${req.user!._id} access to candidate ${validatedData.candidateId}`,
-        )
         const assignedCandidateIds = await AgentAssignment.getCandidatesForAgent(req.user!._id)
         const candidateObjectId = new mongoose.Types.ObjectId(validatedData.candidateId)
 
         const hasAccess = assignedCandidateIds.some((id) => id.equals(candidateObjectId))
-        console.log(`[AgentController] Agent access check:`, {
-            agentId: req.user!._id,
-            candidateId: validatedData.candidateId,
-            hasAccess,
-            totalAssignedCandidates: assignedCandidateIds.length,
-        })
-
         if (!hasAccess) {
             throw createForbiddenError('You do not have access to this candidate')
         }
@@ -436,14 +468,6 @@ export class AgentController {
         }
 
         // Create candidate assignment
-        console.log(`[AgentController] Creating candidate assignment:`, {
-            candidateId: validatedData.candidateId,
-            jobId: validatedData.jobId,
-            assignedBy: req.user!._id,
-            assignedTo: job.createdBy,
-            priority: validatedData.priority,
-        })
-
         const assignment = await CandidateAssignment.create({
             candidateId: validatedData.candidateId,
             assignedTo: job.createdBy, // HR user who posted the job
@@ -453,8 +477,6 @@ export class AgentController {
             notes: validatedData.notes,
             dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : undefined,
         })
-
-        console.log(`[AgentController] Created candidate assignment: ${assignment._id}`)
 
         // Populate the created assignment
         const populatedAssignment = await CandidateAssignment.findById(assignment._id)
@@ -530,7 +552,7 @@ export class AgentController {
                 path: 'candidateId',
                 populate: {
                     path: 'userId',
-                    select: 'firstName lastName email',
+                    select: 'firstName lastName email customId profilePhotoFileId',
                 },
             })
             .populate('assignedBy', 'firstName lastName email')

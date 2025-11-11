@@ -12,6 +12,29 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, Notification } from '@/contexts/NotificationContext';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+
+const candidateStatusLabels: Record<string, string> = {
+  new: 'New',
+  reviewed: 'Reviewed',
+  shortlisted: 'Shortlisted',
+  interview_scheduled: 'Interview Scheduled',
+  interviewed: 'Interviewed',
+  offer_sent: 'Offer Sent',
+  hired: 'Hired',
+  rejected: 'Rejected',
+};
+
+const candidateStatusClasses: Record<string, string> = {
+  new: 'bg-gray-100 text-gray-800',
+  reviewed: 'bg-blue-100 text-blue-800',
+  shortlisted: 'bg-purple-100 text-purple-800',
+  interview_scheduled: 'bg-orange-100 text-orange-800',
+  interviewed: 'bg-yellow-100 text-yellow-800',
+  offer_sent: 'bg-indigo-100 text-indigo-800',
+  hired: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
+};
 
 interface NotificationCenterProps {
   open: boolean;
@@ -23,6 +46,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onOpenChange,
 }) => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const currentUserRole = currentUser?.role;
   const {
     notifications,
     loading,
@@ -53,6 +78,87 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const renderNotificationMessage = (notification: Notification) => {
     const { message, metadata } = notification;
+    
+    // Handle candidate status change notifications with role-specific messaging
+    if (notification.type === 'candidate_status_change') {
+      // Candidates should continue to see the original message from the backend
+      if (currentUserRole === 'candidate') {
+        return message;
+      }
+
+      const candidateName = metadata?.candidateName || 'candidate';
+      const candidateRouteId = metadata?.candidateCustomId || metadata?.candidateId;
+      const newStatusRaw = (metadata?.newStatus || '').toString().toLowerCase();
+      const statusLabel =
+        candidateStatusLabels[newStatusRaw] || (metadata?.newStatus || 'Updated');
+      const statusClass =
+        candidateStatusClasses[newStatusRaw] || 'bg-blue-100 text-blue-800';
+      const jobTitle = metadata?.jobTitle;
+      const jobRouteId = metadata?.jobCustomId || metadata?.jobId;
+
+      const candidateLink = (
+        <span
+          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (candidateRouteId) {
+              navigate(`/dashboard/candidates/${candidateRouteId}`);
+              onOpenChange(false);
+            }
+          }}
+        >
+          {candidateName}
+        </span>
+      );
+
+      const statusBadge = (
+        <span
+          className={cn(
+            'ml-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize',
+            statusClass
+          )}
+        >
+          {statusLabel}
+        </span>
+      );
+
+      const jobLink = jobTitle ? (
+        <>
+          {' '}
+          for{' '}
+          <span
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (jobRouteId) {
+                navigate(`/dashboard/jobs/${jobRouteId}`);
+                onOpenChange(false);
+              }
+            }}
+          >
+            {jobTitle}
+          </span>
+        </>
+      ) : null;
+
+      if (currentUserRole === 'hr') {
+        return (
+          <div>
+            You changed {candidateLink} to
+            {statusBadge}
+            {jobLink}.
+          </div>
+        );
+      }
+
+      return (
+        <div>
+          Candidate {candidateLink} status changed to
+          {statusBadge}
+          {jobLink}.
+        </div>
+      );
+    }
     
     // Handle company creation notifications
     if (notification.type === 'company_create' && metadata?.companyName && metadata?.creatorName) {
@@ -109,6 +215,73 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </div>
       );
     }
+
+    if (notification.type === 'candidate_assign') {
+      const jobTitle = metadata?.jobTitle || 'a new job';
+      const companyName = metadata?.companyName;
+      const jobId = metadata?.jobId || notification.entityId;
+
+      return (
+        <div>
+          You have been assigned to{' '}
+          <span
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (jobId) {
+                navigate(`/dashboard/jobs/${jobId}`);
+                onOpenChange(false);
+              } else {
+                navigate('/dashboard/candidate-applications');
+                onOpenChange(false);
+              }
+            }}
+          >
+            {jobTitle}
+          </span>
+          {companyName ? ` at ${companyName}.` : '.'}
+        </div>
+      );
+    }
+
+    if (notification.type === 'candidate_status_change') {
+      const jobTitle = metadata?.jobTitle || 'your application';
+      const jobId = metadata?.jobId || notification.entityId;
+      const statusKey = (metadata?.newStatus || '').toLowerCase();
+      const statusLabel = candidateStatusLabels[statusKey] || metadata?.newStatus || 'updated';
+      const statusClass = candidateStatusClasses[statusKey] || 'bg-gray-100 text-gray-800';
+
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          <span>Your application for</span>
+          <span
+            className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (jobId) {
+                navigate(`/dashboard/jobs/${jobId}`);
+                onOpenChange(false);
+              } else {
+                navigate('/dashboard/candidate-applications');
+                onOpenChange(false);
+              }
+            }}
+          >
+            {jobTitle}
+          </span>
+          <span>is now</span>
+          <span
+            className={cn(
+              'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+              statusClass
+            )}
+          >
+            {statusLabel}
+          </span>
+          <span>.</span>
+        </div>
+      );
+    }
     
     // Default message for other notification types
     return <span>{message}</span>;
@@ -131,8 +304,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         navigate(`/dashboard/hr-profile/${userId}`);
         break;
       case 'agent':
-        // Agent profile route doesn't exist, navigate to agent dashboard
-        navigate(`/dashboard/agent-dashboard`);
+        // Agent profile route has customId parameter - both agent and admin can access
+        navigate(`/dashboard/agent-profile/${userId}`);
         break;
       case 'candidate':
         // Use different routes based on current user role

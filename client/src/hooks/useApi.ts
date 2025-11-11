@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiClient, ApiResponse, ApiError } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,9 +38,11 @@ export function useApi<T>(
     
     try {
       const response = await apiCall();
-      
-      // The API client returns the full response object, so we need to access response.data
-      const actualData = response.data || response;
+
+      const actualData =
+        response && typeof response === 'object' && response !== null && 'meta' in response
+          ? response
+          : (response as any).data ?? response;
       
       setState(prev => {
         return { ...prev, data: actualData, loading: false };
@@ -80,10 +82,18 @@ export function useApi<T>(
 
   useEffect(() => {
     if (immediate) {
+      let cancelled = false;
       execute().catch(error => {
-        // Error is already handled in execute function
-        console.error('Unhandled promise rejection in useApi:', error);
+        // Only log if not cancelled (component unmounted)
+        if (!cancelled) {
+          // Error is already handled in execute function, but we catch to prevent unhandled rejections
+          console.error('Unhandled promise rejection in useApi:', error);
+        }
       });
+      
+      return () => {
+        cancelled = true;
+      };
     }
   }, [immediate, execute]);
 
@@ -168,8 +178,15 @@ export function useMutation<T, P = any>(
 
 // Jobs
 export function useJobs(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getJobs(params), [JSON.stringify(params)]);
-  return useApi(memoizedCall, { immediate: true });
+  // Create stable stringified params for dependency tracking
+  const paramsStr = JSON.stringify(params);
+  const paramsKey = useMemo(() => paramsStr, [paramsStr]);
+  
+  // Only execute immediately if params are not empty (to prevent unnecessary API calls)
+  const hasParams = Object.keys(params).length > 0;
+  
+  const memoizedCall = useCallback(() => apiClient.getJobs(params), [paramsKey]);
+  return useApi(memoizedCall, { immediate: hasParams });
 }
 
 export function useJob(id: string) {
@@ -233,8 +250,22 @@ export function useCompanyStats() {
 
 // Users
 export function useUsers(params = {}) {
-  const memoizedCall = useCallback(() => apiClient.getUsers(params), [JSON.stringify(params)]);
-  return useApi(memoizedCall, { immediate: true });
+  const { user } = useAuth();
+  const memoizedCall = useCallback(() => {
+    // Check if role filter requires admin/HR access
+    const role = (params as any)?.role;
+    if (role === 'hr' || role === 'agent') {
+      // These roles require HR/Admin access
+      if (user?.role !== 'hr' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+        return Promise.resolve({ data: [] });
+      }
+    }
+    return apiClient.getUsers(params);
+  }, [JSON.stringify(params), user?.role]);
+  return useApi(memoizedCall, { 
+    immediate: true,
+    showToast: false // Suppress error toasts for permission errors
+  });
 }
 
 export function useUser(id: string) {
@@ -319,8 +350,18 @@ export function useAgentCandidates(params = {}) {
 
 // Agent Assignments (Admin/HR assigning resources to agents)
 export function useAgentAssignmentsList() {
-  const memoizedCall = useCallback(() => apiClient.getAgentAssignmentsList(), []);
-  return useApi(memoizedCall, { immediate: true });
+  const { user } = useAuth();
+  const memoizedCall = useCallback(() => {
+    // Only fetch if user has permission (Admin or SuperAdmin)
+    if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+      return Promise.resolve({ data: [] });
+    }
+    return apiClient.getAgentAssignmentsList();
+  }, [user?.role]);
+  return useApi(memoizedCall, { 
+    immediate: user?.role === 'admin' || user?.role === 'superadmin',
+    showToast: false // Suppress error toasts
+  });
 }
 
 export function useCreateAgentAssignment() {
@@ -479,6 +520,20 @@ export function useDeleteCandidateAssignment(options?: { onSuccess?: () => void;
   });
 }
 
+// Agent-specific assignment hook (for agents assigning candidates to jobs)
+export function useAssignCandidateToJob(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: {
+    candidateId: string;
+    jobId: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    notes?: string;
+    dueDate?: string;
+  }) => apiClient.assignCandidateToJob(data), {
+    showToast: true,
+    ...options
+  });
+}
+
 export function useCandidateAssignmentStats() {
   const memoizedCall = useCallback(() => apiClient.getCandidateAssignmentStats(), []);
   return useApi(memoizedCall, { 
@@ -489,23 +544,38 @@ export function useCandidateAssignmentStats() {
 
 // Additional hooks for interview scheduling
 export function useAvailableInterviewers() {
+  const { user } = useAuth();
   const memoizedCall = useCallback(async () => {
+    // Only fetch if user has permission (HR, Admin, or SuperAdmin)
+    if (user?.role !== 'hr' && user?.role !== 'admin' && user?.role !== 'superadmin') {
+      return { data: [] };
+    }
+    
     // Fetch HR and Admin users separately since the API doesn't support multiple roles
-    const [hrResponse, adminResponse] = await Promise.all([
-      apiClient.getUsers({ role: 'hr', status: 'active' }),
-      apiClient.getUsers({ role: 'admin', status: 'active' })
-    ]);
-    
-    // Extract data arrays and combine them
-    const hrUsers = Array.isArray(hrResponse) ? hrResponse : (hrResponse as any)?.data || [];
-    const adminUsers = Array.isArray(adminResponse) ? adminResponse : (adminResponse as any)?.data || [];
-    
-    // Combine and return in the same format as other API calls
-    const combinedUsers = [...hrUsers, ...adminUsers];
-    return { data: combinedUsers };
-  }, []);
+    try {
+      const [hrResponse, adminResponse] = await Promise.all([
+        apiClient.getUsers({ role: 'hr', status: 'active' }),
+        apiClient.getUsers({ role: 'admin', status: 'active' })
+      ]);
+      
+      // Extract data arrays and combine them
+      const hrUsers = Array.isArray(hrResponse) ? hrResponse : (hrResponse as any)?.data || [];
+      const adminUsers = Array.isArray(adminResponse) ? adminResponse : (adminResponse as any)?.data || [];
+      
+      // Combine and return in the same format as other API calls
+      const combinedUsers = [...hrUsers, ...adminUsers];
+      return { data: combinedUsers };
+    } catch (error) {
+      // Silently fail if user doesn't have permission
+      console.log('Available interviewers not accessible:', error);
+      return { data: [] };
+    }
+  }, [user?.role]);
   
-  return useApi(memoizedCall, { immediate: true });
+  return useApi(memoizedCall, { 
+    immediate: user?.role === 'hr' || user?.role === 'admin' || user?.role === 'superadmin',
+    showToast: false // Suppress error toasts
+  });
 }
 
 // Agent Interview Management
@@ -526,5 +596,93 @@ export function useMyAgentInterviewStats() {
   return useApi(memoizedCall, { 
     immediate: true,
     showToast: false  // Don't show error toasts for stats to prevent spam
+  });
+}
+
+// Auto Match hooks
+export function useMatchJobToCandidates(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { jobId: string; limit?: number }) => 
+    apiClient.matchJobToCandidates(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useMatchCandidateToJobs(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { candidateId: string; limit?: number }) => 
+    apiClient.matchCandidateToJobs(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useBatchMatch(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: { jobId?: string; candidateIds?: string[]; limit?: number }) => 
+    apiClient.batchMatch(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+// Contact History hooks
+export function useContactHistory(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getContactHistory(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true });
+}
+
+export function useContactHistoryById(id: string) {
+  const memoizedCall = useCallback(() => apiClient.getContactHistoryById(id), [id]);
+  return useApi(memoizedCall, { immediate: !!id });
+}
+
+export function useContactHistoryStats(params = {}) {
+  const memoizedCall = useCallback(() => apiClient.getContactHistoryStats(params), [JSON.stringify(params)]);
+  return useApi(memoizedCall, { immediate: true, showToast: false });
+}
+
+export function useCreateContactHistory(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((data: {
+    contactType: 'hr' | 'candidate';
+    contactId: string;
+    contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+    subject: string;
+    notes: string;
+    duration?: number;
+    outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+    followUpDate?: string;
+    followUpNotes?: string;
+    tags?: string[];
+    relatedJobId?: string;
+    relatedCandidateAssignmentId?: string;
+  }) => apiClient.createContactHistory(data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useUpdateContactHistory(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation(({ id, data }: { id: string; data: Partial<{
+    contactType: 'hr' | 'candidate';
+    contactId: string;
+    contactMethod: 'phone' | 'email' | 'meeting' | 'whatsapp' | 'other';
+    subject: string;
+    notes: string;
+    duration?: number;
+    outcome?: 'positive' | 'neutral' | 'negative' | 'follow_up_required';
+    followUpDate?: string;
+    followUpNotes?: string;
+    tags?: string[];
+    relatedJobId?: string;
+    relatedCandidateAssignmentId?: string;
+  }> }) => apiClient.updateContactHistory(id, data), {
+    showToast: true,
+    ...options
+  });
+}
+
+export function useDeleteContactHistory(options?: { onSuccess?: () => void; onError?: () => void }) {
+  return useMutation((id: string) => apiClient.deleteContactHistory(id), {
+    showToast: true,
+    ...options
   });
 }

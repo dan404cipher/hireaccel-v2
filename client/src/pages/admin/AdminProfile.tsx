@@ -35,6 +35,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUpdateUser, useUserStats } from "@/hooks/useApi";
 import { apiClient } from "@/services/api";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
+import { ProfilePhotoUploadModal } from "@/components/candidates/ProfilePhotoUploadModal";
 
 export default function AdminProfile() {
   const { user, updateAuth } = useAuth();
@@ -46,6 +48,8 @@ export default function AdminProfile() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+  const [photoUploadState, setPhotoUploadState] = useState<'idle' | 'uploading'>('idle');
 
   // Profile form state - initialized from user data
   const [profileData, setProfileData] = useState({
@@ -61,6 +65,12 @@ export default function AdminProfile() {
     newPassword: "",
     confirmPassword: "",
   });
+
+  // Get authenticated image URL for profile photo
+  const profilePhotoUrl = user?.profilePhotoFileId
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${user.profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
 
   // Update profile data when user changes
   useEffect(() => {
@@ -231,6 +241,42 @@ export default function AdminProfile() {
     setNotifications(prev => ({ ...prev, [key]: value }));
   };
 
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoUploadState('uploading');
+
+    try {
+      const response = await apiClient.uploadProfilePhoto(file);
+      if (response.data?.file?.id) {
+        toast({
+          title: 'Photo Uploaded',
+          description: 'Profile photo has been updated successfully.',
+        });
+        
+        // Refresh the user in auth context to update the photo
+        try {
+          const userResponse = await apiClient.getCurrentUser();
+          if (userResponse.data?.user) {
+            updateAuth(userResponse.data.user);
+          }
+        } catch (error) {
+          console.error('Failed to refresh user data:', error);
+        }
+        
+        setPhotoUploadState('idle');
+        setShowPhotoUploadModal(false);
+      }
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      const errorMessage = error?.detail || error?.message || 'Failed to upload photo. Please try again.';
+      toast({
+        title: 'Upload Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setPhotoUploadState('idle');
+    }
+  };
+
   // Admin statistics - use real data if available
   const adminStats = {
     totalUsers: statsData?.data?.totalUsers || 0,
@@ -286,20 +332,24 @@ export default function AdminProfile() {
             <div className="flex flex-col items-center text-center space-y-4">
               <div className="relative">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src="/admin-avatar.jpg" />
-                  <AvatarFallback className="text-lg">
+                  {authenticatedImageUrl ? (
+                    <AvatarImage 
+                      src={authenticatedImageUrl} 
+                      alt={`${profileData.firstName} ${profileData.lastName}`}
+                    />
+                  ) : null}
+                  <AvatarFallback className="text-lg bg-blue-600 text-white">
                     {profileData.firstName[0]}{profileData.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
-                {editMode && (
-                  <Button
-                    size="sm"
-                    className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                    variant="outline"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                )}
+                <Button
+                  size="sm"
+                  className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
+                  variant="outline"
+                  onClick={() => setShowPhotoUploadModal(true)}
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
               </div>
               
               <div>
@@ -707,6 +757,14 @@ export default function AdminProfile() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Photo Upload Modal with Cropping */}
+      <ProfilePhotoUploadModal
+        isOpen={showPhotoUploadModal}
+        onClose={() => setShowPhotoUploadModal(false)}
+        onUpload={handlePhotoUpload}
+        isUploading={photoUploadState === 'uploading'}
+      />
     </div>
   );
 }

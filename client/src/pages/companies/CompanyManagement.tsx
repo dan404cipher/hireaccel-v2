@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,7 +46,9 @@ import {
   Eye,
   Edit,
   Trash2,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,15 +60,132 @@ import { useCompanies, useCreateCompany, useUpdateCompany, useDeleteCompany, use
 import { apiClient } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { DashboardBanner } from "@/components/dashboard/Banner";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useAuthenticatedImage } from "@/hooks/useAuthenticatedImage";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Format customId to remove leading zeros (e.g., HR00001 -> HR1, ADMIN00001 -> ADMIN1)
+const formatCustomId = (customId: string | undefined): string => {
+  if (!customId) return 'N/A';
+  
+  // Match pattern like CAND00004, HR00001, ADMIN00001, etc.
+  const match = customId.match(/^([A-Z]+)(0*)(\d+)$/);
+  if (match) {
+    const [, prefix, zeros, number] = match;
+    // Remove leading zeros and return formatted ID
+    return `${prefix}${parseInt(number, 10)}`;
+  }
+  
+  // If pattern doesn't match, return as is
+  return customId;
+};
+
+// Company Avatar Component
+const CompanyAvatar: React.FC<{
+  logoFileId?: string | { _id: string } | any;
+  companyName: string;
+}> = React.memo(({ logoFileId, companyName }) => {
+  // Extract file ID from various formats
+  const fileId = logoFileId?._id || logoFileId?.toString() || logoFileId;
+  
+  // Construct authenticated API endpoint URL
+  const logoUrl = fileId 
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/company-logo/${fileId}`
+    : null;
+  
+  const authenticatedImageUrl = useAuthenticatedImage(logoUrl);
+  
+  // Memoize initials calculation
+  const initials = useMemo(() => {
+    return companyName
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  }, [companyName]);
+  
+  return (
+    <Avatar className="h-10 w-10 flex-shrink-0">
+      <AvatarImage 
+        src={authenticatedImageUrl || ''} 
+        alt={companyName} 
+      />
+      <AvatarFallback className="text-xs text-white font-semibold bg-purple-600">
+        {initials}
+      </AvatarFallback>
+    </Avatar>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  const prevFileId = prevProps.logoFileId?._id || prevProps.logoFileId?.toString() || prevProps.logoFileId;
+  const nextFileId = nextProps.logoFileId?._id || nextProps.logoFileId?.toString() || nextProps.logoFileId;
+  return prevFileId === nextFileId && prevProps.companyName === nextProps.companyName;
+});
+
+CompanyAvatar.displayName = 'CompanyAvatar';
+
+// HR Avatar Component (similar to JobManagementIntegrated.tsx)
+const HRAvatar: React.FC<{
+  hr: any;
+  onClick?: () => void;
+}> = React.memo(({ hr, onClick }) => {
+  const profilePhotoFileId = hr?.profilePhotoFileId;
+  const showProfilePicture = !!profilePhotoFileId;
+  
+  const profilePhotoUrl = showProfilePicture
+    ? `${import.meta.env.VITE_API_URL || 'http://localhost:3002'}/api/v1/files/profile-photo/${profilePhotoFileId}`
+    : null;
+  const authenticatedImageUrl = useAuthenticatedImage(profilePhotoUrl);
+
+  const avatarContent = (
+    <Avatar className="w-8 h-8 flex-shrink-0">
+      {showProfilePicture && authenticatedImageUrl ? (
+        <AvatarImage 
+          src={authenticatedImageUrl || ''} 
+          alt={`${hr?.firstName || ''} ${hr?.lastName || ''}`}
+        />
+      ) : null}
+      <AvatarFallback className="text-xs font-semibold text-white bg-blue-600">
+        {hr?.firstName?.[0] || ''}{hr?.lastName?.[0] || ''}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  if (onClick) {
+    return (
+      <div 
+        className="cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        {avatarContent}
+      </div>
+    );
+  }
+
+  return avatarContent;
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo
+  const prevFileId = prevProps.hr?.profilePhotoFileId?._id || prevProps.hr?.profilePhotoFileId?.toString() || prevProps.hr?.profilePhotoFileId;
+  const nextFileId = nextProps.hr?.profilePhotoFileId?._id || nextProps.hr?.profilePhotoFileId?.toString() || nextProps.hr?.profilePhotoFileId;
+  const prevName = `${prevProps.hr?.firstName || ''} ${prevProps.hr?.lastName || ''}`;
+  const nextName = `${nextProps.hr?.firstName || ''} ${nextProps.hr?.lastName || ''}`;
+  return prevFileId === nextFileId && prevName === nextName;
+});
+
+HRAvatar.displayName = 'HRAvatar';
+
+const PAGE_SIZE = 20;
 
 export default function CompanyManagement() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [editFormData, setEditFormData] = useState<any>({});
@@ -85,6 +204,7 @@ export default function CompanyManagement() {
     }
   }, [searchParams, setSearchParams]);
 
+
   // Debug fieldErrors changes
   useEffect(() => {
   }, [fieldErrors]);
@@ -102,7 +222,7 @@ export default function CompanyManagement() {
   const companiesParams = useMemo(() => {
     const params: any = {
       page, 
-      limit: 50
+      limit: PAGE_SIZE
     };
     
     if (debouncedSearchTerm) {
@@ -133,6 +253,34 @@ export default function CompanyManagement() {
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const companies = Array.isArray(companiesResponse) ? companiesResponse : ((companiesResponse as any)?.data || []);
   const meta = Array.isArray(companiesResponse) ? null : (companiesResponse as any)?.meta;
+
+  useEffect(() => {
+    if (meta?.totalPages && page > meta.totalPages) {
+      setPage(Math.max(meta.totalPages, 1));
+    }
+  }, [meta?.totalPages, page]);
+
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    }
+  }, [debouncedSearchTerm, statusFilter, sortBy]);
+
+  // Check for edit company from navigation state
+  useEffect(() => {
+    const locationState = (window.history.state && window.history.state.usr) || {};
+    if (locationState.editCompanyId && companies.length > 0) {
+      // Find the company and open edit dialog
+      const company = companies.find((c: any) => 
+        (c.companyId || c._id || c.id) === locationState.editCompanyId
+      );
+      if (company) {
+        handleEditCompany(company);
+        // Clear the state
+        window.history.replaceState({ ...window.history.state, usr: {} }, '');
+      }
+    }
+  }, [companies]);
 
   // Additional client-side filtering and sorting
   const filteredCompanies = useMemo(() => {
@@ -165,6 +313,36 @@ export default function CompanyManagement() {
     return filtered;
   }, [companies, searchTerm, sortBy]);
 
+  const canGoNext = meta ? page < (meta.totalPages || 1) : filteredCompanies.length === PAGE_SIZE;
+  const startItem = filteredCompanies.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endItem = filteredCompanies.length === 0 ? 0 : (page - 1) * PAGE_SIZE + filteredCompanies.length;
+  const totalCompanies = meta?.total ?? endItem;
+  const totalPages = meta?.totalPages ?? (filteredCompanies.length === 0 ? 1 : page + (canGoNext ? 1 : 0));
+  const pageIndicators = useMemo(() => {
+    if (meta?.totalPages) {
+      const total = Math.max(meta.totalPages, 1);
+      if (total <= 5) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+      }
+
+      const pages = new Set<number>();
+      pages.add(1);
+      pages.add(total);
+      pages.add(page);
+      pages.add(page - 1);
+      pages.add(page + 1);
+
+      if (page - 2 > 1) pages.add(page - 2);
+      if (page + 2 < total) pages.add(page + 2);
+
+      return Array.from(pages)
+        .filter((p) => p >= 1 && p <= total)
+        .sort((a, b) => a - b);
+    }
+
+    return [page];
+  }, [meta?.totalPages, page]);
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-emerald-600 text-white border-emerald-600";
@@ -176,8 +354,9 @@ export default function CompanyManagement() {
 
 
   const handleViewCompany = (company: any) => {
-    setSelectedCompany(company);
-    setIsViewDialogOpen(true);
+    // Navigate to company profile page using companyId
+    const companyId = company.companyId || company._id || company.id;
+    navigate(`/dashboard/companies/${companyId}`);
   };
 
   const handleEditCompany = (company: any) => {
@@ -900,7 +1079,7 @@ export default function CompanyManagement() {
                   <TableHead>Location</TableHead>
                     <TableHead>Status</TableHead>
                   <TableHead>Size</TableHead>
-                    <TableHead>HR ID</TableHead>
+                    <TableHead>{user?.role === 'hr' ? 'Total Jobs' : 'HR'}</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -914,11 +1093,17 @@ export default function CompanyManagement() {
                       </TableCell>
                       <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-primary" />
-                        </div>
+                        <CompanyAvatar 
+                          logoFileId={company.logoFileId}
+                          companyName={company.name}
+                        />
                         <div>
-                          <div className="font-medium text-base">{company.name}</div>
+                          <div 
+                            className="font-medium text-base cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                            onClick={() => navigate(`/dashboard/companies/${company.companyId || company.id || company._id}`)}
+                          >
+                            {company.name}
+                          </div>
                           <div className="text-base text-muted-foreground">
                             {company.website && (
                             <span className="flex items-center gap-1">
@@ -931,15 +1116,12 @@ export default function CompanyManagement() {
                       </div>
                     </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 text-base">
-                        <MapPin className="w-4 h-4 text-emerald-600" />
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-foreground">
                           {company.address ? (
                             [company.address.city, company.address.state].filter(Boolean).join(', ') || 'No location'
                           ) : (
                             company.location || 'No address provided'
                           )}
-                        </div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -956,9 +1138,41 @@ export default function CompanyManagement() {
                       </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="font-mono text-xs">
-                          {company.createdBy?.customId || 'N/A'}
-                        </Badge>
+                        {user?.role === 'hr' ? (
+                          // For HR users, show Total Jobs
+                          <div className="flex items-center justify-center gap-2">
+                            <Briefcase className="w-4 h-4 text-blue-600" />
+                            <Badge variant="outline" className="text-xs font-semibold">
+                              {company.totalJobs || 0}
+                            </Badge>
+                          </div>
+                        ) : (
+                          // For other users, show HR details
+                          <div className="flex items-center gap-3">
+                            {company.createdBy && (
+                              <HRAvatar 
+                                hr={company.createdBy}
+                                onClick={() => {
+                                  if (company.createdBy?.customId) {
+                                    navigate(`/dashboard/hr-profile/${company.createdBy.customId}`);
+                                  }
+                                }}
+                              />
+                            )}
+                            <div>
+                              <p 
+                                className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                                onClick={() => {
+                                  if (company.createdBy?.customId) {
+                                    navigate(`/dashboard/hr-profile/${company.createdBy.customId}`);
+                                  }
+                                }}
+                              >
+                                {company.createdBy?.firstName} {company.createdBy?.lastName}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -968,7 +1182,7 @@ export default function CompanyManagement() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCompany(company)}>
+                          <DropdownMenuItem onClick={() => navigate(`/dashboard/companies/${company.companyId || company.id || company._id}`)}>
                               <Eye className="w-4 h-4 mr-2" />
                             View Details
                             </DropdownMenuItem>
@@ -992,114 +1206,78 @@ export default function CompanyManagement() {
               </Table>
               </div>
           )}
-            </CardContent>
-          </Card>
-
-      {/* View Company Modal */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">{selectedCompany?.name}</DialogTitle>
-            <DialogDescription>
-              Complete company profile and information
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedCompany && (
-        <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">Company Information</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                        <div>
-                          <span className="font-medium">Address:</span>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {selectedCompany.address ? (
-                              <>
-                                <div>{selectedCompany.address.street}</div>
-                                <div>
-                                  {[selectedCompany.address.city, selectedCompany.address.state, selectedCompany.address.zipCode].filter(Boolean).join(', ')}
-                                </div>
-                                {selectedCompany.address.country && (
-                                  <div>{selectedCompany.address.country}</div>
-                                )}
-                              </>
-                            ) : (
-                              selectedCompany.location || 'No address provided'
+          {!companiesLoading && !companiesError && filteredCompanies.length > 0 && (
+            <div className="flex flex-col gap-2 border-t pt-4 mt-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-2">
+                <div className="text-sm text-muted-foreground">
+                  {totalCompanies > 0 ? (
+                    <>
+                      Showing <span className="font-medium">{startItem}</span> to{" "}
+                      <span className="font-medium">{endItem}</span> of{" "}
+                      <span className="font-medium">{totalCompanies}</span> companies
+                    </>
+                  ) : (
+                    <>No companies to display</>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {meta?.totalPages ? (
+                      pageIndicators.map((pageNumber, index) => {
+                        const prevNumber = pageIndicators[index - 1];
+                        const showEllipsis = index > 0 && prevNumber !== undefined && pageNumber - prevNumber > 1;
+                        return (
+                          <React.Fragment key={pageNumber}>
+                            {showEllipsis && (
+                              <span className="px-2 text-sm text-muted-foreground">...</span>
                             )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Company Size:</span>
-                        <Badge variant="outline" className="text-xs">
-                          {selectedCompany.size}
-                        </Badge>
-                      </div>
-                      {selectedCompany.website && (
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">Website:</span>
-                          <a href={`https://${selectedCompany.website}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                            {selectedCompany.website}
-                          </a>
-                    </div>
-                      )}
-                    </div>
-                    </div>
+                            <Button
+                              variant={page === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              className="w-9"
+                              onClick={() => setPage(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Button>
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <Button variant="default" size="sm" className="w-9">
+                        {page}
+                      </Button>
+                    )}
                   </div>
-                  
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">Company Details</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Status:</span>
-                        <Badge className={getStatusColor(selectedCompany.status)}>
-                          {selectedCompany.status}
-                        </Badge>
-                    </div>
-                      {selectedCompany.foundedYear && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">Founded:</span>
-                          <span>{selectedCompany.foundedYear}</span>
-                    </div>
-                      )}
-                    </div>
-                  </div>
-                    </div>
-                  </div>
-                  
-              {selectedCompany.description && (
-                <div>
-                  <h3 className="font-semibold text-lg mb-3">Company Description</h3>
-                  <div className="bg-muted/50 p-4 rounded-lg">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {selectedCompany.description}
-                    </p>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((prev) => prev + 1)}
+                    disabled={!canGoNext}
+                  >
+                    Next
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+              {meta?.totalPages && (
+                <div className="text-xs text-muted-foreground px-2">
+                  Page {page} of {meta.totalPages}
                 </div>
               )}
             </div>
           )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-              Close
-              </Button>
-            <Button onClick={() => {
-              setIsViewDialogOpen(false);
-              handleEditCompany(selectedCompany);
-            }}>
-              Edit Company
-              </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </CardContent>
+          </Card>
+
 
       {/* Edit Company Modal */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
