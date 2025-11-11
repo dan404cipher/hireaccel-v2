@@ -4,11 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import {
   ArrowLeft,
   MapPin,
   Clock,
-  DollarSign,
   Building2,
   Users,
   Briefcase,
@@ -23,7 +22,8 @@ import {
   Trash2,
   MoreHorizontal,
   FileText,
-  Eye
+  Eye,
+  Banknote
 } from "lucide-react";
 import { useJob, useDeleteJob, useUpdateJob, useCompanies } from "@/hooks/useApi";
 import { toast } from "@/hooks/use-toast";
@@ -121,12 +121,65 @@ export default function JobDetailsPage() {
     }
   };
 
-  const formatSalary = (job: any) => {
-    if (job.salaryRange?.min && job.salaryRange?.max) {
-      const currency = job.salaryRange.currency || 'USD';
-      const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency;
-      return `${symbol}${(job.salaryRange.min / 1000).toFixed(0)}k - ${symbol}${(job.salaryRange.max / 1000).toFixed(0)}k`;
+  const resolveCurrencyPresentation = (currency?: string) => {
+    const normalized = currency?.toString().trim().toUpperCase();
+
+    switch (normalized) {
+      case undefined:
+      case '':
+      case 'INR':
+      case '₹':
+        return { symbol: '₹', locale: 'en-IN' };
+      case 'USD':
+      case '$':
+        return { symbol: '$', locale: 'en-US' };
+      case 'EUR':
+      case '€':
+        return { symbol: '€', locale: 'de-DE' };
+      case 'GBP':
+      case '£':
+        return { symbol: '£', locale: 'en-GB' };
+      case 'AUD':
+        return { symbol: 'A$', locale: 'en-AU' };
+      case 'CAD':
+        return { symbol: 'C$', locale: 'en-CA' };
+      case 'SGD':
+        return { symbol: 'S$', locale: 'en-SG' };
+      default:
+        return { symbol: normalized || '₹', locale: 'en-IN' };
     }
+  };
+
+  const formatSalaryValue = (value?: number, symbol: string = '₹', locale: string = 'en-IN') => {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return null;
+    }
+
+    const formatted = value.toLocaleString(locale);
+    return `${symbol} ${formatted}`;
+  };
+
+  const formatSalary = (job: any) => {
+    if (!job?.salaryRange) {
+      return "Salary TBD";
+    }
+
+    const { symbol, locale } = resolveCurrencyPresentation(job.salaryRange.currency);
+    const formattedMin = formatSalaryValue(job.salaryRange.min, symbol, locale);
+    const formattedMax = formatSalaryValue(job.salaryRange.max, symbol, locale);
+
+    if (formattedMin && formattedMax) {
+      return `${formattedMin} - ${formattedMax}`;
+    }
+
+    if (formattedMin) {
+      return `${formattedMin}+`;
+    }
+
+    if (formattedMax) {
+      return formattedMax;
+    }
+
     return "Salary TBD";
   };
 
@@ -473,10 +526,10 @@ export default function JobDetailsPage() {
                             <span>{job.location}</span>
                           </div>
                         )}
-                        {canViewSalary && job.salaryRange && (
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span>{formatSalary(job)}</span>
+                        {canViewSalary && job.salaryRange && formatSalary(job) !== "Salary TBD" && (
+                          <div className="flex items-center gap-2">
+                            <Banknote className="w-4 h-4 text-green-600" />
+                            <span className="font-medium text-slate-600">{formatSalary(job)}</span>
                           </div>
                         )}
                       </div>
@@ -589,12 +642,12 @@ export default function JobDetailsPage() {
                       <span className="font-medium text-slate-700">Type:</span>
                       <span className="capitalize text-slate-600">{job.type}</span>
                     </div>
-                    {canViewSalary && (
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-green-600" />
-                      <span className="font-medium text-slate-700">Salary:</span>
-                      <span className="text-slate-600">{formatSalary(job)}</span>
-                    </div>
+                    {canViewSalary && formatSalary(job) !== "Salary TBD" && (
+                      <div className="flex items-center gap-2">
+                        <Banknote className="w-4 h-4 text-green-600" />
+                        <span className="font-medium text-slate-700">Salary:</span>
+                        <span className="text-slate-600">{formatSalary(job)}</span>
+                      </div>
                     )}
                     <div className="flex items-center gap-2">
                       <Globe className="w-4 h-4 text-blue-600" />

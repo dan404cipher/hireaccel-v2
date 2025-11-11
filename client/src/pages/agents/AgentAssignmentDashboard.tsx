@@ -417,7 +417,6 @@ export default function AgentAssignmentDashboard() {
         limit: PAGE_SIZE,
         sortBy: 'firstName',
         sortOrder: 'asc',
-        ...(hrSearchTerm ? { search: hrSearchTerm } : {}),
       };
     }
     return {
@@ -425,7 +424,7 @@ export default function AgentAssignmentDashboard() {
       status: 'active',
       limit: 100,
     };
-  }, [isAdmin, hrPage, hrSearchTerm]);
+  }, [isAdmin, hrPage]);
 
   const {
     data: allHRsResponse,
@@ -453,49 +452,6 @@ export default function AgentAssignmentDashboard() {
   } = useAgentCandidates({
     page: candidatesPage,
     limit: PAGE_SIZE,
-    search: candidateSearchTerm || undefined,
-  });
-
-  // Refresh data when component comes into focus (e.g., when user switches back to tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      refetchAgentAssignment();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [refetchAgentAssignment]);
-
-  useEffect(() => {
-    setJobsPage(1);
-  }, [jobSearchTerm, companyFilter, jobSort]);
-
-  useEffect(() => {
-    setCandidatesPage(1);
-  }, [candidateSearchTerm]);
-
-  useEffect(() => {
-    setHrPage(1);
-  }, [hrSearchTerm, isAdmin]);
-
-  // Use the general endpoint for all roles (it now has proper validation for candidate-job combinations)
-  const { mutate: createAssignment, loading: createLoading } = useCreateCandidateAssignment({
-    onSuccess: () => {
-      setIsAssignDialogOpen(false);
-      setSelectedCandidate(null);
-      setSelectedJob(null);
-      setAssignmentNotes('');
-      setAssignmentPriority('medium');
-      setCandidateDialogSearch('');
-      setCandidatePopoverOpen(false);
-      setIsCandidateSearchActive(false);
-      toast({
-        title: "Success",
-        description: "Candidate assigned successfully"
-      });
-      refetchJobs();
-      refetchCandidates();
-    }
   });
 
   // Extract data from API responses
@@ -523,6 +479,48 @@ export default function AgentAssignmentDashboard() {
   const allAssignments = Array.isArray(allAssignmentsResponse) 
     ? allAssignmentsResponse 
     : (allAssignmentsResponse as any)?.data || [];
+
+  // Refresh data when component comes into focus (e.g., when user switches back to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchAgentAssignment();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetchAgentAssignment]);
+
+  useEffect(() => {
+    setJobsPage(1);
+  }, [jobSearchTerm, companyFilter, jobSort]);
+
+  useEffect(() => {
+    setCandidatesPage(1);
+  }, [candidateSearchTerm, candidates.length]);
+
+  useEffect(() => {
+    setHrPage(1);
+  }, [hrSearchTerm, isAdmin]);
+
+  // Use the general endpoint for all roles (it now has proper validation for candidate-job combinations)
+  const { mutate: createAssignment, loading: createLoading } = useCreateCandidateAssignment({
+    onSuccess: () => {
+      setIsAssignDialogOpen(false);
+      setSelectedCandidate(null);
+      setSelectedJob(null);
+      setAssignmentNotes('');
+      setAssignmentPriority('medium');
+      setCandidateDialogSearch('');
+      setCandidatePopoverOpen(false);
+      setIsCandidateSearchActive(false);
+      toast({
+        title: "Success",
+        description: "Candidate assigned successfully"
+      });
+      refetchJobs();
+      refetchCandidates();
+    }
+  });
 
   // Find the agent assignment that contains the selected candidate
   const findAssignmentForCandidate = (candidateId: string) => {
@@ -643,38 +641,124 @@ export default function AgentAssignmentDashboard() {
     ? allHRsFromAPI 
     : (agentAssignment?.assignedHRs || []);
 
-  // Determine which candidates to show
-  // useAgentCandidates already returns all candidates for admin/superadmin, so use it directly
-  // Backend now handles search filtering, so no need to filter on frontend
-  const filteredCandidates = candidates;
+  useEffect(() => {
+    console.debug('[AgentAssignmentDashboard] HR dataset snapshot', {
+      isAdmin,
+      allHRsSourceCount: isAdmin ? allHRsFromAPI.length : (agentAssignment?.assignedHRs?.length || 0),
+      derivedCount: allHRs.length,
+      sample: allHRs.slice(0, 5).map((hr: any) => ({
+        id: hr._id,
+        customId: hr.customId,
+        name: `${hr.firstName || ''} ${hr.lastName || ''}`.trim(),
+      })),
+    });
+  }, [isAdmin, allHRs, allHRsFromAPI, agentAssignment]);
+
+  useEffect(() => {
+    console.debug('[AgentAssignmentDashboard] Candidate dataset snapshot', {
+      total: candidates.length,
+      sample: candidates.slice(0, 5).map((candidate: any) => ({
+        id: candidate._id,
+        userCustomId: candidate.userId?.customId,
+        name: `${candidate.userId?.firstName || ''} ${candidate.userId?.lastName || ''}`.trim(),
+      })),
+    });
+  }, [candidates]);
+
+  const candidateMatchesSearchTerm = (candidate: any, searchTerm: string) => {
+    if (!searchTerm) {
+      return true;
+    }
+
+    const searchLower = searchTerm.toLowerCase();
+    const firstName = candidate.userId?.firstName?.toLowerCase() || '';
+    const lastName = candidate.userId?.lastName?.toLowerCase() || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    const email = candidate.userId?.email?.toLowerCase() || '';
+    const customId = candidate.userId?.customId || '';
+
+    if (
+      firstName.includes(searchLower) ||
+      lastName.includes(searchLower) ||
+      fullName.includes(searchLower) ||
+      email.includes(searchLower)
+    ) {
+      return true;
+    }
+
+    return matchesId(searchTerm, customId);
+  };
+
+  const filteredCandidates = useMemo(() => {
+    if (!candidateSearchTerm) {
+      console.debug('[AgentAssignmentDashboard] Candidate search cleared, returning all candidates:', candidates.length);
+      return candidates;
+    }
+
+    const results = candidates.filter((candidate: any) =>
+      candidateMatchesSearchTerm(candidate, candidateSearchTerm)
+    );
+
+    console.debug('[AgentAssignmentDashboard] Candidate search results', {
+      searchTerm: candidateSearchTerm,
+      totalCandidates: candidates.length,
+      matchedCount: results.length,
+      matchedIds: results.slice(0, 10).map((candidate: any) => ({
+        candidateId: candidate._id,
+        userCustomId: candidate.userId?.customId,
+        userName: `${candidate.userId?.firstName || ''} ${candidate.userId?.lastName || ''}`.trim(),
+      })),
+    });
+
+    return results;
+  }, [candidates, candidateSearchTerm]);
 
   // Filter HR users based on search term
-  const filteredHRs = isAdmin
-    ? allHRs
-    : allHRs.filter((hr: any) => {
-        if (!hrSearchTerm) return true;
-        
-        const searchLower = hrSearchTerm.toLowerCase();
-        const customId = hr.customId || '';
-        
-        // Check firstName, lastName, full name, and email
-        const firstName = (hr.firstName || '').toLowerCase();
-        const lastName = (hr.lastName || '').toLowerCase();
-        const fullName = `${firstName} ${lastName}`.trim();
-        const email = (hr.email || '').toLowerCase();
-        
-        const nameMatches = (
-          firstName.includes(searchLower) ||
-          lastName.includes(searchLower) ||
-          fullName.includes(searchLower) ||
-          email.includes(searchLower)
-        );
-        
-        // Check customId with flexible matching
-        const idMatches = matchesId(hrSearchTerm, customId);
-        
-        return nameMatches || idMatches;
-      });
+  const hrMatchesSearchTerm = (hr: any, searchTerm: string) => {
+    if (!searchTerm) {
+      return true;
+    }
+
+    const searchLower = searchTerm.toLowerCase();
+    const customId = hr.customId || '';
+    const firstName = (hr.firstName || '').toLowerCase();
+    const lastName = (hr.lastName || '').toLowerCase();
+    const fullName = `${firstName} ${lastName}`.trim();
+    const email = (hr.email || '').toLowerCase();
+
+    if (
+      firstName.includes(searchLower) ||
+      lastName.includes(searchLower) ||
+      fullName.includes(searchLower) ||
+      email.includes(searchLower)
+    ) {
+      return true;
+    }
+
+    return matchesId(searchTerm, customId);
+  };
+
+  const filteredHRs = useMemo(() => {
+    if (!hrSearchTerm) {
+      console.debug('[AgentAssignmentDashboard] HR search cleared, returning all HRs:', allHRs.length);
+      return allHRs;
+    }
+
+    const results = allHRs.filter((hr: any) => hrMatchesSearchTerm(hr, hrSearchTerm));
+
+    console.debug('[AgentAssignmentDashboard] HR search results', {
+      searchTerm: hrSearchTerm,
+      totalHRs: allHRs.length,
+      matchedCount: results.length,
+      matchedIds: results.slice(0, 10).map((hr: any) => ({
+        hrId: hr._id,
+        customId: hr.customId,
+        name: `${hr.firstName || ''} ${hr.lastName || ''}`.trim(),
+      })),
+    });
+
+    return results;
+  }, [allHRs, hrSearchTerm]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -734,9 +818,66 @@ export default function AgentAssignmentDashboard() {
     });
   };
 
+  const resolveCurrencyPresentation = (currency?: string) => {
+    const normalized = currency?.toString().trim().toUpperCase();
+
+    switch (normalized) {
+      case undefined:
+      case '':
+      case 'INR':
+      case '₹':
+        return { symbol: '₹', locale: 'en-IN' };
+      case 'USD':
+      case '$':
+        return { symbol: '$', locale: 'en-US' };
+      case 'EUR':
+      case '€':
+        return { symbol: '€', locale: 'de-DE' };
+      case 'GBP':
+      case '£':
+        return { symbol: '£', locale: 'en-GB' };
+      case 'AUD':
+        return { symbol: 'A$', locale: 'en-AU' };
+      case 'CAD':
+        return { symbol: 'C$', locale: 'en-CA' };
+      case 'SGD':
+        return { symbol: 'S$', locale: 'en-SG' };
+      default:
+        return { symbol: normalized || '₹', locale: 'en-IN' };
+    }
+  };
+
+  const formatSalaryValue = (value?: number, symbol?: string, locale: string = 'en-IN') => {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return null;
+    }
+
+    const formatted = value.toLocaleString(locale);
+    return `${symbol || '₹'} ${formatted}`;
+  };
+
   const formatSalary = (range: any) => {
-    if (!range?.min || !range?.max) return 'Not specified';
-    return `$${(range.min / 1000).toFixed(0)}k - $${(range.max / 1000).toFixed(0)}k`;
+    if (!range) {
+      return 'Not specified';
+    }
+
+    const { symbol, locale } = resolveCurrencyPresentation(range.currency);
+    const formattedMin = formatSalaryValue(range.min, symbol, locale);
+    const formattedMax = formatSalaryValue(range.max, symbol, locale);
+
+    if (formattedMin && formattedMax) {
+      return `${formattedMin} - ${formattedMax}`;
+    }
+
+    if (formattedMin) {
+      return `${formattedMin}+`;
+    }
+
+    if (formattedMax) {
+      return formattedMax;
+    }
+
+    return 'Not specified';
   };
 
   // Helper function to get current role from candidate experience
@@ -916,49 +1057,31 @@ export default function AgentAssignmentDashboard() {
                       </div>
                       {candidateDialogSearch && (
                         <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[300px] overflow-auto">
-                          {candidates
-                            .filter((candidate: any) => {
-                              const searchLower = candidateDialogSearch.toLowerCase();
-                              const firstName = candidate.userId?.firstName?.toLowerCase() || '';
-                              const lastName = candidate.userId?.lastName?.toLowerCase() || '';
-                              const email = candidate.userId?.email?.toLowerCase() || '';
-                              const customId = candidate.userId?.customId?.toLowerCase() || '';
-                              return firstName.includes(searchLower) || 
-                                     lastName.includes(searchLower) || 
-                                     email.includes(searchLower) ||
-                                     customId.includes(searchLower) ||
-                                     `${firstName} ${lastName}`.includes(searchLower);
-                            })
-                            .length === 0 ? (
+                          {(() => {
+                            const dialogResults = candidates.filter((candidate: any) =>
+                              candidateMatchesSearchTerm(candidate, candidateDialogSearch)
+                            );
+
+                            if (dialogResults.length === 0) {
+                              return (
                             <div className="py-6 text-center text-sm text-muted-foreground">
                               No candidates found
                             </div>
-                          ) : (
-                            candidates
-                              .filter((candidate: any) => {
-                                const searchLower = candidateDialogSearch.toLowerCase();
-                                const firstName = candidate.userId?.firstName?.toLowerCase() || '';
-                                const lastName = candidate.userId?.lastName?.toLowerCase() || '';
-                                const email = candidate.userId?.email?.toLowerCase() || '';
-                                const customId = candidate.userId?.customId?.toLowerCase() || '';
-                                return firstName.includes(searchLower) || 
-                                       lastName.includes(searchLower) || 
-                                       email.includes(searchLower) ||
-                                       customId.includes(searchLower) ||
-                                       `${firstName} ${lastName}`.includes(searchLower);
-                              })
-                              .map((candidate: any) => (
-                                <CandidateDropdownItem
-                                  key={candidate._id}
-                                  candidate={candidate}
-                                  onSelect={() => {
-                                    setSelectedCandidate(candidate._id);
-                                    setIsCandidateSearchActive(false);
-                                    setCandidateDialogSearch('');
-                                  }}
-                                />
-                              ))
-                          )}
+                              );
+                            }
+
+                            return dialogResults.map((candidate: any) => (
+                              <CandidateDropdownItem
+                                key={candidate._id}
+                                candidate={candidate}
+                                onSelect={() => {
+                                  setSelectedCandidate(candidate._id);
+                                  setIsCandidateSearchActive(false);
+                                  setCandidateDialogSearch('');
+                                }}
+                              />
+                            ));
+                          })()}
                         </div>
                       )}
                     </>
@@ -1136,7 +1259,7 @@ export default function AgentAssignmentDashboard() {
                       <TableHead>Job Title</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead>Location</TableHead>
-                      <TableHead>Salary</TableHead>
+                      <TableHead className="w-[200px]">Salary</TableHead>
                       <TableHead>Urgency</TableHead>
                       <TableHead>Posted By</TableHead>
                       <TableHead>Posted Date</TableHead>
@@ -1202,13 +1325,13 @@ export default function AgentAssignmentDashboard() {
                             {job.location || 'Remote'}
                           </div>
                         </TableCell>
-                        <TableCell>{formatSalary(job.salaryRange)}</TableCell>
+                        <TableCell className="w-[200px]">{formatSalary(job.salaryRange)}</TableCell>
                         <TableCell>
                           <Badge className={getUrgencyColor(job.urgency)} variant="outline">
                             {job.urgency || 'medium'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="max-w-[220px]">
                           <div className="flex items-center gap-3">
                             {job.createdBy && (
                               <HRAvatar 
@@ -1220,9 +1343,10 @@ export default function AgentAssignmentDashboard() {
                                 }}
                               />
                             )}
-                            <div>
+                            <div className="min-w-0 space-y-1">
                               <p 
-                                className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                                className="font-medium cursor-pointer hover:text-blue-600 hover:underline transition-colors truncate"
+                                title={`${job.createdBy?.firstName || ''} ${job.createdBy?.lastName || ''}`}
                                 onClick={() => {
                                   if (job.createdBy?.customId) {
                                     navigate(`/dashboard/hr-profile/${job.createdBy.customId}`);
@@ -1231,7 +1355,9 @@ export default function AgentAssignmentDashboard() {
                               >
                                 {job.createdBy?.firstName} {job.createdBy?.lastName}
                               </p>
-                              <div className="text-sm text-muted-foreground">{job.createdBy?.email}</div>
+                              <div className="text-sm text-muted-foreground truncate" title={job.createdBy?.email || ''}>
+                                {job.createdBy?.email}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
