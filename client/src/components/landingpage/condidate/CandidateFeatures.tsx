@@ -1582,7 +1582,7 @@ export function JobCandidates() {
             </section>
 
             {/* Footer */}
-            <Footer />
+            {/* <Footer /> */}
 
             {/* CTA Popup - appears after 5 seconds */}
             <CTAPopup role='candidate' />

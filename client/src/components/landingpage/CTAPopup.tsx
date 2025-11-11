@@ -8,7 +8,7 @@ interface CTAPopupProps {
     initialDelay?: number; // Initial delay in seconds (default 10)
 }
 
-export function CTAPopup({ role, initialDelay = 10 }: CTAPopupProps) {
+export function CTAPopup({ role, initialDelay = 30 }: CTAPopupProps) {
     const [isVisible, setIsVisible] = useState(false);
     const [isClosing, setIsClosing] = useState(false);
     const [showCount, setShowCount] = useState(0);
@@ -38,12 +38,12 @@ export function CTAPopup({ role, initialDelay = 10 }: CTAPopupProps) {
         // 2nd: after 60 seconds
         const timer2 = setTimeout(() => {
             showPopup(2);
-        }, 60 * 1000);
+        }, 120 * 1000);
 
         // 3rd: after 120 seconds
         const timer3 = setTimeout(() => {
             showPopup(3);
-        }, 120 * 1000);
+        }, 180 * 1000);
 
         timersRef.current = [timer1, timer2, timer3];
 
