@@ -66,32 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (identifier: string, password: string) => {
-        const response = await apiClient.login({ identifier, password });
-        const { user: userData, accessToken } = response.data!;
-
-        apiClient.setToken(accessToken);
-        setUser(userData);
-    };
-
-    const logout = async () => {
-        try {
-            await apiClient.logout();
-        } catch (error) {
-            // Ignore logout errors
-        } finally {
-            apiClient.clearToken();
-            setUser(null);
-        }
-    };
-
-    const updateAuth = (userData: User) => {
-        setUser(userData);
-    };
-  }, []);
-
-  const login = async (email: string, password: string) => {
     try {
-      const response = await apiClient.login({ email, password });
+      const response = await apiClient.login({ identifier, password });
       const { user: userData, accessToken } = response.data!;
       
       apiClient.setToken(accessToken);

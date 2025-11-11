@@ -123,7 +123,6 @@ const envSchema = z.object({
         .string()
         .transform((val) => val === 'true')
         .default('false'),
-})
 });
 
 /**

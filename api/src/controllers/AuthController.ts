@@ -789,7 +789,6 @@ export class AuthController {
             message: 'Verification email sent',
         });
     });
-  });
 
   /**
    * Get current user
@@ -810,24 +809,25 @@ export class AuthController {
     const user = await AuthService.getCurrentUser(userId);
     
     return res.json({
-      success: true,
-      data: {
-        user: {
-          id: user._id,
-          customId: user.customId,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          fullName: `${user.firstName} ${user.lastName}`,
-          role: user.role,
-          status: user.status,
-          emailVerified: user.emailVerified,
-          phoneNumber: user.phoneNumber,
-          profilePhotoFileId: user.profilePhotoFileId?.toString(),
-          lastLoginAt: user.lastLoginAt,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
+        success: true,
+        data: {
+            user: {
+                id: user._id,
+                customId: user.customId,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                fullName: `${user.firstName} ${user.lastName}`,
+                role: user.role,
+                status: user.status,
+                emailVerified: user.emailVerified,
+                phoneNumber: user.phoneNumber,
+                profilePhotoFileId: user.profilePhotoFileId?.toString(),
+                lastLoginAt: user.lastLoginAt,
+                createdAt: user.createdAt,
+                updatedAt: user.updatedAt,
+            },
         },
-      },
     });
+});
 }
