@@ -4,59 +4,59 @@
  */
 
 export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  meta?: {
-    page?: {
-      current: number;
-      total: number;
-      hasMore: boolean;
+    success: boolean;
+    data?: T;
+    message?: string;
+    meta?: {
+        page?: {
+            current: number;
+            total: number;
+            hasMore: boolean;
+        };
+        total?: number;
+        limit?: number;
     };
-    total?: number;
-    limit?: number;
-  };
 }
 
 export interface ApiError {
-  type: string;
-  title: string;
-  status: number;
-  detail: string;
-  instance?: string;
-  issues?: Array<{ field: string; message: string; code: string }>;
+    type: string;
+    title: string;
+    status: number;
+    detail: string;
+    instance?: string;
+    issues?: Array<{ field: string; message: string; code: string }>;
 }
 
 export interface Job {
-  id: string;
-  jobId?: string;
-  title: string;
-  description: string;
-  company: string;
-  companyId: string;
-  location: string;
-  type: 'full-time' | 'part-time' | 'contract' | 'internship' | 'remote';
-  salary: string;
-  salaryRange?: {
-    min: number;
-    max: number;
-    currency: string;
-  };
-  status: 'open' | 'assigned' | 'interview' | 'closed' | 'cancelled';
-  urgency: 'low' | 'medium' | 'high' | 'urgent';
-  applicants: number;
-  posted: string;
-  agent?: string;
-  assignedAgentId?: string;
-  requirements?: {
-    skills: string[];
-    experience: string;
-    education: string[];
-  };
-  benefits?: string[];
-  isRemote?: boolean;
-  createdAt: string;
-  updatedAt: string;
+    id: string;
+    jobId?: string;
+    title: string;
+    description: string;
+    company: string;
+    companyId: string;
+    location: string;
+    type: 'full-time' | 'part-time' | 'contract' | 'internship' | 'remote';
+    salary: string;
+    salaryRange?: {
+        min: number;
+        max: number;
+        currency: string;
+    };
+    status: 'open' | 'assigned' | 'interview' | 'closed' | 'cancelled';
+    urgency: 'low' | 'medium' | 'high' | 'urgent';
+    applicants: number;
+    posted: string;
+    agent?: string;
+    assignedAgentId?: string;
+    requirements?: {
+        skills: string[];
+        experience: string;
+        education: string[];
+    };
+    benefits?: string[];
+    isRemote?: boolean;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface User {
@@ -77,210 +77,572 @@ export interface User {
 }
 
 export interface Company {
-  id: string;
-  companyId?: string;
-  name: string;
-  description: string;
-  industry: string;
-  size: string;
-  location: string;
-  website?: string;
-  partnership: 'basic' | 'standard' | 'premium' | 'enterprise';
-  status: 'active' | 'inactive' | 'pending' | 'suspended';
-  rating: number;
-  totalJobs: number;
-  totalHires: number;
-  contacts: Array<{
+    id: string;
+    companyId?: string;
     name: string;
-    email: string;
-    phone: string;
-    position: string;
-  }>;
+    description: string;
+    industry: string;
+    size: string;
+    location: string;
+    website?: string;
+    partnership: 'basic' | 'standard' | 'premium' | 'enterprise';
+    status: 'active' | 'inactive' | 'pending' | 'suspended';
+    rating: number;
+    totalJobs: number;
+    totalHires: number;
+    contacts: Array<{
+        name: string;
+        email: string;
+        phone: string;
+        position: string;
+    }>;
 }
 
 export interface Interview {
-  _id: string;
-  applicationId: {
     _id: string;
-    candidateId: {
-      _id: string;
-      userId: {
+    applicationId: {
+        _id: string;
+        candidateId: {
+            _id: string;
+            userId: {
+                _id: string;
+                firstName: string;
+                lastName: string;
+                email: string;
+            };
+        };
+        jobId: {
+            _id: string;
+            title: string;
+            companyId: {
+                _id: string;
+                name: string;
+            };
+        };
+    };
+    type: 'video' | 'phone' | 'in-person';
+    round: 'initial' | 'technical' | 'behavioral' | 'final' | 'cultural';
+    scheduledAt: string;
+    duration: number;
+    location?: string;
+    interviewers: Array<{
         _id: string;
         firstName: string;
         lastName: string;
         email: string;
-      };
-    };
-    jobId: {
-      _id: string;
-      title: string;
-      companyId: {
+    }>;
+    status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'rescheduled';
+    feedback?: string;
+    rating?: number;
+    notes: Array<{
+        content: string;
+        createdBy: string;
+        createdAt: string;
+        isPrivate: boolean;
+    }>;
+    meetingLink?: string;
+    createdBy: {
         _id: string;
-        name: string;
-      };
+        firstName: string;
+        lastName: string;
     };
-  };
-  type: 'video' | 'phone' | 'in-person';
-  round: 'initial' | 'technical' | 'behavioral' | 'final' | 'cultural';
-  scheduledAt: string;
-  duration: number;
-  location?: string;
-  interviewers: Array<{
-    _id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  }>;
-  status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'rescheduled';
-  feedback?: string;
-  rating?: number;
-  notes: Array<{
-    content: string;
-    createdBy: string;
     createdAt: string;
-    isPrivate: boolean;
-  }>;
-  meetingLink?: string;
-  createdBy: {
-    _id: string;
-    firstName: string;
-    lastName: string;
-  };
-  createdAt: string;
-  updatedAt: string;
+    updatedAt: string;
 }
 
 export interface Application {
-  id: string;
-  candidateId: string;
-  jobId: string;
-  status: string;
-  stage: string;
-  appliedAt: string;
-  candidate?: any;
-  job?: any;
+    id: string;
+    candidateId: string;
+    jobId: string;
+    status: string;
+    stage: string;
+    appliedAt: string;
+    candidate?: any;
+    job?: any;
 }
 
 class ApiClient {
-  private baseURL: string;
-  private token: string | null = null;
+    private baseURL: string;
+    private token: string | null = null;
 
-  constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
-    this.token = localStorage.getItem('accessToken');
-  }
+    constructor() {
+        this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+        this.token = localStorage.getItem('accessToken');
+    }
 
-  private isRefreshing = false;
-  private refreshPromise: Promise<void> | null = null;
-  private refreshSubscribers: Array<(token: string) => void> = [];
+    private isRefreshing = false;
+    private refreshPromise: Promise<void> | null = null;
+    private refreshSubscribers: Array<(token: string) => void> = [];
 
-  private onTokenRefreshed(token: string) {
-    this.refreshSubscribers.forEach(callback => callback(token));
-    this.refreshSubscribers = [];
-  }
+    private onTokenRefreshed(token: string) {
+        this.refreshSubscribers.forEach((callback) => callback(token));
+        this.refreshSubscribers = [];
+    }
 
-  private addRefreshSubscriber(callback: (token: string) => void) {
-    this.refreshSubscribers.push(callback);
-  }
+    private addRefreshSubscriber(callback: (token: string) => void) {
+        this.refreshSubscribers.push(callback);
+    }
 
-  private async refreshAccessToken(): Promise<string> {
-    try {
-      // Refreshing access token
-      const response = await fetch(`${this.baseURL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+    private async refreshAccessToken(): Promise<string> {
+        try {
+            // Refreshing access token
+            const response = await fetch(`${this.baseURL}/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                // Token refresh failed
+                this.clearToken();
+                console.error('Token refresh failed:', response.status);
+                throw new Error('Token refresh failed');
+            }
+
+            // Token refresh successful
+
+            if (!data.data?.accessToken) {
+                console.error('No access token in response');
+                throw new Error('Invalid token refresh response');
+            }
+
+            const { accessToken } = data.data;
+            this.setToken(accessToken);
+            return accessToken;
+        } catch (error) {
+            this.clearToken();
+            throw error;
         }
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        // Token refresh failed
+    }
+
+    private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+        const url = `${this.baseURL}${endpoint}`;
+
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            ...((options.headers as Record<string, string>) || {}),
+        };
+
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers,
+                credentials: 'include',
+            });
+
+            const data = await response.json();
+
+            // Handle 401 errors - but only for authenticated requests, not for login
+            if (response.status === 401 && endpoint !== '/auth/login') {
+                if (!this.isRefreshing) {
+                    this.isRefreshing = true;
+                    this.refreshPromise = this.refreshAccessToken()
+                        .then((token) => {
+                            this.isRefreshing = false;
+                            this.onTokenRefreshed(token);
+                        })
+                        .catch((error) => {
+                            this.isRefreshing = false;
+                            throw error;
+                        });
+                }
+
+                if (this.refreshPromise) {
+                    return new Promise((resolve, reject) => {
+                        this.addRefreshSubscriber(async (token) => {
+                            try {
+                                // Retry the original request with new token
+                                const newHeaders = {
+                                    ...headers,
+                                    Authorization: `Bearer ${token}`,
+                                };
+                                const retryResponse = await fetch(url, {
+                                    ...options,
+                                    headers: newHeaders,
+                                    credentials: 'include',
+                                });
+                                const retryData = await retryResponse.json();
+                                resolve(retryData);
+                            } catch (error) {
+                                reject(error);
+                            }
+                        });
+                    });
+                }
+            }
+
+            if (!response.ok) {
+                // API Error Response
+                throw data as ApiError;
+            }
+
+            return data;
+        } catch (error) {
+            if (error instanceof Error) {
+                throw {
+                    type: 'network_error',
+                    title: 'Network Error',
+                    status: 0,
+                    detail: error.message,
+                } as ApiError;
+            }
+            throw error;
+        }
+    }
+
+    // Authentication methods
+    setToken(token: string) {
+        this.token = token;
+        localStorage.setItem('accessToken', token);
+    }
+
+    clearToken() {
+        this.token = null;
+        localStorage.removeItem('accessToken');
+    }
+
+    // Convenience methods
+    async get(url: string, options?: Omit<RequestInit, 'method'>) {
+        return this.request(url, { ...options, method: 'GET' });
+    }
+
+    async post(url: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) {
+        return this.request(url, {
+            ...options,
+            method: 'POST',
+            body: data ? JSON.stringify(data) : undefined,
+        });
+    }
+
+    async put(url: string, data?: any, options?: Omit<RequestInit, 'method' | 'body'>) {
+        return this.request(url, {
+            ...options,
+            method: 'PUT',
+            body: data ? JSON.stringify(data) : undefined,
+        });
+    }
+
+    async delete(url: string, options?: Omit<RequestInit, 'method'>) {
+        return this.request(url, { ...options, method: 'DELETE' });
+    }
+
+    async login(data: { identifier: string; password: string }) {
+        try {
+            const result = await this.request<{ user: User; accessToken: string; expiresIn: number }>('/auth/login', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            });
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async signup(data: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        password: string;
+        role: 'hr' | 'candidate';
+        department?: string;
+        currentLocation?: string;
+        yearsOfExperience?: string;
+        source?: string; // Make optional for backward compatibility
+    }) {
+        try {
+            const result = await this.request<{ requiresOTP?: boolean; email: string; message: string }>(
+                '/auth/register',
+                {
+                    method: 'POST',
+                    body: JSON.stringify(data),
+                },
+            );
+            return result;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async logout() {
+        const result = await this.request('/auth/logout', { method: 'POST' });
         this.clearToken();
-        console.error('Token refresh failed:', response.status);
-        throw new Error('Token refresh failed');
-      }
-      
-      // Token refresh successful
-      
-      if (!data.data?.accessToken) {
-        console.error('No access token in response');
-        throw new Error('Invalid token refresh response');
-      }
-
-      const { accessToken } = data.data;
-      this.setToken(accessToken);
-      return accessToken;
-    } catch (error) {
-      this.clearToken();
-      throw error;
+        return result;
     }
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const url = `${this.baseURL}${endpoint}`;
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> || {}),
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    async getCurrentUser() {
+        return this.request<{ user: User }>('/auth/me');
     }
 
+    async refreshToken() {
+        return this.request<{ accessToken: string; expiresIn: number }>('/auth/refresh', {
+            method: 'POST',
+        });
+    }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        credentials: 'include',
-      });
+    // Job methods
+    async getJobs(
+        params: {
+            page?: number;
+            limit?: number;
+            status?: string;
+            search?: string;
+            type?: string;
+            urgency?: string;
+            companyId?: string;
+            createdBy?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
 
-      const data = await response.json();
+        return this.request<Job[]>(`/api/v1/jobs?${queryParams.toString()}`);
+    }
 
+    async getJob(id: string) {
+        return this.request<Job>(`/api/v1/jobs/${id}`);
+    }
 
-      // Handle 401 errors - but only for authenticated requests, not for login
-      if (response.status === 401 && endpoint !== '/auth/login') {
-        if (!this.isRefreshing) {
-          this.isRefreshing = true;
-          this.refreshPromise = this.refreshAccessToken()
-            .then(token => {
-              this.isRefreshing = false;
-              this.onTokenRefreshed(token);
-            })
-            .catch(error => {
-              this.isRefreshing = false;
-              throw error;
-            });
+    async createJob(jobData: Partial<Job>) {
+        return this.request<Job>('/api/v1/jobs', {
+            method: 'POST',
+            body: JSON.stringify(jobData),
+        });
+    }
+
+    async updateJob(id: string, jobData: Partial<Job>) {
+        return this.request<Job>(`/api/v1/jobs/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(jobData),
+        });
+    }
+
+    async deleteJob(id: string) {
+        return this.request(`/api/v1/jobs/${id}`, { method: 'DELETE' });
+    }
+
+    async assignJobAgent(id: string, agentId: string) {
+        return this.request<Job>(`/api/v1/jobs/${id}/assign`, {
+            method: 'POST',
+            body: JSON.stringify({ agentId }),
+        });
+    }
+
+    async closeJob(id: string, reason?: string) {
+        return this.request<Job>(`/api/v1/jobs/${id}/close`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+    }
+
+    async getJobStats() {
+        return this.request('/api/v1/jobs/stats');
+    }
+
+    // Company methods
+    async getCompanies(
+        params: {
+            page?: number;
+            limit?: number;
+            status?: string;
+            search?: string;
+            industry?: string;
+            partnership?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
+
+        return this.request<Company[]>(`/api/v1/companies?${queryParams.toString()}`);
+    }
+
+    async getCompany(id: string) {
+        return this.request<Company>(`/api/v1/companies/${id}`);
+    }
+
+    async createCompany(companyData: Partial<Company>) {
+        return this.request<Company>('/api/v1/companies', {
+            method: 'POST',
+            body: JSON.stringify(companyData),
+        });
+    }
+
+    async updateCompany(id: string, companyData: Partial<Company>) {
+        return this.request<Company>(`/api/v1/companies/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(companyData),
+        });
+    }
+
+    async deleteCompany(id: string) {
+        return this.request(`/api/v1/companies/${id}`, { method: 'DELETE' });
+    }
+
+    async getCompanyStats() {
+        return this.request('/api/v1/companies/stats');
+    }
+
+    // User methods
+    async getUsers(
+        params: {
+            page?: number;
+            limit?: number;
+            role?: string;
+            status?: string;
+            search?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
+
+        return this.request<User[]>(`/api/v1/users?${queryParams.toString()}`);
+    }
+
+    async getUser(id: string) {
+        return this.request<User>(`/api/v1/users/${id}`);
+    }
+
+    async getUserByCustomId(customId: string) {
+        return this.request<User>(`/api/v1/users/custom/${customId}`);
+    }
+
+    async createUser(userData: Partial<User> & { password?: string }) {
+        return this.request<User>('/api/v1/users', {
+            method: 'POST',
+            body: JSON.stringify(userData),
+        });
+    }
+
+    async updateUser(id: string, userData: Partial<User>) {
+        return this.request<User>(`/api/v1/users/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(userData),
+        });
+    }
+
+    async deleteUser(id: string) {
+        return this.request(`/api/v1/users/${id}`, { method: 'DELETE' });
+    }
+
+    async getUserStats() {
+        return this.request('/api/v1/users/stats');
+    }
+
+    // Audit Log methods
+    async getAuditLogs(
+        params: {
+            page?: number;
+            limit?: number;
+            entityType?: string;
+            action?: string;
+            entityId?: string;
+            actorId?: string;
+            startDate?: string;
+            endDate?: string;
+            riskLevel?: 'low' | 'medium' | 'high' | 'critical';
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                queryParams.append(key, String(value));
+            }
+        });
+
+        return this.request(`/api/v1/audit-logs?${queryParams.toString()}`);
+    }
+
+    async getAuditLogStats(
+        params: {
+            startDate?: string;
+            endDate?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+                queryParams.append(key, String(value));
+            }
+        });
+
+        return this.request(`/api/v1/audit-logs/stats?${queryParams.toString()}`);
+    }
+
+    // Application methods
+    async getApplications(
+        params: {
+            page?: number;
+            limit?: number;
+            status?: string;
+            stage?: string;
+            candidateId?: string;
+            jobId?: string;
+            userId?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
+
+        return this.request<Application[]>(`/api/v1/applications?${queryParams.toString()}`);
+    }
+
+    // Candidate Profile methods
+    async getCandidateProfile(id?: string) {
+        if (id) {
+            return this.request(`/api/v1/candidates/${id}`);
         }
+        return this.request('/api/v1/candidates/profile');
+    }
 
-        if (this.refreshPromise) {
-          return new Promise((resolve, reject) => {
-            this.addRefreshSubscriber(async (token) => {
-              try {
-                // Retry the original request with new token
-                const newHeaders = {
-                  ...headers,
-                  Authorization: `Bearer ${token}`,
-                };
-                const retryResponse = await fetch(url, {
-                  ...options,
-                  headers: newHeaders,
-                  credentials: 'include',
-                });
-                const retryData = await retryResponse.json();
-                resolve(retryData);
-              } catch (error) {
-                reject(error);
-              }
+    async updateCandidateProfile(profileData: any) {
+        try {
+            // Profile data received
+
+            // Send the data as-is since it's already wrapped in a profile object
+            // Sending profile update
+            const response = await this.request('/api/v1/candidates/profile', {
+                method: 'PUT',
+                body: JSON.stringify(profileData),
             });
-          });
+            // Profile update successful
+            return response;
+        } catch (error) {
+            console.error('Profile update error:', error);
+            // If the error has issues, pass them through
+            if (error.issues) {
+                throw error;
+            }
+            // Otherwise, create a standardized error object
+            throw {
+                type: 'validation_error',
+                title: 'Validation Error',
+                status: 400,
+                detail: error.message || 'Failed to update profile',
+                issues: [{ message: error.message || 'Failed to update profile' }],
+            };
         }
       }
 
@@ -1150,260 +1512,549 @@ class ApiClient {
         if (value !== undefined && value !== null) {
           queryParams.append(key, value.toString());
         }
-      });
-    }
-    const queryString = queryParams.toString();
-    return this.request(`/api/v1/agents/me/assignments${queryString ? `?${queryString}` : ''}`);
-  }
 
-  async getAgentJobs(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-    urgency?: string;
-    sortBy?: string;
-    sortOrder?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          queryParams.append(key, value.toString());
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers,
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw data;
         }
-      });
-    }
-    const queryString = queryParams.toString();
-    return this.request<Job[]>(`/api/v1/agents/me/jobs${queryString ? `?${queryString}` : ''}`);
-  }
 
-  async getAgentCandidates(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          queryParams.append(key, value.toString());
+        return data;
+    }
+
+    async getResumeInfo() {
+        return this.request('/api/v1/files/resume');
+    }
+
+    async downloadResume(fileId: string) {
+        const url = `${this.baseURL}/api/v1/files/resume/${fileId}`;
+        const headers: HeadersInit = {};
+
+        if (this.token) {
+            headers.Authorization = `Bearer ${this.token}`;
         }
-      });
-    }
-    const queryString = queryParams.toString();
-    return this.request(`/api/v1/agents/me/candidates${queryString ? `?${queryString}` : ''}`);
-  }
 
-  async getAgentAssignments(params?: {
-    page?: number;
-    limit?: number;
-    status?: string;
-    sortBy?: string;
-    sortOrder?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          queryParams.append(key, value.toString());
+        const response = await fetch(url, { headers });
+
+        if (!response.ok) {
+            throw new Error('Failed to download resume');
         }
-      });
+
+        return response.blob();
     }
-    const queryString = queryParams.toString();
-    return this.request(`/api/v1/agents/me/assignments${queryString ? `?${queryString}` : ''}`);
-  }
 
-  async assignCandidateToJob(data: {
-    candidateId: string;
-    jobId: string;
-    priority?: 'low' | 'medium' | 'high' | 'urgent';
-    notes?: string;
-    dueDate?: string;
-  }) {
-    return this.request('/api/v1/agents/assignments', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+    async deleteResume() {
+        return this.request('/api/v1/files/resume', {
+            method: 'DELETE',
+        });
+    }
 
-  // Admin agent assignment management
-  async getAgentAssignmentsList() {
-    return this.request('/api/v1/users/agent-assignments');
-  }
+    async createApplication(applicationData: { candidateId: string; jobId: string; source?: string }) {
+        return this.request<Application>('/api/v1/applications', {
+            method: 'POST',
+            body: JSON.stringify(applicationData),
+        });
+    }
 
-  async createAgentAssignment(data: {
-    agentId: string;
-    hrIds?: string[];
-    candidateIds?: string[];
-    notes?: string;
-  }) {
-    return this.request('/api/v1/users/agent-assignments', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+    async advanceApplication(id: string, data: { newStage: string; newStatus: string; note?: string }) {
+        return this.request<Application>(`/api/v1/applications/${id}/advance`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
 
-  async getAgentAssignmentDetails(agentId: string) {
-    return this.request(`/api/v1/users/agent-assignments/${agentId}`);
-  }
+    async rejectApplication(id: string, reason: string) {
+        return this.request<Application>(`/api/v1/applications/${id}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason }),
+        });
+    }
 
-  async getMyAgentAssignment() {
-    return this.request('/api/v1/users/agent-assignments/me');
-  }
+    async getApplicationStats() {
+        return this.request('/api/v1/applications/stats');
+    }
 
-  async removeFromAgentAssignment(agentId: string, data: {
-    hrIds?: string[];
-    candidateIds?: string[];
-  }) {
-    return this.request(`/api/v1/users/agent-assignments/${agentId}/remove`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  }
+    // Interview methods
+    async getInterviews(
+        params: {
+            page?: number;
+            limit?: number;
+            status?: string;
+            search?: string;
+            type?: string;
+            round?: string;
+            dateFrom?: string;
+            dateTo?: string;
+            interviewer?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
 
-  async deleteAgentAssignment(agentId: string) {
-    return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
-      method: 'DELETE',
-    });
-  }
+        return this.request<any[]>(`/api/v1/interviews?${queryParams.toString()}`);
+    }
 
-  // Agent Interview Management
-  async getMyAgentInterviews(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-    sortBy?: string;
-    sortOrder?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.search) queryParams.append('search', params.search);
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
-    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
-    
-    const queryString = queryParams.toString();
-    const url = `/api/v1/interviews${queryString ? `?${queryString}` : ''}`;
-    return this.request<Interview[]>(url);
-  }
+    async getInterview(id: string) {
+        return this.request<any>(`/api/v1/interviews/${id}`);
+    }
 
-  async getMyAgentInterview(id: string) {
-    return this.request<Interview>(`/api/v1/interviews/${id}`);
-  }
+    async createInterview(interviewData: {
+        applicationId?: string;
+        candidateId?: string;
+        type: string;
+        round: string;
+        scheduledAt: string;
+        duration: number;
+        location?: string;
+        interviewers?: string[];
+        notes?: string;
+    }) {
+        return this.request<any>('/api/v1/interviews', {
+            method: 'POST',
+            body: JSON.stringify(interviewData),
+        });
+    }
 
-  async getMyAgentInterviewStats() {
-    return this.request<{
-      byStatus: Array<{ _id: string; count: number }>;
-      todayCount: number;
-      upcomingCount: number;
-      assignedCandidatesCount: number;
-    }>('/api/v1/interviews/stats');
-  }
+    async updateInterview(
+        id: string,
+        interviewData: Partial<{
+            type: string;
+            round: string;
+            scheduledAt: string;
+            duration: number;
+            location?: string;
+            interviewers: string[];
+            notes?: string;
+            status?: string;
+        }>,
+    ) {
+        return this.request<any>(`/api/v1/interviews/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(interviewData),
+        });
+    }
 
-  // Authentication methods
-  async verifyOTP(data: { email: string; otp: string }) {
-    return this.request('/auth/verify-otp', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+    async deleteInterview(id: string) {
+        return this.request(`/api/v1/interviews/${id}`, {
+            method: 'DELETE',
+        });
+    }
 
-  async resendOTP(data: { email: string }) {
-    return this.request('/auth/resend-otp', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-  async forgotPassword(data: { email: string }) {
-    return this.request('/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+    async getInterviewStats() {
+        return this.request('/api/v1/interviews/stats');
+    }
 
-  async resetPassword(data: { token: string; newPassword: string }) {
-    return this.request('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+    // Candidate Assignment methods
+    async getCandidateAssignments(
+        params: {
+            page?: number;
+            limit?: number;
+            status?: string;
+            priority?: string;
+            jobId?: string;
+            assignedTo?: string;
+            assignedBy?: string;
+            sortBy?: string;
+            sortOrder?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
 
-  // Analytics methods
-  async trackEvent(data: {
-    eventName: string;
-    page: string;
-    referrer?: string;
-    sessionId: string;
-    userId?: string;
-    eventData?: Record<string, any>;
-    utm?: {
-      source?: string;
-      medium?: string;
-      campaign?: string;
-    };
-    duration?: number;
-  }) {
-    return this.request('/api/analytics/track', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
+        return this.request(`/api/v1/candidate-assignments?${queryParams.toString()}`);
+    }
 
-  async getAnalyticsSummary(params?: {
-    startDate?: string;
-    endDate?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const queryString = queryParams.toString();
-    return this.request(`/api/analytics/summary${queryString ? `?${queryString}` : ''}`);
-  }
+    async getCandidateAssignment(id: string) {
+        return this.request(`/api/v1/candidate-assignments/${id}`);
+    }
 
-  async getAnalyticsFunnels(params?: {
-    startDate?: string;
-    endDate?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const queryString = queryParams.toString();
-    return this.request(`/api/analytics/funnels${queryString ? `?${queryString}` : ''}`);
-  }
+    async createCandidateAssignment(assignmentData: {
+        candidateId: string;
+        assignedTo: string;
+        jobId?: string;
+        priority?: string;
+        notes?: string;
+        dueDate?: string;
+    }) {
+        return this.request('/api/v1/candidate-assignments', {
+            method: 'POST',
+            body: JSON.stringify(assignmentData),
+        });
+    }
 
-  async getAnalyticsSources(params?: {
-    startDate?: string;
-    endDate?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    const queryString = queryParams.toString();
-    return this.request(`/api/analytics/sources${queryString ? `?${queryString}` : ''}`);
-  }
+    async updateCandidateAssignment(
+        id: string,
+        assignmentData: {
+            status?: string;
+            priority?: string;
+            notes?: string;
+            dueDate?: string;
+            feedback?: string;
+            candidateStatus?: string;
+        },
+    ) {
+        return this.request(`/api/v1/candidate-assignments/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(assignmentData),
+        });
+    }
 
-  async getAnalyticsEvents(params?: {
-    page?: number;
-    limit?: number;
-    startDate?: string;
-    endDate?: string;
-    source?: string;
-    eventName?: string;
-  }) {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.startDate) queryParams.append('startDate', params.startDate);
-    if (params?.endDate) queryParams.append('endDate', params.endDate);
-    if (params?.source) queryParams.append('source', params.source);
-    if (params?.eventName) queryParams.append('eventName', params.eventName);
-    const queryString = queryParams.toString();
-    return this.request(`/api/analytics/events${queryString ? `?${queryString}` : ''}`);
-  }
+    async deleteCandidateAssignment(id: string) {
+        return this.request(`/api/v1/candidate-assignments/${id}`, { method: 'DELETE' });
+    }
+
+    async getMyCandidateAssignments(
+        params: {
+            page?: number;
+            limit?: number;
+            status?: string;
+            priority?: string;
+            jobId?: string;
+            sortBy?: string;
+            sortOrder?: string;
+        } = {},
+    ) {
+        const queryParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined) {
+                queryParams.append(key, String(value));
+            }
+        });
+
+        return this.request(`/api/v1/candidates/me/assignments?${queryParams.toString()}`);
+    }
+
+    async getCandidateAssignmentStats() {
+        return this.request('/api/v1/candidate-assignments/stats');
+    }
+
+    // Banner methods
+    async uploadBanner(file: File, category: 'hr' | 'candidate') {
+        const formData = new FormData();
+        formData.append('media', file);
+        formData.append('category', category);
+
+        // Use fetch directly for file uploads to avoid Content-Type header issues
+        const url = `${this.baseURL}/api/v1/banners`;
+        const headers: Record<string, string> = {};
+
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers,
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw data;
+        }
+
+        return data;
+    }
+
+    async getBanners(category?: 'hr' | 'candidate') {
+        const params = category ? `?category=${category}` : '';
+        return this.request(`/api/v1/banners${params}`);
+    }
+
+    async getActiveBanner(category: 'hr' | 'candidate') {
+        return this.request(`/api/v1/banners/active?category=${category}`);
+    }
+
+    async updateBannerStatus(bannerId: string, isActive: boolean) {
+        return this.request(`/api/v1/banners/${bannerId}/status`, {
+            method: 'PATCH',
+            body: JSON.stringify({ isActive }),
+        });
+    }
+
+    async deleteBanner(bannerId: string) {
+        return this.request(`/api/v1/banners/${bannerId}`, {
+            method: 'DELETE',
+        });
+    }
+
+    // Text-based ad methods
+    async createTextAd(data: {
+        category: 'hr' | 'candidate';
+        title: string;
+        subtitle?: string;
+        content?: string;
+        textColor?: string;
+        backgroundColor?: string;
+        titleColor?: string;
+        subtitleColor?: string;
+        titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+        subtitleSize?: 'small' | 'medium' | 'large';
+        contentSize?: 'small' | 'medium' | 'large';
+        textAlignment?: 'left' | 'center' | 'right';
+        backgroundMedia?: File;
+    }) {
+        const formData = new FormData();
+        formData.append('category', data.category);
+        formData.append('title', data.title);
+        if (data.subtitle) formData.append('subtitle', data.subtitle);
+        if (data.content) formData.append('content', data.content);
+        if (data.textColor) formData.append('textColor', data.textColor);
+        if (data.backgroundColor) formData.append('backgroundColor', data.backgroundColor);
+        if (data.titleColor) formData.append('titleColor', data.titleColor);
+        if (data.subtitleColor) formData.append('subtitleColor', data.subtitleColor);
+        if (data.titleSize) formData.append('titleSize', data.titleSize);
+        if (data.subtitleSize) formData.append('subtitleSize', data.subtitleSize);
+        if (data.contentSize) formData.append('contentSize', data.contentSize);
+        if (data.textAlignment) formData.append('textAlignment', data.textAlignment);
+        if (data.backgroundMedia) formData.append('backgroundMedia', data.backgroundMedia);
+
+        // Use fetch directly for file uploads to avoid Content-Type header issues
+        const url = `${this.baseURL}/api/v1/banners/text`;
+        const headers: Record<string, string> = {};
+
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers,
+            credentials: 'include',
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw responseData;
+        }
+
+        return responseData;
+    }
+
+    async updateTextAd(
+        bannerId: string,
+        data: {
+            title?: string;
+            subtitle?: string;
+            content?: string;
+            textColor?: string;
+            backgroundColor?: string;
+            titleColor?: string;
+            subtitleColor?: string;
+            titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+            subtitleSize?: 'small' | 'medium' | 'large';
+            contentSize?: 'small' | 'medium' | 'large';
+            textAlignment?: 'left' | 'center' | 'right';
+            backgroundMedia?: File;
+        },
+    ) {
+        const formData = new FormData();
+        if (data.title !== undefined) formData.append('title', data.title);
+        if (data.subtitle !== undefined) formData.append('subtitle', data.subtitle || '');
+        if (data.content !== undefined) formData.append('content', data.content || '');
+        if (data.textColor !== undefined) formData.append('textColor', data.textColor);
+        if (data.backgroundColor !== undefined) formData.append('backgroundColor', data.backgroundColor);
+        if (data.titleColor !== undefined) formData.append('titleColor', data.titleColor);
+        if (data.subtitleColor !== undefined) formData.append('subtitleColor', data.subtitleColor);
+        if (data.titleSize !== undefined) formData.append('titleSize', data.titleSize);
+        if (data.subtitleSize !== undefined) formData.append('subtitleSize', data.subtitleSize);
+        if (data.contentSize !== undefined) formData.append('contentSize', data.contentSize);
+        if (data.textAlignment !== undefined) formData.append('textAlignment', data.textAlignment);
+        if (data.backgroundMedia) formData.append('backgroundMedia', data.backgroundMedia);
+
+        // Use fetch directly for file uploads to avoid Content-Type header issues
+        const url = `${this.baseURL}/api/v1/banners/text/${bannerId}`;
+        const headers: Record<string, string> = {};
+
+        if (this.token) {
+            headers['Authorization'] = `Bearer ${this.token}`;
+        }
+
+        const response = await fetch(url, {
+            method: 'PUT',
+            body: formData,
+            headers,
+            credentials: 'include',
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw responseData;
+        }
+
+        return responseData;
+    }
+
+    // Health check
+    async healthCheck() {
+        return this.request('/health');
+    }
+
+    // Agent endpoints
+    async getAgentDashboard() {
+        return this.request<{
+            assignedHRs: number;
+            assignedCandidates: number;
+            availableJobs: number;
+            activeAssignments: number;
+            completedAssignments: number;
+            pendingAssignments: number;
+        }>('/api/v1/agents/me/dashboard');
+    }
+
+    async getAgentAssignment() {
+        return this.request('/api/v1/agents/me/assignment');
+    }
+
+    async getMyAgentAssignments(params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }) {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        const queryString = queryParams.toString();
+        return this.request(`/api/v1/agents/me/assignments${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async getAgentJobs(params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: string;
+        urgency?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }) {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        const queryString = queryParams.toString();
+        return this.request<Job[]>(`/api/v1/agents/me/jobs${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async getAgentCandidates(params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }) {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        const queryString = queryParams.toString();
+        return this.request(`/api/v1/agents/me/candidates${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async getAgentAssignments(params?: {
+        page?: number;
+        limit?: number;
+        status?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }) {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    queryParams.append(key, value.toString());
+                }
+            });
+        }
+        const queryString = queryParams.toString();
+        return this.request(`/api/v1/agents/me/assignments${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async assignCandidateToJob(data: {
+        candidateId: string;
+        jobId: string;
+        priority?: 'low' | 'medium' | 'high' | 'urgent';
+        notes?: string;
+        dueDate?: string;
+    }) {
+        return this.request('/api/v1/agents/assignments', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Admin agent assignment management
+    async getAgentAssignmentsList() {
+        return this.request('/api/v1/users/agent-assignments');
+    }
+
+    async createAgentAssignment(data: { agentId: string; hrIds?: string[]; candidateIds?: string[]; notes?: string }) {
+        return this.request('/api/v1/users/agent-assignments', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getAgentAssignmentDetails(agentId: string) {
+        return this.request(`/api/v1/users/agent-assignments/${agentId}`);
+    }
+
+    async getMyAgentAssignment() {
+        return this.request('/api/v1/users/agent-assignments/me');
+    }
+
+    async removeFromAgentAssignment(
+        agentId: string,
+        data: {
+            hrIds?: string[];
+            candidateIds?: string[];
+        },
+    ) {
+        return this.request(`/api/v1/users/agent-assignments/${agentId}/remove`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteAgentAssignment(agentId: string) {
+        return this.request(`/api/v1/users/agent-assignments/${agentId}`, {
+            method: 'DELETE',
+        });
+    }
 
   // Auto Match methods
   async matchJobToCandidates(data: { jobId: string; limit?: number }) {
@@ -1536,6 +2187,236 @@ class ApiClient {
     }>(`/api/v1/search?${queryParams.toString()}`);
   }
 
+    // Agent Interview Management
+    async getMyAgentInterviews(params?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        status?: string;
+        sortBy?: string;
+        sortOrder?: string;
+    }) {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.search) queryParams.append('search', params.search);
+        if (params?.status) queryParams.append('status', params.status);
+        if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+        if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+        const queryString = queryParams.toString();
+        const url = `/api/v1/interviews${queryString ? `?${queryString}` : ''}`;
+        return this.request<Interview[]>(url);
+    }
+
+    async getMyAgentInterview(id: string) {
+        return this.request<Interview>(`/api/v1/interviews/${id}`);
+    }
+
+    async getMyAgentInterviewStats() {
+        return this.request<{
+            byStatus: Array<{ _id: string; count: number }>;
+            todayCount: number;
+            upcomingCount: number;
+            assignedCandidatesCount: number;
+        }>('/api/v1/interviews/stats');
+    }
+
+    // Authentication methods
+    async verifyOTP(data: { email: string; otp: string }) {
+        return this.request('/auth/verify-otp', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async resendOTP(data: { email: string }) {
+        return this.request('/auth/resend-otp', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // SMS-based authentication methods
+    async signupSMS(data: {
+        phoneNumber: string;
+        name: string;
+        role: 'hr' | 'candidate';
+        source?: string;
+        utmData?: {
+            utm_source?: string;
+            utm_medium?: string;
+            utm_campaign?: string;
+            utm_content?: string;
+            utm_term?: string;
+            referrer?: string;
+            landing_page?: string;
+        };
+    }) {
+        return this.request<{ success: boolean; message: string }>('/auth/register-sms', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async verifySMSOTP(data: { phoneNumber: string; otp: string }) {
+        return this.request<{
+            leadId: string;
+            tempToken: string;
+            phoneNumber: string;
+            role: string;
+            nextStep: string;
+        }>('/auth/verify-sms-otp', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async completeRegistration(data: { email: string; password: string }, tempToken: string) {
+        return this.request('/auth/complete-registration', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                Authorization: `Bearer ${tempToken}`,
+            },
+        });
+    }
+
+    async resendSMSOTP(data: { phoneNumber: string }) {
+        return this.request('/auth/resend-sms-otp', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async addEmail(data: { email: string; password: string }) {
+        return this.request('/auth/add-email', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Unified registration methods
+    async registerUnified(data: {
+        fullName: string;
+        phoneNumber: string;
+        email: string;
+        password: string;
+        role: 'hr' | 'candidate';
+        source?: string;
+        designation?: string;
+        utmData?: {
+            utm_source?: string;
+            utm_medium?: string;
+            utm_campaign?: string;
+            utm_content?: string;
+            utm_term?: string;
+            referrer?: string;
+            landing_page?: string;
+        };
+    }) {
+        return this.request<{
+            leadId: string;
+            verificationType: 'sms' | 'email';
+            maskedContact: string;
+            tempToken: string;
+        }>('/auth/register-unified', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async verifyUnifiedOTP(data: { leadId: string; otp: string }, tempToken: string) {
+        return this.request<{
+            user: User;
+            accessToken: string;
+            expiresIn: number;
+        }>('/auth/verify-otp-unified', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                Authorization: `Bearer ${tempToken}`,
+            },
+        });
+    }
+
+    async forgotPassword(data: { email: string }) {
+        return this.request('/auth/forgot-password', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async resetPassword(data: { token: string; newPassword: string }) {
+        return this.request('/auth/reset-password', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Analytics methods
+    async trackEvent(data: {
+        eventName: string;
+        page: string;
+        referrer?: string;
+        sessionId: string;
+        userId?: string;
+        eventData?: Record<string, any>;
+        utm?: {
+            source?: string;
+            medium?: string;
+            campaign?: string;
+        };
+        duration?: number;
+    }) {
+        return this.request('/api/analytics/track', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getAnalyticsSummary(params?: { startDate?: string; endDate?: string }) {
+        const queryParams = new URLSearchParams();
+        if (params?.startDate) queryParams.append('startDate', params.startDate);
+        if (params?.endDate) queryParams.append('endDate', params.endDate);
+        const queryString = queryParams.toString();
+        return this.request(`/api/analytics/summary${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async getAnalyticsFunnels(params?: { startDate?: string; endDate?: string }) {
+        const queryParams = new URLSearchParams();
+        if (params?.startDate) queryParams.append('startDate', params.startDate);
+        if (params?.endDate) queryParams.append('endDate', params.endDate);
+        const queryString = queryParams.toString();
+        return this.request(`/api/analytics/funnels${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async getAnalyticsSources(params?: { startDate?: string; endDate?: string }) {
+        const queryParams = new URLSearchParams();
+        if (params?.startDate) queryParams.append('startDate', params.startDate);
+        if (params?.endDate) queryParams.append('endDate', params.endDate);
+        const queryString = queryParams.toString();
+        return this.request(`/api/analytics/sources${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async getAnalyticsEvents(params?: {
+        page?: number;
+        limit?: number;
+        startDate?: string;
+        endDate?: string;
+        source?: string;
+        eventName?: string;
+    }) {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.startDate) queryParams.append('startDate', params.startDate);
+        if (params?.endDate) queryParams.append('endDate', params.endDate);
+        if (params?.source) queryParams.append('source', params.source);
+        if (params?.eventName) queryParams.append('eventName', params.eventName);
+        const queryString = queryParams.toString();
+        return this.request(`/api/analytics/events${queryString ? `?${queryString}` : ''}`);
+    }
 }
 
 export const apiClient = new ApiClient();

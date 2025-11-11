@@ -1,8 +1,8 @@
-import { z } from 'zod'
-import dotenv from 'dotenv'
+import { z } from 'zod';
+import dotenv from 'dotenv';
 
 // Load environment variables from .env file
-dotenv.config()
+dotenv.config();
 
 /**
  * Environment configuration schema using Zod for validation
@@ -73,6 +73,39 @@ const envSchema = z.object({
     BCRYPT_ROUNDS: z.string().transform(Number).default('12'),
     SESSION_SECRET: z.string().min(32, 'Session secret must be at least 32 characters').optional(),
 
+    // Testing/Development Features
+    TEST_SMS: z
+        .string()
+        .transform((val) => val === 'true')
+        .default('false')
+        .describe('Enable test SMS mode - uses 000000 as OTP for all SMS. DISABLE IN PRODUCTION!'),
+
+    // OTP Verification Method
+    OTP_VERIFICATION_METHOD: z
+        .enum(['sms', 'email'])
+        .default('sms')
+        .describe('Method for OTP verification: sms (via phone) or email'),
+
+    // SMS Service Configuration
+    SMS_PROVIDER: z.enum(['fast2sms', 'twilio', 'aws-sns']).optional().default('fast2sms'),
+
+    // Fast2SMS Configuration (optional - required if SMS_PROVIDER=fast2sms)
+    FAST2SMS_API_KEY: z.string().optional(),
+    FAST2SMS_SENDER_ID: z.string().optional().default('HIREAC'),
+    FAST2SMS_ROUTE: z.enum(['otp', 'transactional', 'promotional']).optional().default('otp'),
+    FAST2SMS_OTP_TEMPLATE_ID: z.string().optional(),
+
+    // Twilio Configuration (optional - required if SMS_PROVIDER=twilio)
+    TWILIO_ACCOUNT_SID: z.string().optional(),
+    TWILIO_AUTH_TOKEN: z.string().optional(),
+    TWILIO_PHONE_NUMBER: z.string().optional(),
+
+    // AWS SNS Configuration (optional - required if SMS_PROVIDER=aws-sns)
+    AWS_REGION: z.string().optional(),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    AWS_SNS_SENDER_ID: z.string().optional(),
+
     // CSRF Protection
     CSRF_ENABLED: z
         .string()
@@ -91,48 +124,49 @@ const envSchema = z.object({
         .transform((val) => val === 'true')
         .default('false'),
 })
+});
 
 /**
  * Parse and validate environment variables
  */
 const parseEnv = () => {
     try {
-        return envSchema.parse(process.env)
+        return envSchema.parse(process.env);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            const missingVars = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n')
+            const missingVars = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join('\n');
 
             throw new Error(
                 `Environment validation failed:\n${missingVars}\n\n` +
                     'Please check your .env file and ensure all required variables are set.',
-            )
+            );
         }
-        throw error
+        throw error;
     }
-}
+};
 
 /**
  * Validated environment configuration
  * This is the single source of truth for all environment variables in the application
  */
-export const env = parseEnv()
+export const env = parseEnv();
 
 /**
  * Type definition for environment configuration
  */
-export type Environment = typeof env
+export type Environment = typeof env;
 
 /**
  * Helper function to check if we're in development mode
  */
-export const isDevelopment = () => env.NODE_ENV === 'development'
+export const isDevelopment = () => env.NODE_ENV === 'development';
 
 /**
  * Helper function to check if we're in production mode
  */
-export const isProduction = () => env.NODE_ENV === 'production'
+export const isProduction = () => env.NODE_ENV === 'production';
 
 /**
  * Helper function to check if we're in test mode
  */
-export const isTest = () => env.NODE_ENV === 'test'
+export const isTest = () => env.NODE_ENV === 'test';

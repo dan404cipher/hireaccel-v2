@@ -15,7 +15,10 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (data: SignupData) => Promise<{ requiresOTP?: boolean; email: string }>;
+  signupSMS: (data: SMSSignupData) => Promise<{ requiresOTP?: boolean; phoneNumber: string }>;
   verifyOTP: (email: string, otp: string) => Promise<void>;
+  verifySMSOTP: (phoneNumber: string, otp: string) => Promise<{ needsEmail?: boolean }>;
+  addEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: User) => void;
   refreshUser: () => Promise<void>;
@@ -31,6 +34,13 @@ interface SignupData {
   department?: string;
   currentLocation?: string;
   yearsOfExperience?: string;
+  source?: string;
+}
+
+interface SMSSignupData {
+  phoneNumber: string;
+  firstName: string;
+  role: 'hr' | 'candidate';
   source?: string;
 }
 
@@ -102,6 +112,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signupSMS = async (data: SMSSignupData) => {
+    try {
+      const response = await apiClient.signupSMS(data);
+      return { 
+        requiresOTP: response.data?.requiresOTP, 
+        phoneNumber: response.data?.phoneNumber || data.phoneNumber 
+      };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const verifySMSOTP = async (phoneNumber: string, otp: string) => {
+    try {
+      const response = await apiClient.verifySMSOTP(phoneNumber, otp);
+      if (response.data) {
+        const userData = response.data.user;
+        setUser(userData);
+        await storage.setItem(STORAGE_KEYS.USER_DATA, userData);
+        
+        // Return whether email setup is needed
+        return { needsEmail: (response.data as any).needsEmail };
+      }
+      return { needsEmail: false };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const addEmail = async (email: string, password: string) => {
+    try {
+      const response = await apiClient.addEmail({ email, password });
+      if (response.data) {
+        const updatedUser = response.data.user;
+        setUser(updatedUser);
+        await storage.setItem(STORAGE_KEYS.USER_DATA, updatedUser);
+      }
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await apiClient.logout();
@@ -138,7 +190,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     login,
     signup,
+    signupSMS,
     verifyOTP,
+    verifySMSOTP,
+    addEmail,
     logout,
     updateUser,
     refreshUser,

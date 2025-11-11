@@ -15,6 +15,7 @@ import analyticsRoutes from './analytics';
 import autoMatchRoutes from './autoMatch';
 import contactHistoryRoutes from './contactHistory';
 import searchRoutes from './search';
+import smsRoutes from './sms';
 
 /**
  * Main API routes
@@ -43,13 +44,16 @@ router.use('/api/v1/auto-match', autoMatchRoutes);
 router.use('/api/v1/contact-history', contactHistoryRoutes);
 router.use('/api/v1/search', searchRoutes);
 
+// SMS service routes
+router.use('/sms', smsRoutes);
+
 // Health check route
 router.get('/health', (_req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    version: process.env['npm_package_version'] || '1.0.0',
-  });
+    res.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: process.env['npm_package_version'] || '1.0.0',
+    });
 });
 
 export default router;

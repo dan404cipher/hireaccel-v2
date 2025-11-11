@@ -190,6 +190,38 @@ class ApiClient {
     return response.data;
   }
 
+  // SMS-based authentication
+  async signupSMS(data: {
+    phoneNumber: string;
+    firstName: string;
+    role: 'hr' | 'candidate';
+    source?: string;
+  }): Promise<ApiResponse<{ requiresOTP?: boolean; phoneNumber: string; message: string }>> {
+    const response = await this.client.post('/auth/register-sms', data);
+    return response.data;
+  }
+
+  async verifySMSOTP(phoneNumber: string, otp: string): Promise<ApiResponse<AuthResponse>> {
+    const response = await this.client.post<ApiResponse<AuthResponse>>('/auth/verify-sms-otp', {
+      phoneNumber,
+      otp,
+    });
+    if (response.data.data?.accessToken) {
+      await this.setToken(response.data.data.accessToken);
+    }
+    return response.data;
+  }
+
+  async resendSMSOTP(phoneNumber: string): Promise<ApiResponse> {
+    const response = await this.client.post('/auth/resend-sms-otp', { phoneNumber });
+    return response.data;
+  }
+
+  async addEmail(data: { email: string; password: string }): Promise<ApiResponse<{ user: User }>> {
+    const response = await this.client.post('/auth/add-email', data);
+    return response.data;
+  }
+
   async forgotPassword(email: string): Promise<ApiResponse> {
     const response = await this.client.post('/auth/forgot-password', { email });
     return response.data;

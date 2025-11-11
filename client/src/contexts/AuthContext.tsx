@@ -18,50 +18,74 @@ export interface User {
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  loading: boolean;
-  isAuthenticated: boolean;
-  updateAuth: (userData: User) => void;
+    user: User | null;
+    login: (identifier: string, password: string) => Promise<void>;
+    logout: () => void;
+    loading: boolean;
+    isAuthenticated: boolean;
+    updateAuth: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    
-    // Check if user is already logged in
-    const checkAuth = async () => {
-      try {
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-          apiClient.setToken(token);
-          const response = await apiClient.getCurrentUser();
-          if (mounted) {
-            setUser(response.data?.user || null);
-          }
-        }
-      } catch (error) {
-        // Token might be expired
-        localStorage.removeItem('accessToken');
-        apiClient.clearToken();
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
+    useEffect(() => {
+        let mounted = true;
+
+        // Check if user is already logged in
+        const checkAuth = async () => {
+            try {
+                const token = localStorage.getItem('accessToken');
+                if (token) {
+                    apiClient.setToken(token);
+                    const response = await apiClient.getCurrentUser();
+                    if (mounted) {
+                        setUser(response.data?.user || null);
+                    }
+                }
+            } catch (error) {
+                // Token might be expired
+                localStorage.removeItem('accessToken');
+                apiClient.clearToken();
+            } finally {
+                if (mounted) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        checkAuth();
+
+        // Cleanup function
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const login = async (identifier: string, password: string) => {
+        const response = await apiClient.login({ identifier, password });
+        const { user: userData, accessToken } = response.data!;
+
+        apiClient.setToken(accessToken);
+        setUser(userData);
     };
 
-    checkAuth();
-    
-    // Cleanup function
-    return () => {
-      mounted = false;
+    const logout = async () => {
+        try {
+            await apiClient.logout();
+        } catch (error) {
+            // Ignore logout errors
+        } finally {
+            apiClient.clearToken();
+            setUser(null);
+        }
+    };
+
+    const updateAuth = (userData: User) => {
+        setUser(userData);
     };
   }, []);
 
@@ -122,20 +146,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 }
 
 export function useRole() {
-  const { user } = useAuth();
-  return user?.role;
+    const { user } = useAuth();
+    return user?.role;
 }
 
 // Utility function for role checking - moved to utils to avoid Fast Refresh issues
 export const hasRole = (allowedRoles: UserRole[], userRole?: UserRole) => {
-  if (!userRole) return false;
-  return allowedRoles.includes(userRole);
+    if (!userRole) return false;
+    return allowedRoles.includes(userRole);
 };

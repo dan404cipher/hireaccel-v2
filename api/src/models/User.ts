@@ -1,42 +1,60 @@
-import mongoose, { Schema, Document } from 'mongoose'
-import { hashToken } from '@/utils/jwt'
-import { User as IUser, UserRole, UserStatus } from '@/types'
+import mongoose, { Schema, Document } from 'mongoose';
+import { hashToken } from '@/utils/jwt';
+import { User as IUser, UserRole, UserStatus } from '@/types';
 
 /**
  * User model interface extending Mongoose Document
  */
 export interface UserDocument extends Omit<IUser, '_id'>, Document {
-    _id: mongoose.Types.ObjectId
+    _id: mongoose.Types.ObjectId;
 
     // Additional fields for authentication
-    emailVerificationToken?: string
-    emailVerificationExpires?: Date
-    resetPasswordToken?: string
-    resetPasswordExpires?: Date
+    emailVerificationToken?: string;
+    emailVerificationExpires?: Date;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
     refreshTokens: Array<{
-        token: string
-        createdAt: Date
-        userAgent?: string
-        ipAddress?: string
-    }>
+        token: string;
+        createdAt: Date;
+        userAgent?: string;
+        ipAddress?: string;
+    }>;
 
     // Instance methods
-    addRefreshToken(token: string, userAgent?: string, ipAddress?: string): void
-    removeRefreshToken(token: string): void
-    removeAllRefreshTokens(): void
-    updateLastLogin(): void
-    isPasswordResetTokenValid(token: string): boolean
-    isEmailVerificationTokenValid(token: string): boolean
+    addRefreshToken(token: string, userAgent?: string, ipAddress?: string): void;
+    removeRefreshToken(token: string): void;
+    removeAllRefreshTokens(): void;
+    updateLastLogin(): void;
+    isPasswordResetTokenValid(token: string): boolean;
+    isEmailVerificationTokenValid(token: string): boolean;
 }
 
 /**
  * User model interface with static methods
  */
 export interface UserModel extends mongoose.Model<UserDocument> {
-    findByEmail(email: string): Promise<UserDocument | null>
-    findByRole(role: UserRole): Promise<UserDocument[]>
-    searchUsers(searchTerm: string, options?: any): Promise<UserDocument[]>
+    findByEmail(email: string): Promise<UserDocument | null>;
+    findByPhoneNumber(phoneNumber: string): Promise<UserDocument | null>;
+    findByRole(role: UserRole): Promise<UserRole[]>;
+    searchUsers(searchTerm: string, options?: any): Promise<UserDocument[]>;
 }
+
+const allowedSources = [
+    'Email',
+    'WhatsApp',
+    'Telegram',
+    'Instagram',
+    'Facebook',
+    'Journals',
+    'Posters',
+    'Brochures',
+    'Forums',
+    'Google',
+    'Conversational AI (GPT, Gemini etc)',
+    'Direct',
+    'Referral',
+    'Other',
+];
 
 /**
  * User schema definition
@@ -51,7 +69,12 @@ const userSchema = new Schema<UserDocument>(
             lowercase: true,
             trim: true,
             match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email address'],
-            index: true,
+            // validate: {
+            //     validator: function (value) {
+            //         return /^[A-Za-z0-9]{2,}@[A-Za-z0-9]{2,}\.[A-Za-z]{2,}$/.test(value);
+            //     },
+            //     message: () => `Please provide a valid email address`,
+            // },
         },
 
         customId: {
@@ -113,9 +136,26 @@ const userSchema = new Schema<UserDocument>(
 
         phoneNumber: {
             type: String,
-            required: false,
+            required: [true, 'Phone number is required'],
+            unique: true,
             trim: true,
             match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please provide a valid phone number'],
+            // validate: {
+            //     validator: function (value) {
+            //         // Must start with + and only digits afterwards
+            //         if (!/^\+\d+$/.test(value)) return false;
+
+            //         // INDIA RULE: +91 + 10 digits, cannot start with 0
+            //         if (value.startsWith('+91')) {
+            //             return /^\+91[1-9]\d{9}$/.test(value);
+            //         }
+
+            //         // OTHER COUNTRIES: E.164 compliant → +{1–3 digit country}{4–14 digits}
+            //         // Total length max 15 digits after "+"
+            //         return /^\+\d{4,15}$/.test(value);
+            //     },
+            //     message: (props: { value: string }) => `${props.value} is not a valid phone number`,
+            // },
         },
 
         profilePhotoFileId: {
@@ -126,25 +166,48 @@ const userSchema = new Schema<UserDocument>(
 
         source: {
             type: String,
-            required: false, // Make optional for existing users
-            enum: {
-                values: [
-                    'Email',
-                    'WhatsApp',
-                    'Telegram',
-                    'Instagram',
-                    'Facebook',
-                    'Journals',
-                    'Posters',
-                    'Brochures',
-                    'Forums',
-                    'Google',
-                    'Conversational AI (GPT, Gemini etc)',
-                ],
-                message:
-                    'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc)',
-            },
+            required: false,
             index: true,
+            set: function (this: UserDocument, value: string): string {
+                if (!value) return 'Direct'; // empty -> Direct
+                return allowedSources.includes(value) ? value : 'Direct';
+            },
+        },
+
+        // source: {
+        //     type: String,
+        //     required: false, // Make optional for existing users
+        //     enum: {
+        //         values: [
+        //             'Email',
+        //             'WhatsApp',
+        //             'Telegram',
+        //             'Instagram',
+        //             'Facebook',
+        //             'Journals',
+        //             'Posters',
+        //             'Brochures',
+        //             'Forums',
+        //             'Google',
+        //             'Conversational AI (GPT, Gemini etc)',
+        //             'Direct',
+        //         ],
+        //         message:
+        //             'Source must be one of: Email, WhatsApp, Telegram, Instagram, Facebook, Journals, Posters, Brochures, Forums, Google, Conversational AI (GPT, Gemini etc), Direct',
+        //     },
+        //     index: true,
+        // },
+
+        // UTM tracking data for detailed campaign attribution
+        utmData: {
+            utm_source: { type: String, trim: true },
+            utm_medium: { type: String, trim: true },
+            utm_campaign: { type: String, trim: true },
+            utm_content: { type: String, trim: true },
+            utm_term: { type: String, trim: true },
+            referrer: { type: String, trim: true },
+            landing_page: { type: String, trim: true },
+            captured_at: { type: Date },
         },
 
         // Metadata for password reset
@@ -194,37 +257,37 @@ const userSchema = new Schema<UserDocument>(
             virtuals: true,
             transform: function (_doc, ret: any) {
                 // Remove sensitive fields from JSON output
-                if (ret.password) delete ret.password
-                if (ret.refreshTokens) delete ret.refreshTokens
-                if (ret.resetPasswordToken) delete ret.resetPasswordToken
-                if (ret.resetPasswordExpires) delete ret.resetPasswordExpires
-                if (ret.emailVerificationToken) delete ret.emailVerificationToken
-                if (ret.emailVerificationExpires) delete ret.emailVerificationExpires
-                if (ret.__v) delete ret.__v
-                return ret
+                if (ret.password) delete ret.password;
+                if (ret.refreshTokens) delete ret.refreshTokens;
+                if (ret.resetPasswordToken) delete ret.resetPasswordToken;
+                if (ret.resetPasswordExpires) delete ret.resetPasswordExpires;
+                if (ret.emailVerificationToken) delete ret.emailVerificationToken;
+                if (ret.emailVerificationExpires) delete ret.emailVerificationExpires;
+                if (ret.__v) delete ret.__v;
+                return ret;
             },
         },
         toObject: {
             virtuals: true,
         },
     },
-)
+);
 
 // ============================================================================
 // Indexes
 // ============================================================================
 
 // Compound indexes for common queries
-userSchema.index({ email: 1, status: 1 })
-userSchema.index({ role: 1, status: 1 })
-userSchema.index({ createdAt: -1 })
+userSchema.index({ email: 1, status: 1 });
+userSchema.index({ role: 1, status: 1 });
+userSchema.index({ createdAt: -1 });
 
 // Text index for search functionality
 userSchema.index({
     firstName: 'text',
     lastName: 'text',
-    email: 'text'
-})
+    email: 'text',
+});
 // NOTE: TTL indexes on subdocument arrays don't work properly in MongoDB
 // They can cause the entire parent document to be deleted instead of just the subdocument
 // Token cleanup is handled manually in the addRefreshToken method (keeps only last 5 tokens)
@@ -238,15 +301,15 @@ userSchema.index({
  * Full name virtual property
  */
 userSchema.virtual('fullName').get(function (this: UserDocument) {
-    return `${this.firstName} ${this.lastName}`
-})
+    return `${this.firstName} ${this.lastName}`;
+});
 
 /**
  * Check if user is active
  */
 userSchema.virtual('isActive').get(function (this: UserDocument) {
-    return this.status === UserStatus.ACTIVE
-})
+    return this.status === UserStatus.ACTIVE;
+});
 
 // ============================================================================
 // Instance Methods
@@ -260,8 +323,8 @@ userSchema.methods['isPasswordResetTokenValid'] = function (this: UserDocument, 
         this.resetPasswordToken === token &&
         this.resetPasswordExpires !== undefined &&
         this.resetPasswordExpires > new Date()
-    )
-}
+    );
+};
 
 /**
  * Check if email verification token is valid
@@ -271,8 +334,8 @@ userSchema.methods['isEmailVerificationTokenValid'] = function (this: UserDocume
         this.emailVerificationToken === token &&
         this.emailVerificationExpires !== undefined &&
         this.emailVerificationExpires > new Date()
-    )
-}
+    );
+};
 
 /**
  * Add refresh token
@@ -285,43 +348,43 @@ userSchema.methods['addRefreshToken'] = function (
 ): void {
     // Remove old tokens (keep only last 5)
     if (this.refreshTokens.length >= 5) {
-        this.refreshTokens = this.refreshTokens.slice(-4)
+        this.refreshTokens = this.refreshTokens.slice(-4);
     }
 
     const newToken: any = {
         // Store hashed token for security at rest
         token: hashToken(token),
         createdAt: new Date(),
-    }
+    };
 
-    if (userAgent) newToken.userAgent = userAgent
-    if (ipAddress) newToken.ipAddress = ipAddress
+    if (userAgent) newToken.userAgent = userAgent;
+    if (ipAddress) newToken.ipAddress = ipAddress;
 
-    this.refreshTokens.push(newToken)
-}
+    this.refreshTokens.push(newToken);
+};
 
 /**
  * Remove refresh token
  */
 userSchema.methods['removeRefreshToken'] = function (this: UserDocument, token: string): void {
-    const hashed = hashToken(token)
+    const hashed = hashToken(token);
     // Support legacy plain tokens and new hashed tokens
-    this.refreshTokens = this.refreshTokens.filter((rt) => rt.token !== hashed && rt.token !== token)
-}
+    this.refreshTokens = this.refreshTokens.filter((rt) => rt.token !== hashed && rt.token !== token);
+};
 
 /**
  * Remove all refresh tokens (logout from all devices)
  */
 userSchema.methods['removeAllRefreshTokens'] = function (this: UserDocument): void {
-    this.refreshTokens = []
-}
+    this.refreshTokens = [];
+};
 
 /**
  * Update last login timestamp
  */
 userSchema.methods['updateLastLogin'] = function (this: UserDocument): void {
-    this.lastLoginAt = new Date()
-}
+    this.lastLoginAt = new Date();
+};
 
 // ============================================================================
 // Static Methods
@@ -331,35 +394,42 @@ userSchema.methods['updateLastLogin'] = function (this: UserDocument): void {
  * Find user by email
  */
 userSchema.statics['findByEmail'] = function (email: string) {
-    return this.findOne({ email: email.toLowerCase() })
-}
+    return this.findOne({ email: email.toLowerCase() });
+};
+
+/**
+ * Find user by phone number
+ */
+userSchema.statics['findByPhoneNumber'] = function (phoneNumber: string) {
+    return this.findOne({ phoneNumber: phoneNumber.trim() });
+};
 
 /**
  * Find users by role
  */
 userSchema.statics['findByRole'] = function (role: UserRole) {
-    return this.find({ role, status: UserStatus.ACTIVE })
-}
+    return this.find({ role, status: UserStatus.ACTIVE });
+};
 
 /**
  * Search users by text
  */
 userSchema.statics['searchUsers'] = function (searchTerm: string, options: any = {}) {
-    const { role, status, limit = 20, skip = 0 } = options
+    const { role, status, limit = 20, skip = 0 } = options;
 
     const query: any = {
         $text: { $search: searchTerm },
-    }
+    };
 
-    if (role) query.role = role
-    if (status) query.status = status
+    if (role) query.role = role;
+    if (status) query.status = status;
 
     return this.find(query)
         .score({ score: { $meta: 'textScore' } })
         .sort({ score: { $meta: 'textScore' } })
         .limit(limit)
-        .skip(skip)
-}
+        .skip(skip);
+};
 
 // ============================================================================
 // Middleware (Hooks)
@@ -370,21 +440,30 @@ userSchema.statics['searchUsers'] = function (searchTerm: string, options: any =
  */
 userSchema.pre('save', function (this: UserDocument, next) {
     // Ensure email is lowercase
-    if (this.isModified('email')) {
-        this.email = this.email.toLowerCase()
+    if (this.isModified('email') && this.email) {
+        this.email = this.email.toLowerCase();
     }
 
     // Trim and format names
     if (this.isModified('firstName')) {
-        this.firstName = this.firstName.trim()
+        this.firstName = this.firstName.trim();
     }
 
     if (this.isModified('lastName')) {
-        this.lastName = this.lastName.trim()
+        this.lastName = this.lastName.trim();
     }
 
-    next()
-})
+    // Format phone number (add +91 prefix for Indian numbers if not present)
+    if (this.isModified('phoneNumber') && this.phoneNumber) {
+        this.phoneNumber = this.phoneNumber.trim();
+        // Add +91 prefix for Indian numbers if not already prefixed
+        if (this.phoneNumber.length === 10 && /^[6-9]\d{9}$/.test(this.phoneNumber)) {
+            this.phoneNumber = '+91' + this.phoneNumber;
+        }
+    }
+
+    next();
+});
 
 /**
  * Pre-remove middleware to cleanup related data
@@ -421,4 +500,4 @@ userSchema.pre('save', function (this: UserDocument, next) {
 // Model Export
 // ============================================================================
 
-export const User = mongoose.model<UserDocument, UserModel>('User', userSchema)
+export const User = mongoose.model<UserDocument, UserModel>('User', userSchema);
