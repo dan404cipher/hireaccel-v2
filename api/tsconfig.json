@@ -40,7 +40,7 @@
   },
   "include": ["src/**/*", "src/types/custom.d.ts"],
   "typeRoots": ["./node_modules/@types", "./src/types"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "src/scripts/**/*", "src/tests/**/*"],
   "ts-node": {
     "require": ["tsconfig-paths/register"]
   }

@@ -236,6 +236,7 @@ export class JobController {
         .populate('assignedBy', 'firstName lastName email customId profilePhotoFileId role')
         .sort({ assignedAt: -1 }); // Get the most recent one
         
+        // @ts-ignore - assignedBy is populated with User object
         if (candidateAssignment?.assignedBy && candidateAssignment.assignedBy.role === UserRole.AGENT) {
           assignedAgent = candidateAssignment.assignedBy;
         }

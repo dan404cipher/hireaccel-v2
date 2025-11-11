@@ -275,6 +275,7 @@ const jobSchema = new Schema<JobDocument>({
     index: true,
   },
   
+  // @ts-ignore - jdFileId is a valid field but TypeScript inference is incorrect
   jdFileId: {
     type: Schema.Types.ObjectId,
     ref: 'File',

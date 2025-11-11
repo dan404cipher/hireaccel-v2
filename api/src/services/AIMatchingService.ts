@@ -127,8 +127,9 @@ class AIMatchingService {
       salaryRange: job.salaryRange,
       requirements: {
         skills: job.requirements?.skills || [],
-        experience: job.requirements?.experience || {},
-        education: job.requirements?.education || {},
+        experienceMin: job.requirements?.experienceMin,
+        experienceMax: job.requirements?.experienceMax,
+        education: job.requirements?.education || [],
         languages: job.requirements?.languages || [],
         certifications: job.requirements?.certifications || [],
       },

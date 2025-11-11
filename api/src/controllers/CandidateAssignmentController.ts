@@ -406,6 +406,8 @@ export class CandidateAssignmentController {
           },
           priority: NotificationPriority.HIGH,
           actionUrl: '/dashboard/candidate-applications',
+          isRead: false,
+          isArchived: false,
         });
       } catch (error) {
         logger.warn('Failed to send candidate assignment notification', {
@@ -557,6 +559,8 @@ export class CandidateAssignmentController {
           },
           priority: NotificationPriority.MEDIUM,
           actionUrl: '/dashboard/candidate-applications',
+          isRead: false,
+          isArchived: false,
         });
       } catch (error) {
         logger.warn('Failed to send candidate status change notification', {

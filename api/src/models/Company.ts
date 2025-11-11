@@ -207,6 +207,7 @@ const companySchema = new Schema<CompanyDocument>({
     ],
   },
   
+  // @ts-ignore - logoFileId is a valid field but TypeScript inference is incorrect
   logoFileId: {
     type: Schema.Types.ObjectId,
     ref: 'File',

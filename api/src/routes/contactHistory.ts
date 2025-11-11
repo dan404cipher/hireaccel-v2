@@ -69,7 +69,7 @@ router.put(
  */
 router.delete(
   '/:id',
-  requireRole([UserRole.ADMIN, UserRole.SUPERADMIN]),
+  requireRole(UserRole.ADMIN, UserRole.SUPERADMIN),
   ContactHistoryController.deleteContactHistory
 );
 

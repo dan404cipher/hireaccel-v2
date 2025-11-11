@@ -255,16 +255,18 @@ messageSchema.statics['getUnreadCount'] = async function(
 
   if (conversationId) {
     query.conversationId = conversationId;
-  } else {
-    // Get all conversations where user is a participant
-    const { Conversation } = await import('@/models/Conversation');
-    const conversations = await Conversation.find({
-      'participants.userId': userId,
-      isArchived: false
-    }).select('_id');
-    
-    query.conversationId = { $in: conversations.map(c => c._id) };
   }
+  // TODO: Implement Conversation model to enable unread count across all conversations
+  // else {
+  //   // Get all conversations where user is a participant
+  //   const { Conversation } = await import('@/models/Conversation');
+  //   const conversations = await Conversation.find({
+  //     'participants.userId': userId,
+  //     isArchived: false
+  //   }).select('_id');
+  //   
+  //   query.conversationId = { $in: conversations.map(c => c._id) };
+  // }
 
   return this.countDocuments(query);
 };

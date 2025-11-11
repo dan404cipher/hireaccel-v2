@@ -115,9 +115,6 @@ const envSchema = z.object({
     CSRF_HEADER_NAME: z.string().default('X-CSRF-Token'),
 
     // AWS S3 Configuration
-    AWS_REGION: z.string().optional(),
-    AWS_ACCESS_KEY_ID: z.string().optional(),
-    AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_S3_BUCKET_NAME: z.string().optional(),
     AWS_S3_ENABLED: z
         .string()

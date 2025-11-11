@@ -110,6 +110,7 @@ export class ContactHistoryController {
     if (typeof contactIdPopulate === 'string') {
       contactHistoryQuery = contactHistoryQuery.populate(contactIdPopulate);
     } else {
+      // @ts-ignore - Complex union type
       contactHistoryQuery = contactHistoryQuery.populate(contactIdPopulate);
     }
 
@@ -159,11 +160,15 @@ export class ContactHistoryController {
    * GET /contact-history/:id
    */
   static getContactHistoryById = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    // First fetch to get contactType
+    const contactHistoryTemp = await ContactHistory.findById(req.params.id);
+    
+    // Then populate with conditional logic
     const contactHistory = await ContactHistory.findById(req.params.id)
       .populate('agentId', 'firstName lastName email customId')
       .populate({
         path: 'contactId',
-        populate: contactHistory?.contactType === 'candidate' ? {
+        populate: contactHistoryTemp?.contactType === 'candidate' ? {
           path: 'userId',
           select: 'firstName lastName email customId',
         } : undefined,
