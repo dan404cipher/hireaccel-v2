@@ -9,6 +9,8 @@ class ResumeParserService {
   constructor() {
     this.openai = new OpenAI({
       apiKey: env.OPENAI_API_KEY,
+      timeout: 60000, // 60 second timeout
+      maxRetries: 2, // Retry twice on failure
     });
   }
 
@@ -19,6 +21,24 @@ class ResumeParserService {
    */
   async parseResume(resumeText: string): Promise<Partial<CandidateProfile>> {
     try {
+      // Validate resume text length (prevent excessive OpenAI costs and timeouts)
+      if (!resumeText || resumeText.trim().length < 50) {
+        throw new Error('Resume text is too short or empty');
+      }
+      
+      // Limit resume text to prevent token overflow and excessive costs
+      const MAX_RESUME_LENGTH = 50000; // ~12,500 tokens (assuming 4 chars per token)
+      const trimmedText = resumeText.length > MAX_RESUME_LENGTH 
+        ? resumeText.substring(0, MAX_RESUME_LENGTH) + '\n\n[Text truncated due to length]'
+        : resumeText;
+      
+      logger.info('Starting resume parsing', {
+        originalLength: resumeText.length,
+        trimmedLength: trimmedText.length,
+        wasTruncated: resumeText.length > MAX_RESUME_LENGTH,
+        businessProcess: 'resume_parsing',
+      });
+      
       // Create a structured prompt that will help minimize token usage
       const prompt = `Extract the following information from this resume. Format as JSON. Only include fields that are present in the resume. For all dates, use YYYY-MM format (e.g., "2023-09") or "present" for current positions:
 {
@@ -60,10 +80,11 @@ class ResumeParserService {
 }
 
 Resume text:
-${resumeText}`;
+${trimmedText}`;
 
-      // Make API call with optimized parameters
-      const response = await this.openai.chat.completions.create({
+      // Make API call with optimized parameters and timeout
+      const response = await Promise.race([
+        this.openai.chat.completions.create({
         model: 'gpt-3.5-turbo-16k', // Updated to use available model
         messages: [
           {
@@ -77,7 +98,12 @@ ${resumeText}`;
         ],
         response_format: { type: "json_object" }, // Ensure JSON response
         temperature: 0.1, // Low temperature for more consistent outputs
-      });
+      }),
+        // Add additional timeout layer as safety net
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('OpenAI API call timed out after 60 seconds')), 60000)
+        ),
+      ]);
 
       // Parse and validate the response
       let parsedData;

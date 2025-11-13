@@ -15,6 +15,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { initializeAnalytics } from './utils/analytics';
 import { useAnalyticsTracker } from './hooks/useAnalyticsTracker';
 import { captureUTMParams, storeUTMParams } from './utils/utmTracking';
+import ScrollToTop from './components/ScrollToTop';
 
 // Lazy load all page components for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -280,7 +281,7 @@ function AppRouter() {
                 <Route
                     path='jobs/:jobId'
                     element={
-                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent']}>
+                        <RoleProtectedRoute allowedRoles={['admin', 'superadmin', 'hr', 'agent', 'candidate']}>
                             <JobDetailsPage />
                         </RoleProtectedRoute>
                     }
@@ -477,6 +478,7 @@ const App = () => {
                             <AuthProvider>
                                 <NotificationProvider>
                                     <BannerProvider>
+                                        <ScrollToTop />
                                         <AnalyticsTrackerWrapper />
                                         <PerformanceMonitor />
                                         <AppRouter />

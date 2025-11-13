@@ -1209,12 +1209,50 @@ export default function InterviewManagement() {
             </CardHeader>
             <CardContent>
               {interviewsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading interviews...</p>
-                  </div>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Candidate & Job</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Type & Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      {user?.role !== 'candidate' && <TableHead></TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                            <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                            <div className="h-3 bg-gray-300 rounded w-28 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                            <div className="h-3 bg-gray-300 rounded w-20 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                            <div className="h-3 bg-gray-300 rounded w-32 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 bg-gray-300 rounded w-24 animate-pulse"></div>
+                        </TableCell>
+                        {user?.role !== 'candidate' && (
+                          <TableCell>
+                            <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : interviewsError ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="text-center">

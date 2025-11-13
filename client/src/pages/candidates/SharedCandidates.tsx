@@ -687,19 +687,35 @@ const SharedCandidates: React.FC = () => {
     [filteredAssignments, pageOffset]
   );
 
+  // Check if any filters are active
+  const hasActiveFilters = useMemo(() => {
+    return (
+      searchTerm.trim() !== '' ||
+      candidateStatusFilter !== 'all' ||
+      jobFilter !== 'all' ||
+      companyFilter !== 'all' ||
+      searchParams.get('jobId') !== null
+    );
+  }, [searchTerm, candidateStatusFilter, jobFilter, companyFilter, searchParams]);
+
   const totalAssignments = useMemo(() => {
+    // When filters are active, always use filtered count
+    if (hasActiveFilters) {
+      return filteredAssignments.length;
+    }
+    // When no filters, use stats or meta total
     if (typeof totalFromStats === 'number') {
       return totalFromStats;
     }
     if (typeof meta?.total === 'number' && meta.total > 0) {
-      return Math.max(meta.total, filteredAssignments.length);
+      return meta.total;
     }
     return filteredAssignments.length;
-  }, [totalFromStats, meta, filteredAssignments.length]);
+  }, [hasActiveFilters, totalFromStats, meta, filteredAssignments.length]);
 
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(totalAssignments / PAGE_SIZE)),
-    [totalAssignments]
+    () => Math.max(1, Math.ceil(filteredAssignments.length / PAGE_SIZE)),
+    [filteredAssignments.length]
   );
 
   const pageIndicators = useMemo(
@@ -708,11 +724,11 @@ const SharedCandidates: React.FC = () => {
   );
 
   const hasMore = currentPage < totalPages;
-  const rangeStart = totalAssignments === 0 ? 0 : Math.min(totalAssignments, pageOffset + 1);
+  const rangeStart = filteredAssignments.length === 0 ? 0 : Math.min(filteredAssignments.length, pageOffset + 1);
   const rangeEnd =
-    totalAssignments === 0
+    filteredAssignments.length === 0
       ? 0
-      : Math.min(totalAssignments, pageOffset + paginatedAssignments.length);
+      : Math.min(filteredAssignments.length, pageOffset + paginatedAssignments.length);
 
   useEffect(() => {
     if (!loading && totalPages > 0 && currentPage > totalPages) {
@@ -1679,190 +1695,256 @@ const SharedCandidates: React.FC = () => {
       {/* Banner */}
       <DashboardBanner category="hr" />
 
-
-
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90"></div>
-          <CardContent className="relative p-4">
-            <div className="flex items-center space-x-2">
-              <div className="text-blue-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <User className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white/90">Total Assigned Candidates</p>
-                <p className="text-2xl font-bold text-white">{totalAssignments}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90"></div>
-          <CardContent className="relative p-4">
-            <div className="flex items-center space-x-2">
-              <div className="text-emerald-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Briefcase className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white/90">{user?.role === 'agent' ? 'Active HRs' : 'Active Agents'}</p>
-                <p className="text-2xl font-bold text-white">
-                  {user?.role === 'agent' 
-                    ? Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length
-                    : Array.from(new Set(assignments.map((a: any) => a.assignedBy?.id))).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90"></div>
-          <CardContent className="relative p-4">
-            <div className="flex items-center space-x-2">
-              <div className="text-purple-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
-                <Building2 className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-white/90">Companies</p>
-                <p className="text-2xl font-bold text-white">
-                  {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-
-
-      {/* Filters */}
-      <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-200">
-        <CardContent className="p-4">
-          <div className="flex space-x-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-600 w-4 h-4" />
-                <Input
-                  placeholder="Search candidates..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
-                />
-              </div>
-            </div>
-            <Select value={candidateStatusFilter} onValueChange={setCandidateStatusFilter}>
-              <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
-                <User className="w-4 h-4 mr-2 text-blue-600" />
-                <SelectValue placeholder="Candidate Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="reviewed">Reviewed</SelectItem>
-                <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
-                <SelectItem value="interviewed">Interviewed</SelectItem>
-                <SelectItem value="offer_sent">Offer Sent</SelectItem>
-                <SelectItem value="hired">Hired</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={jobFilter} onValueChange={setJobFilter}>
-              <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
-                <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
-                <SelectValue placeholder="Job" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Jobs</SelectItem>
-                {Array.from(new Set(assignments
-                  .filter((a: CandidateAssignment) => a.jobId?.title)
-                  .map((a: CandidateAssignment) => a.jobId!.title)
-                )).map((jobTitle: string) => (
-                  <SelectItem key={jobTitle} value={jobTitle}>
-                    {jobTitle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={companyFilter} onValueChange={setCompanyFilter}>
-              <SelectTrigger className="w-40 border-amber-200 focus:border-amber-400 focus:ring-amber-400">
-                <Building2 className="w-4 h-4 mr-2 text-amber-600" />
-                <SelectValue placeholder="Company" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Companies</SelectItem>
-                {Array.from(new Set(assignments
-                  .filter((a: CandidateAssignment) => a.jobId?.companyId?.name)
-                  .map((a: CandidateAssignment) => a.jobId!.companyId!.name)
-                )).map((companyName: string) => (
-                  <SelectItem key={companyName} value={companyName}>
-                    {companyName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={candidateSort} onValueChange={setCandidateSort}>
-              <SelectTrigger className="w-48 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
-                <ArrowUpDown className="w-4 h-4 mr-2 text-emerald-600" />
-                <SelectValue placeholder="Sort By" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="assignedAt-desc">Newest Assigned</SelectItem>
-                <SelectItem value="assignedAt-asc">Oldest Assigned</SelectItem>
-                <SelectItem value="candidate-asc">Candidate (A-Z)</SelectItem>
-                <SelectItem value="candidate-desc">Candidate (Z-A)</SelectItem>
-                <SelectItem value="job-asc">Job Title (A-Z)</SelectItem>
-                <SelectItem value="job-desc">Job Title (Z-A)</SelectItem>
-                <SelectItem value="priority-desc">Priority (High to Low)</SelectItem>
-                <SelectItem value="priority-asc">Priority (Low to High)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Assignments List */}
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      ) : filteredAssignments.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-gray-900">No candidates assigned</h3>
-              <p className="text-gray-600">
-                You don't have any candidate assignments matching the current filters.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-6">
-          {paginatedAssignments.map(renderAssignmentCard).filter(Boolean)}
-        </div>
-      )}
+        <>
+          {/* Stats Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-gray-300 rounded-lg h-24 animate-pulse"></div>
+            ))}
+          </div>
 
-      {/* Pagination */}
-      {!loading && filteredAssignments.length > 0 && (
+          {/* Filters Card Skeleton */}
+          <div className="bg-white rounded-lg border p-4 animate-pulse">
+            <div className="flex space-x-4">
+              <div className="flex-1 h-10 bg-gray-300 rounded"></div>
+              <div className="w-40 h-10 bg-gray-300 rounded"></div>
+              <div className="w-40 h-10 bg-gray-300 rounded"></div>
+              <div className="w-40 h-10 bg-gray-300 rounded"></div>
+              <div className="w-48 h-10 bg-gray-300 rounded"></div>
+            </div>
+          </div>
+
+          {/* Assignment Cards Skeleton */}
+          <div className="grid grid-cols-1 gap-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-lg border p-4 animate-pulse">
+                <div className="flex gap-4">
+                  {/* Avatar Skeleton */}
+                  <div className="w-16 h-16 bg-gray-300 rounded-full flex-shrink-0"></div>
+                  
+                  {/* Content Skeleton */}
+                  <div className="flex-1 space-y-3">
+                    {/* Row 1: Name and Badges */}
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="h-5 bg-gray-300 rounded w-1/3"></div>
+                        <div className="flex gap-2">
+                          <div className="h-5 bg-gray-300 rounded w-20"></div>
+                          <div className="h-5 bg-gray-300 rounded w-24"></div>
+                        </div>
+                      </div>
+                      <div className="w-8 h-8 bg-gray-300 rounded"></div>
+                    </div>
+
+                    {/* Row 2: Job and Company */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-300 rounded w-16"></div>
+                        <div className="h-4 bg-gray-300 rounded w-32"></div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-300 rounded w-20"></div>
+                        <div className="h-4 bg-gray-300 rounded w-28"></div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-300 rounded w-24"></div>
+                        <div className="h-4 bg-gray-300 rounded w-36"></div>
+                      </div>
+                    </div>
+
+                    {/* Row 3: Experience and Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="h-4 bg-gray-300 rounded w-28"></div>
+                      <div className="h-4 bg-gray-300 rounded w-32"></div>
+                      <div className="h-4 bg-gray-300 rounded w-24"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-90"></div>
+              <CardContent className="relative p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="text-blue-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/90">Total Assigned Candidates</p>
+                    <p className="text-2xl font-bold text-white">{totalAssignments}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 to-emerald-600 opacity-90"></div>
+              <CardContent className="relative p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="text-emerald-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <Briefcase className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/90">{user?.role === 'agent' ? 'Active HRs' : 'Active Agents'}</p>
+                    <p className="text-2xl font-bold text-white">
+                      {user?.role === 'agent' 
+                        ? Array.from(new Set(assignments.map((a: any) => a.assignedTo?.id))).length
+                        : Array.from(new Set(assignments.map((a: any) => a.assignedBy?.id))).length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-600 opacity-90"></div>
+              <CardContent className="relative p-4">
+                <div className="flex items-center space-x-2">
+                  <div className="text-purple-100 bg-white/20 p-2 rounded-lg backdrop-blur-sm">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white/90">Companies</p>
+                    <p className="text-2xl font-bold text-white">
+                      {Array.from(new Set(assignments.filter((a: any) => a.jobId?.companyId?.name).map((a: any) => a.jobId.companyId.name))).length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          <Card className="bg-gradient-to-r from-emerald-50 to-blue-50 border-emerald-200">
+            <CardContent className="p-4">
+              <div className="flex space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-emerald-600 w-4 h-4" />
+                    <Input
+                      placeholder="Search candidates..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400"
+                    />
+                  </div>
+                </div>
+                <Select value={candidateStatusFilter} onValueChange={setCandidateStatusFilter}>
+                  <SelectTrigger className="w-40 border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                    <User className="w-4 h-4 mr-2 text-blue-600" />
+                    <SelectValue placeholder="Candidate Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="new">New</SelectItem>
+                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                    <SelectItem value="interview_scheduled">Interview Scheduled</SelectItem>
+                    <SelectItem value="interviewed">Interviewed</SelectItem>
+                    <SelectItem value="offer_sent">Offer Sent</SelectItem>
+                    <SelectItem value="hired">Hired</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={jobFilter} onValueChange={setJobFilter}>
+                  <SelectTrigger className="w-40 border-purple-200 focus:border-purple-400 focus:ring-purple-400">
+                    <Briefcase className="w-4 h-4 mr-2 text-purple-600" />
+                    <SelectValue placeholder="Job" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Jobs</SelectItem>
+                    {Array.from(new Set(assignments
+                      .filter((a: CandidateAssignment) => a.jobId?.title)
+                      .map((a: CandidateAssignment) => a.jobId!.title)
+                    )).map((jobTitle: string) => (
+                      <SelectItem key={jobTitle} value={jobTitle}>
+                        {jobTitle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                  <SelectTrigger className="w-40 border-amber-200 focus:border-amber-400 focus:ring-amber-400">
+                    <Building2 className="w-4 h-4 mr-2 text-amber-600" />
+                    <SelectValue placeholder="Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Companies</SelectItem>
+                    {Array.from(new Set(assignments
+                      .filter((a: CandidateAssignment) => a.jobId?.companyId?.name)
+                      .map((a: CandidateAssignment) => a.jobId!.companyId!.name)
+                    )).map((companyName: string) => (
+                      <SelectItem key={companyName} value={companyName}>
+                        {companyName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={candidateSort} onValueChange={setCandidateSort}>
+                  <SelectTrigger className="w-48 border-emerald-200 focus:border-emerald-400 focus:ring-emerald-400">
+                    <ArrowUpDown className="w-4 h-4 mr-2 text-emerald-600" />
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="assignedAt-desc">Newest Assigned</SelectItem>
+                    <SelectItem value="assignedAt-asc">Oldest Assigned</SelectItem>
+                    <SelectItem value="candidate-asc">Candidate (A-Z)</SelectItem>
+                    <SelectItem value="candidate-desc">Candidate (Z-A)</SelectItem>
+                    <SelectItem value="job-asc">Job Title (A-Z)</SelectItem>
+                    <SelectItem value="job-desc">Job Title (Z-A)</SelectItem>
+                    <SelectItem value="priority-desc">Priority (High to Low)</SelectItem>
+                    <SelectItem value="priority-asc">Priority (Low to High)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Assignments List */}
+          {filteredAssignments.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold text-gray-900">No candidates assigned</h3>
+                  <p className="text-gray-600">
+                    You don't have any candidate assignments matching the current filters.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {paginatedAssignments.map(renderAssignmentCard).filter(Boolean)}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredAssignments.length > 0 && (
         <div className="mt-6 flex flex-col gap-4 rounded-lg border bg-white px-4 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div className="text-sm text-muted-foreground">
             Showing <span className="font-medium">{rangeStart}</span> to{' '}
             <span className="font-medium">{rangeEnd}</span> of{' '}
             <span className="font-medium">{totalAssignments}</span> shared candidates
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1 || loading}
-            >
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Previous
-            </Button>
-            {totalPages > 1 && (
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCurrentPage(prev => Math.max(1, prev - 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={currentPage === 1 || loading}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Previous
+              </Button>
               <div className="flex items-center gap-1">
                 {pageIndicators.map((indicator, index) =>
                   indicator === 'ellipsis' ? (
@@ -1874,7 +1956,10 @@ const SharedCandidates: React.FC = () => {
                       key={`shared-page-${indicator}`}
                       variant={currentPage === indicator ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setCurrentPage(indicator)}
+                      onClick={() => {
+                        setCurrentPage(indicator);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
                       className="w-9"
                     >
                       {indicator}
@@ -1882,18 +1967,23 @@ const SharedCandidates: React.FC = () => {
                   )
                 )}
               </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={!hasMore || loading}
-            >
-              Next
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                disabled={!hasMore || loading}
+              >
+                Next
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
+          )}
+        </>
       )}
 
       {/* Feedback Dialog */}

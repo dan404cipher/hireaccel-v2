@@ -1,25 +1,13 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { logger } from '@/config/logger';
 import { env } from '@/config/env';
 
 export class EmailService {
-  private static transporter = nodemailer.createTransport({
-    host: env.EMAIL_HOST || 'smtp.gmail.com',
-    port: env.EMAIL_PORT || 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: env.EMAIL_USER,
-      pass: env.EMAIL_PASS,
-    },
-  });
+  private static resend = new Resend(env.RESEND_API_KEY);
 
   static async sendOTP(email: string, otp: string, firstName: string = 'User'): Promise<void> {
     try {
-      const mailOptions = {
-        from: `"Hiring Accelerator" <${env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Verify Your Email - Hiring Accelerator',
-        html: `
+      const htmlContent = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -67,8 +55,9 @@ export class EmailService {
             </div>
           </body>
           </html>
-        `,
-        text: `
+        `;
+
+      const textContent = `
 Welcome to Hiring Accelerator, ${firstName}!
 
 Your email verification code is: ${otp}
@@ -79,10 +68,16 @@ If you didn't create an account with us, please ignore this email.
 
 Best regards,
 Hiring Accelerator Team
-        `
-      };
+        `;
 
-      await this.transporter.sendMail(mailOptions);
+      await this.resend.emails.send({
+        from: `Hiring Accelerator <${env.EMAIL_FROM}>`,
+        to: email,
+        subject: 'Verify Your Email - Hiring Accelerator',
+        html: htmlContent,
+        text: textContent,
+        replyTo: `support@updates.hireaccel.in`,
+      });
       
       logger.info('OTP email sent successfully', {
         email: email,
@@ -99,11 +94,7 @@ Hiring Accelerator Team
 
   static async sendWelcomeEmail(email: string, firstName: string, customId: string): Promise<void> {
     try {
-      const mailOptions = {
-        from: `"Hiring Accelerator" <${env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Welcome to Hiring Accelerator!',
-        html: `
+      const htmlContent = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -148,10 +139,15 @@ Hiring Accelerator Team
             </div>
           </body>
           </html>
-        `
-      };
+        `;
 
-      await this.transporter.sendMail(mailOptions);
+      await this.resend.emails.send({
+        from: `Welcome Team <${env.EMAIL_FROM}>`,
+        to: email,
+        subject: 'Welcome to Hiring Accelerator!',
+        html: htmlContent,
+        replyTo: `support@updates.hireaccel.in`,
+      });
       
       logger.info('Welcome email sent successfully', {
         email: email,
@@ -200,11 +196,7 @@ Hiring Accelerator Team
         isProductionUrl: !frontendUrl.includes('localhost'),
       });
       
-      const mailOptions = {
-        from: `"Hiring Accelerator" <${env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Reset Your Password - Hiring Accelerator',
-        html: `
+      const htmlContent = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -260,8 +252,9 @@ Hiring Accelerator Team
             </div>
           </body>
           </html>
-        `,
-        text: `
+        `;
+
+      const textContent = `
 Hello ${firstName}!
 
 We received a request to reset your password for your Hiring Accelerator account.
@@ -277,10 +270,16 @@ If you're having trouble with the link above, please contact our support team.
 
 Best regards,
 Hiring Accelerator Team
-        `
-      };
+        `;
 
-      await this.transporter.sendMail(mailOptions);
+      await this.resend.emails.send({
+        from: `Security Team <${env.EMAIL_FROM}>`,
+        to: email,
+        subject: 'Reset Your Password - Hiring Accelerator',
+        html: htmlContent,
+        text: textContent,
+        replyTo: `support@updates.hireaccel.in`,
+      });
       
       logger.info('Password reset email sent successfully', {
         email: email,

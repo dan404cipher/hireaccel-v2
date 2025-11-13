@@ -577,7 +577,7 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
         <div className={className}>
             {renderHeader()}
             <form
-                className='space-y-4 sm:space-y-5'
+                className='space-y-3'
                 data-gtm-form={config.formId}
                 data-gtm-cta-funnel={config.funnel}
                 data-gtm-cta-step='1'
@@ -586,8 +586,8 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                     handleSubmit();
                 }}
             >
-                <div className='space-y-2'>
-                    <Label htmlFor={getFieldId('fullName')} className='text-gray-700 font-medium text-sm sm:text-base'>
+                <div className='space-y-1.5'>
+                    <Label htmlFor={getFieldId('fullName')} className='text-gray-700 font-medium text-xs sm:text-sm'>
                         Name*
                     </Label>
                     <Input
@@ -604,16 +604,16 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                             }
                         }}
                         required
-                        className={`h-10 sm:h-11 ${nameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                        className={`h-9 ${nameError ? 'border-red-500 focus:border-red-500' : ''}`}
                         data-gtm-element={`${config.elementPrefix}_name_input`}
                     />
                     {nameError && <p className='text-xs sm:text-sm text-red-500'>{nameError}</p>}
                 </div>
 
-                <div className='space-y-2'>
+                <div className='space-y-1.5'>
                     <Label
                         htmlFor={getFieldId('phone')}
-                        className='block text-gray-700 font-medium text-sm sm:text-base'
+                        className='block text-gray-700 font-medium text-xs sm:text-sm'
                     >
                         Phone number*
                     </Label>
@@ -664,15 +664,15 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                                 setPhoneError('');
                             }}
                             required
-                            className={`h-10 sm:h-11 ${phoneError ? 'border-red-500 focus:border-red-500' : ''}`}
+                            className={`h-9 ${phoneError ? 'border-red-500 focus:border-red-500' : ''}`}
                             data-gtm-element={`${config.elementPrefix}_phone_input`}
                         />
                     </div>
                     {phoneError && <p className='text-xs sm:text-sm text-red-500'>{phoneError}</p>}
                 </div>
 
-                <div className='space-y-2'>
-                    <Label htmlFor={getFieldId('email')} className='text-gray-700 font-medium text-sm sm:text-base'>
+                <div className='space-y-1.5'>
+                    <Label htmlFor={getFieldId('email')} className='text-gray-700 font-medium text-xs sm:text-sm'>
                         Email*
                     </Label>
                     <Input
@@ -689,17 +689,17 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                             }
                         }}
                         required
-                        className={`h-10 sm:h-11 ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
+                        className={`h-9 ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
                         data-gtm-element={`${config.elementPrefix}_email_input`}
                     />
                     {emailError && <p className='text-xs sm:text-sm text-red-500'>{emailError}</p>}
                 </div>
 
                 {role === 'hr' && (
-                    <div className='space-y-2'>
+                    <div className='space-y-1.5'>
                         <Label
                             htmlFor={getFieldId('designation')}
-                            className='text-gray-700 font-medium text-sm sm:text-base'
+                            className='text-gray-700 font-medium text-xs sm:text-sm'
                         >
                             Designation (Optional)
                         </Label>
@@ -710,15 +710,15 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                             value={designation}
                             onChange={(e) => setDesignation(e.target.value)}
                             maxLength={100}
-                            className='h-10 sm:h-11'
+                            className='h-9'
                             data-gtm-element={`${config.elementPrefix}_designation_input`}
                         />
                         <p className='text-xs text-gray-500'>Help us understand your role</p>
                     </div>
                 )}
 
-                <div className='space-y-2'>
-                    <Label htmlFor={getFieldId('password')} className='text-gray-700 font-medium text-sm sm:text-base'>
+                <div className='space-y-1.5'>
+                    <Label htmlFor={getFieldId('password')} className='text-gray-700 font-medium text-xs sm:text-sm'>
                         Password*
                     </Label>
                     <div className='relative'>
@@ -734,7 +734,7 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                                 }
                             }}
                             required
-                            className={`h-10 sm:h-11 pr-10 ${
+                            className={`h-9 pr-10 ${
                                 passwordError ? 'border-red-500 focus:border-red-500' : ''
                             }`}
                             data-gtm-element={`${config.elementPrefix}_password_input`}
@@ -746,9 +746,9 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                             tabIndex={-1}
                         >
                             {showPassword ? (
-                                <EyeOff size={18} className='sm:w-5 sm:h-5' />
+                                <EyeOff className='h-4 w-4' />
                             ) : (
-                                <Eye size={18} className='sm:w-5 sm:h-5' />
+                                <Eye className='h-4 w-4' />
                             )}
                         </button>
                     </div>
@@ -758,10 +758,10 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                     )}
                 </div>
 
-                <div className='space-y-2'>
+                <div className='space-y-1.5'>
                     <Label
                         htmlFor={getFieldId('confirmPassword')}
-                        className='text-gray-700 font-medium text-sm sm:text-base'
+                        className='text-gray-700 font-medium text-xs sm:text-sm'
                     >
                         Confirm Password*
                     </Label>
@@ -778,7 +778,7 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                                 }
                             }}
                             required
-                            className={`h-10 sm:h-11 pr-10 ${
+                            className={`h-9 pr-10 ${
                                 confirmPasswordError ? 'border-red-500 focus:border-red-500' : ''
                             }`}
                             data-gtm-element={`${config.elementPrefix}_confirm_password_input`}
@@ -790,9 +790,9 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                             tabIndex={-1}
                         >
                             {showConfirmPassword ? (
-                                <EyeOff size={18} className='sm:w-5 sm:h-5' />
+                                <EyeOff className='h-4 w-4' />
                             ) : (
-                                <Eye size={18} className='sm:w-5 sm:h-5' />
+                                <Eye className='h-4 w-4' />
                             )}
                         </button>
                     </div>
@@ -802,14 +802,14 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                     )}
                 </div>
 
-                <div className='space-y-2'>
-                    <Label htmlFor={getFieldId('source')} className='text-gray-700 font-medium text-sm sm:text-base'>
+                <div className='space-y-1.5'>
+                    <Label htmlFor={getFieldId('source')} className='text-gray-700 font-medium text-xs sm:text-sm'>
                         How did you hear about us? (Optional)
                     </Label>
                     <Select value={source || undefined} onValueChange={setSource}>
                         <SelectTrigger
                             id={getFieldId('source')}
-                            className='w-full h-10 sm:h-11'
+                            className='w-full h-9'
                             data-gtm-element={`${config.elementPrefix}_source_select`}
                         >
                             <SelectValue placeholder='Select how you heard about us' />
@@ -850,7 +850,7 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                         !confirmPassword ||
                         password !== confirmPassword
                     }
-                    className='w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-5 sm:py-6 text-base sm:text-lg font-semibold hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300'
+                    className='w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-2.5 text-sm font-semibold hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300'
                     data-gtm-cta={config.ctaId}
                     data-gtm-cta-text={config.ctaText}
                     data-gtm-cta-position='signup_page'

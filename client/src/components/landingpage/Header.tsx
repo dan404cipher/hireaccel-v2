@@ -16,6 +16,7 @@ interface HeaderProps {
     showAuthButtons?: boolean;
     onBackToHome?: () => void;
     showRoleButtons?: boolean;
+    showGetStartedButton?: boolean;
     getStartedHref?: string;
 }
 
@@ -24,6 +25,7 @@ export function Header({
     showAuthButtons = true,
     onBackToHome,
     showRoleButtons = true,
+    showGetStartedButton = true,
     getStartedHref = '/signup',
 }: HeaderProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -116,7 +118,7 @@ export function Header({
                                     </Button>
                                 </>
                             )}
-                            {showAuthButtons && (
+                            {showAuthButtons && showGetStartedButton && (
                                 <Button
                                     onClick={() => navigate(getStartedHref)}
                                     className='bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg'
@@ -184,7 +186,7 @@ export function Header({
                                     </Button>
                                 </>
                             )}
-                            {showAuthButtons && (
+                            {showAuthButtons && showGetStartedButton && (
                                 <Button
                                     onClick={() => navigate(getStartedHref)}
                                     className='justify-start bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:!text-white animate-gradient-x transition-all duration-300 ease-in-out rounded-lg'

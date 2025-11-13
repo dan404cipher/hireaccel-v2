@@ -90,7 +90,7 @@ const LandingPage = () => {
       <WaterLoader />
       <div className="min-h-screen overflow-x-hidden">
       {/* Critical above-the-fold content - no Suspense */}
-      {!isLoading && <Header showAuthButtons={false} showRoleButtons={true} />}
+      {!isLoading && <Header showAuthButtons={true} showRoleButtons={true} showGetStartedButton={false} />}
       <main data-landing-page="true">
         <Hero />
         

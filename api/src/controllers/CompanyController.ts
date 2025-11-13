@@ -33,7 +33,7 @@ const updateCompanySchema = createCompanySchema.partial();
 
 export class CompanyController {
   static getCompanies = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { page = 1, limit = 20, status, search } = req.query;
+    const { page = 1, limit = 20, status, search, sortBy = 'newest' } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     
     const query: any = {
@@ -43,6 +43,7 @@ export class CompanyController {
     if (search) query.$text = { $search: search as string };
     
     // HR-specific filtering: Show companies the HR user created OR has posted jobs for
+    // Admin and Superadmin can see ALL companies (including those created by other admin/superadmin)
     if (req.user!.role === UserRole.HR) {
       // Get all company IDs for jobs posted by this HR user
       const jobCompanyIds = await Job.find({
@@ -73,11 +74,37 @@ export class CompanyController {
       // Filter companies to only include those the HR user created or posted jobs for
       query._id = { $in: allAccessibleCompanyIds };
     }
+    // For Admin and Superadmin: No filtering applied - they see all companies
+    
+    // Build sort based on sortBy parameter
+    let sort: any = { createdAt: -1 }; // Default: newest first
+    switch (sortBy) {
+      case 'name':
+        sort = { name: 1 };
+        break;
+      case 'location':
+        sort = { 'address.city': 1, 'address.state': 1 };
+        break;
+      case 'status':
+        sort = { status: 1 };
+        break;
+      case 'size':
+        sort = { size: 1 };
+        break;
+      case 'newest':
+        sort = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sort = { createdAt: 1 };
+        break;
+      default:
+        sort = { createdAt: -1 };
+    }
     
     const [companies, total] = await Promise.all([
       Company.find(query)
         .populate('createdBy', 'firstName lastName customId')
-        .sort({ rating: -1, totalHires: -1 })
+        .sort(sort)
         .skip(skip)
         .limit(Number(limit)),
       Company.countDocuments(query),

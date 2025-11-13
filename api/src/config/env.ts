@@ -46,7 +46,11 @@ const envSchema = z.object({
     // Frontend URL for email links
     FRONTEND_URL: z.string().url().optional(),
 
-    // Email Configuration (optional for future implementation)
+    // Email Configuration - Resend
+    RESEND_API_KEY: z.string().min(1, 'Resend API key is required'),
+    EMAIL_FROM: z.string().email().optional().default('noreply@updates.hireaccel.in'),
+    
+    // Legacy SMTP Configuration (deprecated - kept for backward compatibility)
     EMAIL_HOST: z.string().optional(),
     EMAIL_PORT: z.string().transform(Number).optional(),
     EMAIL_USER: z.string().email().optional(),

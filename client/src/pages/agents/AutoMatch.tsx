@@ -228,6 +228,49 @@ export default function AutoMatch() {
     return 'Weak Match';
   };
 
+  // Show skeleton loader when initial data is loading
+  if (jobsLoading || candidatesLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="h-8 bg-gray-300 rounded w-48 animate-pulse"></div>
+        </div>
+
+        {/* Tabs Skeleton */}
+        <div className="flex gap-2 mb-6">
+          <div className="h-10 w-48 bg-gray-300 rounded animate-pulse"></div>
+          <div className="h-10 w-48 bg-gray-300 rounded animate-pulse"></div>
+        </div>
+
+        {/* Card Skeleton */}
+        <Card>
+          <CardHeader>
+            <div className="h-6 bg-gray-300 rounded w-64 animate-pulse mb-2"></div>
+            <div className="h-4 bg-gray-300 rounded w-96 animate-pulse"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                <div className="h-10 bg-gray-300 rounded w-full animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-300 rounded w-32 animate-pulse"></div>
+                <div className="h-10 bg-gray-300 rounded w-full animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                <div className="h-10 bg-gray-300 rounded w-48 animate-pulse"></div>
+              </div>
+              <div className="h-10 bg-gray-300 rounded w-32 animate-pulse"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}

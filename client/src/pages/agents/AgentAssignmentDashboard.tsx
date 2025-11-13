@@ -1236,10 +1236,63 @@ export default function AgentAssignmentDashboard() {
             </CardHeader>
             <CardContent>
               {jobsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                  <span className="ml-2">Loading jobs...</span>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job ID</TableHead>
+                      <TableHead>Job Title</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead className="w-[200px]">Salary</TableHead>
+                      <TableHead>Urgency</TableHead>
+                      <TableHead>Posted By</TableHead>
+                      <TableHead>Posted Date</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="h-5 w-20 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-28 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-32 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="space-y-2">
+                              <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                              <div className="h-3 bg-gray-300 rounded w-32 animate-pulse"></div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : filteredJobs.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
@@ -1470,10 +1523,51 @@ export default function AgentAssignmentDashboard() {
             </CardHeader>
             <CardContent>
               {candidatesLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin" />
-                  <span className="ml-2">Loading candidates...</span>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Current Role</TableHead>
+                      <TableHead>Experience</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="space-y-2">
+                              <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                              <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                            <div className="h-3 bg-gray-300 rounded w-28 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-32 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : filteredCandidates.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
@@ -1689,13 +1783,34 @@ export default function AgentAssignmentDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {agentAssignmentLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
-                          <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin" />
-                          <p>Loading HR users...</p>
-                        </TableCell>
-                      </TableRow>
+                    {agentAssignmentLoading || hrLoading ? (
+                      <>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                                <div className="space-y-2">
+                                  <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                                  <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                                <div className="h-3 bg-gray-300 rounded w-28 animate-pulse"></div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </>
                     ) : displayedHRs && displayedHRs.length > 0 ? (
                       displayedHRs.map((hr: any) => (
                         <TableRow key={hr._id}>

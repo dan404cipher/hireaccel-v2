@@ -124,11 +124,73 @@ export default function HRDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-foreground">Loading HR Dashboard</h2>
-          <p className="text-muted-foreground mt-2">Please wait while we fetch your data...</p>
+      <div className="space-y-6">
+        {/* Banner Skeleton */}
+        <div className="h-32 bg-gray-300 rounded-lg animate-pulse"></div>
+
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <div className="h-8 bg-gray-300 rounded w-48 animate-pulse"></div>
+            <div className="h-4 bg-gray-300 rounded w-64 animate-pulse"></div>
+          </div>
+          <div className="h-10 w-32 bg-gray-300 rounded animate-pulse"></div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border p-6 animate-pulse">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 bg-gray-300 rounded-lg"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-300 rounded w-32"></div>
+                  <div className="h-8 bg-gray-300 rounded w-16"></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Main Content Grid Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Jobs List Skeleton */}
+            <div className="bg-white rounded-lg border p-6 animate-pulse">
+              <div className="h-6 w-32 bg-gray-300 rounded mb-4"></div>
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 bg-gray-300 rounded w-1/2"></div>
+                      <div className="h-4 bg-gray-300 rounded w-1/3"></div>
+                    </div>
+                    <div className="h-6 w-20 bg-gray-300 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Recent Activity Skeleton */}
+            <div className="bg-white rounded-lg border p-6 animate-pulse">
+              <div className="h-6 w-40 bg-gray-300 rounded mb-4"></div>
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-full"></div>
+                      <div className="h-3 bg-gray-300 rounded w-2/3"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

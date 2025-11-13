@@ -106,11 +106,29 @@ export class UserController {
         if (role) query.role = role;
         if (status) query.status = status;
         if (search) {
-            query.$or = [
-                { firstName: { $regex: search, $options: 'i' } },
-                { lastName: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } },
+            // Check if search term looks like an ID (starts with letters followed by numbers)
+            const idPattern = /^([A-Z]+)(\d+)$/i;
+            const idMatch = search.trim().match(idPattern);
+            const escapedSearchTerm = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
+            const searchConditions: any[] = [
+                { firstName: { $regex: escapedSearchTerm, $options: 'i' } },
+                { lastName: { $regex: escapedSearchTerm, $options: 'i' } },
+                { email: { $regex: escapedSearchTerm, $options: 'i' } },
             ];
+            
+            // Handle customId search with ID pattern matching (e.g., CAND4 should match CAND00004)
+            if (idMatch && idMatch[1] && idMatch[2]) {
+                const prefix = idMatch[1];
+                const number = idMatch[2];
+                const prefixUpper = prefix.toUpperCase();
+                const escapedPrefix = prefixUpper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                searchConditions.push({ customId: { $regex: `^${escapedPrefix}0*${number}$`, $options: 'i' } });
+            } else {
+                searchConditions.push({ customId: { $regex: escapedSearchTerm, $options: 'i' } });
+            }
+            
+            query.$or = searchConditions;
         }
 
         const sort: any = {};

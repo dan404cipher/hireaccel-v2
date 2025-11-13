@@ -213,11 +213,58 @@ export default function AgentDashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Agent Dashboard</h1>
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <div className="h-8 bg-gray-300 rounded w-48 animate-pulse"></div>
+            <div className="h-4 bg-gray-300 rounded w-64 animate-pulse"></div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-40 bg-gray-300 rounded animate-pulse"></div>
+            <div className="h-10 w-32 bg-gray-300 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Key Metrics Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <LoadingCard key={i} />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border p-6 animate-pulse">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-12 w-12 bg-gray-300 rounded-lg"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-300 rounded w-24"></div>
+                  <div className="h-3 bg-gray-300 rounded w-32"></div>
+                </div>
+              </div>
+              <div className="h-8 w-16 bg-gray-300 rounded"></div>
+            </div>
           ))}
+        </div>
+
+        {/* Charts and Recent Assignments Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Chart Skeleton */}
+          <div className="bg-white rounded-lg border p-6 animate-pulse">
+            <div className="h-6 w-40 bg-gray-300 rounded mb-4"></div>
+            <div className="h-64 bg-gray-300 rounded"></div>
+          </div>
+
+          {/* Recent Assignments Skeleton */}
+          <div className="bg-white rounded-lg border p-6 animate-pulse">
+            <div className="h-6 w-40 bg-gray-300 rounded mb-4"></div>
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-lg border">
+                  <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+                    <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                  </div>
+                  <div className="h-5 w-16 bg-gray-300 rounded"></div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );

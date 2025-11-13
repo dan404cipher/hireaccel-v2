@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { apiClient } from "@/services/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useJobs, useCreateJob, useDeleteJob, useCompanies, useUpdateJob } from "@/hooks/useApi";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardBanner } from "@/components/dashboard/Banner";
@@ -282,6 +282,7 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { toast } = useToast();
   const editIdFromQuery = searchParams.get('editId');
   
   // Initialize filters from URL parameters
@@ -335,6 +336,23 @@ export default function JobManagementIntegrated(): React.JSX.Element {
   const [editJDUploadState, setEditJDUploadState] = useState<'idle' | 'uploading'>('idle');
   const [selectedEditJDFile, setSelectedEditJDFile] = useState<File | null>(null);
   const [isPostUsingJDDialogOpen, setIsPostUsingJDDialogOpen] = useState(false);
+  
+  // Additional state hooks (must be declared before any other hooks)
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(true);
+  const [companiesError, setCompaniesError] = useState(null);
+  const [hiredCandidatesCount, setHiredCandidatesCount] = useState(0);
+  const [hiredCandidatesLoading, setHiredCandidatesLoading] = useState(true);
+  const [allJobsStats, setAllJobsStats] = useState({
+    totalJobs: 0,
+    openJobs: 0,
+    totalApplications: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // All useRef hooks together
+  const lastScrolledPageRef = useRef(page);
+  const lastFetchedUserRef = useRef<{ id?: string; role?: string }>({});
 
   // Skill suggestions data
   const skillSuggestions = [
@@ -379,32 +397,18 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     !createFormData.skills.split(',').map(s => s.trim()).filter(Boolean).includes(skill)
   ).slice(0, 8); // Show max 8 suggestions
 
-  // Debounce search term to prevent excessive API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setPage(1); // Reset to first page when search changes
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-  
-  // Reset to first page when company filter changes
-  useEffect(() => {
-    setPage(1);
-  }, [companyFilter]);
-  
+  // All useMemo hooks together
   // Check if search term looks like an ID - if so, don't send to API (let client-side handle it)
   const isIdSearch = useMemo(() => {
     if (!debouncedSearchTerm) return false;
     return /^[a-z]+0*\d+$/i.test(debouncedSearchTerm) || /^\d+$/.test(debouncedSearchTerm);
   }, [debouncedSearchTerm]);
-  
+
   // Memoize the API parameters to prevent unnecessary re-renders
-  // Don't send ID searches to API - handle them client-side instead
+  // For ID searches, fetch all jobs to search across all pages client-side
   const jobsParams = useMemo(() => ({
-    page, 
-    limit: 20, 
+    page: isIdSearch ? 1 : page,  // Always fetch first page for ID searches
+    limit: isIdSearch ? 1000 : 20,  // Fetch more jobs for ID searches to search across all pages
     // Only send text searches to API, not ID searches
     search: (debouncedSearchTerm && !isIdSearch) ? debouncedSearchTerm : undefined,
     // HR users can only see jobs they posted
@@ -419,41 +423,12 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     refetch: refetchJobs 
   } = useJobs(jobsParams);
 
-  // TEMPORARY FIX: Direct API call to bypass the broken useApi hook
-  const [companies, setCompanies] = useState([]);
-  const [companiesLoading, setCompaniesLoading] = useState(true);
-  const [companiesError, setCompaniesError] = useState(null);
-  
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        setCompaniesLoading(true);
-        const response = await apiClient.getCompanies({ page: 1, limit: 50 });
-        setCompanies(response.data || response);
-        setCompaniesError(null);
-      } catch (error) {
-        console.error('🔍 Direct API error:', error);
-        setCompaniesError(error);
-      } finally {
-        setCompaniesLoading(false);
-      }
-    };
-    
-    fetchCompanies();
-  }, []);
+  // Mutation hooks
+  const { mutate: createJob, loading: createLoading } = useCreateJob();
+  const { mutate: updateJob, loading: updateLoading } = useUpdateJob();
+  const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob();
 
-  // Fetch hired candidates count
-  const [hiredCandidatesCount, setHiredCandidatesCount] = useState(0);
-  const [hiredCandidatesLoading, setHiredCandidatesLoading] = useState(true);
-  
-  // Fetch all jobs stats (not paginated)
-  const [allJobsStats, setAllJobsStats] = useState({
-    totalJobs: 0,
-    openJobs: 0,
-    totalApplications: 0
-  });
-  const [statsLoading, setStatsLoading] = useState(true);
-  
+  // All useCallback hooks together
   const fetchAllJobsStats = useCallback(async () => {
     try {
       setStatsLoading(true);
@@ -513,18 +488,82 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       setHiredCandidatesLoading(false);
     }
   }, [user?.id]);
-  
+
+  // Handle both API response formats: {data: [...], meta: {...}} or direct array
+  // MUST be declared before useEffect hooks that use jobs
+  const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse as any)?.data || [];
+  const meta = Array.isArray(jobsResponse) ? null : (jobsResponse as any)?.meta;
+
+  // All useEffect hooks together
+  // Debounce search term to prevent excessive API calls
   useEffect(() => {
-    fetchAllJobsStats();
-    fetchHiredCandidates();
-  }, [fetchAllJobsStats, fetchHiredCandidates]);
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(1); // Reset to first page when search changes
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
   
-  // Check if HR has any companies
-  const hasCompanies = companies.length > 0;
-  
-  // Redirect to company management if no companies exist
+  // Reset to first page when company filter changes
   useEffect(() => {
-    if (!companiesLoading && user?.role === 'hr' && !hasCompanies) {
+    setPage(1);
+  }, [companyFilter]);
+
+  // Scroll to top after page changes and data loads
+  useEffect(() => {
+    // Only scroll if page changed and loading is complete
+    if (lastScrolledPageRef.current !== page && !jobsLoading && jobs.length > 0) {
+      // Use requestAnimationFrame twice to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          lastScrolledPageRef.current = page;
+        });
+      });
+    }
+  }, [page, jobsLoading, jobs.length]);
+
+  // Fetch companies on mount
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        setCompaniesLoading(true);
+        const response = await apiClient.getCompanies({ page: 1, limit: 50 });
+        setCompanies(response.data || response);
+        setCompaniesError(null);
+      } catch (error) {
+        console.error('🔍 Direct API error:', error);
+        setCompaniesError(error);
+      } finally {
+        setCompaniesLoading(false);
+      }
+    };
+    
+    fetchCompanies();
+  }, []);
+
+  // Fetch stats when user changes
+  useEffect(() => {
+    const currentUserId = user?.id;
+    const currentUserRole = user?.role;
+    const lastFetched = lastFetchedUserRef.current;
+    
+    // Only fetch if user ID or role actually changed
+    if (currentUserId !== lastFetched.id || currentUserRole !== lastFetched.role) {
+      // Update ref immediately to prevent duplicate calls during this render cycle
+      lastFetchedUserRef.current = { id: currentUserId, role: currentUserRole };
+      
+      // Fetch data asynchronously
+      fetchAllJobsStats();
+      fetchHiredCandidates();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.role]); // Functions are stable via useCallback, ref check prevents infinite loops
+
+  // Redirect to company management if no companies exist (for HR users)
+  useEffect(() => {
+    if (!companiesLoading && user?.role === 'hr' && companies.length === 0) {
       toast({
         title: "Add a Company First",
         description: "Please add your company before posting jobs.",
@@ -532,19 +571,16 @@ export default function JobManagementIntegrated(): React.JSX.Element {
       });
       navigate('/dashboard/companies');
     }
-  }, [companiesLoading, hasCompanies, user?.role, navigate, toast]);
+  }, [companiesLoading, companies.length, user?.role, navigate, toast]);
 
-  const { mutate: createJob, loading: createLoading } = useCreateJob();
-  const { mutate: updateJob, loading: updateLoading } = useUpdateJob();
-
-  const { mutate: deleteJob, loading: deleteLoading } = useDeleteJob();
-
-  // Handle both API response formats: {data: [...], meta: {...}} or direct array
-  const jobs = Array.isArray(jobsResponse) ? jobsResponse : (jobsResponse as any)?.data || [];
-  const meta = Array.isArray(jobsResponse) ? null : (jobsResponse as any)?.meta;
-  
-  // Filter jobs (comprehensive client-side filtering)
+  // Filter jobs (comprehensive client-side filtering) - useMemo hook
   const filteredJobs = useMemo(() => {
+    // Safety check: ensure all dependencies are initialized
+    if (!jobs || !Array.isArray(jobs)) return [];
+    if (typeof searchTerm === 'undefined') return [];
+    if (typeof companyFilter === 'undefined') return [];
+    if (typeof sortBy === 'undefined') return [];
+    
     let filtered = jobs.filter(job => {
       if (!searchTerm) {
         // No search term, only apply company filter
@@ -650,16 +686,59 @@ export default function JobManagementIntegrated(): React.JSX.Element {
     return filtered;
   }, [jobs, searchTerm, companyFilter, sortBy]);
 
-  // Auto-open edit dialog when editId is present
+  // Auto-open edit dialog when editId is present in URL
+  // Note: handleEditJob is defined later but will be available when effect runs
   useEffect(() => {
     if (editIdFromQuery && filteredJobs.length > 0) {
       const found = filteredJobs.find((j: any) => (j._id || j.id || j.jobId) === editIdFromQuery);
       if (found) {
-        handleEditJob(found);
+        // handleEditJob will be defined by the time this effect runs
+        // We'll define it with useCallback later or access it via closure
+        const handleEdit = (job: any) => {
+          setSelectedJobForEdit(job);
+          setIsEditDialogOpen(true);
+          // Copy job data to form
+          const salaryMin = job.salaryRange?.min ? String(job.salaryRange.min) : '';
+          const salaryMax = job.salaryRange?.max ? String(job.salaryRange.max) : '';
+          setCreateFormData({
+            title: job.title || '',
+            description: job.description || '',
+            location: job.location || '',
+            address: job.address || {
+              street: '',
+              city: '',
+              state: '',
+              zipCode: '',
+              country: ''
+            },
+            type: job.type || 'full-time',
+            workType: job.workType || 'wfo',
+            salaryMin,
+            salaryMax,
+            currency: job.salaryRange?.currency || 'INR',
+            skills: Array.isArray(job.requirements?.skills) 
+              ? job.requirements.skills.join(', ') 
+              : job.requirements?.skills || '',
+            experienceMin: job.requirements?.experienceMin ? String(job.requirements.experienceMin) : '',
+            experienceMax: job.requirements?.experienceMax ? String(job.requirements.experienceMax) : '',
+            benefits: job.benefits || '',
+            applicationDeadline: job.applicationDeadline || '',
+            interviewRounds: job.interviewRounds || 2,
+            estimatedDuration: job.estimatedDuration || '2-3 weeks',
+            duration: job.duration || '',
+            numberOfOpenings: job.numberOfOpenings ? String(job.numberOfOpenings) : '1',
+            companyId: job.companyId?._id || job.companyId?.id || ''
+          });
+        };
+        handleEdit(found);
       }
     }
   }, [editIdFromQuery, filteredJobs]);
 
+  // Check if HR has any companies (computed value, not a hook)
+  const hasCompanies = companies.length > 0;
+
+  // Regular functions (not hooks) - can be defined after all hooks
   const getStatusColor = (status: string) => {
     switch (status) {
       case "open": return "bg-success text-success-foreground";
@@ -2398,11 +2477,57 @@ export default function JobManagementIntegrated(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           {jobsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-2">Loading jobs...</span>
-            </div>
-          ) : jobsError ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job ID</TableHead>
+                    <TableHead>Job Title</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead className="w-40">Stats</TableHead>
+                    <TableHead>{user?.role === 'hr' ? 'Agent' : 'Posted By'}</TableHead>
+                    <TableHead>Posted Date</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="h-5 w-20 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                          <div className="h-5 bg-gray-300 rounded w-40 animate-pulse"></div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-32 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-28 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-300 rounded w-16 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                          <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : jobsError ? (
             <div className="text-center py-8 text-red-500">
               <p>Error loading jobs. Please try again.</p>
               <Button onClick={() => refetchJobs()} variant="outline" className="mt-2">
@@ -2623,8 +2748,8 @@ export default function JobManagementIntegrated(): React.JSX.Element {
             </Table>
           )}
           
-          {/* Pagination Controls */}
-          {!jobsLoading && !jobsError && jobs.length > 0 && (
+          {/* Pagination Controls - hide during ID search since we fetch all results */}
+          {!jobsLoading && !jobsError && jobs.length > 0 && !isIdSearch && (
             <div className="flex items-center justify-between px-4 py-4 border-t">
               <div className="text-sm text-muted-foreground">
                 {meta ? (
@@ -2656,51 +2781,84 @@ export default function JobManagementIntegrated(): React.JSX.Element {
                   Previous
                 </Button>
                 <div className="flex items-center gap-1">
-                  {meta && meta.totalPages ? (
-                    <>
-                      {Array.from({ length: Math.min(5, meta.totalPages) }, (_, i) => {
-                        const pageNum = i + 1;
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={page === pageNum ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setPage(pageNum)}
-                            className="w-9"
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
-                      {meta.totalPages > 5 && (
-                        <>
-                          <span className="px-2">...</span>
-                          <Button
-                            variant={page === meta.totalPages ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setPage(meta.totalPages)}
-                            className="w-9"
-                          >
-                            {meta.totalPages}
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <Button
-                      variant={page === 1 ? "default" : "outline"}
-                      size="sm"
-                      className="w-9"
-                    >
-                      {page}
-                    </Button>
-                  )}
+                  {(() => {
+                    // Calculate total pages from available data
+                    const PAGE_SIZE = 20;
+                    let totalPages = 1;
+                    
+                    if (meta?.totalPages) {
+                      totalPages = meta.totalPages;
+                    } else if (meta?.total) {
+                      totalPages = Math.ceil(meta.total / PAGE_SIZE);
+                    } else if (allJobsStats.totalJobs > 0) {
+                      totalPages = Math.ceil(allJobsStats.totalJobs / PAGE_SIZE);
+                    } else if (jobs.length > 0) {
+                      // Fallback: if we have jobs but no total, estimate based on current page
+                      totalPages = Math.max(page, Math.ceil(jobs.length / PAGE_SIZE));
+                    }
+                    
+                    // Ensure at least 1 page
+                    totalPages = Math.max(1, totalPages);
+                    
+                    if (totalPages <= 1) {
+                      return (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-9"
+                        >
+                          1
+                        </Button>
+                      );
+                    }
+                    
+                    // Calculate sliding window of 3 pages centered around current page
+                    let startPage = Math.max(1, page - 1);
+                    let endPage = Math.min(totalPages, startPage + 2);
+                    
+                    // Adjust start page if we're near the end
+                    if (endPage - startPage < 2 && startPage > 1) {
+                      startPage = Math.max(1, endPage - 2);
+                    }
+                    
+                    const pagesToShow = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                      pagesToShow.push(i);
+                    }
+                    
+                    return pagesToShow.map((pageNum) => (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                        className="w-9"
+                      >
+                        {pageNum}
+                      </Button>
+                    ));
+                  })()}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage(page + 1)}
-                  disabled={jobs.length < 20}
+                  disabled={(() => {
+                    const PAGE_SIZE = 20;
+                    let totalPages = 1;
+                    
+                    if (meta?.totalPages) {
+                      totalPages = meta.totalPages;
+                    } else if (meta?.total) {
+                      totalPages = Math.ceil(meta.total / PAGE_SIZE);
+                    } else if (allJobsStats.totalJobs > 0) {
+                      totalPages = Math.ceil(allJobsStats.totalJobs / PAGE_SIZE);
+                    } else if (jobs.length > 0) {
+                      totalPages = Math.max(page, Math.ceil(jobs.length / PAGE_SIZE));
+                    }
+                    
+                    return page >= totalPages;
+                  })()}
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-1" />

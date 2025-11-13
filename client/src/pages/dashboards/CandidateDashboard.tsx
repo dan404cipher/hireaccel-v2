@@ -104,8 +104,9 @@ export default function CandidateDashboard() {
   const profileCompletion = calculateProfileCompletion(profileData);
 
   // Process assignments data
-  
-  const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+  const assignments = Array.isArray(assignmentsData) 
+    ? assignmentsData 
+    : ((assignmentsData as any)?.data || []);
   const recentAssignments = assignments.slice(0, 10);
   
 
@@ -198,6 +199,95 @@ export default function CandidateDashboard() {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
+
+  if (assignmentsLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Banner Skeleton */}
+        <div className="h-32 bg-gray-300 rounded-lg animate-pulse"></div>
+
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <div className="h-8 bg-gray-300 rounded w-64 animate-pulse"></div>
+            <div className="h-4 bg-gray-300 rounded w-80 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Profile Completion Card Skeleton */}
+        <div className="bg-white rounded-lg border p-6 animate-pulse">
+          <div className="flex items-center justify-between mb-4">
+            <div className="space-y-2">
+              <div className="h-6 bg-gray-300 rounded w-40"></div>
+              <div className="h-4 bg-gray-300 rounded w-64"></div>
+            </div>
+            <div className="h-10 w-32 bg-gray-300 rounded"></div>
+          </div>
+          <div className="space-y-4">
+            <div className="h-2 bg-gray-300 rounded w-full"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-4 bg-gray-300 rounded w-24"></div>
+                  <div className="h-3 bg-gray-300 rounded w-32"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border p-6 animate-pulse">
+              <div className="h-4 bg-gray-300 rounded w-24 mb-2"></div>
+              <div className="h-8 bg-gray-300 rounded w-16"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Main Content Grid Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Applications Skeleton */}
+          <div className="bg-white rounded-lg border p-6 animate-pulse">
+            <div className="h-6 w-40 bg-gray-300 rounded mb-4"></div>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-gray-300 rounded-lg"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-5 bg-gray-300 rounded w-3/4"></div>
+                      <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+                    </div>
+                    <div className="h-6 w-20 bg-gray-300 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upcoming Interviews Skeleton */}
+          <div className="bg-white rounded-lg border p-6 animate-pulse">
+            <div className="h-6 w-48 bg-gray-300 rounded mb-4"></div>
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="p-4 border rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 bg-gray-300 rounded-full"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-full"></div>
+                      <div className="h-3 bg-gray-300 rounded w-2/3"></div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

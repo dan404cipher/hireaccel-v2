@@ -184,7 +184,7 @@ export default function CompanyManagement() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortBy, setSortBy] = useState("name");
+  const [sortBy, setSortBy] = useState("newest");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
@@ -233,8 +233,13 @@ export default function CompanyManagement() {
       params.status = statusFilter;
     }
     
+    // Add sort parameter
+    if (sortBy) {
+      params.sortBy = sortBy;
+    }
+    
     return params;
-  }, [page, debouncedSearchTerm, statusFilter]);
+  }, [page, debouncedSearchTerm, statusFilter, sortBy]);
 
   // API hooks
   const { 
@@ -252,11 +257,18 @@ export default function CompanyManagement() {
 
   // Handle both API response formats: {data: [...], meta: {...}} or direct array
   const companies = Array.isArray(companiesResponse) ? companiesResponse : ((companiesResponse as any)?.data || []);
-  const meta = Array.isArray(companiesResponse) ? null : (companiesResponse as any)?.meta;
+  const rawMeta = Array.isArray(companiesResponse) ? null : (companiesResponse as any)?.meta;
+  
+  // Transform meta to add totalPages for compatibility (like JobManagement does)
+  const meta = rawMeta ? {
+    ...rawMeta,
+    totalPages: rawMeta.page?.total ?? Math.ceil((rawMeta.total || 0) / (rawMeta.limit || 20))
+  } : null;
 
   useEffect(() => {
-    if (meta?.totalPages && page > meta.totalPages) {
-      setPage(Math.max(meta.totalPages, 1));
+    const totalPages = meta?.totalPages ?? 1;
+    if (totalPages && page > totalPages) {
+      setPage(Math.max(totalPages, 1));
     }
   }, [meta?.totalPages, page]);
 
@@ -264,7 +276,7 @@ export default function CompanyManagement() {
     if (page !== 1) {
       setPage(1);
     }
-  }, [debouncedSearchTerm, statusFilter, sortBy]);
+  }, [debouncedSearchTerm, statusFilter]);
 
   // Check for edit company from navigation state
   useEffect(() => {
@@ -282,45 +294,16 @@ export default function CompanyManagement() {
     }
   }, [companies]);
 
-  // Additional client-side filtering and sorting
-  const filteredCompanies = useMemo(() => {
-    let filtered = companies.filter(company => {
-      if (!searchTerm) return true;
-      const matchesSearch = company.name?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
-    });
-
-    // Sort companies
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return (a.name || "").localeCompare(b.name || "");
-        case "location":
-          return (a.location || "").localeCompare(b.location || "");
-        case "status":
-          return (a.status || "").localeCompare(b.status || "");
-        case "size":
-          return (a.size || "").localeCompare(b.size || "");
-        case "newest":
-          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-        case "oldest":
-          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [companies, searchTerm, sortBy]);
-
-  const canGoNext = meta ? page < (meta.totalPages || 1) : filteredCompanies.length === PAGE_SIZE;
-  const startItem = filteredCompanies.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const endItem = filteredCompanies.length === 0 ? 0 : (page - 1) * PAGE_SIZE + filteredCompanies.length;
-  const totalCompanies = meta?.total ?? endItem;
-  const totalPages = meta?.totalPages ?? (filteredCompanies.length === 0 ? 1 : page + (canGoNext ? 1 : 0));
+  // Use companies directly from API - no client-side filtering/sorting to avoid pagination issues
+  // The API handles search filtering, and sorting should be done on the backend for proper pagination
+  const totalPages = meta?.totalPages ?? 1;
+  const canGoNext = meta ? (meta.page?.hasMore ?? (page < totalPages)) : false;
+  const startItem = companies.length === 0 ? 0 : ((page - 1) * PAGE_SIZE) + 1;
+  const endItem = companies.length === 0 ? 0 : ((page - 1) * PAGE_SIZE) + companies.length;
+  const totalCompanies = meta?.total ?? companies.length;
   const pageIndicators = useMemo(() => {
-    if (meta?.totalPages) {
-      const total = Math.max(meta.totalPages, 1);
+    if (totalPages) {
+      const total = Math.max(totalPages, 1);
       if (total <= 5) {
         return Array.from({ length: total }, (_, i) => i + 1);
       }
@@ -341,7 +324,7 @@ export default function CompanyManagement() {
     }
 
     return [page];
-  }, [meta?.totalPages, page]);
+  }, [totalPages, page]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -670,6 +653,7 @@ export default function CompanyManagement() {
       setIsCreateDialogOpen(false);
       setCreateFormData({}); // Clear form
       clearAllFieldErrors(); // Clear any previous errors
+      setPage(1); // Reset to first page to show the newly created company
       refetchCompanies();
       toast({
         title: "Success",
@@ -1055,10 +1039,52 @@ export default function CompanyManagement() {
             </CardHeader>
             <CardContent>
           {companiesLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="text-muted-foreground">Loading companies...</div>
+            <div className="relative overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company ID</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>{user?.role === 'hr' ? 'Total Jobs' : 'HR'}</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="h-5 w-24 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-gray-300 rounded-full animate-pulse"></div>
+                          <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-28 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-16 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          ) : filteredCompanies.length === 0 ? (
+          ) : companies.length === 0 ? (
             <div className="text-center py-8">
               <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium">No companies found</h3>
@@ -1084,7 +1110,7 @@ export default function CompanyManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCompanies.map((company) => (
+                  {companies.map((company) => (
                   <TableRow key={company.id}>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
@@ -1206,7 +1232,7 @@ export default function CompanyManagement() {
               </Table>
               </div>
           )}
-          {!companiesLoading && !companiesError && filteredCompanies.length > 0 && (
+          {!companiesLoading && !companiesError && companies.length > 0 && (
             <div className="flex flex-col gap-2 border-t pt-4 mt-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-2">
                 <div className="text-sm text-muted-foreground">
@@ -1224,14 +1250,17 @@ export default function CompanyManagement() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    onClick={() => {
+                      setPage((prev) => Math.max(prev - 1, 1));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={page === 1}
                   >
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     Previous
                   </Button>
                   <div className="flex items-center gap-1">
-                    {meta?.totalPages ? (
+                    {totalPages ? (
                       pageIndicators.map((pageNumber, index) => {
                         const prevNumber = pageIndicators[index - 1];
                         const showEllipsis = index > 0 && prevNumber !== undefined && pageNumber - prevNumber > 1;
@@ -1244,7 +1273,10 @@ export default function CompanyManagement() {
                               variant={page === pageNumber ? "default" : "outline"}
                               size="sm"
                               className="w-9"
-                              onClick={() => setPage(pageNumber)}
+                              onClick={() => {
+                                setPage(pageNumber);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
                             >
                               {pageNumber}
                             </Button>
@@ -1260,7 +1292,10 @@ export default function CompanyManagement() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((prev) => prev + 1)}
+                    onClick={() => {
+                      setPage((prev) => prev + 1);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     disabled={!canGoNext}
                   >
                     Next
@@ -1268,11 +1303,6 @@ export default function CompanyManagement() {
                   </Button>
                 </div>
               </div>
-              {meta?.totalPages && (
-                <div className="text-xs text-muted-foreground px-2">
-                  Page {page} of {meta.totalPages}
-                </div>
-              )}
             </div>
           )}
             </CardContent>

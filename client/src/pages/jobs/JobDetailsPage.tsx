@@ -363,10 +363,142 @@ export default function JobDetailsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading job details...</p>
+      <div className="bg-gray-50">
+        {/* Header Banner Skeleton */}
+        <div className="relative h-48 bg-gray-300 animate-pulse"></div>
+
+        <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">
+          {/* Profile Header Card Skeleton */}
+          <div className="mb-8 bg-white rounded-lg shadow-lg p-6 animate-pulse">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              {/* Company Logo Skeleton */}
+              <div className="w-32 h-32 bg-gray-300 rounded-full"></div>
+              
+              {/* Basic Info Skeleton */}
+              <div className="flex-1 space-y-4">
+                <div className="h-8 bg-gray-300 rounded w-2/3"></div>
+                <div className="flex gap-2">
+                  <div className="h-6 bg-gray-300 rounded w-20"></div>
+                  <div className="h-6 bg-gray-300 rounded w-24"></div>
+                  <div className="h-6 bg-gray-300 rounded w-28"></div>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <div className="h-4 bg-gray-300 rounded w-32"></div>
+                  <div className="h-4 bg-gray-300 rounded w-24"></div>
+                  <div className="h-4 bg-gray-300 rounded w-28"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content Grid Skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content Column Skeleton */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Job Overview Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-32 mb-6"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-gray-300 rounded"></div>
+                      <div className="h-4 bg-gray-300 rounded flex-1"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Job Description Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-40 mb-4"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-300 rounded w-full"></div>
+                  <div className="h-4 bg-gray-300 rounded w-full"></div>
+                  <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+                  <div className="h-4 bg-gray-300 rounded w-4/6"></div>
+                </div>
+              </div>
+
+              {/* Status & Priority Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-40 mb-4"></div>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-16"></div>
+                    <div className="h-6 bg-gray-300 rounded w-20"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-20"></div>
+                    <div className="h-6 bg-gray-300 rounded w-24"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-24"></div>
+                    <div className="h-6 bg-gray-300 rounded w-12"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Benefits Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-40 mb-4"></div>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-6 bg-gray-300 rounded w-24"></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar Column Skeleton */}
+            <div className="space-y-6">
+              {/* Requirements Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-32 mb-6"></div>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-28"></div>
+                    <div className="h-6 bg-gray-300 rounded w-32"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-24"></div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="h-6 bg-gray-300 rounded w-20"></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interview Process Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-40 mb-4"></div>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-16"></div>
+                    <div className="h-5 bg-gray-300 rounded w-12"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-300 rounded w-20"></div>
+                    <div className="h-5 bg-gray-300 rounded w-24"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Important Dates Card Skeleton */}
+              <div className="bg-white rounded-lg shadow-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-36 mb-4"></div>
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-24"></div>
+                      <div className="h-5 bg-gray-300 rounded w-32"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );

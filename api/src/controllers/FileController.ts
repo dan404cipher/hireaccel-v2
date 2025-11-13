@@ -565,7 +565,7 @@ export class FileController {
     // Try S3 first, then fallback to local
     if (file.storageProvider === 'aws_s3' && s3Service.isS3Enabled()) {
       try {
-        // Download from S3
+        // Download from S3 with timeout
         const { GetObjectCommand } = await import('@aws-sdk/client-s3');
         const s3Client = s3Service.getClient();
         const bucketName = s3Service.bucketName;
@@ -579,30 +579,75 @@ export class FileController {
           Key: file.path,
         });
 
-        const response = await s3Client.send(command);
-        const chunks: Buffer[] = [];
-        
-        if (response.Body) {
-          for await (const chunk of response.Body as any) {
-            chunks.push(Buffer.from(chunk));
+        // Add timeout to S3 download (30 seconds)
+        const downloadPromise = (async () => {
+          const response = await s3Client.send(command);
+          const chunks: Buffer[] = [];
+          let totalSize = 0;
+          const MAX_SIZE = 10 * 1024 * 1024; // 10MB max to prevent memory issues
+          
+          if (response.Body) {
+            for await (const chunk of response.Body as any) {
+              const buffer = Buffer.from(chunk);
+              totalSize += buffer.length;
+              
+              // Check if file is too large during streaming
+              if (totalSize > MAX_SIZE) {
+                throw new Error(`File size exceeds maximum allowed size (${MAX_SIZE / 1024 / 1024}MB)`);
+              }
+              
+              chunks.push(buffer);
+            }
           }
-        }
+          
+          return Buffer.concat(chunks);
+        })();
         
-        const fileBuffer = Buffer.concat(chunks);
+        const fileBuffer = await Promise.race([
+          downloadPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('S3 download timed out after 30 seconds')), 30000)
+          ),
+        ]);
+        
+        // Validate file buffer
+        if (!fileBuffer || fileBuffer.length === 0) {
+          throw new Error('Downloaded file is empty');
+        }
         
         // Create temporary file for text extraction
         tempFilePath = path.join(env.UPLOADS_PATH, `temp_resume_${Date.now()}_${file.filename}`);
         fs.writeFileSync(tempFilePath, fileBuffer);
         filePath = tempFilePath;
+        
+        logger.info('Successfully downloaded resume from S3', {
+          fileId: file._id,
+          fileSize: fileBuffer.length,
+          businessProcess: 'resume_parsing',
+        });
       } catch (s3Error) {
         logger.warn('Failed to fetch resume from S3 for parsing, falling back to local', {
           fileId: file._id,
           s3Key: file.path,
           error: s3Error instanceof Error ? s3Error.message : 'Unknown error',
+          stack: s3Error instanceof Error ? s3Error.stack : undefined,
           businessProcess: 'resume_parsing',
         });
         // Fall through to local storage
         filePath = path.join(env.UPLOADS_PATH, file.path);
+        
+        // Clean up temp file if it was partially created
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+            tempFilePath = null;
+          } catch (cleanupError) {
+            logger.warn('Failed to cleanup partial temp file', {
+              path: tempFilePath,
+              error: cleanupError instanceof Error ? cleanupError.message : 'Unknown error',
+            });
+          }
+        }
       }
     } else {
       filePath = path.join(env.UPLOADS_PATH, file.path);

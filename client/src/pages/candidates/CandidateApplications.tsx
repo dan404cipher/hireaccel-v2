@@ -991,8 +991,40 @@ const CandidateApplications: React.FC = () => {
 
       {/* Applications List */}
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="grid grid-cols-1 gap-6">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border p-6 animate-pulse">
+              <div className="flex gap-4">
+                <div className="w-16 h-16 bg-gray-300 rounded-lg flex-shrink-0"></div>
+                <div className="flex-1 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <div className="h-5 bg-gray-300 rounded w-1/3"></div>
+                      <div className="flex gap-2">
+                        <div className="h-5 bg-gray-300 rounded w-20"></div>
+                        <div className="h-5 bg-gray-300 rounded w-24"></div>
+                      </div>
+                    </div>
+                    <div className="w-8 h-8 bg-gray-300 rounded"></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-16"></div>
+                      <div className="h-4 bg-gray-300 rounded w-32"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-20"></div>
+                      <div className="h-4 bg-gray-300 rounded w-28"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-gray-300 rounded w-24"></div>
+                      <div className="h-4 bg-gray-300 rounded w-36"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredAssignments.length === 0 ? (
         <Card>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiClient, ApiResponse, ApiError } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -95,7 +95,7 @@ export function useApi<T>(
         cancelled = true;
       };
     }
-  }, [immediate, execute]);
+  }, [immediate, execute, apiCall]);
 
   return {
     ...state,
@@ -215,14 +215,23 @@ export function useJobStats() {
 
 // Companies
 export function useCompanies(params = {}) {
-  // Create a stable key for the params to prevent multiple instances
-  const paramsKey = JSON.stringify(params);
+  // Create stable stringified params for dependency tracking
+  const paramsStr = JSON.stringify(params);
+  const paramsKey = useMemo(() => paramsStr, [paramsStr]);
+  
+  // Store params in a ref to ensure we always use the latest values
+  const paramsRef = useRef(params);
+  useEffect(() => {
+    paramsRef.current = params;
+  }, [params]);
+  
+  // Always execute immediately - params always include at least page and limit
   const memoizedCall = useCallback(() => {
-    return apiClient.getCompanies(params);
+    // Use ref to get latest params values
+    return apiClient.getCompanies(paramsRef.current);
   }, [paramsKey]);
   
-  const result = useApi(memoizedCall, { immediate: true });
-  return result;
+  return useApi(memoizedCall, { immediate: true });
 }
 
 export function useCompany(id: string) {

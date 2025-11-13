@@ -569,6 +569,15 @@ export class AuthService {
                 logger.warn('Failed to submit to Google Sheets', { error: sheetError });
             }
 
+            // Send welcome email
+            if (user.email) {
+                try {
+                    await EmailService.sendWelcomeEmail(user.email, user.firstName, user.customId);
+                } catch (error) {
+                    logger.warn('Failed to send welcome email', { error });
+                }
+            }
+
             return { user, tokens };
         } catch (error) {
             logger.error('Registration completion failed', {
@@ -752,14 +761,9 @@ export class AuthService {
                 }
             }
 
-            // Check for existing lead
-            const existingLead = await Lead.findOne({
-                $or: [{ email: userData.email.toLowerCase() }, { phoneNumber: userData.phoneNumber }],
-            });
-
-            if (existingLead && existingLead.isVerified) {
-                throw createConflictError('A verified lead already exists with this information');
-            }
+            // Note: We don't check leads for duplicates to prevent signup - leads are just for tracking/capturing potential users
+            // Only actual user accounts in the users collection should prevent signup
+            // However, we still check for existing leads to update them for tracking purposes
 
             // Validate password strength
             validatePasswordStrength(userData.password);
@@ -769,6 +773,11 @@ export class AuthService {
 
             // Determine verification method from env
             const verificationType = env.OTP_VERIFICATION_METHOD || 'sms';
+
+            // Check for existing lead (for updating, not for preventing signup)
+            const existingLead = await Lead.findOne({
+                $or: [{ email: userData.email.toLowerCase() }, { phoneNumber: userData.phoneNumber }],
+            });
 
             // Create or update lead (unverified)
             const leadData = {
@@ -787,7 +796,7 @@ export class AuthService {
 
             let lead;
             if (existingLead) {
-                // Update existing unverified lead
+                // Update existing lead (regardless of verification status - leads are just for tracking)
                 Object.assign(existingLead, leadData);
                 lead = await existingLead.save();
             } else {
@@ -1086,6 +1095,15 @@ export class AuthService {
                 role: newUser.role,
                 verificationType,
             });
+
+            // Send welcome email
+            if (newUser.email) {
+                try {
+                    await EmailService.sendWelcomeEmail(newUser.email, newUser.firstName, newUser.customId);
+                } catch (error) {
+                    logger.warn('Failed to send welcome email', { error });
+                }
+            }
 
             return { user: newUser, tokens };
         } catch (error) {

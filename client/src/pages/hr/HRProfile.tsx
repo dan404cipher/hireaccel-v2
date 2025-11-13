@@ -396,8 +396,51 @@ export default function HRProfile() {
   // Show loading state when fetching target user
   if (customId && targetUserLoading) {
     return (
-      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <div className="bg-gray-50">
+        {/* Header Banner Skeleton */}
+        <div className="relative h-48 bg-gray-300 animate-pulse"></div>
+
+        <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">
+          {/* Profile Header Card Skeleton */}
+          <div className="mb-8 bg-white rounded-lg shadow-lg p-6 animate-pulse">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              {/* Profile Picture Skeleton */}
+              <div className="w-32 h-32 bg-gray-300 rounded-full"></div>
+              
+              {/* Basic Info Skeleton */}
+              <div className="flex-1 space-y-4">
+                <div className="h-8 bg-gray-300 rounded w-1/3"></div>
+                <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+                <div className="flex flex-wrap gap-4">
+                  <div className="h-4 bg-gray-300 rounded w-24"></div>
+                  <div className="h-4 bg-gray-300 rounded w-32"></div>
+                  <div className="h-4 bg-gray-300 rounded w-28"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs Skeleton */}
+          <div className="mb-6">
+            <div className="flex gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-10 w-32 bg-gray-300 rounded animate-pulse"></div>
+              ))}
+            </div>
+          </div>
+
+          {/* Content Card Skeleton */}
+          <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-300 rounded w-40"></div>
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-300 rounded w-full"></div>
+                <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+                <div className="h-4 bg-gray-300 rounded w-4/6"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -672,9 +715,42 @@ export default function HRProfile() {
               </CardHeader>
               <CardContent>
             {jobsLoading ? (
-              <div className="flex justify-center py-8">
-                <Clock className="w-8 h-8 animate-spin text-gray-400" />
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job Title</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Posted Date</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="h-5 bg-gray-300 rounded w-40 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-32 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-28 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             ) : jobs.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />

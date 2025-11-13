@@ -79,13 +79,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const renderNotificationMessage = (notification: Notification) => {
     const { message, metadata } = notification;
     
-    // Handle candidate status change notifications with role-specific messaging
-    if (notification.type === 'candidate_status_change') {
-      // Candidates should continue to see the original message from the backend
-      if (currentUserRole === 'candidate') {
-        return message;
-      }
-
+    // Handle candidate status change notifications - candidates get special formatting below
+    if (notification.type === 'candidate_status_change' && currentUserRole !== 'candidate') {
       const candidateName = metadata?.candidateName || 'candidate';
       const candidateRouteId = metadata?.candidateCustomId || metadata?.candidateId;
       const newStatusRaw = (metadata?.newStatus || '').toString().toLowerCase();

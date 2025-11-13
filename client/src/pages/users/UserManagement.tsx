@@ -61,7 +61,9 @@ import {
   CheckSquare,
   Square,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X,
+  ArrowUpDown
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -213,6 +215,7 @@ export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState(searchParams.get('role') || 'all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<string>('createdAt-desc');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -256,18 +259,28 @@ export default function UserManagement() {
 
   const isPasswordValid = formData.password === '' || Object.values(passwordValidation).every(Boolean);
 
+  // Parse sortBy to extract field and order
+  const isLast24Hours = sortBy === 'last24hours';
+  const sortField = isLast24Hours ? 'createdAt' : sortBy.split('-')[0] as 'createdAt' | 'lastLoginAt' | 'firstName' | 'email';
+  const sortOrder = isLast24Hours ? 'desc' : (sortBy.split('-')[1] || 'desc') as 'asc' | 'desc';
+  
   // API hooks
+  // When sorting by last 24 hours, fetch more users to ensure we get all matches
+  const limit = isLast24Hours ? 1000 : PAGE_SIZE;
+  
   const { 
     data: usersResponse, 
     loading: usersLoading, 
     error: usersError,
     refetch: refetchUsers 
   } = useUsers({
-    page,
-    limit: PAGE_SIZE,
+    page: isLast24Hours ? 1 : page, // Always use page 1 when filtering last 24 hours
+    limit,
     search: searchTerm || undefined,
     role: roleFilter === 'all' ? undefined : roleFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
+    sortBy: sortField,
+    sortOrder,
   });
 
   const { mutate: createUser, loading: createLoading } = useCreateUser();
@@ -279,25 +292,52 @@ export default function UserManagement() {
   
   // Don't filter admins - just show all users
   // Edit/Delete actions are already disabled for admin users in the UI
-  const users = useMemo(() => {
+  // Apply last 24 hours filter if that sort option is selected
+  const filteredUsers = useMemo(() => {
     if (!allUsers || !Array.isArray(allUsers)) return [];
+    
+    if (isLast24Hours) {
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+      
+      return allUsers.filter(user => {
+        const createdAt = new Date(user.createdAt);
+        return createdAt >= twentyFourHoursAgo;
+      });
+    }
+    
     return allUsers;
-  }, [allUsers]);
+  }, [allUsers, isLast24Hours]);
+  
+  // Paginate filtered users for last 24 hours, or use all users for other sorts
+  const users = useMemo(() => {
+    if (isLast24Hours) {
+      const startIndex = (page - 1) * PAGE_SIZE;
+      const endIndex = startIndex + PAGE_SIZE;
+      return filteredUsers.slice(startIndex, endIndex);
+    }
+    return filteredUsers;
+  }, [filteredUsers, isLast24Hours, page]);
   
   const meta = Array.isArray(usersResponse) ? null : (usersResponse as any)?.meta;
-  const totalUsers = meta?.total ?? users.length;
-  const totalPagesRaw = meta?.page?.total ?? (totalUsers > 0 ? Math.ceil(totalUsers / PAGE_SIZE) : 1);
+  // When last24Hours sort is active, use filtered users count; otherwise use backend total
+  const totalUsers = isLast24Hours ? filteredUsers.length : (meta?.total ?? filteredUsers.length);
+  const totalPagesRaw = isLast24Hours 
+    ? (filteredUsers.length > 0 ? Math.ceil(filteredUsers.length / PAGE_SIZE) : 1)
+    : (meta?.page?.total ?? (totalUsers > 0 ? Math.ceil(totalUsers / PAGE_SIZE) : 1));
   const totalPages = Math.max(totalPagesRaw, 1);
-  const currentPageDisplay = meta?.page?.current ?? page;
-  const hasMore = meta?.page?.hasMore ?? (currentPageDisplay < totalPages);
+  const currentPageDisplay = isLast24Hours ? page : (meta?.page?.current ?? page);
+  const hasMore = isLast24Hours 
+    ? (page < totalPages) // Enable pagination for last 24 hours
+    : (meta?.page?.hasMore ?? (currentPageDisplay < totalPages));
   const pageRangeStart = totalUsers === 0 ? 0 : ((currentPageDisplay - 1) * PAGE_SIZE) + 1;
   const pageRangeEnd = totalUsers === 0 ? 0 : Math.min(pageRangeStart + users.length - 1, totalUsers);
-  const showPagination = totalUsers > 0;
+  const showPagination = totalUsers > 0; // Show pagination for all cases including last 24 hours
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, roleFilter, statusFilter]);
+  }, [searchTerm, roleFilter, statusFilter, sortBy]);
 
   // Reset selections when users change
   useEffect(() => {
@@ -701,17 +741,38 @@ export default function UserManagement() {
                 <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSearchTerm('');
-                setRoleFilter('all');
-                setStatusFilter('all');
-              }}
-              className="text-gray-600 hover:bg-gray-100"
-            >
-              Clear Filters
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[200px] border-blue-200 focus:border-blue-400 focus:ring-blue-400">
+                  <ArrowUpDown className="w-4 h-4 mr-2 text-blue-600" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt-desc">Created Date (Newest)</SelectItem>
+                  <SelectItem value="createdAt-asc">Created Date (Oldest)</SelectItem>
+                  <SelectItem value="lastLoginAt-desc">Last Login (Recent)</SelectItem>
+                  <SelectItem value="lastLoginAt-asc">Last Login (Oldest)</SelectItem>
+                  <SelectItem value="firstName-asc">Name (A-Z)</SelectItem>
+                  <SelectItem value="firstName-desc">Name (Z-A)</SelectItem>
+                  <SelectItem value="email-asc">Email (A-Z)</SelectItem>
+                  <SelectItem value="email-desc">Email (Z-A)</SelectItem>
+                  <SelectItem value="last24hours">Last 24 Hours Signups</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => {
+                  setSearchTerm('');
+                  setRoleFilter('all');
+                  setStatusFilter('all');
+                  setSortBy('createdAt-desc');
+                }}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -830,8 +891,56 @@ export default function UserManagement() {
 
         <CardContent>
           {usersLoading ? (
-            <div className="flex justify-center py-8">
-              <LoadingSpinner />
+            <div className="relative overflow-x-auto">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">
+                      <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                    </TableHead>
+                    <TableHead>ID</TableHead>
+                    <TableHead className="min-w-[250px]">Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Lead Source</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[50px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-5 w-20 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                          <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 bg-gray-300 rounded w-20 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <>
@@ -867,7 +976,7 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs">
-                          {formatCustomId(user.customId)}
+                          {user.role === 'superadmin' ? 'SA' : formatCustomId(user.customId)}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">
@@ -1012,7 +1121,10 @@ export default function UserManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                      onClick={() => {
+                        setPage(prev => Math.max(1, prev - 1));
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
                       disabled={page === 1 || usersLoading}
                       className="flex items-center gap-1"
                     >
@@ -1026,7 +1138,10 @@ export default function UserManagement() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPage(prev => prev + 1)}
+                      onClick={() => {
+                        setPage(prev => prev + 1);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
                       disabled={!hasMore || usersLoading}
                       className="flex items-center gap-1"
                     >
@@ -1388,7 +1503,7 @@ export default function UserManagement() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Created</Label>
-                  <p className="mt-1">{formatDate(viewingUser.createdAt)}</p>
+                  <p className="mt-1">{formatLastLogin(viewingUser.createdAt)}</p>
                 </div>
               </div>
             </div>

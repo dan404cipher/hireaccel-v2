@@ -232,11 +232,16 @@ class ApiClient {
         }
 
         try {
-            const response = await fetch(url, {
+            const fetchOptions: RequestInit = {
                 ...options,
                 headers,
                 credentials: 'include',
-            });
+            };
+            // Ensure no caching for GET requests
+            if (!options.method || options.method === 'GET') {
+                fetchOptions.cache = 'no-store';
+            }
+            const response = await fetch(url, fetchOptions);
 
             const data = await response.json();
 
@@ -407,7 +412,11 @@ class ApiClient {
             }
         });
 
-        return this.request<Job[]>(`/api/v1/jobs?${queryParams.toString()}`);
+        const url = `/api/v1/jobs?${queryParams.toString()}`;
+        
+        return this.request<Job[]>(url, {
+            cache: 'no-store', // Prevent browser caching - this is a fetch option, not a header
+        });
     }
 
     async getJob(id: string) {
@@ -468,7 +477,11 @@ class ApiClient {
             }
         });
 
-        return this.request<Company[]>(`/api/v1/companies?${queryParams.toString()}`);
+        const url = `/api/v1/companies?${queryParams.toString()}`;
+        
+        return this.request<Company[]>(url, {
+            cache: 'no-store', // Prevent browser caching - this is a fetch option, not a header
+        });
     }
 
     async getCompany(id: string) {
@@ -505,6 +518,8 @@ class ApiClient {
             role?: string;
             status?: string;
             search?: string;
+            sortBy?: string;
+            sortOrder?: string;
         } = {},
     ) {
         const queryParams = new URLSearchParams();

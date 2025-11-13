@@ -75,7 +75,7 @@ const formatCustomId = (customId: string | undefined): string => {
   return customId;
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 25;
 
 // Component to display user avatar with profile picture support
 const UserAvatar = ({ user, onClick }: { user: ExtendedUser; onClick?: () => void }) => {
@@ -234,14 +234,15 @@ export default function AgentAllocation(): React.JSX.Element {
   }, [sortOption]);
 
   // Fetch users data - only active users
+  // Fetch a larger batch to account for client-side filtering by role and allocation status
   const { 
     data: usersResponse, 
     loading: usersLoading, 
     error: usersError,
     refetch: refetchUsers 
   } = useUsers({
-    page,
-    limit: PAGE_SIZE,
+    page: 1, // Always fetch from page 1 since we'll paginate client-side
+    limit: 200, // Fetch more users to account for filtering
     status: 'active', // Only fetch active users
     ...(debouncedSearchTerm ? { search: debouncedSearchTerm } : {}),
     sortBy: sortParams.sortBy,
@@ -347,7 +348,7 @@ export default function AgentAllocation(): React.JSX.Element {
 
 
   // Filter resources based on search and allocation status
-  const getFilteredResources = () => {
+  const filteredResources = useMemo(() => {
     if (!allResources || !assignments) return [];
     
     
@@ -373,9 +374,15 @@ export default function AgentAllocation(): React.JSX.Element {
 
     // Apply consistent sort before returning
     return sortResources(filtered, sortOption);
-  };
+  }, [allResources, assignments, searchTerm, roleFilter, allocationTab, sortOption]);
 
-  const filteredResources = getFilteredResources();
+  // Reset page if it exceeds total pages (e.g., after filtering)
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredResources.length / PAGE_SIZE));
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [filteredResources.length, page]);
 
   // Count allocated and unallocated resources
   const getAllocatedCount = () => {
@@ -396,14 +403,18 @@ export default function AgentAllocation(): React.JSX.Element {
 
   const tabTotal = allocationTab === 'allocated' ? getAllocatedCount() : getUnallocatedCount();
   const tabLabel = allocationTab === 'allocated' ? 'allocated' : 'not allocated';
-  const totalRecords = tabTotal ?? (meta?.total ?? filteredResources.length);
-  const hasRecords = totalRecords > 0 && filteredResources.length > 0;
-  const hasMore = meta?.page?.hasMore ?? (users.length === PAGE_SIZE);
-  const rawStart = ((page - 1) * PAGE_SIZE) + 1;
-  const rawEnd = ((page - 1) * PAGE_SIZE) + filteredResources.length;
-  const displayStart = totalRecords === 0 ? 0 : Math.min(rawStart, totalRecords);
-  const displayEnd = totalRecords === 0 ? 0 : Math.min(rawEnd, totalRecords);
-  const totalPages = meta?.page?.total ?? null;
+  
+  // Client-side pagination on filtered results
+  const totalRecords = filteredResources.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageEnd = pageStart + PAGE_SIZE;
+  const paginatedResources = filteredResources.slice(pageStart, pageEnd);
+  
+  const hasRecords = totalRecords > 0;
+  const hasMore = page < totalPages;
+  const displayStart = totalRecords === 0 ? 0 : pageStart + 1;
+  const displayEnd = totalRecords === 0 ? 0 : Math.min(pageEnd, totalRecords);
 
   const openAllocationDialog = (resource: User) => {
     setSelectedResource(resource as ExtendedUser);
@@ -769,7 +780,7 @@ export default function AgentAllocation(): React.JSX.Element {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="animate-slide-up">
 
             <TabsContent value="not-allocated" className="mt-6">
               {/* Bulk Actions Toolbar */}
@@ -843,9 +854,50 @@ export default function AgentAllocation(): React.JSX.Element {
                   {usersError.detail || 'Failed to load resources.'}
                 </div>
               ) : usersLoading ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">
+                        <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Login</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                            <div className="h-3 bg-gray-300 rounded w-28 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
               <Table>
                 <TableHeader>
@@ -865,7 +917,7 @@ export default function AgentAllocation(): React.JSX.Element {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredResources.map((resource) => (
+                  {paginatedResources.map((resource) => (
                     <TableRow key={resource._id}>
                       <TableCell>
                         <Checkbox
@@ -993,9 +1045,50 @@ export default function AgentAllocation(): React.JSX.Element {
                   {usersError.detail || 'Failed to load resources.'}
                 </div>
               ) : usersLoading ? (
-                <div className="flex justify-center py-8">
-                  <LoadingSpinner />
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">
+                        <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Last Login</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="h-4 w-4 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 bg-gray-300 rounded-full animate-pulse"></div>
+                            <div className="h-5 bg-gray-300 rounded w-32 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-300 rounded w-40 animate-pulse"></div>
+                            <div className="h-3 bg-gray-300 rounded w-28 animate-pulse"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-6 bg-gray-300 rounded w-20 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 bg-gray-300 rounded w-24 animate-pulse"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               ) : (
                 <Table>
                   <TableHeader>
@@ -1016,7 +1109,7 @@ export default function AgentAllocation(): React.JSX.Element {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredResources.map((resource) => {
+                    {paginatedResources.map((resource) => {
                       const resourceType = resource.role === 'hr' ? 'hr' : 'candidate';
                       const currentAgent = getCurrentAgent(resource._id, resourceType);
                       const agentInfo = currentAgent ? agents.find(a => a._id === currentAgent._id) : null;
@@ -1139,57 +1232,66 @@ export default function AgentAllocation(): React.JSX.Element {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                  onClick={() => {
+                    setPage(prev => Math.max(1, prev - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                   disabled={page === 1 || usersLoading}
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Previous
                 </Button>
                 <div className="flex items-center gap-1">
-                  {totalPages ? (
-                    <>
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const pageNum = i + 1;
-                        return (
-                          <Button
-                            key={pageNum}
-                            variant={page === pageNum ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setPage(pageNum)}
-                            className="w-9"
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
-                      {totalPages > 5 && (
-                        <>
-                          <span className="px-2">...</span>
-                          <Button
-                            variant={page === totalPages ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setPage(totalPages)}
-                            className="w-9"
-                          >
-                            {totalPages}
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="w-9"
-                    >
-                      {page}
-                    </Button>
-                  )}
+                  {(() => {
+                    if (!totalPages || totalPages <= 1) {
+                      return (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-9"
+                        >
+                          1
+                        </Button>
+                      );
+                    }
+                    
+                    // Calculate sliding window of 3 pages centered around current page
+                    let startPage = Math.max(1, page - 1);
+                    let endPage = Math.min(totalPages, startPage + 2);
+                    
+                    // Adjust start page if we're near the end
+                    if (endPage - startPage < 2 && startPage > 1) {
+                      startPage = Math.max(1, endPage - 2);
+                    }
+                    
+                    const pagesToShow = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                      pagesToShow.push(i);
+                    }
+                    
+                    return pagesToShow.map((pageNum) => (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setPage(pageNum);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="w-9"
+                      >
+                        {pageNum}
+                      </Button>
+                    ));
+                  })()}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(prev => prev + 1)}
+                  onClick={() => {
+                    setPage(prev => prev + 1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                   disabled={!hasMore || usersLoading}
                 >
                   Next

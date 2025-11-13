@@ -350,8 +350,101 @@ export default function CompanyProfile() {
   if (loading) {
     return (
       <div className="bg-gray-50">
-        <div className="flex justify-center items-center min-h-[400px]">
-          <div className="text-muted-foreground">Loading company details...</div>
+        {/* Header Banner Skeleton */}
+        <div className="relative h-48 bg-gray-300 animate-pulse"></div>
+
+        <div className="px-4 md:px-6 -mt-24 relative z-10 pb-8">
+          {/* Profile Header Card Skeleton */}
+          <div className="mb-8 bg-white rounded-lg shadow-lg p-6 animate-pulse">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              {/* Company Logo Skeleton */}
+              <div className="w-32 h-32 bg-gray-300 rounded-full"></div>
+              
+              {/* Basic Info Skeleton */}
+              <div className="flex-1 space-y-4">
+                <div className="h-8 bg-gray-300 rounded w-1/2"></div>
+                <div className="flex gap-2">
+                  <div className="h-6 bg-gray-300 rounded w-24"></div>
+                  <div className="h-6 bg-gray-300 rounded w-20"></div>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <div className="h-4 bg-gray-300 rounded w-32"></div>
+                  <div className="h-4 bg-gray-300 rounded w-28"></div>
+                  <div className="h-4 bg-gray-300 rounded w-36"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content Grid Skeleton */}
+          <div className={`grid grid-cols-1 ${isCandidate ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6`}>
+            {/* Main Content Column Skeleton */}
+            <div className={`${isCandidate ? 'lg:col-span-1' : 'lg:col-span-2'} space-y-6`}>
+              {/* Company Information Card Skeleton */}
+              <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-40 mb-6"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="w-5 h-5 bg-gray-300 rounded mt-0.5"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-300 rounded w-20"></div>
+                        <div className="h-4 bg-gray-300 rounded w-32"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description Card Skeleton */}
+              <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+                <div className="h-6 bg-gray-300 rounded w-48 mb-4"></div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-300 rounded w-full"></div>
+                  <div className="h-4 bg-gray-300 rounded w-full"></div>
+                  <div className="h-4 bg-gray-300 rounded w-5/6"></div>
+                  <div className="h-4 bg-gray-300 rounded w-4/6"></div>
+                </div>
+              </div>
+
+              {/* Jobs Card Skeleton (not for candidates) */}
+              {!isCandidate && (
+                <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+                  <div className="h-6 bg-gray-300 rounded w-32 mb-4"></div>
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="p-4 border rounded-lg">
+                        <div className="h-5 bg-gray-300 rounded w-1/2 mb-2"></div>
+                        <div className="flex gap-4">
+                          <div className="h-4 bg-gray-300 rounded w-24"></div>
+                          <div className="h-4 bg-gray-300 rounded w-32"></div>
+                          <div className="h-5 bg-gray-300 rounded w-16"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar Column Skeleton (not for candidates) */}
+            {!isCandidate && (
+              <div className="space-y-6">
+                {/* Stats Card Skeleton */}
+                <div className="bg-white rounded-lg shadow p-6 animate-pulse">
+                  <div className="h-6 bg-gray-300 rounded w-32 mb-4"></div>
+                  <div className="space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="space-y-2">
+                        <div className="h-4 bg-gray-300 rounded w-24"></div>
+                        <div className="h-6 bg-gray-300 rounded w-16"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
