@@ -38,6 +38,53 @@ import { logger } from '@/config/logger';
  */
 export class AuthService {
     /**
+     * Check if email or phone number is available for registration
+     */
+    static async checkAvailability(data: {
+        email?: string;
+        phoneNumber?: string;
+    }): Promise<{ available: boolean; field?: 'email' | 'phone' }> {
+        try {
+            // At least one field must be provided
+            if (!data.email && !data.phoneNumber) {
+                throw createBadRequestError('Either email or phone number is required');
+            }
+
+            // Check if user exists with the provided email or phone
+            const query: any = { $or: [] };
+            
+            if (data.email) {
+                query.$or.push({ email: data.email.toLowerCase() });
+            }
+            
+            if (data.phoneNumber) {
+                query.$or.push({ phoneNumber: data.phoneNumber });
+            }
+
+            const existingUser = await User.findOne(query);
+
+            if (existingUser) {
+                // Determine which field is taken
+                if (data.email && existingUser.email === data.email.toLowerCase()) {
+                    return { available: false, field: 'email' };
+                }
+                if (data.phoneNumber && existingUser.phoneNumber === data.phoneNumber) {
+                    return { available: false, field: 'phone' };
+                }
+            }
+
+            return { available: true };
+        } catch (error) {
+            logger.error('Failed to check availability', {
+                email: data.email,
+                phone: data.phoneNumber,
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            throw error;
+        }
+    }
+
+    /**
      * Send OTP for user registration
      */
     static async sendRegistrationOTP(userData: {

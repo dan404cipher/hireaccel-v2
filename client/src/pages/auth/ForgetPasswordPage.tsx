@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, Mail, Shield, CheckCircle, Clock, Users, TrendingUp, RotateCcw } from 'lucide-react';
 import { apiClient } from '@/services/api';
 import { toast } from 'sonner';
-import logo from '@/assets/logo.png';
+import logoColor from '@/assets/logo-color.png';
 import { useNavigate } from 'react-router-dom';
 
 interface ForgetPasswordFormData {
@@ -53,7 +53,7 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden items-center justify-center">
         {/* Background decorative elements */}
@@ -65,26 +65,30 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
         </div>
 
         {/* Content container with proper spacing */}
-        <div className="relative z-10 flex flex-col h-ful w-[90%]">
+        <div className="relative z-10 flex flex-col h-full w-[90%] py-6">
           {/* Header with logo only */}
-          <div className="flex-shrink-0 p-8">
-            <div className="flex items-center space-x-3" onClick={()=>navigate('/')}>
-              <img src={logo} alt="HireAccel" className="w-30 h-10" />
+          <div className="flex-shrink-0 px-8 pb-4">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={()=>navigate('/')}>
+              <img src={logoColor} alt="HireAccel Logo" className="w-12 h-12" />
+              <div>
+                <h1 className="font-bold text-slate-900 text-xl">Hire Accel</h1>
+                <p className="text-xs text-slate-600 font-medium">powered by v-accel</p>
+              </div>
             </div>
           </div>
 
           {/* Body content */}
-          <div className="flex-shrink-0 px-8 pb-8">
-            <p className="text-gray-600 leading-relaxed max-w-md">
+          <div className="flex-shrink-0 px-8 pb-4">
+            <p className="text-gray-600 leading-relaxed max-w-md text-sm">
               Secure password recovery for your HireAccel account. We'll help you regain access quickly and safely to continue your recruitment journey.
             </p>
           </div>
 
           {/* Central content section with welcome message and illustration */}
-          <div className="flex-1 flex flex-col justify-center items-center px-8">
+          <div className="flex-1 flex flex-col justify-center items-center px-8 min-h-0">
             {/* Welcome title centered in middle */}
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-semibold text-gray-800 leading-tight mb-6">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-semibold text-gray-800 leading-tight">
                 Secure Account<br />
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Recovery</span>
               </h2>
@@ -119,35 +123,11 @@ export function ForgetPasswordPage({ onBackToSignin, onContinueToResetPassword }
               </div>
             </div>
           </div>
-
-          {/* Floating glassmorphism stats card */}
-          <div className="flex-shrink-0 p-8 flex justify-center">
-            <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="text-center p-4 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20">
-                  <div className="text-3xl font-bold text-blue-600 mb-2">5000+</div>
-                  <div className="text-sm text-gray-700 font-medium">Active Users</div>
-                </div>
-                <div className="text-center p-4 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20">
-                  <div className="text-3xl font-bold text-purple-600 mb-2">200+</div>
-                  <div className="text-sm text-gray-700 font-medium">Companies</div>
-                </div>
-                <div className="text-center p-4 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20">
-                  <div className="text-3xl font-bold text-green-600 mb-2">24/7</div>
-                  <div className="text-sm text-gray-700 font-medium">Support</div>
-                </div>
-                <div className="text-center p-4 bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20">
-                  <div className="text-3xl font-bold text-orange-600 mb-2">98%</div>
-                  <div className="text-sm text-gray-700 font-medium">Success Rate</div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Right Side - Forgot Password Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
         <div className="w-full max-w-md">
           {!isSubmitted ? (
             <>

@@ -157,6 +157,13 @@ router.post('/verify-email', AuthController.verifyEmail);
 router.post('/resend-verification', authenticate, AuthController.resendVerification);
 
 /**
+ * @route   POST /auth/check-availability
+ * @desc    Check if email or phone number is available
+ * @access  Public
+ */
+router.post('/check-availability', AuthController.checkAvailability);
+
+/**
  * @route   GET /auth/me
  * @desc    Get current user profile
  * @access  Private

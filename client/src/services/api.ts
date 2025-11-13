@@ -1589,6 +1589,13 @@ class ApiClient {
         });
     }
 
+    async checkAvailability(data: { email?: string; phoneNumber?: string }) {
+        return this.request<{ available: boolean; field?: 'email' | 'phone' }>('/auth/check-availability', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
     // Analytics methods
     async trackEvent(data: {
         eventName: string;

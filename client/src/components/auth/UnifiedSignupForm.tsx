@@ -92,6 +92,13 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                     (itiWrapper as HTMLElement).style.display = 'block';
                     (itiWrapper as HTMLElement).style.width = '100%';
                 }
+                // Set initial maxLength for India
+                if (itiRef.current) {
+                    const countryData = itiRef.current.getSelectedCountryData();
+                    if (countryData.iso2 === 'in') {
+                        currentInput.setAttribute('maxlength', '10');
+                    }
+                }
             }, 0);
 
             const handleCountryChange = () => {
@@ -101,14 +108,36 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                         setPhone(number);
                         setPhoneError('');
                     }
+                    // Update maxLength based on country
+                    const countryData = itiRef.current.getSelectedCountryData();
+                    if (countryData.iso2 === 'in') {
+                        currentInput.setAttribute('maxlength', '10');
+                    } else {
+                        currentInput.removeAttribute('maxlength');
+                    }
+                }
+            };
+
+            const handleInputEvent = (e: Event) => {
+                const target = e.target as HTMLInputElement;
+                if (itiRef.current) {
+                    const countryData = itiRef.current.getSelectedCountryData();
+                    if (countryData.iso2 === 'in') {
+                        const value = target.value.replace(/\D/g, '');
+                        if (value.length > 10) {
+                            target.value = value.slice(0, 10);
+                        }
+                    }
                 }
             };
 
             currentInput.addEventListener('countrychange', handleCountryChange);
+            currentInput.addEventListener('input', handleInputEvent);
 
             return () => {
                 if (currentInput) {
                     currentInput.removeEventListener('countrychange', handleCountryChange);
+                    currentInput.removeEventListener('input', handleInputEvent);
                 }
                 if (itiRef.current) {
                     itiRef.current.destroy();
@@ -251,21 +280,34 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
     const handlePhoneChange = () => {
         if (phoneInputRef.current) {
             let inputValue = phoneInputRef.current.value.trim();
-            const digitsOnly = inputValue.replace(/\D/g, '');
+            let digitsOnly = inputValue.replace(/\D/g, '');
+            
+            // Get country code
+            let countryDialCode = '91';
+            let countryCode = 'in';
+            if (itiRef.current) {
+                const countryData = itiRef.current.getSelectedCountryData();
+                countryDialCode = countryData?.dialCode || '91';
+                countryCode = countryData?.iso2 || 'in';
+            }
+            
+            // For Indian numbers, limit to exactly 10 digits
+            if (countryCode === 'in') {
+                digitsOnly = digitsOnly.slice(0, 10);
+            }
+            
+            // Update input field value to match the restricted digits
             if (inputValue !== digitsOnly) {
                 phoneInputRef.current.value = digitsOnly;
                 inputValue = digitsOnly;
             }
+            
             if (!inputValue) {
                 setPhone('');
                 setPhoneError('');
                 return;
             }
-            let countryDialCode = '91';
-            if (itiRef.current) {
-                const countryData = itiRef.current.getSelectedCountryData();
-                countryDialCode = countryData?.dialCode || '91';
-            }
+            
             let formattedNumber = '';
             if (digitsOnly.startsWith(countryDialCode)) {
                 formattedNumber = `+${digitsOnly}`;
@@ -273,9 +315,11 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                 formattedNumber = `+${countryDialCode}${digitsOnly}`;
             }
             setPhone(formattedNumber);
+            
             if (phoneError) {
                 setPhoneError('');
             }
+            
             if (digitsOnly.length >= 10) {
                 const nationalDigits = digitsOnly.startsWith(countryDialCode)
                     ? digitsOnly.slice(countryDialCode.length)
@@ -288,12 +332,63 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                     setPhoneError('Phone number cannot have all same digits');
                     return;
                 }
-                if (countryDialCode === '91' && nationalDigits.length !== 10) {
+                if (countryCode === 'in' && nationalDigits.length !== 10) {
                     setPhoneError('Indian phone number must be exactly 10 digits');
                     return;
                 }
                 setPhoneError('');
             }
+        }
+    };
+
+    const handlePhoneBlur = async () => {
+        const inputValue = phoneInputRef.current?.value.trim() || '';
+        if (!inputValue) {
+            setPhoneError('Phone number is required');
+            return;
+        }
+        const digitsOnly = inputValue.replace(/\D/g, '');
+        if (digitsOnly.length < 10) {
+            setPhoneError('Please enter a valid phone number');
+            return;
+        }
+        let countryDialCode = '91';
+        if (itiRef.current) {
+            const countryData = itiRef.current.getSelectedCountryData();
+            countryDialCode = countryData?.dialCode || '91';
+        }
+        const nationalDigits = digitsOnly.startsWith(countryDialCode)
+            ? digitsOnly.slice(countryDialCode.length)
+            : digitsOnly;
+        const formattedNumber = digitsOnly.startsWith(countryDialCode)
+            ? `+${digitsOnly}`
+            : `+${countryDialCode}${digitsOnly}`;
+        setPhone(formattedNumber);
+        if (nationalDigits.startsWith('0')) {
+            setPhoneError('Phone number cannot start with 0');
+            return;
+        }
+        if (nationalDigits.split('').every((d) => d === nationalDigits[0])) {
+            setPhoneError('Phone number cannot have all same digits');
+            return;
+        }
+        if (countryDialCode === '91' && nationalDigits.length !== 10) {
+            setPhoneError('Indian phone number must be exactly 10 digits');
+            return;
+        }
+
+        // Check if phone number is already taken
+        try {
+            const response = await apiClient.checkAvailability({ phoneNumber: formattedNumber });
+            if (response.data && !response.data.available && response.data.field === 'phone') {
+                setPhoneError('This phone number is already registered. Please sign in or use a different number.');
+            } else {
+                setPhoneError('');
+            }
+        } catch (error) {
+            // If API call fails, just validate format without checking availability
+            console.error('Failed to check phone availability:', error);
+            setPhoneError('');
         }
     };
 
@@ -329,6 +424,31 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
             setEmailError('Please enter a valid email address');
         } else {
             setEmailError('');
+        }
+    };
+
+    const handleEmailBlur = async () => {
+        const trimmedEmail = email.trim();
+        if (!trimmedEmail) {
+            setEmailError('Email is required');
+            return;
+        }
+        if (!validateEmail(trimmedEmail)) {
+            setEmailError('Please enter a valid email address');
+            return;
+        }
+
+        // Check if email is already taken
+        try {
+            const response = await apiClient.checkAvailability({ email: trimmedEmail.toLowerCase() });
+            if (response.data && !response.data.available && response.data.field === 'email') {
+                setEmailError('This email is already registered. Please sign in or use a different email.');
+            } else {
+                setEmailError('');
+            }
+        } catch (error) {
+            // If API call fails, just validate format without checking availability
+            console.error('Failed to check email availability:', error);
         }
     };
 
@@ -624,45 +744,11 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                             type='tel'
                             inputMode='numeric'
                             placeholder='Enter your phone number'
+                            maxLength={10}
                             onKeyDown={handlePhoneKeyDown}
                             onChange={handlePhoneChange}
-                            onBlur={() => {
-                                const inputValue = phoneInputRef.current?.value.trim() || '';
-                                if (!inputValue) {
-                                    setPhoneError('Phone number is required');
-                                    return;
-                                }
-                                const digitsOnly = inputValue.replace(/\D/g, '');
-                                if (digitsOnly.length < 10) {
-                                    setPhoneError('Please enter a valid phone number');
-                                    return;
-                                }
-                                let countryDialCode = '91';
-                                if (itiRef.current) {
-                                    const countryData = itiRef.current.getSelectedCountryData();
-                                    countryDialCode = countryData?.dialCode || '91';
-                                }
-                                const nationalDigits = digitsOnly.startsWith(countryDialCode)
-                                    ? digitsOnly.slice(countryDialCode.length)
-                                    : digitsOnly;
-                                const formattedNumber = digitsOnly.startsWith(countryDialCode)
-                                    ? `+${digitsOnly}`
-                                    : `+${countryDialCode}${digitsOnly}`;
-                                setPhone(formattedNumber);
-                                if (nationalDigits.startsWith('0')) {
-                                    setPhoneError('Phone number cannot start with 0');
-                                    return;
-                                }
-                                if (nationalDigits.split('').every((d) => d === nationalDigits[0])) {
-                                    setPhoneError('Phone number cannot have all same digits');
-                                    return;
-                                }
-                                if (countryDialCode === '91' && nationalDigits.length !== 10) {
-                                    setPhoneError('Indian phone number must be exactly 10 digits');
-                                    return;
-                                }
-                                setPhoneError('');
-                            }}
+                            onInput={handlePhoneChange}
+                            onBlur={handlePhoneBlur}
                             required
                             className={`h-9 ${phoneError ? 'border-red-500 focus:border-red-500' : ''}`}
                             data-gtm-element={`${config.elementPrefix}_phone_input`}
@@ -681,13 +767,7 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
                         placeholder={role === 'hr' ? 'jane@company.com' : 'john@example.com'}
                         value={email}
                         onChange={handleEmailChange}
-                        onBlur={() => {
-                            if (!email.trim()) {
-                                setEmailError('Email is required');
-                            } else if (!validateEmail(email)) {
-                                setEmailError('Please enter a valid email address');
-                            }
-                        }}
+                        onBlur={handleEmailBlur}
                         required
                         className={`h-9 ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
                         data-gtm-element={`${config.elementPrefix}_email_input`}

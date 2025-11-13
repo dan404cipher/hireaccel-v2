@@ -791,6 +791,31 @@ export class AuthController {
     });
 
   /**
+   * Check email/phone availability
+   * POST /auth/check-availability
+   */
+  static checkAvailability = asyncHandler(async (req: AuthenticatedRequest, res: Response, _next: NextFunction) => {
+    const { email, phoneNumber } = req.body;
+
+    // Validate input
+    if (!email && !phoneNumber) {
+        return res.status(400).json({
+            type: 'https://httpstatuses.com/400',
+            title: 'Bad Request',
+            status: 400,
+            detail: 'Either email or phone number is required',
+        });
+    }
+
+    const result = await AuthService.checkAvailability({ email, phoneNumber });
+
+    return res.json({
+        success: true,
+        data: result,
+    });
+  });
+
+  /**
    * Get current user
    * GET /auth/me
    */
