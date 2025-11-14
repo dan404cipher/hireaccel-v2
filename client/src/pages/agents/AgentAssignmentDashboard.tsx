@@ -452,6 +452,7 @@ export default function AgentAssignmentDashboard() {
   } = useAgentCandidates({
     page: candidatesPage,
     limit: PAGE_SIZE,
+    search: candidateSearchTerm || undefined,
   });
 
   // Extract data from API responses
@@ -496,7 +497,7 @@ export default function AgentAssignmentDashboard() {
 
   useEffect(() => {
     setCandidatesPage(1);
-  }, [candidateSearchTerm, candidates.length]);
+  }, [candidateSearchTerm]);
 
   useEffect(() => {
     setHrPage(1);
@@ -689,29 +690,12 @@ export default function AgentAssignmentDashboard() {
     return matchesId(searchTerm, customId);
   };
 
+  // When search is provided, API handles filtering server-side, so use candidates directly
+  // No client-side filtering needed since API returns filtered results
   const filteredCandidates = useMemo(() => {
-    if (!candidateSearchTerm) {
-      console.debug('[AgentAssignmentDashboard] Candidate search cleared, returning all candidates:', candidates.length);
-      return candidates;
-    }
-
-    const results = candidates.filter((candidate: any) =>
-      candidateMatchesSearchTerm(candidate, candidateSearchTerm)
-    );
-
-    console.debug('[AgentAssignmentDashboard] Candidate search results', {
-      searchTerm: candidateSearchTerm,
-      totalCandidates: candidates.length,
-      matchedCount: results.length,
-      matchedIds: results.slice(0, 10).map((candidate: any) => ({
-        candidateId: candidate._id,
-        userCustomId: candidate.userId?.customId,
-        userName: `${candidate.userId?.firstName || ''} ${candidate.userId?.lastName || ''}`.trim(),
-      })),
-    });
-
-    return results;
-  }, [candidates, candidateSearchTerm]);
+    // API already handles search filtering, so just return candidates as-is
+    return candidates;
+  }, [candidates]);
 
   // Filter HR users based on search term
   const hrMatchesSearchTerm = (hr: any, searchTerm: string) => {
@@ -774,7 +758,9 @@ export default function AgentAssignmentDashboard() {
     : filteredHRs.slice((hrPage - 1) * PAGE_SIZE, hrPage * PAGE_SIZE);
 
   const jobsPagination = buildPaginationInfo(jobsPage, filteredJobs.length, jobsMeta);
-  const candidatesPagination = buildPaginationInfo(candidatesPage, filteredCandidates.length, candidatesMeta);
+  // Use candidates.length (current page count) instead of filteredCandidates.length
+  // API handles pagination and filtering, so meta.total should be used for total count
+  const candidatesPagination = buildPaginationInfo(candidatesPage, candidates.length, candidatesMeta);
   const hrPagination = buildPaginationInfo(hrPage, filteredHRs.length, isAdmin ? hrMeta : undefined);
   const jobsPageIndicators = useMemo(
     () => generatePageIndicators(jobsPage, jobsPagination.totalPages),

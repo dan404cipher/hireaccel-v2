@@ -23,7 +23,8 @@
         "migrate:resumes-to-s3": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/migrate-resumes-to-s3.ts",
         "migrate:banners-to-s3": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/migrate-banners-to-s3.ts",
         "check:resume-files": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/check-resume-files.ts",
-        "check:banner-files": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/check-banners.ts"
+        "check:banner-files": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/check-banners.ts",
+        "send:test-email": "node -r @swc-node/register -r tsconfig-paths/register src/scripts/send-test-email.ts"
     },
     "keywords": [
         "recruitment",

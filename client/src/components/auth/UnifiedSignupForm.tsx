@@ -364,18 +364,18 @@ const UnifiedSignupForm = ({ role, variant = 'default', onSuccess, className = '
             ? `+${digitsOnly}`
             : `+${countryDialCode}${digitsOnly}`;
         setPhone(formattedNumber);
-        if (nationalDigits.startsWith('0')) {
-            setPhoneError('Phone number cannot start with 0');
-            return;
-        }
-        if (nationalDigits.split('').every((d) => d === nationalDigits[0])) {
-            setPhoneError('Phone number cannot have all same digits');
-            return;
-        }
-        if (countryDialCode === '91' && nationalDigits.length !== 10) {
-            setPhoneError('Indian phone number must be exactly 10 digits');
-            return;
-        }
+                if (nationalDigits.startsWith('0')) {
+                    setPhoneError('Phone number cannot start with 0');
+                    return;
+                }
+                if (nationalDigits.split('').every((d) => d === nationalDigits[0])) {
+                    setPhoneError('Phone number cannot have all same digits');
+                    return;
+                }
+                if (countryDialCode === '91' && nationalDigits.length !== 10) {
+                    setPhoneError('Indian phone number must be exactly 10 digits');
+                    return;
+                }
 
         // Check if phone number is already taken
         try {
