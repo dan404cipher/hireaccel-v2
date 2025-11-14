@@ -540,14 +540,15 @@ const CandidateProfile: React.FC = () => {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-      if (!allowedTypes.includes(file.type)) {
+      // Validate file type - only PDF allowed
+      const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!isPDF) {
         toast({
           title: 'Invalid File Type',
-          description: 'Please upload a PDF or Word document (.pdf, .doc, .docx)',
+          description: 'Please upload a PDF file (.pdf only)',
           variant: 'destructive',
         });
+        event.target.value = ''; // Clear the input
         return;
       }
 
@@ -1642,7 +1643,7 @@ const CandidateProfile: React.FC = () => {
                         <input
                           type="file"
                           id="resume-upload"
-                          accept=".pdf,.doc,.docx"
+                          accept=".pdf,application/pdf"
                           onChange={handleFileSelect}
                           className="hidden"
                         />
@@ -3124,7 +3125,7 @@ const CandidateProfile: React.FC = () => {
             <DialogHeader>
               <DialogTitle>Upload Resume</DialogTitle>
               <DialogDescription>
-                Upload your resume in PDF or Word format.
+                Upload your resume in PDF format.
               </DialogDescription>
             </DialogHeader>
 

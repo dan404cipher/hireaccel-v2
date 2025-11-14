@@ -211,8 +211,13 @@ ${trimmedText}`;
       // Add default values for required fields if they're missing and validate data
       const profile: Partial<CandidateProfile> = {
         // Validate arrays with maximum lengths to prevent overflow
+        // Truncate each skill to 50 characters to match schema validation
         skills: Array.isArray(parsedData.skills) ? 
-          parsedData.skills.filter((s: unknown) => typeof s === 'string').slice(0, 50) : [],
+          parsedData.skills
+            .filter((s: unknown) => typeof s === 'string')
+            .map((s: string) => s.trim().slice(0, 50)) // Truncate to 50 chars max
+            .filter((s: string) => s.length > 0) // Remove empty strings after truncation
+            .slice(0, 50) : [],
         experience: (parsedData.experience || [])
           .map(formatExperience)
           .filter((exp: ReturnType<typeof formatExperience>): exp is NonNullable<typeof exp> => exp !== null)

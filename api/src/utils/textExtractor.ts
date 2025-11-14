@@ -98,10 +98,12 @@ export class TextExtractor {
       }
 
       // If the PDF is scanned (image-based), use OCR
-      logger.info('PDF appears to be scanned, attempting OCR', {
+      // Note: Tesseract cannot process PDFs directly - it needs images
+      // For now, we'll return an error suggesting the user convert PDF to images
+      logger.warn('PDF appears to be scanned, but OCR for PDFs requires image conversion', {
         businessProcess: 'text_extraction',
       });
-      return await TextExtractor.performOCR(filePath);
+      throw new Error('This PDF appears to be scanned (image-based) and cannot be processed automatically. Please convert the PDF pages to images (PNG/JPG) and upload those, or ensure your PDF contains searchable text.');
     } catch (error) {
       logger.error('Error extracting text from PDF:', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -148,13 +150,20 @@ export class TextExtractor {
   }
 
   /**
-   * Perform OCR on an image or scanned document
+   * Perform OCR on an image file (PNG, JPG, etc.)
+   * Note: Tesseract cannot process PDFs directly - they must be converted to images first
    * @param filePath Path to the image file
    * @returns Extracted text content
    */
   private static async performOCR(filePath: string): Promise<string> {
     let worker = null;
     try {
+      // Check if file is a PDF (Tesseract cannot process PDFs)
+      const fileExtension = filePath.toLowerCase().split('.').pop();
+      if (fileExtension === 'pdf') {
+        throw new Error('Tesseract OCR cannot process PDF files directly. PDF pages must be converted to images (PNG/JPG) first.');
+      }
+
       // Create worker with timeout
       const workerPromise = createWorker('eng');
       worker = await Promise.race([
@@ -165,6 +174,7 @@ export class TextExtractor {
       ]);
       
       logger.info('OCR worker created, starting recognition', {
+        filePath,
         businessProcess: 'text_extraction',
       });
       
@@ -204,10 +214,18 @@ export class TextExtractor {
         }
       }
       
+      // Wrap error to provide more context
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Error performing OCR:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: errorMessage,
+        filePath,
         businessProcess: 'text_extraction',
       });
+      
+      // Provide helpful error message
+      if (errorMessage.includes('Pdf reading is not supported') || errorMessage.includes('PDF')) {
+        throw new Error('OCR cannot process PDF files directly. Please convert PDF pages to images (PNG/JPG) or ensure your PDF contains searchable text.');
+      }
       
       throw error;
     }
